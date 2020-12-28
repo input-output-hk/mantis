@@ -4,15 +4,16 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
@@ -21,8 +22,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
 import monix.eval.Task
-
-import scala.concurrent.ExecutionContext
+import monix.execution.Scheduler
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
 
@@ -45,7 +45,8 @@ object RegularSyncItSpecUtils {
       val specificConfig: EthashConfig = ethash.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
-      val consensus = EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed)
+      val consensus =
+        EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalEthashData)
       consensus
     }
 
@@ -54,7 +55,7 @@ object RegularSyncItSpecUtils {
       system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, testSyncConfig, system.scheduler), "peers-client")
 
     lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus, ExecutionContext.global)
+      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus, Scheduler.global)
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
 
@@ -63,6 +64,8 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
+    lazy val validators = buildEthashConsensus.validators
+
     lazy val regularSync = system.actorOf(
       RegularSync.props(
         peersClient,
@@ -70,7 +73,7 @@ object RegularSyncItSpecUtils {
         peerEventBus,
         ledger,
         bl,
-        blockchainConfig, // FIXME: remove in ETCM-280
+        validators.blockValidator,
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
@@ -92,12 +95,12 @@ object RegularSyncItSpecUtils {
         case None => bl.getBestBlock()
       }).flatMap { block =>
         Task {
-          val currentTd = bl
-            .getTotalDifficultyByHash(block.hash)
-            .getOrElse(throw new RuntimeException(s"block by hash: ${block.hash} doesn't exist"))
-          val currentWolrd = getMptForBlock(block)
-          val (newBlock, newTd, newWorld) = createChildBlock(block, currentTd, currentWolrd)(updateWorldForBlock)
-          broadcastBlock(newBlock, newTd)
+          val currentWeight = bl
+            .getChainWeightByHash(block.hash)
+            .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
+          val currentWorld = getMptForBlock(block)
+          val (newBlock, newWeight, _) = createChildBlock(block, currentWeight, currentWorld)(updateWorldForBlock)
+          broadcastBlock(newBlock, newWeight)
         }
       }
     }
@@ -110,12 +113,12 @@ object RegularSyncItSpecUtils {
         plusDifficulty: BigInt = 0
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
       val block: Block = bl.getBestBlock()
-      val currentTd = bl
-        .getTotalDifficultyByHash(block.hash)
-        .getOrElse(throw new RuntimeException(s"block by hash: ${block.hash} doesn't exist"))
+      val currentWeight = bl
+        .getChainWeightByHash(block.hash)
+        .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
       val currentWolrd = getMptForBlock(block)
-      val (newBlock, newTd, newWorld) =
-        createChildBlock(block, currentTd, currentWolrd, plusDifficulty)(updateWorldForBlock)
+      val (newBlock, _, _) =
+        createChildBlock(block, currentWeight, currentWolrd, plusDifficulty)(updateWorldForBlock)
       regularSync ! SyncProtocol.MinedBlock(newBlock)
     }
 
@@ -133,24 +136,24 @@ object RegularSyncItSpecUtils {
       bl.getWorldStateProxy(
         blockNumber = block.number,
         accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = Some(block.header.stateRoot),
+        stateRootHash = block.header.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
       )
     }
 
-    private def broadcastBlock(block: Block, td: BigInt) = {
-      broadcasterActor ! BroadcastBlock(NewBlock(block, td))
+    private def broadcastBlock(block: Block, weight: ChainWeight) = {
+      broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
     }
 
     private def createChildBlock(
         parent: Block,
-        parentTd: BigInt,
+        parentWeight: ChainWeight,
         parentWorld: InMemoryWorldStateProxy,
         plusDifficulty: BigInt = 0
     )(
         updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
-    ): (Block, BigInt, InMemoryWorldStateProxy) = {
+    ): (Block, ChainWeight, InMemoryWorldStateProxy) = {
       val newBlockNumber = parent.header.number + 1
       val newWorld = updateWorldForBlock(newBlockNumber, parentWorld)
       val newBlock = parent.copy(header =
@@ -161,8 +164,8 @@ object RegularSyncItSpecUtils {
           difficulty = plusDifficulty + parent.header.difficulty
         )
       )
-      val newTd = newBlock.header.difficulty + parentTd
-      (newBlock, newTd, parentWorld)
+      val newWeight = parentWeight.increase(newBlock.header)
+      (newBlock, newWeight, parentWorld)
     }
   }
 

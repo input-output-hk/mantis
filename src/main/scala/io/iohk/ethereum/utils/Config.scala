@@ -10,7 +10,6 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.VmConfig.VmMode
-import org.bouncycastle.util.encoders.Hex
 import ConfigUtils._
 
 import scala.collection.JavaConverters._
@@ -23,9 +22,10 @@ object Config {
 
   val testmode: Boolean = config.getBoolean("testmode")
 
-  val clientId: String = config.getString("client-id")
+  val clientId: String =
+    VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
-  val clientVersion: String = config.getString("client-version")
+  val clientVersion: String = VersionInfo.nodeName()
 
   val nodeKeyFile: String = config.getString("node-key-file")
 
@@ -62,9 +62,12 @@ object Config {
       val waitForStatusTimeout: FiniteDuration = peerConfig.getDuration("wait-for-status-timeout").toMillis.millis
       val waitForChainCheckTimeout: FiniteDuration =
         peerConfig.getDuration("wait-for-chain-check-timeout").toMillis.millis
+      val minOutgoingPeers: Int = peerConfig.getInt("min-outgoing-peers")
       val maxOutgoingPeers: Int = peerConfig.getInt("max-outgoing-peers")
       val maxIncomingPeers: Int = peerConfig.getInt("max-incoming-peers")
       val maxPendingPeers: Int = peerConfig.getInt("max-pending-peers")
+      val pruneIncomingPeers: Int = peerConfig.getInt("prune-incoming-peers")
+      val minPruneAge: FiniteDuration = peerConfig.getDuration("min-prune-age").toMillis.millis
       val networkId: Int = blockchainConfig.networkId
 
       val rlpxConfiguration = new RLPxConfiguration {
@@ -86,6 +89,8 @@ object Config {
       val shortBlacklistDuration: FiniteDuration = peerConfig.getDuration("short-blacklist-duration").toMillis.millis
       val longBlacklistDuration: FiniteDuration = peerConfig.getDuration("long-blacklist-duration").toMillis.millis
 
+      val statSlotDuration: FiniteDuration = peerConfig.getDuration("stat-slot-duration").toMillis.millis
+      val statSlotCount: Int = peerConfig.getInt("stat-slot-count")
     }
 
   }
@@ -94,6 +99,7 @@ object Config {
       doFastSync: Boolean,
       peersScanInterval: FiniteDuration,
       blacklistDuration: FiniteDuration,
+      criticalBlacklistDuration: FiniteDuration,
       startRetryInterval: FiniteDuration,
       syncRetryInterval: FiniteDuration,
       peerResponseTimeout: FiniteDuration,
@@ -115,7 +121,6 @@ object Config {
       fastSyncThrottle: FiniteDuration,
       maxQueuedBlockNumberAhead: Int,
       maxQueuedBlockNumberBehind: Int,
-      broadcastNewBlockHashes: Boolean,
       maxNewBlockHashAge: Int,
       maxNewHashes: Int,
       redownloadMissingStateNodes: Boolean,
@@ -137,6 +142,7 @@ object Config {
         doFastSync = syncConfig.getBoolean("do-fast-sync"),
         peersScanInterval = syncConfig.getDuration("peers-scan-interval").toMillis.millis,
         blacklistDuration = syncConfig.getDuration("blacklist-duration").toMillis.millis,
+        criticalBlacklistDuration = syncConfig.getDuration("critical-blacklist-duration").toMillis.millis,
         startRetryInterval = syncConfig.getDuration("start-retry-interval").toMillis.millis,
         syncRetryInterval = syncConfig.getDuration("sync-retry-interval").toMillis.millis,
         peerResponseTimeout = syncConfig.getDuration("peer-response-timeout").toMillis.millis,
@@ -160,7 +166,6 @@ object Config {
         maxQueuedBlockNumberAhead = syncConfig.getInt("max-queued-block-number-ahead"),
         maxNewBlockHashAge = syncConfig.getInt("max-new-block-hash-age"),
         maxNewHashes = syncConfig.getInt("max-new-hashes"),
-        broadcastNewBlockHashes = syncConfig.getBoolean("broadcast-new-block-hashes"),
         redownloadMissingStateNodes = syncConfig.getBoolean("redownload-missing-state-nodes"),
         fastSyncBlockValidationK = syncConfig.getInt("fast-sync-block-validation-k"),
         fastSyncBlockValidationN = syncConfig.getInt("fast-sync-block-validation-n"),

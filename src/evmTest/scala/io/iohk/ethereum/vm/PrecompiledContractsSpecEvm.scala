@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.SignedTransaction.{FirstByteOfAddress, LastByteOfAddress}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.vm.utils.EvmTestEnv
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.funsuite.AnyFunSuite
@@ -14,7 +14,7 @@ class PrecompiledContractsSpecEvm extends AnyFunSuite with Matchers with SecureR
 
   test("Precompiled Contracts") {
     val keyPair = generateKeyPair(secureRandom)
-    val bytes: Array[Byte] = ByteString("aabbccdd").toArray[Byte]
+    val bytes: Array[Byte] = crypto.kec256(ByteString("aabbccdd").toArray[Byte])
     val signature = ECDSASignature.sign(bytes, keyPair)
     val pubKey = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false)
     val address = crypto.kec256(pubKey.tail).slice(FirstByteOfAddress, LastByteOfAddress)

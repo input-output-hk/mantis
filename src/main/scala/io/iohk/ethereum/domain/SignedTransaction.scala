@@ -1,29 +1,25 @@
 package io.iohk.ethereum.domain
 
-import java.math.BigInteger
-import java.util.concurrent.Executors
-
 import akka.util.ByteString
 import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import java.math.BigInteger
+import java.util.concurrent.Executors
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
-
-import scala.concurrent.{ExecutionContext, Future}
-
 import scala.util.Try
 
 object SignedTransaction {
 
-  implicit private val executionContext: ExecutionContext =
-    ExecutionContext.fromExecutor(Executors.newWorkStealingPool())
+  implicit private val executionContext: Scheduler = Scheduler(Executors.newWorkStealingPool())
 
   // txHash size is 32bytes, Address size is 20 bytes, taking into account some overhead key-val pair have
   // around 70bytes then 100k entries have around 7mb. 100k entries is around 300blocks for Ethereum network.
@@ -74,9 +70,7 @@ object SignedTransaction {
   def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
-    //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-    val pub = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    val address = Address(crypto.kec256(pub).drop(FirstByteOfAddress))
+    val address = Address(keyPair)
     SignedTransactionWithSender(tx, sig, address)
   }
 
@@ -118,11 +112,11 @@ object SignedTransaction {
       .flatten
       .grouped(batchSize)
 
-    Future.traverse(blocktx)(calculateSendersForTxs)
+    Task.traverse(blocktx.toSeq)(calculateSendersForTxs).runAsyncAndForget
   }
 
-  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Future[Unit] = Future {
-    txs.foreach(calculateAndCacheSender)
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Task[Unit] = {
+    Task(txs.foreach(calculateAndCacheSender))
   }
 
   private def calculateAndCacheSender(stx: SignedTransaction) = {
@@ -166,12 +160,11 @@ case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
 
-  override def toString: String = {
-    s"""SignedTransaction {
-         |tx: $tx
-         |signature: $signature
-         |}""".stripMargin
-  }
+  override def toString: String =
+    s"SignedTransaction { " +
+      s"tx: $tx, " +
+      s"signature: $signature" +
+      s"}"
 
   def isChainSpecific: Boolean =
     signature.v != ECDSASignature.negativePointSign && signature.v != ECDSASignature.positivePointSign

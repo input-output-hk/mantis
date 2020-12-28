@@ -12,13 +12,10 @@ import org.bouncycastle.util.encoders.Hex
 object PV63 {
 
   object GetNodeData {
-
-    val code: Int = Versions.SubProtocolOffset + 0x0d
-
     implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData)
         extends MessageSerializableImplicit[GetNodeData](underlyingMsg)
         with RLPSerializable {
-      override def code: Int = GetNodeData.code
+      override def code: Int = Codes.GetNodeDataCode
 
       override def toRLPEncodable: RLPEncodeable = toRlpList(msg.mptElementsHashes)
     }
@@ -32,14 +29,13 @@ object PV63 {
   }
 
   case class GetNodeData(mptElementsHashes: Seq[ByteString]) extends Message {
-    override def code: Int = GetNodeData.code
+    override def code: Int = Codes.GetNodeDataCode
 
-    override def toString: String = {
-      s"""GetNodeData{
-         |hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |}
-       """.stripMargin
-    }
+    override def toString: String =
+      s"GetNodeData{ hashes: ${mptElementsHashes.map(e => Hex.toHexString(e.toArray[Byte]))} }"
+
+    override def toShortString: String =
+      s"GetNodeData{ hashes: <${mptElementsHashes.size} state tree hashes> }"
   }
 
   object AccountImplicits {
@@ -83,16 +79,13 @@ object PV63 {
   }
 
   object NodeData {
-
-    val code: Int = Versions.SubProtocolOffset + 0x0e
-
     implicit class NodeDataEnc(val underlyingMsg: NodeData)
         extends MessageSerializableImplicit[NodeData](underlyingMsg)
         with RLPSerializable {
 
       import MptNodeEncoders._
 
-      override def code: Int = NodeData.code
+      override def code: Int = Codes.NodeDataCode
       override def toRLPEncodable: RLPEncodeable = msg.values
 
       @throws[RLPException]
@@ -109,23 +102,20 @@ object PV63 {
 
   case class NodeData(values: Seq[ByteString]) extends Message {
 
-    override def code: Int = NodeData.code
+    override def code: Int = Codes.NodeDataCode
 
-    override def toString: String = {
-      s"""NodeData{
-         |values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))}
-         |}
-       """.stripMargin
-    }
+    override def toString: String =
+      s"NodeData{ values: ${values.map(b => Hex.toHexString(b.toArray[Byte]))} }"
+
+    override def toShortString: String =
+      s"NodeData{ values: <${values.size} state tree values> }"
   }
 
   object GetReceipts {
-    val code: Int = Versions.SubProtocolOffset + 0x0f
-
     implicit class GetReceiptsEnc(val underlyingMsg: GetReceipts)
         extends MessageSerializableImplicit[GetReceipts](underlyingMsg)
         with RLPSerializable {
-      override def code: Int = GetReceipts.code
+      override def code: Int = Codes.GetReceiptsCode
 
       override def toRLPEncodable: RLPEncodeable = msg.blockHashes: RLPList
     }
@@ -139,14 +129,12 @@ object PV63 {
   }
 
   case class GetReceipts(blockHashes: Seq[ByteString]) extends Message {
-    override def code: Int = GetReceipts.code
+    override def code: Int = Codes.GetReceiptsCode
 
-    override def toString: String = {
-      s"""GetReceipts{
-         |blockHashes: ${blockHashes.map(e => Hex.toHexString(e.toArray[Byte]))}
-         |}
-       """.stripMargin
-    }
+    override def toString: String =
+      s"GetReceipts{ blockHashes: ${blockHashes.map(e => Hex.toHexString(e.toArray[Byte]))} } "
+
+    override def toShortString: String = toString
   }
 
   object TxLogEntryImplicits {
@@ -211,15 +199,12 @@ object PV63 {
   }
 
   object Receipts {
-
-    val code: Int = Versions.SubProtocolOffset + 0x10
-
     implicit class ReceiptsEnc(val underlyingMsg: Receipts)
         extends MessageSerializableImplicit[Receipts](underlyingMsg)
         with RLPSerializable {
       import ReceiptImplicits._
 
-      override def code: Int = Receipts.code
+      override def code: Int = Codes.ReceiptsCode
 
       override def toRLPEncodable: RLPEncodeable = RLPList(
         msg.receiptsForBlocks.map((rs: Seq[Receipt]) => RLPList(rs.map((r: Receipt) => r.toRLPEncodable): _*)): _*
@@ -237,6 +222,8 @@ object PV63 {
   }
 
   case class Receipts(receiptsForBlocks: Seq[Seq[Receipt]]) extends Message {
-    override def code: Int = Receipts.code
+    override def code: Int = Codes.ReceiptsCode
+    override def toShortString: String =
+      s"Receipts { receiptsForBlocks: <${receiptsForBlocks.map(_.size).sum} receipts across ${receiptsForBlocks.size} blocks> }"
   }
 }

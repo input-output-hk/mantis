@@ -1,12 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.util.concurrent.TimeUnit
-
-import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.QAService.{
@@ -17,66 +14,12 @@ import io.iohk.ethereum.jsonrpc.QAService.{
 }
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.Logger
+import monix.eval.Task
 import org.json4s.JsonDSL._
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
-import scala.concurrent.duration.FiniteDuration
-import scala.util.{Failure, Success}
-
-object JsonRpcController {
-  trait JsonRpcConfig {
-    def apis: Seq[String]
-    def accountTransactionsMaxBlocks: Int
-    def minerActiveTimeout: FiniteDuration
-    def httpServerConfig: JsonRpcHttpServerConfig
-    def ipcServerConfig: JsonRpcIpcServerConfig
-  }
-
-  object JsonRpcConfig {
-    def apply(mantisConfig: TypesafeConfig): JsonRpcConfig = {
-      import scala.concurrent.duration._
-      val rpcConfig = mantisConfig.getConfig("network.rpc")
-
-      new JsonRpcConfig {
-        override val apis: Seq[String] = {
-          val providedApis = rpcConfig.getString("apis").split(",").map(_.trim.toLowerCase)
-          val invalidApis =
-            providedApis.diff(Apis.available)
-          require(invalidApis.isEmpty, s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}")
-          providedApis
-        }
-
-        override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")
-        override def minerActiveTimeout: FiniteDuration = rpcConfig.getDuration("miner-active-timeout").toMillis.millis
-
-        override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
-        override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
-      }
-    }
-  }
-
-  object Apis {
-    val Eth = "eth"
-    val Web3 = "web3"
-    val Net = "net"
-    val Personal = "personal"
-    val Daedalus = "daedalus"
-    val Debug = "debug"
-    val Rpc = "rpc"
-    val Test = "test"
-    val Iele = "iele"
-    val Qa = "qa"
-    val Checkpointing = "checkpointing"
-
-    val available = Seq(Eth, Web3, Net, Personal, Daedalus, Debug, Test, Iele, Qa, Checkpointing)
-  }
-
-}
 
 class JsonRpcController(
     web3Service: Web3Service,
@@ -87,25 +30,27 @@ class JsonRpcController(
     debugService: DebugService,
     qaService: QAService,
     checkpointingService: CheckpointingService,
-    config: JsonRpcConfig
-) extends Logger {
+    mantisService: MantisService,
+    override val config: JsonRpcConfig
+) extends ApisBuilder
+    with Logger
+    with JsonRpcBaseController {
 
   import CheckpointingJsonMethodsImplicits._
   import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
-  import JsonRpcController._
-  import JsonRpcError._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
+  import MantisJsonMethodImplicits._
 
-  lazy val apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]]] = Map(
+  override def apisHandleFns: Map[String, PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]]] = Map(
     Apis.Eth -> handleEthRequest,
     Apis.Web3 -> handleWeb3Request,
     Apis.Net -> handleNetRequest,
     Apis.Personal -> handlePersonalRequest,
-    Apis.Daedalus -> handleDaedalusRequest,
+    Apis.Mantis -> handleMantisRequest,
     Apis.Rpc -> handleRpcRequest,
     Apis.Debug -> handleDebugRequest,
     Apis.Test -> handleTestRequest,
@@ -114,16 +59,16 @@ class JsonRpcController(
     Apis.Checkpointing -> handleCheckpointingRequest
   )
 
-  private def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
+  override def enabledApis: Seq[String] = config.apis :+ Apis.Rpc // RPC enabled by default
 
-  private def handleWeb3Request: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleWeb3Request: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "web3_sha3", _, _) =>
       handle[Sha3Request, Sha3Response](web3Service.sha3, req)
     case req @ JsonRpcRequest(_, "web3_clientVersion", _, _) =>
       handle[ClientVersionRequest, ClientVersionResponse](web3Service.clientVersion, req)
   }
 
-  private def handleNetRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleNetRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "net_version", _, _) =>
       handle[VersionRequest, VersionResponse](netService.version, req)
     case req @ JsonRpcRequest(_, "net_listening", _, _) =>
@@ -134,7 +79,7 @@ class JsonRpcController(
 
   // scalastyle:off cyclomatic.complexity
   // scalastyle:off method.length
-  private def handleEthRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleEthRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
     case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
@@ -256,19 +201,19 @@ class JsonRpcController(
       handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
   }
 
-  private def handleDebugRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleDebugRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "debug_listPeersInfo", _, _) =>
       handle[ListPeersInfoRequest, ListPeersInfoResponse](debugService.listPeersInfo, req)
   }
 
-  private def handleTestRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     testServiceOpt match {
       case Some(testService) => handleTestRequest(testService)
       case None => PartialFunction.empty
     }
   }
 
-  private def handleTestRequest(testService: TestService): PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleTestRequest(testService: TestService): PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "test_setChainParams", _, _) =>
       handle[SetChainParamsRequest, SetChainParamsResponse](testService.setChainParams, req)
     case req @ JsonRpcRequest(_, "test_mineBlocks", _, _) =>
@@ -281,14 +226,14 @@ class JsonRpcController(
       handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
   }
 
-  private def handleIeleRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleIeleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "iele_sendTransaction", _, _) =>
       handle[SendIeleTransactionRequest, SendTransactionResponse](personalService.sendIeleTransaction, req)
     case req @ JsonRpcRequest(_, "iele_call", _, _) =>
       handle[IeleCallRequest, IeleCallResponse](ethService.ieleCall, req)
   }
 
-  private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "personal_importRawKey", _, _) =>
       handle[ImportRawKeyRequest, ImportRawKeyResponse](personalService.importRawKey, req)
 
@@ -317,12 +262,12 @@ class JsonRpcController(
       handle[EcRecoverRequest, EcRecoverResponse](personalService.ecRecover, req)
   }
 
-  private def handleDaedalusRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
-    case req @ JsonRpcRequest(_, "daedalus_getAccountTransactions", _, _) =>
-      handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](ethService.getAccountTransactions, req)
+  private def handleMantisRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
+    case req @ JsonRpcRequest(_, "mantis_getAccountTransactions", _, _) =>
+      handle[GetAccountTransactionsRequest, GetAccountTransactionsResponse](mantisService.getAccountTransactions, req)
   }
 
-  private def handleQARequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleQARequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "qa_mineBlocks", _, _) =>
       handle[QAService.MineBlocksRequest, QAService.MineBlocksResponse](qaService.mineBlocks, req)
 
@@ -333,7 +278,7 @@ class JsonRpcController(
       handle[GetFederationMembersInfoRequest, GetFederationMembersInfoResponse](qaService.getFederationMembersInfo, req)
   }
 
-  private def handleCheckpointingRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleCheckpointingRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "checkpointing_getLatestBlock", _, _) =>
       handle[GetLatestBlockRequest, GetLatestBlockResponse](checkpointingService.getLatestBlock, req)
 
@@ -341,63 +286,9 @@ class JsonRpcController(
       handle[PushCheckpointRequest, PushCheckpointResponse](checkpointingService.pushCheckpoint, req)
   }
 
-  private def handleRpcRequest: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = {
+  private def handleRpcRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
       val result = enabledApis.map { _ -> "1.0" }.toMap
-      Future.successful(JsonRpcResponse("2.0", Some(result), None, req.id))
+      Task(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
-
-  def handleRequest(request: JsonRpcRequest): Future[JsonRpcResponse] = {
-    val startTimeNanos = System.nanoTime()
-
-    val notFoundFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] = { case _ =>
-      JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
-      Future.successful(errorResponse(request, MethodNotFound))
-    }
-
-    val handleFn: PartialFunction[JsonRpcRequest, Future[JsonRpcResponse]] =
-      enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
-
-    handleFn(request).andThen {
-      case Success(JsonRpcResponse(_, _, Some(JsonRpcError(_, _, _)), _)) =>
-        JsonRpcControllerMetrics.MethodsErrorCounter.increment()
-
-      case Success(JsonRpcResponse(_, _, None, _)) =>
-        JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
-
-        val endTimeNanos = System.nanoTime()
-        val dtNanos = endTimeNanos - startTimeNanos
-        JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
-
-      case Failure(t) =>
-        JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
-        log.error("Error serving request", t)
-    }
-  }
-
-  private def handle[Req, Res](
-      fn: Req => Future[Either[JsonRpcError, Res]],
-      rpcReq: JsonRpcRequest
-  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Future[JsonRpcResponse] = {
-    dec.decodeJson(rpcReq.params) match {
-      case Right(req) =>
-        fn(req)
-          .map {
-            case Right(success) => successResponse(rpcReq, success)
-            case Left(error) => errorResponse(rpcReq, error)
-          }
-          .recover { case ex =>
-            log.error("Failed to handle RPC request", ex)
-            errorResponse(rpcReq, InternalError)
-          }
-      case Left(error) =>
-        Future.successful(errorResponse(rpcReq, error))
-    }
-  }
-
-  private def successResponse[T](req: JsonRpcRequest, result: T)(implicit enc: JsonEncoder[T]): JsonRpcResponse =
-    JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))
-
-  private def errorResponse[T](req: JsonRpcRequest, error: JsonRpcError): JsonRpcResponse =
-    JsonRpcResponse(req.jsonrpc, None, Some(error), req.id.getOrElse(0))
 }

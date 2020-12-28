@@ -4,22 +4,27 @@ import java.net.{InetSocketAddress, URI}
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.io.Tcp
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.FiniteDuration
-import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFactory {
+class RLPxConnectionHandlerSpec
+    extends TestKit(ActorSystem("RLPxConnectionHandlerSpec_System"))
+    with AnyFlatSpecLike
+    with WithActorSystemShutDown
+    with Matchers
+    with MockFactory {
 
   it should "write messages send to TCP connection" in new TestSetup {
 
@@ -166,14 +171,13 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   trait TestSetup extends MockFactory with SecureRandomBuilder {
-    implicit val system = ActorSystem("RLPxHandlerSpec_System")
 
     //Mock parameters for RLPxConnectionHandler
     val mockMessageDecoder = new MessageDecoder {
       override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
-    val protocolVersion = Versions.PV63
+    val protocolVersion = ProtocolVersions.PV63
     val mockHandshaker = mock[AuthHandshaker]
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
@@ -231,5 +235,4 @@ class RLPxConnectionHandlerSpec extends AnyFlatSpec with Matchers with MockFacto
       rlpxConnectionParent.expectMsgClass(classOf[RLPxConnectionHandler.ConnectionEstablished])
     }
   }
-
 }

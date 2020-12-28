@@ -1,0 +1,30 @@
+{
+  "extraData": "0x00",
+  "nonce": "0x0000000000000042",
+  "_commentAboutGasLimit": "Set to 8 million (value used in ETC mainnet)",
+  "gasLimit": "0x7A1200",
+  "_commentAboutDifficulty": "Set to 1000000, a value closer to the one achieved by our current testnet with our 30 second block rate",
+  "difficulty": "0xF4240",
+  "ommersHash": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+  "_commentAboutTimestamp": "Set to 11/05/2020 @ 12:00am (UTC), to be closer to our release date and not affect as much the difficulty calculations",
+  "timestamp": "0x5FA34080",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "alloc": {
+  "075b073eaa848fc14de2fd9c2a18d97a4783d84c": {
+    "balance": "1606938044258990275541962092341162602522202993782792835301376"
+  },
+  "18f496690eb3fabb794a653be8097af5331c07b1": {
+    "balance": "1606938044258990275541962092341162602522202993782792835301376"
+  },
+  "1ff7fc39f7f4dc79c5867b9514d0e42607741384": {
+    "balance": "1606938044258990275541962092341162602522202993782792835301376"
+  },
+  "75b0f1c605223de2a013bf7f26d4cd93c63a5eb8": {
+    "balance": "1606938044258990275541962092341162602522202993782792835301376"
+  },
+  "7e3166074d45c3311908315da1af5f5a965b7ece": {
+    "balance": "1606938044258990275541962092341162602522202993782792835301376"
+  }
+}
+}

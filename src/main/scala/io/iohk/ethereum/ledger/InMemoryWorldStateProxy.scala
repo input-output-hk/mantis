@@ -18,14 +18,11 @@ object InMemoryWorldStateProxy {
       nodesKeyValueStorage: MptStorage,
       accountStartNonce: UInt256,
       getBlockHashByNumber: BigInt => Option[ByteString],
-      stateRootHash: Option[ByteString] = None,
+      stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
   ): InMemoryWorldStateProxy = {
-    val accountsStateTrieProxy = createProxiedAccountsStateTrie(
-      nodesKeyValueStorage,
-      stateRootHash.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash))
-    )
+    val accountsStateTrieProxy = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash)
     new InMemoryWorldStateProxy(
       nodesKeyValueStorage,
       accountsStateTrieProxy,
@@ -121,7 +118,7 @@ class InMemoryWorldStateProxyStorage(
   override def load(addr: BigInt): BigInt = wrapped.get(addr).getOrElse(0)
 }
 
-class InMemoryWorldStateProxy private[ledger] (
+class InMemoryWorldStateProxy(
     // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
     // Accounts state and accounts storage states are saved within the same storage
     val stateStorage: MptStorage,

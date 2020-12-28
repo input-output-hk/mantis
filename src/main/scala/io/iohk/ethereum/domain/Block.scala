@@ -11,12 +11,8 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
   * @param body   Block body
   */
 case class Block(header: BlockHeader, body: BlockBody) {
-  override def toString: String = {
-    s"""BlockHeader {
-       | header: $header
-       | body: $body
-     """.stripMargin
-  }
+  override def toString: String =
+    s"Block { header: $header, body: $body }"
 
   def idTag: String =
     header.idTag
@@ -27,7 +23,7 @@ case class Block(header: BlockHeader, body: BlockBody) {
 
   val hasCheckpoint: Boolean = header.hasCheckpoint
 
-  def isParentOf(child: Block): Boolean = number + 1 == child.number && child.header.parentHash == hash
+  def isParentOf(child: Block): Boolean = header.isParentOf(child.header)
 }
 
 object Block {

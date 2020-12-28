@@ -62,6 +62,45 @@ in
       '';
     };
 
+    test-bytes = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "bytes tests";
+      command = ''
+        nix-shell --run '$SBT coverage bytes/test'
+      '';
+      artifactPaths = [
+        "bytes/target/test-reports/**/*"
+        "bytes/target/scala-2.12/scoverage-report/**/*"
+        "bytes/target/scala-2.12/coverage-report/**/*"
+      ];
+    };
+
+    test-crypto = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "Crypto tests";
+      command = ''
+        nix-shell --run '$SBT coverage crypto/test'
+      '';
+      artifactPaths = [
+        "crypto/target/test-reports/**/*"
+        "crypto/target/scala-2.12/scoverage-report/**/*"
+        "crypto/target/scala-2.12/coverage-report/**/*"
+      ];
+    };
+
+    test-rlp = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "RLP tests";
+      command = ''
+        nix-shell --run '$SBT coverage rlp/test'
+      '';
+      artifactPaths = [
+        "rlp/target/test-reports/**/*"
+        "rlp/target/scala-2.12/scoverage-report/**/*"
+        "rlp/target/scala-2.12/coverage-report/**/*"
+      ];
+    };
+
     test-unit = commonAttrs // {
       dependsOn = [ compile ];
       label = "unit tests";
@@ -70,8 +109,8 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala/2.12/scoverage-report/**/*"
-        "target/scala/2.12/coverage-report/**/*"
+        "target/scala-2.12/scoverage-report/**/*"
+        "target/scala-2.12/coverage-report/**/*"
       ];
     };
 
@@ -83,8 +122,8 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala/2.12/scoverage-report/**/*"
-        "target/scala/2.12/coverage-report/**/*"
+        "target/scala-2.12/scoverage-report/**/*"
+        "target/scala-2.12/coverage-report/**/*"
       ];
     };
 
@@ -117,7 +156,7 @@ in
       dependsOn = [ compile ];
       label = "additional compilation & dist";
       command = ''
-        nix-shell --run '$SBT benchmark:compile snappy:compile dist'
+        nix-shell --run '$SBT benchmark:compile dist'
       '';
     };
   };

@@ -5,18 +5,28 @@ import com.monovore.decline.{Command, Opts}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.keystore.{EncryptedKey, EncryptedKeyJsonCodec}
 import io.iohk.ethereum.utils.ByteStringUtils
 import java.security.SecureRandom
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 
-object CliCommands {
+object CliCommands extends SecureRandomBuilder {
 
   val generatePrivateKeyCommand = "generate-private-key"
+  val generateKeyPairsCommand = "generate-key-pairs"
   val deriveAddressCommand = "derive-address"
   val generateAllocsCommand = "generate-allocs"
+  val encryptKeyCommand = "encrypt-key"
+
   val balanceOption = "balance"
   val keyOption = "key"
   val addressOption = "address"
+  val passphraseOption = "passphrase"
+
+  val privateKeyArgument = "private-key"
+  private val privateKeyOpt = Opts
+    .argument[String](privateKeyArgument)
 
   private val GeneratePrivateKeyCommand: Command[String] =
     Command(name = generatePrivateKeyCommand, header = "Generate private key") {
@@ -27,13 +37,25 @@ object CliCommands {
       }
     }
 
+  private val GenerateKeyPairs: Command[String] =
+    Command(name = generateKeyPairsCommand, header = "Generate key pairs private/public") {
+      val keyNumberOpts = Opts.argument[Int]("number of keys to generate").withDefault(1)
+
+      keyNumberOpts.map { numOfKeys =>
+        val keyPairs = for (_ <- 1 to numOfKeys) yield newRandomKeyPairAsStrings(secureRandom)
+
+        /**
+          * The key pairs will be printed in the format:
+          *   priv-key-hex (32 bytes)
+          *   pub-key-hex (64 bytes)
+          */
+        keyPairs.map { case (prv, pub) => s"$prv\n$pub\n" }.mkString("\n")
+      }
+    }
+
   private val DeriveAddressFromPrivateKey: Command[String] =
     Command(name = deriveAddressCommand, header = "Derive address from private key") {
-
-      Opts
-        .argument[String]("private-key")
-        .map(Hex.decode)
-        .map(privKeyToAddress)
+      privateKeyOpt.map(Hex.decode).map(privKeyToAddress)
     }
 
   private val GenerateAllocs: Command[String] =
@@ -56,6 +78,21 @@ object CliCommands {
       }
     }
 
+  private val EncryptKey: Command[String] =
+    Command(name = encryptKeyCommand, header = "Encrypt private key") {
+
+      val privateKey = privateKeyOpt.map(ByteStringUtils.string2hash)
+
+      val passphrase = Opts
+        .option[String](long = passphraseOption, short = "p", help = "Passphrase")
+        .withDefault("")
+
+      (privateKey, passphrase).mapN { (privateKey, passphrase) =>
+        val encKey = EncryptedKey(privateKey, passphrase, secureRandom)
+        EncryptedKeyJsonCodec.toJson(encKey)
+      }
+    }
+
   private def allocs(addresses: List[String], balance: BigInt): String =
     s""""alloc": ${addresses
       .map(address => s"""$address: { "balance": $balance }""")
@@ -69,6 +106,12 @@ object CliCommands {
   }
 
   val api: Command[String] = Command.apply(name = "cli", header = "Mantis CLI") {
-    Opts.subcommands(GeneratePrivateKeyCommand, DeriveAddressFromPrivateKey, GenerateAllocs)
+    Opts.subcommands(
+      GeneratePrivateKeyCommand,
+      DeriveAddressFromPrivateKey,
+      GenerateAllocs,
+      GenerateKeyPairs,
+      EncryptKey
+    )
   }
 }

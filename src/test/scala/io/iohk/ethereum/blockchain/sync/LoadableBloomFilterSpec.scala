@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import com.google.common.hash.{Funnel, Funnels, PrimitiveSink}
 import io.iohk.ethereum.FlatSpecBase
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.eval.Task
 import monix.reactive.Observable

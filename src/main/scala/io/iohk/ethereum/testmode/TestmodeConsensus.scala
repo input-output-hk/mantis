@@ -5,7 +5,6 @@ import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
@@ -14,8 +13,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
-
-import scala.concurrent.Future
+import monix.eval.Task
 
 class TestmodeConsensus(
     override val vm: VMImpl,
@@ -88,7 +86,7 @@ class TestmodeConsensus(
   /**
     * Sends msg to the internal miner
     */
-  override def sendMiner(msg: MinerProtocol): Future[MinerResponse] = Future.successful(MinerNotExist)
+  override def sendMiner(msg: MinerProtocol): Task[MinerResponse] = Task.now(MinerNotExist)
 }
 
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
@@ -99,6 +97,6 @@ trait TestmodeConsensusBuilder extends ConsensusBuilder {
     blockchain,
     blockchainConfig,
     consensusConfig,
-    new EthashDifficultyCalculator(blockchainConfig)
+    DifficultyCalculator(blockchainConfig)
   )
 }

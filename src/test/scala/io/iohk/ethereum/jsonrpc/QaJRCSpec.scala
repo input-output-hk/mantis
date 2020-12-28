@@ -6,30 +6,35 @@ import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.jsonrpc.JsonRpcController.JsonRpcConfig
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.nodebuilder.{ApisBuilder, BlockchainConfigBuilder}
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import monix.eval.Task
+import monix.execution.Scheduler.Implicits.global
 import org.json4s.Extraction
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.Future
-
-class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalPatience with JsonMethodsImplicits {
+class QaJRCSpec
+    extends AnyWordSpec
+    with Matchers
+    with PatienceConfiguration
+    with NormalPatience
+    with JsonMethodsImplicits {
 
   "QaJRC" should {
     "request block mining and return valid response with correct message" when {
       "mining ordered" in new TestSetup {
         mockSuccessfulMineBlocksBehaviour(MinerResponses.MiningOrdered)
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveObjectResult(responseType(MiningOrdered), nullMessage)
       }
@@ -37,7 +42,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "miner is working" in new TestSetup {
         mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerIsWorking)
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveObjectResult(responseType(MinerIsWorking), nullMessage)
       }
@@ -45,7 +50,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "miner doesn't exist" in new TestSetup {
         mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerNotExist)
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveObjectResult(responseType(MinerNotExist), nullMessage)
       }
@@ -53,7 +58,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "miner not support current msg" in new TestSetup {
         mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerNotSupport(MineBlocks(1, true)))
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveObjectResult(responseType(MinerNotSupport), msg("MineBlocks(1,true,None)"))
       }
@@ -61,7 +66,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "miner return error" in new TestSetup {
         mockSuccessfulMineBlocksBehaviour(MinerResponses.MiningError("error"))
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveObjectResult(responseType(MiningError), msg("error"))
       }
@@ -71,9 +76,9 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "communication with miner failed" in new TestSetup {
         (qaService.mineBlocks _)
           .expects(mineBlocksReq)
-          .returning(Future.failed(new ClassCastException("error")))
+          .returning(Task.raiseError(new ClassCastException("error")))
 
-        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).futureValue
+        val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
         response should haveError(JsonRpcError.InternalError)
       }
@@ -83,10 +88,10 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "given block to be checkpointed exists and checkpoint is generated correctly" in new TestSetup {
         (qaService.generateCheckpoint _)
           .expects(generateCheckpointReq)
-          .returning(Future.successful(Right(GenerateCheckpointResponse(checkpoint))))
+          .returning(Task.now(Right(GenerateCheckpointResponse(checkpoint))))
 
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(generateCheckpointRpcRequest).futureValue
+          jsonRpcController.handleRequest(generateCheckpointRpcRequest).runSyncUnsafe()
 
         response should haveResult(Extraction.decompose(checkpoint))
       }
@@ -108,10 +113,10 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val expectedServiceReq = generateCheckpointReq.copy(blockHash = None)
         (qaService.generateCheckpoint _)
           .expects(expectedServiceReq)
-          .returning(Future.successful(Right(GenerateCheckpointResponse(checkpoint))))
+          .returning(Task.now(Right(GenerateCheckpointResponse(checkpoint))))
 
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(req).futureValue
+          jsonRpcController.handleRequest(req).runSyncUnsafe()
 
         response should haveResult(Extraction.decompose(checkpoint))
       }
@@ -132,7 +137,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
           )
         )
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(req).futureValue
+          jsonRpcController.handleRequest(req).runSyncUnsafe()
 
         response should haveError(JsonRpcError.InvalidParams())
       }
@@ -151,7 +156,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
           )
         )
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(req).futureValue
+          jsonRpcController.handleRequest(req).runSyncUnsafe()
 
         response should haveError(
           JsonRpcError.InvalidParams("Unable to parse private key, expected byte data but got: JInt(1)")
@@ -172,7 +177,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
           )
         )
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(req).futureValue
+          jsonRpcController.handleRequest(req).runSyncUnsafe()
 
         response should haveError(JsonRpcError.InvalidParams())
       }
@@ -182,10 +187,10 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "generating failed" in new TestSetup {
         (qaService.generateCheckpoint _)
           .expects(generateCheckpointReq)
-          .returning(Future.failed(new RuntimeException("error")))
+          .returning(Task.raiseError(new RuntimeException("error")))
 
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(generateCheckpointRpcRequest).futureValue
+          jsonRpcController.handleRequest(generateCheckpointRpcRequest).runSyncUnsafe()
 
         response should haveError(JsonRpcError.InternalError)
       }
@@ -196,10 +201,10 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         val checkpointPubKeys: Seq[ByteString] = blockchainConfig.checkpointPubKeys.toList
         (qaService.getFederationMembersInfo _)
           .expects(GetFederationMembersInfoRequest())
-          .returning(Future.successful(Right(GetFederationMembersInfoResponse(checkpointPubKeys))))
+          .returning(Task.now(Right(GetFederationMembersInfoResponse(checkpointPubKeys))))
 
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).futureValue
+          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).runSyncUnsafe()
 
         val result = JObject(
           "membersPublicKeys" -> JArray(
@@ -215,18 +220,23 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
       "getting federation members info failed" in new TestSetup {
         (qaService.getFederationMembersInfo _)
           .expects(GetFederationMembersInfoRequest())
-          .returning(Future.failed(new RuntimeException("error")))
+          .returning(Task.raiseError(new RuntimeException("error")))
 
         val response: JsonRpcResponse =
-          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).futureValue
+          jsonRpcController.handleRequest(getFederationMembersInfoRpcRequest).runSyncUnsafe()
 
         response should haveError(JsonRpcError.InternalError)
       }
     }
   }
 
-  trait TestSetup extends MockFactory with JRCMatchers with ByteGenerators with BlockchainConfigBuilder {
-    def config: JsonRpcConfig = JsonRpcConfig(Config.config)
+  trait TestSetup
+      extends MockFactory
+      with JRCMatchers
+      with ByteGenerators
+      with BlockchainConfigBuilder
+      with ApisBuilder {
+    def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     val appStateStorage = mock[AppStateStorage]
     val web3Service = mock[Web3Service]
@@ -235,8 +245,9 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     val debugService = mock[DebugService]
     val ethService = mock[EthService]
     val checkpointingService = mock[CheckpointingService]
-
+    val mantisService = mock[MantisService]
     val qaService = mock[QAService]
+
     val jsonRpcController =
       new JsonRpcController(
         web3Service,
@@ -247,6 +258,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
         debugService,
         qaService,
         checkpointingService,
+        mantisService,
         config
       )
 
@@ -316,7 +328,7 @@ class QaJRCSpec extends AnyWordSpec with Matchers with ScalaFutures with NormalP
     def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse) = {
       (qaService.mineBlocks _)
         .expects(mineBlocksReq)
-        .returning(Future.successful(Right(MineBlocksResponse(resp))))
+        .returning(Task.now(Right(MineBlocksResponse(resp))))
     }
 
     val fakeChainId: Byte = 42.toByte

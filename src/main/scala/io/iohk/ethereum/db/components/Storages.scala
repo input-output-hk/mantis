@@ -36,8 +36,8 @@ object Storages {
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSource)
 
-      override val totalDifficultyStorage: TotalDifficultyStorage =
-        new TotalDifficultyStorage(dataSource)
+      override val chainWeightStorage: ChainWeightStorage =
+        new ChainWeightStorage(dataSource)
 
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSource)
 

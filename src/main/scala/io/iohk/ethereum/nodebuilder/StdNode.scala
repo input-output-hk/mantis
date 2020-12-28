@@ -3,11 +3,11 @@ package io.iohk.ethereum.nodebuilder
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.StdConsensusBuilder
 import io.iohk.ethereum.metrics.{Metrics, MetricsConfig}
-import io.iohk.ethereum.network.discovery.DiscoveryListener
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.utils.Config
-
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Await
 import scala.util.{Failure, Success, Try}
 
@@ -29,16 +29,11 @@ abstract class BaseNode extends Node {
 
   private[this] def startServer(): Unit = server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
 
-  private[this] def startDiscoveryListener(): Unit =
-    if (discoveryConfig.discoveryEnabled) {
-      discoveryListener ! DiscoveryListener.Start
-    }
-
   private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
   private[this] def startConsensus(): Unit = consensus.startProtocol(this)
 
-  private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager // unlazy
+  private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
 
   private[this] def startJsonRpcHttpServer(): Unit =
     maybeJsonRpcHttpServer match {
@@ -69,8 +64,6 @@ abstract class BaseNode extends Node {
 
     startServer()
 
-    startDiscoveryListener()
-
     startSyncController()
 
     startConsensus()
@@ -87,14 +80,22 @@ abstract class BaseNode extends Node {
       case Success(_) =>
     }
 
+    tryAndLogFailure(() => peerDiscoveryManager ! PeerDiscoveryManager.Stop)
     tryAndLogFailure(() => consensus.stopProtocol())
-    tryAndLogFailure(() => Await.ready(system.terminate, shutdownTimeoutDuration))
-    tryAndLogFailure(() => storagesInstance.dataSource.close())
+    tryAndLogFailure(() =>
+      Await.ready(
+        system.terminate.map(
+          _ ->
+            log.info("actor system finished")
+        ),
+        shutdownTimeoutDuration
+      )
+    )
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }
     tryAndLogFailure(() => Metrics.get().close())
-
+    tryAndLogFailure(() => storagesInstance.dataSource.close())
   }
 }
 

@@ -1,9 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils}
 
 object StateSyncUtils extends EphemBlockchainTestSetup {
@@ -34,7 +35,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
         .getWorldStateProxy(
           blockNumber = 1,
           accountStartNonce = blockchainConfig.accountStartNonce,
-          stateRootHash = existingTree,
+          stateRootHash = existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),
           noEmptyAccounts = true,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )

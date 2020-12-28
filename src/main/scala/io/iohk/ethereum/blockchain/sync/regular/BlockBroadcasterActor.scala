@@ -1,8 +1,8 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, BlockBroadcast, PeerListSupport}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
+import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class BlockBroadcasterActor(
@@ -26,8 +26,8 @@ class BlockBroadcasterActor(
 }
 object BlockBroadcasterActor {
   sealed trait BroadcasterMsg
-  case class BroadcastBlock(block: NewBlock) extends BroadcasterMsg
-  case class BroadcastBlocks(blocks: List[NewBlock]) extends BroadcasterMsg
+  case class BroadcastBlock(block: BlockToBroadcast) extends BroadcasterMsg
+  case class BroadcastBlocks(blocks: List[BlockToBroadcast]) extends BroadcasterMsg
 
   def props(
       broadcast: BlockBroadcast,

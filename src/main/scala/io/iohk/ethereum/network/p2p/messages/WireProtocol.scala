@@ -9,25 +9,6 @@ import org.bouncycastle.util.encoders.Hex
 
 object WireProtocol {
 
-  object Capability {
-    implicit class CapabilityEnc(val msg: Capability) extends RLPSerializable {
-      override def toRLPEncodable: RLPEncodeable = RLPList(msg.name, msg.version)
-    }
-
-    implicit class CapabilityDec(val bytes: Array[Byte]) extends AnyVal {
-      def toCapability: Capability = CapabilityRLPEncodableDec(rawDecode(bytes)).toCapability
-    }
-
-    implicit class CapabilityRLPEncodableDec(val rLPEncodeable: RLPEncodeable) extends AnyVal {
-      def toCapability: Capability = rLPEncodeable match {
-        case RLPList(name, version) => Capability(name, version)
-        case _ => throw new RuntimeException("Cannot decode Capability")
-      }
-    }
-  }
-
-  case class Capability(name: String, version: Byte)
-
   object Hello {
 
     val code = 0x00
@@ -67,14 +48,15 @@ object WireProtocol {
     override val code: Int = Hello.code
 
     override def toString: String = {
-      s"""Hello {
-         |p2pVersion: $p2pVersion
-         |clientId: $clientId
-         |capabilities: $capabilities
-         |listenPort: $listenPort
-         |nodeId: ${Hex.toHexString(nodeId.toArray[Byte])}
-         |}""".stripMargin
+      s"Hello { " +
+        s"p2pVersion: $p2pVersion " +
+        s"clientId: $clientId " +
+        s"capabilities: $capabilities " +
+        s"listenPort: $listenPort " +
+        s"nodeId: ${Hex.toHexString(nodeId.toArray[Byte])} " +
+        s"}"
     }
+    override def toShortString: String = toString
   }
 
   object Disconnect {
@@ -132,8 +114,9 @@ object WireProtocol {
     override val code: Int = Disconnect.code
 
     override def toString: String =
-      s"Disconnect(${Disconnect.reasonToString(reason)}"
+      s"Disconnect(${Disconnect.reasonToString(reason)})"
 
+    override def toShortString: String = toString
   }
 
   object Ping {
@@ -155,6 +138,7 @@ object WireProtocol {
 
   case class Ping() extends Message {
     override val code: Int = Ping.code
+    override def toShortString: String = toString
   }
 
   object Pong {
@@ -176,6 +160,7 @@ object WireProtocol {
 
   case class Pong() extends Message {
     override val code: Int = Pong.code
+    override def toShortString: String = toString
   }
 
 }

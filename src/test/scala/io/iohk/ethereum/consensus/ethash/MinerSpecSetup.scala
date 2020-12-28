@@ -5,15 +5,15 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-
-import scala.concurrent.Future
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
@@ -94,26 +94,26 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   val parentActor = TestProbe()
 
+  val fakeWorld = mock[InMemoryWorldStateProxy]
+
   def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean))
-      .expects(parentBlock, withTransactions)
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
+      .expects(parentBlock, withTransactions, *)
       .returning(
-        Future
-          .successful(PendingBlock(resultBlock, Nil))
+        Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
   }
 
   def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean))
-      .expects(where { (parent, withTxs) =>
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
+      .expects(where { (parent, withTxs, _) =>
         parent == parentBlock && withTxs == withTransactions
       })
       .returning(
-        Future
-          .successful(PendingBlock(resultBlock, Nil))
+        Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
   }

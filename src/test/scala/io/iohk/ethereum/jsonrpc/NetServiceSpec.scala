@@ -1,23 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.iohk.ethereum.{NormalPatience, crypto}
 import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import java.util.concurrent.atomic.AtomicReference
+import io.iohk.ethereum.{NormalPatience, crypto}
+import monix.execution.Scheduler.Implicits.global
 import org.scalatest.concurrent.ScalaFutures
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
 
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
   "NetService" should "return handshaked peer count" in new TestSetup {
-    val resF = netService.peerCount(PeerCountRequest())
+    val resF = netService
+      .peerCount(PeerCountRequest())
+      .runToFuture
 
     peerManager.expectMsg(PeerManagerActor.GetPeers)
     peerManager.reply(
@@ -34,11 +39,11 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
   }
 
   it should "return listening response" in new TestSetup {
-    netService.listening(ListeningRequest()).futureValue shouldBe Right(ListeningResponse(true))
+    netService.listening(ListeningRequest()).runSyncUnsafe() shouldBe Right(ListeningResponse(true))
   }
 
   it should "return version response" in new TestSetup {
-    netService.version(VersionRequest()).futureValue shouldBe Right(VersionResponse("42"))
+    netService.version(VersionRequest()).runSyncUnsafe() shouldBe Right(VersionResponse("42"))
   }
 
   trait TestSetup {
@@ -56,5 +61,4 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
     val netService =
       new NetService(new AtomicReference[NodeStatus](nodeStatus), peerManager.ref, NetServiceConfig(5.seconds))
   }
-
 }

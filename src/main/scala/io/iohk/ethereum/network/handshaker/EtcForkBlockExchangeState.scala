@@ -1,18 +1,17 @@
 package io.iohk.ethereum.network.handshaker
 
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.ForkResolver
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Logger
 
 case class EtcForkBlockExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration,
     forkResolver: ForkResolver,
-    remoteStatus: Status
+    remoteStatus: RemoteStatus
 ) extends InProgressState[PeerInfo]
     with Logger {
 

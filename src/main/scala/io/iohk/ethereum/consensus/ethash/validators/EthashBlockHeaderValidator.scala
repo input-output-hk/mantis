@@ -3,7 +3,6 @@ package validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
 import io.iohk.ethereum.crypto
@@ -22,7 +21,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
   // we need atomic since validators can be used from multiple places
   protected val powCaches: AtomicAny[List[PowCacheData]] = Atomic(List.empty[PowCacheData])
 
-  protected def difficulty: DifficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+  protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
 
   def validateEvenMore(
       blockHeader: BlockHeader,

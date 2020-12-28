@@ -1,11 +1,9 @@
 package io.iohk.ethereum.db.storage
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.{TransactionLocation, TxHash}
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import boopickle.Default._
 
 class TransactionMappingStorage(val dataSource: DataSource)
@@ -16,7 +14,7 @@ class TransactionMappingStorage(val dataSource: DataSource)
   def keyDeserializer: IndexedSeq[Byte] => TxHash = identity
   def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
-    bytes => Unpickle[TransactionLocation].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
+    byteSequenceToBuffer _ andThen Unpickle[TransactionLocation].fromBytes
 
   implicit val byteStringPickler: Pickler[ByteString] =
     transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])

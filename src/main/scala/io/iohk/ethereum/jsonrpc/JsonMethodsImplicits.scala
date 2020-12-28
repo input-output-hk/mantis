@@ -22,13 +22,13 @@ import scala.util.Try
 trait JsonMethodsImplicits {
   implicit val formats = JsonSerializers.formats
 
-  protected def encodeAsHex(input: ByteString): JString =
+  def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")
 
-  protected def encodeAsHex(input: Byte): JString =
+  def encodeAsHex(input: Byte): JString =
     JString(s"0x${Hex.toHexString(Array(input))}")
 
-  protected def encodeAsHex(input: BigInt): JString =
+  def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
   protected def decode(s: String): Array[Byte] = {
@@ -94,15 +94,14 @@ trait JsonMethodsImplicits {
 
     for {
       from <- input.get("from") match {
-        case Some(JString(s)) => extractAddress(s)
+        case Some(JString(s)) if s.nonEmpty => extractAddress(s)
         case Some(_) => Left(InvalidAddress)
         case _ => Left(InvalidParams("TX 'from' is required"))
       }
 
       to <- input.get("to") match {
-        case Some(JString(s)) =>
-          extractAddress(s).map(Some(_))
-
+        case Some(JString(s)) if s.nonEmpty => extractAddress(s).map(Option.apply)
+        case Some(JString(_)) => extractAddress("0x0").map(Option.apply)
         case Some(_) => Left(InvalidAddress)
         case None => Right(None)
       }

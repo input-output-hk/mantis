@@ -1,7 +1,6 @@
 package io.iohk.ethereum.consensus.blocks
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
@@ -13,8 +12,8 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
-import io.iohk.ethereum.ledger.Ledger.{BlockPreparationResult, BlockResult}
-import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter}
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PreparedBlock}
+import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter, InMemoryWorldStateProxy}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
@@ -90,7 +89,8 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockNumber: BigInt,
       blockPreparator: BlockPreparator,
-      x: X
+      x: X,
+      initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
   ): PendingBlockAndState = {
 
     val blockTimestamp = blockTimestampProvider.getEpochSecond
@@ -99,8 +99,8 @@ abstract class BlockGeneratorSkeleton(
     val body = newBlockBody(transactionsForBlock, x)
     val block = Block(header, body)
 
-    val prepared = blockPreparator.prepareBlock(block) match {
-      case BlockPreparationResult(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
+    blockPreparator.prepareBlock(block, parent.header, initialWorldStateBeforeExecution) match {
+      case PreparedBlock(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
         val receiptsLogs: Seq[Array[Byte]] =
           BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)
         val bloomFilter = ByteString(or(receiptsLogs: _*))
@@ -122,7 +122,6 @@ abstract class BlockGeneratorSkeleton(
           updatedWorld
         )
     }
-    prepared
   }
 
   protected def prepareTransactions(
@@ -164,13 +163,13 @@ abstract class BlockGeneratorSkeleton(
     transactionsForBlock
   }
 
-  //returns maximal limit to be able to include as many transactions as possible
-  protected def calculateGasLimit(parentGas: BigInt): BigInt = {
-    val GasLimitBoundDivisor: Int = 1024
+  /*
+        Returns the same gas limit as the parent block
 
-    val gasLimitDifference = parentGas / GasLimitBoundDivisor
-    parentGas + gasLimitDifference - 1
-  }
+        In Mantis only testnets (and without this changed), this means that all blocks will have the same gasLimit as
+        the genesis block
+   */
+  protected def calculateGasLimit(parentGas: BigInt): BigInt = parentGas
 
   protected def buildMpt[K](entities: Seq[K], vSerializable: ByteArraySerializable[K]): ByteString = {
     val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())

@@ -2,11 +2,10 @@ package io.iohk.ethereum.consensus
 package ethash
 
 import java.io.{File, FileInputStream, FileOutputStream}
-
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.crypto
@@ -16,9 +15,8 @@ import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 
@@ -35,6 +33,8 @@ class EthashMiner(
     with ActorLogging {
 
   import EthashMiner._
+
+  private implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
@@ -58,29 +58,11 @@ class EthashMiner(
     val parentBlock = blockchain.getBestBlock()
     val blockNumber = parentBlock.header.number.toLong + 1
     val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
-    val (dag, dagSize) = (currentEpoch, currentEpochDag, currentEpochDagSize) match {
-      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
-      case _ =>
-        val seed = EthashUtils.seed(blockNumber)
-        val dagSize = EthashUtils.dagSize(epoch)
-        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
-        val dag =
-          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
-          else {
-            val res = loadDagFromFile(seed, dagNumHashes)
-            res.failed.foreach { ex =>
-              log.error(ex, "Cannot read DAG from file")
-            }
-            res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
-          }
-        currentEpoch = Some(epoch)
-        currentEpochDag = Some(dag)
-        currentEpochDagSize = Some(dagSize)
-        (dag, dagSize)
-    }
+    val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
 
-    blockCreator.getBlockForMining(parentBlock) onComplete {
-      case Success(PendingBlock(block, _)) =>
+    blockCreator
+      .getBlockForMining(parentBlock)
+      .map { case PendingBlockAndState(PendingBlock(block, _), _) =>
         val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
         val startTime = System.nanoTime()
         val mineResult =
@@ -100,9 +82,34 @@ class EthashMiner(
           case _ => log.info("Mining unsuccessful")
         }
         self ! ProcessMining
-      case Failure(ex) =>
+      }
+      .onErrorHandle { ex =>
         log.error(ex, "Unable to get block for mining")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
+      }
+      .runAsyncAndForget
+  }
+
+  private def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
+    (currentEpoch, currentEpochDag, currentEpochDagSize) match {
+      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
+      case _ =>
+        val seed = EthashUtils.seed(blockNumber)
+        val dagSize = EthashUtils.dagSize(epoch)
+        val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
+        val dag =
+          if (!dagFile(seed).exists()) generateDagAndSaveToFile(epoch, dagNumHashes, seed)
+          else {
+            val res = loadDagFromFile(seed, dagNumHashes)
+            res.failed.foreach { ex =>
+              log.error(ex, "Cannot read DAG from file")
+            }
+            res.getOrElse(generateDagAndSaveToFile(epoch, dagNumHashes, seed))
+          }
+        currentEpoch = Some(epoch)
+        currentEpochDag = Some(dag)
+        currentEpochDagSize = Some(dagSize)
+        (dag, dagSize)
     }
   }
 

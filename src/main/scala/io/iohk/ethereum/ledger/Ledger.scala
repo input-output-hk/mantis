@@ -7,8 +7,8 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm._
-
-import scala.concurrent.{ExecutionContext, Future}
+import monix.eval.Task
+import monix.execution.Scheduler
 
 trait Ledger {
   def consensus: Consensus
@@ -44,7 +44,7 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(block: Block)(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult]
+  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult]
 
   /** Finds a relation of a given list of headers to the current chain
     *
@@ -74,7 +74,7 @@ class LedgerImpl(
     blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
     theConsensus: Consensus,
-    validationContext: ExecutionContext
+    validationContext: Scheduler
 ) extends Ledger
     with Logger {
 
@@ -83,7 +83,7 @@ class LedgerImpl(
       blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       theConsensus: Consensus,
-      validationContext: ExecutionContext
+      validationContext: Scheduler
   ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
 
   val consensus: Consensus = theConsensus
@@ -95,9 +95,15 @@ class LedgerImpl(
   private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
   private[ledger] lazy val blockExecution =
     new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-  private[ledger] val blockImport =
-    new BlockImport(blockchain, blockQueue, blockchainConfig, blockValidation, blockExecution, validationContext)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
+  private[ledger] val blockImport =
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockValidation,
+      blockExecution,
+      validationContext
+    )
 
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
     if (blockchain.getBlockByHash(blockHash).isDefined)
@@ -113,25 +119,27 @@ class LedgerImpl(
 
   override def importBlock(
       block: Block
-  )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
 
     val currentBestBlock = blockchain.getBestBlock()
 
     if (isBlockADuplicate(block.header, currentBestBlock.header.number)) {
-      log.debug(s"Ignoring duplicate block: (${block.idTag})")
-      Future.successful(DuplicateBlock)
+      Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
+        .map(_ => DuplicateBlock)
     } else {
       val hash = currentBestBlock.header.hash
-      blockchain.getTotalDifficultyByHash(hash) match {
-        case Some(currentTd) =>
-          if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
-            blockImport.importToTop(block, currentBestBlock, currentTd)
+      blockchain.getChainWeightByHash(hash) match {
+        case Some(weight) =>
+          val importResult = if (isPossibleNewBestBlock(block.header, currentBestBlock.header)) {
+            blockImport.importToTop(block, currentBestBlock, weight)
           } else {
-            blockImport.reorganise(block, currentBestBlock, currentTd)
+            blockImport.reorganise(block, currentBestBlock, weight)
           }
+          importResult.foreach(measureBlockMetrics)
+          importResult
 
         case None =>
-          Future.successful(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
+          Task.now(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
 
       }
     }
@@ -148,6 +156,16 @@ class LedgerImpl(
   override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     branchResolution.resolveBranch(headers)
 
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
+    importResult match {
+      case BlockImportedToTop(blockImportData) =>
+        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+      case ChainReorganised(_, newBranch, _) =>
+        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
+      case _ => ()
+    }
+  }
+
 }
 
 object Ledger {
@@ -156,7 +174,7 @@ object Ledger {
   type PR = ProgramResult[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage]
 
   case class BlockResult(worldState: InMemoryWorldStateProxy, gasUsed: BigInt = 0, receipts: Seq[Receipt] = Nil)
-  case class BlockPreparationResult(
+  case class PreparedBlock(
       block: Block,
       blockResult: BlockResult,
       stateRootHash: ByteString,
@@ -171,13 +189,9 @@ object Ledger {
   )
 }
 
-case class BlockData(block: Block, receipts: Seq[Receipt], td: BigInt)
+case class BlockData(block: Block, receipts: Seq[Receipt], weight: ChainWeight)
 
 sealed trait BlockStatus
 case object InChain extends BlockStatus
 case object Queued extends BlockStatus
 case object UnknownBlock extends BlockStatus
-
-trait BlockPreparationError
-
-case class TxError(reason: String) extends BlockPreparationError

@@ -6,20 +6,21 @@ import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.{Fixtures, Timeouts}
 import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.Versions
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.{Fixtures, Timeouts}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -109,7 +110,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
-    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatus)
+    peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatusMsg)
 
     //Test that the handshake failed
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -167,20 +168,20 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
   }
 
   object DefaultValues {
-    val defaultStatus = Status(
-      protocolVersion = Versions.PV63,
+    val defaultStatusMsg = Status(
+      protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
+    val defaultStatus = RemoteStatus(defaultStatusMsg)
     val defaultBlockNumber = 1000
     val defaultForkAccepted = true
 
     val defaultPeerInfo = PeerInfo(
       defaultStatus,
-      defaultStatus.totalDifficulty,
-      defaultStatus.latestCheckpointNumber,
+      defaultStatus.chainWeight,
       defaultForkAccepted,
       defaultBlockNumber,
       defaultStatus.bestHash
@@ -191,7 +192,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     val defaultHello = Hello(
       p2pVersion = 0,
       clientId = "notused",
-      capabilities = Nil,
+      capabilities = Seq(Eth63Capability),
       listenPort = 0,
       nodeId = ByteString.empty
     )

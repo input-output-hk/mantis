@@ -6,9 +6,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.Logger
-import monix.execution.Scheduler.Implicits.global
-
-import scala.concurrent.Future
+import monix.eval.Task
 
 class CheckpointingService(
     blockchain: Blockchain,
@@ -21,12 +19,12 @@ class CheckpointingService(
     lazy val bestBlockNum = blockchain.getBestBlockNumber()
     lazy val blockToReturnNum = bestBlockNum - bestBlockNum % req.checkpointingInterval
 
-    Future {
+    Task {
       blockchain.getBlockByNumber(blockToReturnNum)
     }.flatMap {
       case Some(b) =>
         val resp = GetLatestBlockResponse(b.hash, b.number)
-        Future.successful(Right(resp))
+        Task.now(Right(resp))
 
       case None =>
         log.error(
@@ -37,7 +35,7 @@ class CheckpointingService(
     }
   }
 
-  def pushCheckpoint(req: PushCheckpointRequest): ServiceResponse[PushCheckpointResponse] = Future {
+  def pushCheckpoint(req: PushCheckpointRequest): ServiceResponse[PushCheckpointResponse] = Task {
     syncController ! NewCheckpoint(req.hash, req.signatures)
     Right(PushCheckpointResponse())
   }

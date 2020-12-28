@@ -2,9 +2,15 @@ import sbt._
 
 object Dependencies {
 
-  val akka: Seq[ModuleID] = {
-    val akkaVersion = "2.6.9"
+  private val akkaVersion = "2.6.9"
 
+  val akkaUtil: Seq[ModuleID] = {
+    Seq(
+      "com.typesafe.akka" %% "akka-actor" % akkaVersion
+    )
+  }
+
+  val akka: Seq[ModuleID] = {
     Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
@@ -41,6 +47,7 @@ object Dependencies {
   val boopickle = Seq("io.suzaku" %% "boopickle" % "1.3.3")
 
   val rocksDb = Seq(
+    // use "5.18.3" for older macOS
     "org.rocksdb" % "rocksdbjni" % "6.11.4"
   )
 
@@ -54,7 +61,9 @@ object Dependencies {
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
     "org.scalamock" %% "scalamock" % "5.0.0" % "test",
     "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.14.3" % "it,test"
+    "org.scalacheck" %% "scalacheck" % "1.14.3" % "it,test",
+    "com.softwaremill.diffx" %% "diffx-core" % "0.3.30" % "test",
+    "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.30" % "test"
   )
 
   val cats: Seq[ModuleID] = {
@@ -69,6 +78,14 @@ object Dependencies {
   val monix = Seq(
     "io.monix" %% "monix" % "3.2.2"
   )
+
+  val network: Seq[ModuleID] = {
+    val scalanetVersion = "0.4.4-SNAPSHOT"
+    Seq(
+      "io.iohk" %% "scalanet" % scalanetVersion,
+      "io.iohk" %% "scalanet-discovery" % scalanetVersion
+    )
+  }
 
   val logging = Seq(
     "ch.qos.logback" % "logback-classic" % "1.2.3",
@@ -126,4 +143,8 @@ object Dependencies {
       "io.kontainers" %% "micrometer-akka" % "0.12.2"
     )
   }
+
+  val shapeless: Seq[ModuleID] = Seq(
+    "com.chuusai" %% "shapeless" % "2.3.3"
+  )
 }

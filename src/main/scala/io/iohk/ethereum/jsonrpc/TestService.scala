@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
+import cats.syntax.functor._
 import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
@@ -10,10 +11,9 @@ import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.Logger
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.Try
 
@@ -66,10 +66,12 @@ class TestService(
     consensusConfig: ConsensusConfig,
     consensus: TestmodeConsensus,
     testLedgerWrapper: TestLedgerWrapper
+)(implicit
+    scheduler: Scheduler
 ) extends Logger {
 
   import TestService._
-  import akka.pattern.ask
+  import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
   private var etherbase: Address = consensusConfig.coinbase
 
@@ -105,11 +107,11 @@ class TestService(
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
-    Future.successful(Right(SetChainParamsResponse()))
+    Task.now(Right(SetChainParamsResponse()))
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
-    def mineBlock(): Future[Unit] = {
+    def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock()).map { blockForMining =>
         val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
         log.info("Block mining result: " + res)
@@ -118,17 +120,17 @@ class TestService(
       }
     }
 
-    def doNTimesF(n: Int)(fn: () => Future[Unit]): Future[Unit] = fn().flatMap { res =>
-      if (n <= 1) Future.successful(res)
+    def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { res =>
+      if (n <= 1) Task.now(res)
       else doNTimesF(n - 1)(fn)
     }
 
-    doNTimesF(request.num)(mineBlock _).map(_ => Right(MineBlocksResponse()))
+    doNTimesF(request.num)(mineBlock()).as(Right(MineBlocksResponse()))
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
     consensus.blockTimestamp = request.timestamp
-    Future.successful(Right(ModifyTimestampResponse()))
+    Task.now(Right(ModifyTimestampResponse()))
   }
 
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
@@ -136,27 +138,30 @@ class TestService(
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
-    Future.successful(Right(RewindToBlockResponse()))
+    Task.now(Right(RewindToBlockResponse()))
   }
 
   def setEtherbase(req: SetEtherbaseRequest): ServiceResponse[SetEtherbaseResponse] = {
     etherbase = req.etherbase
-    Future.successful(Right(SetEtherbaseResponse()))
+    Task.now(Right(SetEtherbaseResponse()))
   }
 
-  private def getBlockForMining(parentBlock: Block): Future[PendingBlock] = {
+  private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
     implicit val timeout = Timeout(5.seconds)
-    (pendingTransactionsManager ? PendingTransactionsManager.GetPendingTransactions)
-      .mapTo[PendingTransactionsResponse]
-      .recover { case _ => PendingTransactionsResponse(Nil) }
+    pendingTransactionsManager
+      .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
+      .timeout(timeout.duration)
+      .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .flatMap { pendingTxs =>
         val pb = consensus.blockGenerator.generateBlock(
           parentBlock,
           pendingTxs.pendingTransactions.map(_.stx.tx),
           etherbase,
-          Nil
+          Nil,
+          None
         )
-        Future.successful(pb)
+        Task.now(pb.pendingBlock)
       }
+      .timeout(timeout.duration)
   }
 }

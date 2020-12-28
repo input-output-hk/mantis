@@ -4,8 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.Versions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Capability, Disconnect, Hello}
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
 
 case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
@@ -24,10 +26,16 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
 
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case hello: Hello =>
     log.debug("Protocol handshake finished with peer ({})", hello)
-    if (hello.capabilities.contains(Capability("eth", Versions.PV63.toByte)))
-      EtcNodeStatusExchangeState(handshakerConfiguration)
+    if (
+      handshakerConfiguration.protocolVersion == ProtocolVersions.PV64 && hello.capabilities.contains(Etc64Capability)
+    )
+      EtcNodeStatus64ExchangeState(handshakerConfiguration)
+    else if (hello.capabilities.contains(Eth63Capability))
+      EtcNodeStatus63ExchangeState(handshakerConfiguration)
     else {
-      log.debug("Connected peer does not support eth {} protocol. Disconnecting.", Versions.PV63.toByte)
+      log.debug(
+        s"Connected peer does not support eth ${ProtocolVersions.PV63.toByte} / ${ProtocolVersions.PV64.toByte} protocol. Disconnecting."
+      )
       DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
     }
 
@@ -44,10 +52,13 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
       case ServerStatus.Listening(address) => address.getPort
       case ServerStatus.NotListening => 0
     }
+    val capabilities =
+      if (handshakerConfiguration.protocolVersion == ProtocolVersions.PV64) Capabilities.All else Seq(Eth63Capability)
+
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Capability("eth", Versions.PV63.toByte)),
+      capabilities = capabilities,
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId)
     )

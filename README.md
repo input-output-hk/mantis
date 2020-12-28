@@ -45,6 +45,42 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ```
 `./bin/mantis cli generate-alloc --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
 ```
+ - generate multiple key-pairs (following example generate 5 key-pairs)
+ ```
+./bin/mantis cli generate-key-pairs 5
+```
+
+- encrypt private key (default passphrase is empty string)
+ ```
+./bin/mantis cli encrypt-key --passphrase=pass 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
+```
+
+Command output uses the same format as keystore so it could be used ex. to setup private faucet
+
+ex.
+```
+{
+  "id":"3038d914-c4cd-43b7-9e91-3391ea443f95",
+  "address":"c28e15ebdcbb0bdcb281d9d5084182c9c66d5d12",
+  "version":3,
+  "crypto":{
+    "cipher":"aes-128-ctr",
+    "ciphertext":"6ecdb74b2a33dc3c016b460dccc96843d9d050aea3df27a3ae5348e85b3adc3e",
+    "cipherparams":{
+      "iv":"096b6490fe29e42e68e2db902920cad6"
+    },
+    "kdf":"scrypt",
+    "kdfparams":{
+      "salt":"cdcc875e116e2824ab02f387210c2f4ad7fd6fa1a4fc791cc92b981e3062a23e",
+      "n":262144,
+      "r":8,
+      "p":1,
+      "dklen":32
+    },
+    "mac":"8388ae431198d31d57e4c17f44335c2f15959b0d08d1145234d82f0d253fa593"
+  }
+}
+```
 
 ### Building the client
 
@@ -125,6 +161,42 @@ projectRoot $ docker build -f ./docker/monitoring-client.Dockerfile -t mantis-mo
 # Run monitoring client in http://localhost:9090
 projectRoot $ docker run --network=host mantis-monitoring-client
 ```
+
+### TLS setup
+
+Both the JSON RPC (on the node and faucet) can be additionally protected using TLS.
+On the development environment it's already properly configured with a development certificate.
+
+#### Generating a new certificate
+
+If a new certificate is required, create a new keystore with a certificate by running `./tls/gen-cert.sh`
+
+#### Configuring the node
+
+1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `application.conf` file:
+
+    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
+    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
+2. Enable TLS in specific config:
+    - For JSON RPC: `mantis.network.rpc.http.mode=https`
+
+#### Configuring the faucet
+
+1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `faucet.conf` file:
+
+    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
+    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
+2. Enable TLS in specific config:
+    - For JSON RPC: `mantis.network.rpc.http.mode=https`
+3. Configure the certificate used from RpcClient to connect with the node. Necessary if the node uses http secure. 
+   This certificate and password file to be used at `faucet.rpc-client.certificate` key on the `faucet.conf` file:
+
+    keystore-path: path to the keystore storing the certificates
+    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+    password-file: path to the file with the password used for accessing the certificate keystore
+
 
 ### Feedback
 

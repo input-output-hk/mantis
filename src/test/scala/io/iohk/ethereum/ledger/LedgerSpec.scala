@@ -13,20 +13,19 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.vm._
-import java.util.concurrent.Executors
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.prop.{TableFor2, TableFor3, TableFor4}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 // scalastyle:off magic.number
 class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures {
 
-  implicit val testContext: ExecutionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  implicit val testContext: Scheduler = Scheduler.fixedPool("ledger-spec", 4)
 
   "Ledger" should "correctly run executeBlock for a valid block without txs" in new BlockchainSetup {
 
@@ -74,7 +73,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
       val block = Block(blockHeader, blockBodyWithOmmers)
 
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
       assert(blockExecResult.isRight)
     }
   }
@@ -121,7 +120,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     assert(seqFailingValidators.forall { validators =>
       val ledger = newTestLedger(validators = validators)
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
 
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
@@ -172,7 +171,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      val blockExecResult = ledger.blockExecution.executeBlock(block)
+      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
@@ -216,7 +215,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
       val block = Block(validBlockHeader, validBlockBodyWithTxs)
 
-      val txsExecResult = ledger.blockExecution.executeBlockTransactions(block)
+      val txsExecResult = ledger.blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
       assert(txsExecResult.isRight)
       val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
@@ -271,7 +270,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val blockWithCorrectStateAndGasUsed = block.copy(
         header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
       )
-      assert(ledger.blockExecution.executeBlock(blockWithCorrectStateAndGasUsed).isRight)
+      assert(ledger.blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
     }
   }
 
@@ -296,7 +295,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty))
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
+      parentBlockHeader
     )
   }
 
@@ -310,7 +310,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(
-      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty))
+      proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
+      parentBlockHeader
     )
   }
 
@@ -324,7 +325,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
     ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
 
-    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs))) { result =>
+    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)).runToFuture) { result =>
       result shouldEqual BlockEnqueued
     }
 

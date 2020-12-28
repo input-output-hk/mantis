@@ -1,0 +1,16 @@
+{
+  "extraData": "0x00",
+  "nonce": "0x0000000000000042",
+  "gasLimit": "0x2fefd8",
+  "_commentAboutDifficulty": "Set to 1000000, a value closer to the one achieved by our current testnet with our 30 second block rate",
+  "difficulty": "0xF4240",
+  "ommersHash": "0x1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347",
+  "_commentAboutTimestamp": "Set to 11/05/2020 @ 12:00am (UTC), to be closer to our release date and not affect as much the difficulty calculations",
+  "timestamp": "0x5FA34080",
+  "coinbase": "0x0000000000000000000000000000000000000000",
+  "mixHash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "alloc": {
+    "45238430908a621cfe0e5491528dedfe82058b8e": {"balance":
+    "1606938044258990275541962092341162602522202993782792835301376"}
+  }
+}

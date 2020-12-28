@@ -1,34 +1,35 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, PeerDiscoveryManager}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
+import monix.eval.Task
+import monix.execution.{Scheduler => MonixScheduler}
+import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
     peerDiscoveryManager: ActorRef,
     peerConfiguration: PeerConfiguration,
     knownNodesManager: ActorRef,
+    peerStatistics: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     discoveryConfig: DiscoveryConfig,
     externalSchedulerOpt: Option[Scheduler] = None
@@ -40,32 +41,51 @@ class PeerManagerActor(
   /**
     * Maximum number of blacklisted nodes will never be larger than number of peers provided by discovery
     * Discovery provides remote nodes from all networks (ETC,ETH, Mordor etc.) only during handshake we learn that some
-    * of the remote nodes are not compatible that's why we mark them as useless (blacklist them)
+    * of the remote nodes are not compatible that's why we mark them as useless (blacklist them).
+    *
+    * The number of nodes in the current discovery is unlimited, but a guide may be the size of the routing table:
+    * one bucket for each bit in the hash of the public key, times the bucket size.
     */
-  override val maxBlacklistedNodes: Int = discoveryConfig.nodesLimit
+  override val maxBlacklistedNodes: Int = 32 * 8 * discoveryConfig.kademliaBucketSize
 
   import PeerManagerActor._
-  import akka.pattern.{ask, pipe}
+  import akka.pattern.pipe
 
-  private type PeerMap = Map[PeerId, Peer]
+  implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
+
+    /** Number of new connections the node should try to open at any given time. */
+    def outgoingConnectionDemand: Int =
+      PeerManagerActor.outgoingConnectionDemand(connectedPeers, peerConfiguration)
+
+    def canConnectTo(node: Node): Boolean = {
+      val socketAddress = node.tcpSocketAddress
+      val alreadyConnected =
+        connectedPeers.isConnectionHandled(socketAddress) ||
+          connectedPeers.hasHandshakedWith(node.id)
+
+      !alreadyConnected && !isBlacklisted(PeerAddress(socketAddress.getHostString))
+    }
+  }
 
   // Subscribe to the handshake event of any peer
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  implicit val monix: MonixScheduler = MonixScheduler(context.dispatcher)
 
   override val supervisorStrategy: OneForOneStrategy =
     OneForOneStrategy() { case _ =>
       Stop
     }
 
-  override def receive: Receive = start(Map.empty, Map.empty)
-
-  def start(pendingPeers: PeerMap, peers: PeerMap): Receive = { case StartConnecting =>
-    scheduleNodesUpdate()
-    knownNodesManager ! KnownNodesManager.GetKnownNodes
-    context become listen(pendingPeers, peers)
-    unstashAll()
+  override def receive: Receive = {
+    case StartConnecting =>
+      scheduleNodesUpdate()
+      knownNodesManager ! KnownNodesManager.GetKnownNodes
+      context become listening(ConnectedPeers.empty)
+      unstashAll()
+    case _ =>
+      stash()
   }
 
   private def scheduleNodesUpdate(): Unit = {
@@ -77,16 +97,15 @@ class PeerManagerActor(
     )
   }
 
-  def listen(pendingPeers: PeerMap, peers: PeerMap): Receive = {
-    handleCommonMessages(pendingPeers, peers) orElse
+  private def listening(connectedPeers: ConnectedPeers): Receive = {
+    handleCommonMessages(connectedPeers) orElse
       handleBlacklistMessages orElse
-      connections(pendingPeers, peers) orElse
-      nodes(pendingPeers, peers) orElse { case _ =>
-        stash()
-      }
+      handleConnections(connectedPeers) orElse
+      handleNewNodesToConnectMessages(connectedPeers) orElse
+      handlePruning(connectedPeers)
   }
 
-  def nodes(pendingPeers: PeerMap, peers: PeerMap): Receive = {
+  private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
     case KnownNodesManager.KnownNodes(nodes) =>
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
@@ -97,36 +116,57 @@ class PeerManagerActor(
         log.debug("The known nodes list is empty")
       }
 
-    case PeerDiscoveryManager.DiscoveredNodesInfo(nodesInfo) =>
-      val peerAddresses = outgoingPeersAddresses(peers)
+    case PeerDiscoveryManager.RandomNodeInfo(node) =>
+      maybeConnectToRandomNode(connectedPeers, node)
 
-      val nodesToConnect = nodesInfo
-        .filterNot { discoveryNodeInfo =>
-          val socketAddress = discoveryNodeInfo.node.tcpSocketAddress
-          peerAddresses.contains(socketAddress) || isBlacklisted(PeerAddress(socketAddress.getHostString))
-        } // not already connected to or blacklisted
-        .take(peerConfiguration.maxOutgoingPeers - peerAddresses.size)
-
-      NetworkMetrics.DiscoveredPeersSize.set(nodesInfo.size)
-      NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
-      NetworkMetrics.PendingPeersSize.set(pendingPeers.size)
-
-      log.info(
-        s"Discovered ${nodesInfo.size} nodes, " +
-          s"Blacklisted ${blacklistedPeers.size} nodes, " +
-          s"connected to ${peers.size}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}. " +
-          s"Trying to connect to ${nodesToConnect.size} more nodes."
-      )
-
-      if (nodesToConnect.nonEmpty) {
-        log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-        nodesToConnect.foreach(n => self ! ConnectToPeer(n.node.toUri))
-      } else {
-        log.debug("The nodes list is empty, no new nodes to connect to")
-      }
+    case PeerDiscoveryManager.DiscoveredNodesInfo(nodes) =>
+      maybeConnectToDiscoveredNodes(connectedPeers, nodes)
   }
 
-  def connections(pendingPeers: PeerMap, peers: PeerMap): Receive = {
+  private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
+    if (connectedPeers.outgoingConnectionDemand > 0) {
+      if (connectedPeers.canConnectTo(node)) {
+        self ! ConnectToPeer(node.toUri)
+      } else {
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+      }
+    }
+  }
+
+  private def maybeConnectToDiscoveredNodes(connectedPeers: ConnectedPeers, nodes: Set[Node]): Unit = {
+    val nodesToConnect = nodes
+      .filter(connectedPeers.canConnectTo)
+      .take(connectedPeers.outgoingConnectionDemand)
+
+    NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
+    NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
+    NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
+
+    log.info(
+      s"Discovered ${nodes.size} nodes, " +
+        s"Blacklisted ${blacklistedPeers.size} nodes, " +
+        s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
+        s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
+        s"Trying to connect to ${nodesToConnect.size} more nodes."
+    )
+
+    if (nodesToConnect.nonEmpty) {
+      log.debug("Trying to connect to {} nodes", nodesToConnect.size)
+      nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+    } else {
+      log.debug("The nodes list is empty, no new nodes to connect to")
+    }
+
+    // Make sure the background lookups keep going and we don't get stuck with 0
+    // nodes to connect to until the next discovery scan loop. Only sending 1
+    // request so we don't rack up too many pending futures, just trigger a a
+    // search if needed.
+    if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
+      peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
+    }
+  }
+
+  private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
       blacklist(
         PeerAddress(peerAddress),
@@ -135,13 +175,13 @@ class PeerManagerActor(
       )
 
     case HandlePeerConnection(connection, remoteAddress) =>
-      handleConnection(connection, remoteAddress, pendingPeers, peers)
+      handleConnection(connection, remoteAddress, connectedPeers)
 
     case ConnectToPeer(uri) =>
-      connectWith(uri, pendingPeers, peers)
+      connectWith(uri, connectedPeers)
   }
 
-  def getBlacklistDuration(reason: Long): FiniteDuration = {
+  private def getBlacklistDuration(reason: Long): FiniteDuration = {
     import Disconnect.Reasons._
     reason match {
       case TooManyPeers => peerConfiguration.shortBlacklistDuration
@@ -152,17 +192,16 @@ class PeerManagerActor(
   private def handleConnection(
       connection: ActorRef,
       remoteAddress: InetSocketAddress,
-      pendingPeers: PeerMap,
-      peers: PeerMap
+      connectedPeers: ConnectedPeers
   ): Unit = {
-    val connectionHandled = isConnectionHandled(remoteAddress, pendingPeers, peers)
-    val isPendingPeersNotMaxValue = pendingPeers.size < peerConfiguration.maxPendingPeers
+    val alreadyConnectedToPeer = connectedPeers.isConnectionHandled(remoteAddress)
+    val isPendingPeersNotMaxValue = connectedPeers.incomingPendingPeersCount < peerConfiguration.maxPendingPeers
 
     val validConnection = for {
       validHandler <- validateConnection(
         remoteAddress,
         IncomingConnectionAlreadyHandled(remoteAddress, connection),
-        connectionHandled
+        !alreadyConnectedToPeer
       )
       validNumber <- validateConnection(
         validHandler,
@@ -173,103 +212,150 @@ class PeerManagerActor(
 
     validConnection match {
       case Right(address) =>
-        val (peer, newPendingPeers, newPeers) = createPeer(address, incomingConnection = true, pendingPeers, peers)
+        val (peer, newConnectedPeers) = createPeer(address, incomingConnection = true, connectedPeers)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-        context become listen(newPendingPeers, newPeers)
-      case Left(error) => handleConnectionErrors(error)
+        context become listening(newConnectedPeers)
+
+      case Left(error) =>
+        handleConnectionErrors(error)
     }
   }
 
-  private def connectWith(uri: URI, pendingPeers: PeerMap, peers: PeerMap): Unit = {
+  private def connectWith(uri: URI, connectedPeers: ConnectedPeers): Unit = {
+    val nodeId = ByteString(Hex.decode(uri.getUserInfo))
     val remoteAddress = new InetSocketAddress(uri.getHost, uri.getPort)
 
-    val connectionHandled = isConnectionHandled(remoteAddress, pendingPeers, peers)
-    val isOutgoingPeersNotMaxValue = countOutgoingPeers(peers) < peerConfiguration.maxOutgoingPeers
+    val alreadyConnectedToPeer =
+      connectedPeers.hasHandshakedWith(nodeId) || connectedPeers.isConnectionHandled(remoteAddress)
+    val isOutgoingPeersNotMaxValue = connectedPeers.outgoingPeersCount < peerConfiguration.maxOutgoingPeers
 
     val validConnection = for {
-      validHandler <- validateConnection(remoteAddress, OutgoingConnectionAlreadyHandled(uri), connectionHandled)
+      validHandler <- validateConnection(remoteAddress, OutgoingConnectionAlreadyHandled(uri), !alreadyConnectedToPeer)
       validNumber <- validateConnection(validHandler, MaxOutgoingConnections, isOutgoingPeersNotMaxValue)
     } yield validNumber
 
     validConnection match {
       case Right(address) =>
-        val (peer, newPendingPeers, newPeers) = createPeer(address, incomingConnection = false, pendingPeers, peers)
+        val (peer, newConnectedPeers) = createPeer(address, incomingConnection = false, connectedPeers)
         peer.ref ! PeerActor.ConnectTo(uri)
-        context become listen(newPendingPeers, newPeers)
+        context become listening(newConnectedPeers)
 
       case Left(error) => handleConnectionErrors(error)
     }
   }
 
-  private def isConnectionHandled(remoteAddress: InetSocketAddress, pendingPeers: PeerMap, peers: PeerMap): Boolean =
-    !(peers ++ pendingPeers).values.map(_.remoteAddress).toSet.contains(remoteAddress)
-
-  private def outgoingPeersAddresses(peers: PeerMap): Set[InetSocketAddress] =
-    peers.filter { case (_, p) => !p.incomingConnection }.values.map(_.remoteAddress).toSet
-
-  private def countOutgoingPeers(peers: PeerMap): Int = peers.count { case (_, p) => !p.incomingConnection }
-
-  private def countIncomingPeers(peers: PeerMap): Int = peers.count { case (_, p) => p.incomingConnection }
-
-  def handleCommonMessages(pendingPeers: PeerMap, peers: PeerMap): Receive = {
+  private def handleCommonMessages(connectedPeers: ConnectedPeers): Receive = {
     case GetPeers =>
-      getPeers(peers.values.toSet).pipeTo(sender())
+      getPeers(connectedPeers.peers.values.toSet).runToFuture.pipeTo(sender())
 
-    case SendMessage(message, peerId) if peers.contains(peerId) =>
-      peers(peerId).ref ! PeerActor.SendMessage(message)
+    case SendMessage(message, peerId) if connectedPeers.getPeer(peerId).isDefined =>
+      connectedPeers.getPeer(peerId).get.ref ! PeerActor.SendMessage(message)
 
     case Terminated(ref) =>
-      val terminatedPeers = terminatedPeersIds(ref, pendingPeers, peers)
-
-      terminatedPeers.foreach { peerId =>
+      val (terminatedPeersIds, newConnectedPeers) = connectedPeers.removeTerminatedPeer(ref)
+      terminatedPeersIds.foreach { peerId =>
         peerEventBus ! Publish(PeerEvent.PeerDisconnected(peerId))
       }
-      context unwatch ref
-      context become listen(pendingPeers -- terminatedPeers, peers -- terminatedPeers)
-
-    case PeerEvent.PeerHandshakeSuccessful(peer, _) if peer.incomingConnection =>
-      if (countIncomingPeers(peers) >= peerConfiguration.maxIncomingPeers) {
-        peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
-      } else {
-        context become listen(pendingPeers - peer.id, peers + (peer.id -> peer))
+      // Try to replace a lost connection with another one.
+      if (newConnectedPeers.outgoingConnectionDemand > 0) {
+        peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
-  }
+      context unwatch ref
+      context become listening(newConnectedPeers)
 
-  private def terminatedPeersIds(ref: ActorRef, pendingPeers: PeerMap, peers: PeerMap): Iterable[PeerId] = {
-    (peers ++ pendingPeers).collect { case (id, Peer(_, peerRef, _)) if peerRef == ref => id }
+    case PeerEvent.PeerHandshakeSuccessful(handshakedPeer, _) =>
+      if (
+        handshakedPeer.incomingConnection && connectedPeers.incomingHandshakedPeersCount >= peerConfiguration.maxIncomingPeers
+      ) {
+        handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+
+        // It looks like all incoming slots are taken; try to make some room.
+        self ! SchedulePruneIncomingPeers
+
+        context become listening(connectedPeers)
+
+      } else if (handshakedPeer.nodeId.exists(connectedPeers.hasHandshakedWith)) {
+        // FIXME: peers received after handshake should always have their nodeId defined, we could maybe later distinguish
+        //        it into PendingPeer/HandshakedPeer classes
+
+        // Even though we do already validations for this, we might have missed it someone tried connecting to us at the
+        // same time as we do
+        log.debug(s"Disconnecting from ${handshakedPeer.remoteAddress} as we are already connected to him")
+        handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected)
+      } else {
+        context become listening(connectedPeers.promotePeerToHandshaked(handshakedPeer))
+      }
   }
 
   private def createPeer(
       address: InetSocketAddress,
       incomingConnection: Boolean,
-      pendingPeers: PeerMap,
-      peers: PeerMap
-  ): (Peer, PeerMap, PeerMap) = {
+      connectedPeers: ConnectedPeers
+  ): (Peer, ConnectedPeers) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
-    val peer = Peer(address, ref, incomingConnection)
-    val newPeer = peer.id -> peer
+    val pendingPeer = Peer(address, ref, incomingConnection, None, createTimeMillis = System.currentTimeMillis)
 
-    val (newPendingPeers, newPeers) = if (peer.incomingConnection) {
-      (pendingPeers + newPeer, peers)
-    } else {
-      (pendingPeers, peers + newPeer)
-    }
+    val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)
 
-    (peer, newPendingPeers, newPeers)
+    (pendingPeer, newConnectedPeers)
   }
 
-  private def getPeers(peers: Set[Peer]): Future[Peers] = {
-    implicit val timeout: Timeout = Timeout(2.seconds)
+  private def handlePruning(connectedPeers: ConnectedPeers): Receive = {
+    case SchedulePruneIncomingPeers =>
+      implicit val timeout: Timeout = Timeout(peerConfiguration.updateNodesInterval)
 
-    Future
-      .traverse(peers) { peer =>
-        (peer.ref ? PeerActor.GetStatus)
-          .mapTo[PeerActor.StatusResponse]
-          .map { sr => Success((peer, sr.status)) }
-          .recover { case ex => Failure(ex) }
-      }
-      .map(r => Peers.apply(r.collect { case Success(v) => v }.toMap))
+      // Ask for the whole statistics duration, we'll use averages to make it fair.
+      val window = peerConfiguration.statSlotCount * peerConfiguration.statSlotDuration
+
+      peerStatistics
+        .askFor[PeerStatisticsActor.StatsForAll](PeerStatisticsActor.GetStatsForAll(window))
+        .map(PruneIncomingPeers)
+        .runToFuture
+        .pipeTo(self)
+
+    case PruneIncomingPeers(PeerStatisticsActor.StatsForAll(stats)) =>
+      val prunedConnectedPeers = pruneIncomingPeers(connectedPeers, stats)
+
+      context become listening(prunedConnectedPeers)
+  }
+
+  /** Disconnect some incoming connections so we can free up slots. */
+  private def pruneIncomingPeers(
+      connectedPeers: ConnectedPeers,
+      stats: Map[PeerId, PeerStat]
+  ): ConnectedPeers = {
+    val pruneCount = PeerManagerActor.numberOfIncomingConnectionsToPrune(connectedPeers, peerConfiguration)
+    val now = System.currentTimeMillis
+    val (peersToPrune, prunedConnectedPeers) =
+      connectedPeers.prunePeers(
+        incoming = true,
+        minAge = peerConfiguration.minPruneAge,
+        numPeers = pruneCount,
+        priority = prunePriority(stats, now),
+        currentTimeMillis = now
+      )
+
+    peersToPrune.foreach { peer =>
+      peer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
+    }
+
+    prunedConnectedPeers
+  }
+
+  private def getPeers(peers: Set[Peer]): Task[Peers] = {
+    Task
+      .parSequence(peers.map(getPeerStatus))
+      .map(_.flatten.toMap)
+      .map(Peers.apply)
+  }
+
+  private def getPeerStatus(peer: Peer): Task[Option[(Peer, PeerActor.Status)]] = {
+    implicit val timeout: Timeout = Timeout(2.seconds)
+    peer.ref
+      .askFor[PeerActor.StatusResponse](PeerActor.GetStatus)
+      .map { sr => Some((peer, sr.status)) }
+      .onErrorHandle(_ => None)
   }
 
   private def validateConnection(
@@ -298,18 +384,29 @@ class PeerManagerActor(
 }
 
 object PeerManagerActor {
+  // scalastyle:off parameter.number
   def props[R <: HandshakeResult](
       peerDiscoveryManager: ActorRef,
       peerConfiguration: PeerConfiguration,
       peerMessageBus: ActorRef,
       knownNodesManager: ActorRef,
+      peerStatistics: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      discoveryConfig: DiscoveryConfig
+      discoveryConfig: DiscoveryConfig,
+      bestProtocolVersion: Version
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
-      peerFactory(peerConfiguration, peerMessageBus, knownNodesManager, handshaker, authHandshaker, messageDecoder)
+      peerFactory(
+        peerConfiguration,
+        peerMessageBus,
+        knownNodesManager,
+        handshaker,
+        authHandshaker,
+        messageDecoder,
+        bestProtocolVersion
+      )
 
     Props(
       new PeerManagerActor(
@@ -317,11 +414,13 @@ object PeerManagerActor {
         peerDiscoveryManager,
         peerConfiguration,
         knownNodesManager,
+        peerStatistics,
         peerFactory = factory,
         discoveryConfig
       )
     )
   }
+  // scalastyle:on parameter.number
 
   def peerFactory[R <: HandshakeResult](
       config: PeerConfiguration,
@@ -329,7 +428,8 @@ object PeerManagerActor {
       knownNodesManager: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder
+      messageDecoder: MessageDecoder,
+      bestProtocolVersion: Version
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -340,12 +440,13 @@ object PeerManagerActor {
       incomingConnection,
       handshaker,
       authHandshaker,
-      messageDecoder
+      messageDecoder,
+      bestProtocolVersion
     )
     ctx.actorOf(props, id)
   }
 
-  trait PeerConfiguration {
+  trait PeerConfiguration extends PeerConfiguration.ConnectionLimits {
     val connectRetryDelay: FiniteDuration
     val connectMaxRetries: Int
     val disconnectPoisonPillTimeout: FiniteDuration
@@ -354,14 +455,23 @@ object PeerManagerActor {
     val waitForChainCheckTimeout: FiniteDuration
     val fastSyncHostConfiguration: FastSyncHostConfiguration
     val rlpxConfiguration: RLPxConfiguration
-    val maxOutgoingPeers: Int
-    val maxIncomingPeers: Int
-    val maxPendingPeers: Int
     val networkId: Int
     val updateNodesInitialDelay: FiniteDuration
     val updateNodesInterval: FiniteDuration
     val shortBlacklistDuration: FiniteDuration
     val longBlacklistDuration: FiniteDuration
+    val statSlotDuration: FiniteDuration
+    val statSlotCount: Int
+  }
+  object PeerConfiguration {
+    trait ConnectionLimits {
+      val minOutgoingPeers: Int
+      val maxOutgoingPeers: Int
+      val maxIncomingPeers: Int
+      val maxPendingPeers: Int
+      val pruneIncomingPeers: Int
+      val minPruneAge: FiniteDuration
+    }
   }
 
   trait FastSyncHostConfiguration {
@@ -397,4 +507,49 @@ object PeerManagerActor {
 
   case class PeerAddress(value: String) extends BlackListId
 
+  case object SchedulePruneIncomingPeers
+  case class PruneIncomingPeers(stats: PeerStatisticsActor.StatsForAll)
+
+  /** Number of new connections the node should try to open at any given time. */
+  def outgoingConnectionDemand(
+      connectedPeers: ConnectedPeers,
+      peerConfiguration: PeerConfiguration.ConnectionLimits
+  ): Int = {
+    if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers)
+      // We have established at least the minimum number of working connections.
+      0
+    else
+      // Try to connect to more, up to the maximum, including pending peers.
+      peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
+  }
+
+  def numberOfIncomingConnectionsToPrune(
+      connectedPeers: ConnectedPeers,
+      peerConfiguration: PeerConfiguration.ConnectionLimits
+  ): Int = {
+    val minIncomingPeers = peerConfiguration.maxIncomingPeers - peerConfiguration.pruneIncomingPeers
+    math.max(
+      0,
+      connectedPeers.incomingHandshakedPeersCount - connectedPeers.incomingPruningPeersCount - minIncomingPeers
+    )
+  }
+
+  /** Assign a priority to peers that we can use to order connections,
+    * with lower priorities being the ones to prune first.
+    */
+  def prunePriority(stats: Map[PeerId, PeerStat], currentTimeMillis: Long)(peerId: PeerId): Double = {
+    stats
+      .get(peerId)
+      .flatMap { stat =>
+        val maybeAgeSeconds = stat.firstSeenTimeMillis
+          .map(currentTimeMillis - _)
+          .map(_ * 1000)
+          .filter(_ > 0)
+
+        // Use the average number of responses per second over the lifetime of the connection
+        // as an indicator of how fruitful the peer is for us.
+        maybeAgeSeconds.map(age => stat.responsesReceived.toDouble / age)
+      }
+      .getOrElse(0.0)
+  }
 }

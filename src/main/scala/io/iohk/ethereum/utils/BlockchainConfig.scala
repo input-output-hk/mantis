@@ -1,15 +1,15 @@
 package io.iohk.ethereum.utils
 
 import akka.util.ByteString
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.collection.JavaConverters._
-import com.typesafe.config.{Config => TypesafeConfig}
-
 import scala.util.Try
 
 case class BlockchainConfig(
+    powTargetTime: Option[Long] = None,
     frontierBlockNumber: BigInt,
     homesteadBlockNumber: BigInt,
     eip106BlockNumber: BigInt,
@@ -41,6 +41,7 @@ case class BlockchainConfig(
     ethCompatibleStorage: Boolean,
     bootstrapNodes: Set[String],
     checkpointPubKeys: Set[ByteString] = Set.empty,
+    allowedMinersPublicKeys: Set[ByteString] = Set.empty,
     ecip1099BlockNumber: BigInt
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
@@ -50,6 +51,10 @@ object BlockchainConfig {
 
   // scalastyle:off method.length
   def fromRawConfig(blockchainConfig: TypesafeConfig): BlockchainConfig = {
+    val powTargetTime: Option[Long] =
+      ConfigUtils
+        .getOptionalValue(blockchainConfig, _.getDuration, "pow-target-time")
+        .map(_.getSeconds)
     val frontierBlockNumber: BigInt = BigInt(blockchainConfig.getString("frontier-block-number"))
     val homesteadBlockNumber: BigInt = BigInt(blockchainConfig.getString("homestead-block-number"))
     val eip106BlockNumber: BigInt = BigInt(blockchainConfig.getString("eip106-block-number"))
@@ -100,11 +105,13 @@ object BlockchainConfig {
     val ethCompatibleStorage: Boolean = blockchainConfig.getBoolean("eth-compatible-storage")
 
     val bootstrapNodes: Set[String] = blockchainConfig.getStringList("bootstrap-nodes").asScala.toSet
-    val checkpointPubKeys = readCheckpointPubKeys(blockchainConfig)
+    val checkpointPubKeys = readPubKeySet(blockchainConfig, "checkpoint-public-keys")
+    val allowedMinersPublicKeys = readPubKeySet(blockchainConfig, "allowed-miners")
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
 
     BlockchainConfig(
+      powTargetTime = powTargetTime,
       frontierBlockNumber = frontierBlockNumber,
       homesteadBlockNumber = homesteadBlockNumber,
       eip106BlockNumber = eip106BlockNumber,
@@ -136,17 +143,14 @@ object BlockchainConfig {
       ethCompatibleStorage = ethCompatibleStorage,
       bootstrapNodes = bootstrapNodes,
       checkpointPubKeys = checkpointPubKeys,
+      allowedMinersPublicKeys = allowedMinersPublicKeys,
       ecip1099BlockNumber = ecip1099BlockNumber
     )
   }
   // scalastyle:on method.length
-  private def readCheckpointPubKeys(blockchainConfig: TypesafeConfig): Set[ByteString] = {
+  private def readPubKeySet(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
-      .getOptionalValue(
-        blockchainConfig,
-        "checkpoint-public-keys",
-        config => config.getStringList("checkpoint-public-keys")
-      )
+      .getOptionalValue(blockchainConfig, _.getStringList, path)
       .map(_.asScala)
       .getOrElse(Seq.empty)
     keys.map(ByteStringUtils.string2hash).toSet

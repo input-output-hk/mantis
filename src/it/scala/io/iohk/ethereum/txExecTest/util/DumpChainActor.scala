@@ -6,26 +6,27 @@ import java.net.URI
 import akka.actor.{Actor, ActorRef, _}
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.network.{Peer, PeerManagerActor}
-import io.iohk.ethereum.network.PeerActor.SendMessage
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
-import org.bouncycastle.util.encoders.Hex
-import ReceiptImplicits._
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
+import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
+import io.iohk.ethereum.network.p2p.messages.PV63._
+import io.iohk.ethereum.network.{Peer, PeerManagerActor}
+import io.iohk.ethereum.txExecTest.util.DumpChainActor._
+import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import DumpChainActor._
 
 /**
   * Actor used for obtaining all the blockchain data (blocks, receipts, nodes) from the blocks [startBlock, maxBlocks]
@@ -84,7 +85,7 @@ class DumpChainActor(
       peers.headOption.foreach { peer =>
         peerMessageBus ! Subscribe(
           MessageClassifier(
-            Set(BlockHeaders.code, BlockBodies.code, Receipts.code, NodeData.code),
+            Set(Codes.BlockHeadersCode, Codes.BlockBodiesCode, Codes.ReceiptsCode, Codes.NodeDataCode),
             PeerSelector.WithId(peer.id)
           )
         )
@@ -140,13 +141,13 @@ class DumpChainActor(
           val account = n.value.toArray[Byte].toAccount
 
           if (account.codeHash != DumpChainActor.emptyEvm) {
-            peers.headOption.foreach { case Peer(_, _, _) =>
+            peers.headOption.foreach { _ =>
               evmTorequest = evmTorequest :+ account.codeHash
               evmCodeHashes = evmCodeHashes + account.codeHash
             }
           }
           if (account.storageRoot != DumpChainActor.emptyStorage) {
-            peers.headOption.foreach { case Peer(_, _, _) =>
+            peers.headOption.foreach { _ =>
               contractChildren = contractChildren :+ account.storageRoot
               contractNodesHashes = contractNodesHashes + account.storageRoot
             }

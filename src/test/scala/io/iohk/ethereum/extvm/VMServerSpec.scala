@@ -110,7 +110,7 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       accountStartNonce = blockchainConfig.accountStartNonce
     )
     val ethereumConfigMsg = msg.Hello.Config.EthereumConfig(ethereumConfig)
-    val helloMsg = msg.Hello(version = "1.1", config = ethereumConfigMsg)
+    val helloMsg = msg.Hello(version = "2.0", config = ethereumConfigMsg)
 
     val messageHandler = mock[MessageHandler]
     val vmServer = new VMServer(messageHandler)

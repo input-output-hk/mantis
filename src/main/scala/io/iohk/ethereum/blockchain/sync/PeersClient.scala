@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
@@ -94,9 +95,9 @@ class PeersClient(
 
   private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int =
     requestMsg match {
-      case _: GetBlockHeaders => BlockHeaders.code
-      case _: GetBlockBodies => BlockBodies.code
-      case _: GetNodeData => NodeData.code
+      case _: GetBlockHeaders => Codes.BlockHeadersCode
+      case _: GetBlockBodies => Codes.BlockBodiesCode
+      case _: GetNodeData => Codes.NodeDataCode
     }
 
   private def printStatus(requesters: Requesters): Unit = {
@@ -161,12 +162,12 @@ object PeersClient {
 
   def bestPeer(peersToDownloadFrom: Map[Peer, PeerInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom
-      .collect { case (ref, PeerInfo(_, totalDifficulty, latestChkp, true, _, _)) =>
-        (ref, totalDifficulty, latestChkp)
+      .collect { case (ref, PeerInfo(_, chainWeight, true, _, _)) =>
+        (ref, chainWeight)
       }
 
     if (peersToUse.nonEmpty) {
-      val (peer, _, _) = peersToUse.maxBy { case (_, td, latestChkp) => latestChkp -> td }
+      val (peer, _) = peersToUse.maxBy(_._2)
       Some(peer)
     } else {
       None

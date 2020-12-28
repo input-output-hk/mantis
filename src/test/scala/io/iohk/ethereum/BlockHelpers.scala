@@ -2,12 +2,12 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.domain.{Address, Block, BlockBody, SignedTransaction, Transaction}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import mouse.all._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
-import scala.math.BigInt
 import scala.util.Random
 
 object BlockHelpers extends SecureRandomBuilder {
@@ -37,18 +37,25 @@ object BlockHelpers extends SecureRandomBuilder {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  def generateChain(amount: Int, parent: Block, adjustBlock: Block => Block = identity): List[Block] =
-    (1 to amount).toList.foldLeft[List[Block]](Nil)((generated, _) => {
-      val theParent = generated.lastOption.getOrElse(parent)
-      generated :+ (theParent |> generateBlock |> adjustBlock)
-    })
+  def generateChain(amount: Int, branchParent: Block, adjustBlock: Block => Block = identity): List[Block] =
+    (1 to amount).toList.foldLeft[List[Block]](Nil) { (generated, _) =>
+      val parent = generated.lastOption.getOrElse(branchParent)
+      generated :+ (parent |> generateBlock |> adjustBlock)
+    }
 
-  def generateBlock(nr: BigInt, parent: Block): Block = {
-    val header = defaultHeader.copy(
+  def resetHeaderExtraFields(hef: BlockHeader.HeaderExtraFields): BlockHeader.HeaderExtraFields = hef match {
+    case HeaderExtraFields.HefEmpty => HeaderExtraFields.HefEmpty
+    case HeaderExtraFields.HefPostEcip1098(_) => HeaderExtraFields.HefPostEcip1098(treasuryOptOut = false)
+    case HeaderExtraFields.HefPostEcip1097(_, _) => HeaderExtraFields.HefPostEcip1097(treasuryOptOut = false, None)
+  }
+
+  def generateBlock(parent: Block): Block = {
+    val header = parent.header.copy(
       extraData = randomHash(),
-      number = nr,
+      number = parent.number + 1,
       parentHash = parent.hash,
-      nonce = ByteString(Random.nextLong())
+      nonce = ByteString(Random.nextLong()),
+      extraFields = resetHeaderExtraFields(parent.header.extraFields)
     )
     val ommer = defaultHeader.copy(extraData = randomHash())
     val tx = defaultTx.copy(payload = randomHash())
@@ -57,6 +64,12 @@ object BlockHelpers extends SecureRandomBuilder {
     Block(header, BlockBody(List(stx.tx), List(ommer)))
   }
 
-  def generateBlock(parent: Block): Block = generateBlock(parent.number + 1, parent)
+  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block = {
+    block.copy(header = updater(block.header))
+  }
+
+  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block = {
+    block.copy(body = block.body.copy(transactionList = transactions))
+  }
 
 }

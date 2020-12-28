@@ -15,18 +15,20 @@ import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.{NewBlock, Status}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.nodebuilder.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
+import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.ReplaySubject
 import org.scalamock.scalatest.AsyncMockFactory
@@ -34,7 +36,6 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.concurrent.{ExecutionContext, Future}
 import scala.math.BigInt
 import scala.reflect.ClassTag
 
@@ -49,7 +50,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit override lazy val system: ActorSystem = _system
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(blockHeadersPerRequest = 2, blockBodiesPerRequest = 2)
-    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo).toMap
+    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
     val etcPeerManager: TestProbe = TestProbe()
@@ -67,7 +68,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peerEventBus.ref,
           ledger,
           blockchain,
-          blockchainConfig,
+          validators.blockValidator,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
@@ -87,7 +88,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     blockchain.save(
       block = BlockHelpers.genesis,
       receipts = Nil,
-      totalDifficulty = BigInt(10000),
+      weight = ChainWeight.totalDifficultyOnly(10000),
       saveAsBestBlock = true
     )
     // scalastyle:on magic.number
@@ -100,13 +101,19 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def getPeer(id: PeerId): Peer =
       Peer(new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
-    def getPeerInfo(peer: Peer): PeerInfo = {
-      val status = Status(1, 1, 1, ByteString(s"${peer.id}_bestHash"), ByteString("unused"))
+    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64): PeerInfo = {
+      val status =
+        RemoteStatus(
+          protocolVersion,
+          1,
+          ChainWeight.totalDifficultyOnly(1),
+          ByteString(s"${peer.id}_bestHash"),
+          ByteString("unused")
+        )
       PeerInfo(
         status,
         forkAccepted = true,
-        totalDifficulty = status.totalDifficulty,
-        latestCheckpointNumber = status.latestCheckpointNumber,
+        chainWeight = status.chainWeight,
         maxBlockNumber = 0,
         bestBlockHash = status.bestHash
       )
@@ -149,8 +156,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       .firstL
       .timeout(remainingOrDefault)
 
-    class TestLedgerImpl extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, system.dispatcher) {
-      protected val results = mutable.Map[ByteString, () => Future[BlockImportResult]]()
+    class TestLedgerImpl
+        extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
+      protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
       protected val importedBlocksSet = mutable.Set[Block]()
       private val importedBlocksSubject = ReplaySubject[Block]()
 
@@ -158,15 +166,15 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
       override def importBlock(
           block: Block
-      )(implicit blockExecutionContext: ExecutionContext): Future[BlockImportResult] = {
+      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
-        results(block.hash)().flatTap(_ => importedBlocksSubject.onNext(block))
+        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
 
       override def getBlockByHash(hash: ByteString): Option[Block] =
         importedBlocksSet.find(_.hash == hash)
 
-      def setImportResult(block: Block, result: () => Future[BlockImportResult]): Unit =
+      def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
         results(block.header.hash) = result
 
       def didTryToImportBlock(predicate: Block => Boolean): Boolean =
@@ -289,17 +297,19 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     var importedLastTestBlock = false
     (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
     (ledger
-      .importBlock(_: Block)(_: ExecutionContext))
+      .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
       .onCall((block, _) => {
         if (block == newBlock) {
           importedNewBlock = true
-          Future.successful(BlockImportedToTop(List(BlockData(newBlock, Nil, newBlock.number))))
+          Task.now(
+            BlockImportedToTop(List(BlockData(newBlock, Nil, ChainWeight(0, newBlock.number))))
+          )
         } else {
           if (block == testBlocks.last) {
             importedLastTestBlock = true
           }
-          Future.successful(BlockImportedToTop(Nil))
+          Task.now(BlockImportedToTop(Nil))
         }
       })
 
@@ -313,7 +323,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-      blockFetcher ! MessageFromPeer(NewBlock(block, block.number), peer.id)
+      blockFetcher ! MessageFromPeer(NewBlock(block, ChainWeight.totalDifficultyOnly(block.number)), peer.id)
 
     def goToTop(): Unit = {
       regularSync ! SyncProtocol.Start
