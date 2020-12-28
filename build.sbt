@@ -200,9 +200,7 @@ lazy val node = {
         f -> s"conf/$name"
       },
       bashScriptExtraDefines ++= IO.readLines((resourceDirectory in Compile).value / "scripts" / "extra.sh"),
-      bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
-      batScriptExtraDefines ++= IO.readLines((resourceDirectory in Compile).value / "scripts" / "extra.bat"),
-      batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\..\conf\logback.xml""""
+      batScriptExtraDefines ++= IO.readLines((resourceDirectory in Compile).value / "scripts" / "extra.bat")
     )
 
   if (!nixBuild)
