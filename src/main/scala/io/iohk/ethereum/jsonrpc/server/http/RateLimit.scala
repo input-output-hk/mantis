@@ -15,10 +15,14 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
   private implicit val serialization: Serialization = native.Serialization
   private implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
+  protected def getCurrentTime: Long = System.currentTimeMillis()
+
   lazy val lru = new SimpleLRU[RemoteAddress](
     config.latestTimestampCacheSize,
     config.minRequestInterval.toMillis
-  )
+  )  {
+    override protected def getCurrentTime: Long = RateLimit.this.getCurrentTime
+  }
 
   // Such algebras prevent if-elseif-else boilerplate in the JsonRPCServer code
   // It is also guaranteed that:

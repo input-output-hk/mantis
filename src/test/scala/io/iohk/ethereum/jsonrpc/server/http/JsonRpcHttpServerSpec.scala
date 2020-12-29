@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import java.net.InetAddress
-import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -215,7 +214,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       status shouldEqual StatusCodes.TooManyRequests
     }
 
-    Thread.sleep(30)
+    mockJsonRpcHttpServerWithRateLimit.mockedTime = 50L
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
@@ -469,19 +468,11 @@ class FakeJsonRpcHttpServer(
     with Logger {
   def run(): Unit = ()
   override def corsAllowedOrigins: HttpOriginMatcher = cors
-}
 
-class FakeClock extends Clock {
+  var mockedTime:Long = 0L
 
-  var time: Instant = Instant.now()
-
-  def advanceTime(seconds: Long): Unit = {
-    time = time.plusSeconds(seconds)
+  override protected val rateLimit: RateLimit = new RateLimit(config.rateLimit) {
+    override protected def getCurrentTime: Long = FakeJsonRpcHttpServer.this.mockedTime
   }
 
-  override def getZone: ZoneId = ZoneId.systemDefault()
-
-  override def withZone(zone: ZoneId): Clock = Clock.fixed(time, getZone)
-
-  override def instant(): Instant = time
 }
