@@ -21,13 +21,12 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
 
   protected def getCurrentTimeNanos: Long = System.nanoTime()
 
-  private[this] val ticker: Ticker = new Ticker {
-    override def read(): Long = getCurrentTimeNanos
-  }
-
   private[this] lazy val lru = {
     val nanoDuration = config.minRequestInterval.toNanos
     val javaDuration = Duration.ofNanos(nanoDuration)
+    val ticker: Ticker = new Ticker {
+      override def read(): Long = getCurrentTimeNanos
+    }
     CacheBuilder
       .newBuilder()
       .weakKeys()
@@ -38,16 +37,16 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
 
   // Such algebras prevent if-elseif-else boilerplate in the JsonRPCServer code
   // It is also guaranteed that:
-  //   1) config.enabled is checked only once - on route init
-  //   2) no IP address is extracted unless config.enabled is true
-  //   3) no LRU is created unless config.enabled is true
-  //   4) cache is accessed only once (using get)
-  val rateLimitAlgebra: (Unit => Route) => Route = {
+  //   1) no IP address is extracted unless config.enabled is true
+  //   2) no LRU is created unless config.enabled is true
+  //   3) cache is accessed only once (using get)
+  override def tapply(f: Unit => Route): Route = {
     if (config.enabled) {
       val minInterval = config.minRequestInterval.toSeconds
-      f => {
         extractClientIP { ip =>
           var exists = true
+          // We can avoid using var
+          // But in this case we access our LRU twice.
           lru.get(
             ip,
             () => {
@@ -62,10 +61,7 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
             f.apply(())
           }
         }
-      }
-    } else _.apply(())
+      } else f.apply(())
   }
-
-  override def tapply(f: Unit => Route): Route = rateLimitAlgebra(f)
 
 }
