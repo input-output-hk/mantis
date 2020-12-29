@@ -54,7 +54,7 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger {
       }
       .result()
 
-  val rateLimit = new RateLimit(config.rateLimit)
+  protected val rateLimit = new RateLimit(config.rateLimit)
 
   val route: Route = cors(corsSettings) {
     (path("healthcheck") & pathEndOrSingleSlash & get) {

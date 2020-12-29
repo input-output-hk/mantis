@@ -24,13 +24,13 @@ class SimpleLRU[K](maxElements: Int, ttlMillis: Long) {
     *   false - if not
     */
   def checkAndRefreshEntry(key: K): Boolean = inner.synchronized {
-    val existing = Option(inner.put(key, currentTime))
+    val existing = Option(inner.put(key, getCurrentTime))
     existing.exists(!tooOld(_))
   }
 
   // Override this to test
-  protected def currentTime: Long = System.currentTimeMillis()
+  protected def getCurrentTime: Long = System.currentTimeMillis()
 
-  private[this] def tooOld(time: Long) = time + ttlMillis < currentTime
+  private[this] def tooOld(time: Long) = time + ttlMillis < getCurrentTime
 
 }

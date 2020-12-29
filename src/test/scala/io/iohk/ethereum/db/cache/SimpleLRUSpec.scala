@@ -7,7 +7,7 @@ class SimpleLRUSpec extends AnyWordSpec {
   var time = 0L
 
   private object MockedLRU extends SimpleLRU[Int](10, 100) {
-    override protected def currentTime: Long = SimpleLRUSpec.this.time
+    override protected def getCurrentTime: Long = SimpleLRUSpec.this.time
   }
 
   "It" should {
