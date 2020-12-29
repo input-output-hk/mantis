@@ -97,7 +97,7 @@ trait ShutdownHookBuilder {
 
   def shutdown(): Unit = {
     Await.ready(
-      system.terminate.map(
+      system.terminate().map(
         _ ->
           log.info("actor system finished")
       )(system.dispatcher),

@@ -5,7 +5,7 @@ import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.NumericUtils._
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
 
 case class BlockchainConfig(
@@ -151,8 +151,8 @@ object BlockchainConfig {
   private def readPubKeySet(blockchainConfig: TypesafeConfig, path: String): Set[ByteString] = {
     val keys: Seq[String] = ConfigUtils
       .getOptionalValue(blockchainConfig, _.getStringList, path)
-      .map(_.asScala)
-      .getOrElse(Seq.empty)
+      .map(_.asScala.toSeq)
+      .getOrElse(Nil)
     keys.map(ByteStringUtils.string2hash).toSet
   }
 }

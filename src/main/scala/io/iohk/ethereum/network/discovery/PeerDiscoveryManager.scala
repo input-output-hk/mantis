@@ -79,10 +79,10 @@ class PeerDiscoveryManager(
 
   private def handleNodeInfoRequests(discovery: Option[Discovery]): Receive = {
     case GetDiscoveredNodesInfo =>
-      sendDiscoveredNodesInfo(discovery.map(_._1), sender)
+      sendDiscoveredNodesInfo(discovery.map(_._1), sender())
 
     case GetRandomNodeInfo =>
-      sendRandomNodeInfo(discovery.map(_._2), sender)
+      sendRandomNodeInfo(discovery.map(_._2), sender())
   }
 
   // The service hasn't been started yet, so it just serves the static known nodes.

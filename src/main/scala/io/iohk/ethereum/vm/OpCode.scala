@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.utils.ByteStringUtils.Padding
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
@@ -155,7 +156,7 @@ object OpCode {
   def sliceBytes(bytes: ByteString, offset: UInt256, size: UInt256): ByteString = {
     val start = offset.min(bytes.size).toInt
     val end = (offset + size).min(bytes.size).toInt
-    bytes.slice(start, end).padTo(size.toInt, 0.toByte)
+    bytes.slice(start, end).padToByteString(size.toInt, 0.toByte)
   }
 }
 

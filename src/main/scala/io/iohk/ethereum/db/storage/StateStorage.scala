@@ -21,7 +21,7 @@ trait StateStorage {
   def onBlockSave(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit
   def onBlockRollback(bn: BigInt, currentBestSavedBlock: BigInt)(updateBestBlocksData: () => Unit): Unit
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt)
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, bn: BigInt): Unit
   def getNode(nodeHash: NodeHash): Option[MptNode]
   def forcePersist(reason: FlushSituation): Boolean
 }

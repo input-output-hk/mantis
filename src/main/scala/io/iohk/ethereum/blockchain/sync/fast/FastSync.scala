@@ -126,7 +126,7 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
-    private val syncStateStorageActor = context.actorOf(Props[StateStorageActor], "state-storage")
+    private val syncStateStorageActor = context.actorOf(Props[StateStorageActor](), "state-storage")
 
     syncStateStorageActor ! fastSyncStateStorage
 

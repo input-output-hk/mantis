@@ -34,11 +34,11 @@ class FaucetSupervisor(walletService: WalletService, config: FaucetConfig, shutd
       )
       .withAutoReset(autoReset)
       .withSupervisorStrategy(OneForOneStrategy() {
-        case error: WalletException ⇒
+        case error: WalletException =>
           log.error(s"Stop ${FaucetHandler.name}", error)
           shutdown()
           SupervisorStrategy.Stop
-        case error ⇒
+        case error =>
           log.error(s"Restart ${FaucetHandler.name}", error)
           SupervisorStrategy.Restart
       })

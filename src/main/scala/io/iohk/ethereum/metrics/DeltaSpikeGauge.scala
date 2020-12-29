@@ -21,7 +21,7 @@ class DeltaSpikeGauge(name: String, metrics: Metrics) {
     }
   }
 
-  private[this] final val gauge = metrics.gauge(name, () => getValue)
+  private[this] final val gauge = metrics.gauge(name, () => getValue())
 
   def trigger(): Unit = {
     if (isTriggeredRef.compareAndSet(false, true)) {
