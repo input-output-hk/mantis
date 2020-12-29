@@ -214,7 +214,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       status shouldEqual StatusCodes.TooManyRequests
     }
 
-    mockJsonRpcHttpServerWithRateLimit.mockedTime = 50L
+    mockJsonRpcHttpServerWithRateLimit.mockedTime = 50000000L
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
@@ -472,7 +472,7 @@ class FakeJsonRpcHttpServer(
   var mockedTime:Long = 0L
 
   override protected val rateLimit: RateLimit = new RateLimit(config.rateLimit) {
-    override protected def getCurrentTime: Long = FakeJsonRpcHttpServer.this.mockedTime
+    override protected def getCurrentTimeNanos: Long = FakeJsonRpcHttpServer.this.mockedTime
   }
 
 }
