@@ -3,4 +3,10 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
-./bin/mantis "$@"
+CONFIG_FILE="./conf/$1.conf"
+if [ -f "$CONFIG_FILE" ]; then
+  shift
+  CHAIN_PARAM="-Dconfig.file=$CONFIG_FILE"
+fi
+
+./bin/mantis ${CHAIN_PARAM:+"$CHAIN_PARAM"} "$@"
