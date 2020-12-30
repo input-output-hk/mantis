@@ -4,7 +4,6 @@ import io.iohk.ethereum.cli.CliLauncher
 import io.iohk.ethereum.crypto.{EcKeyGen, SignatureValidator}
 import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.faucet.Faucet
-import io.iohk.ethereum.mallet.main.Mallet
 import io.iohk.ethereum.utils.{Config, Logger}
 
 object App extends Logger {
@@ -15,7 +14,6 @@ object App extends Logger {
     val launchKeytool = "keytool"
     val downloadBootstrap = "bootstrap"
     val vmServer = "vm-server"
-    val mallet = "mallet"
     val faucet = "faucet"
     val ecKeyGen = "eckeygen"
     val cli = "cli"
@@ -31,16 +29,15 @@ object App extends Logger {
         }
       }
       case Some(`vmServer`) => VmServerApp.main(args.tail)
-      case Some(`mallet`) => Mallet.main(args.tail)
       case Some(`faucet`) => Faucet.main(args.tail)
       case Some(`ecKeyGen`) => EcKeyGen.main(args.tail)
       case Some(`sigValidator`) => SignatureValidator.main(args.tail)
       case Some(`cli`) => CliLauncher.main(args.tail)
       case Some(unknown) =>
         log.error(
-          s"Unrecognised launcher option, " +
+          s"Unrecognised launcher option $unknown, " +
             s"first parameter must be $launchKeytool, $downloadBootstrap, $launchMantis, " +
-            s"$mallet, $faucet, $vmServer, $ecKeyGen, $sigValidator or $cli"
+            s"$faucet, $vmServer, $ecKeyGen, $sigValidator or $cli"
         )
     }
 

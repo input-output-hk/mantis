@@ -47,6 +47,7 @@ object Dependencies {
   val boopickle = Seq("io.suzaku" %% "boopickle" % "1.3.3")
 
   val rocksDb = Seq(
+    // use "5.18.3" for older macOS
     "org.rocksdb" % "rocksdbjni" % "6.11.4"
   )
 
