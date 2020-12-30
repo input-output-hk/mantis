@@ -48,7 +48,9 @@ class PeerStatisticsSpec
 
     val statA = stats.stats(alice)
     statA.responsesReceived shouldBe 2
-    statA.lastSeenTimeMillis shouldBe >(statA.firstSeenTimeMillis)
+    // @dv: the corner case when responses are received simultaneously
+    // can ruin the tests for no reason
+    statA.lastSeenTimeMillis shouldBe >=(statA.firstSeenTimeMillis)
 
     val statB = stats.stats(bob)
     statB.responsesReceived shouldBe 1
