@@ -43,25 +43,25 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
   override def tapply(f: Unit => Route): Route = {
     if (config.enabled) {
       val minInterval = config.minRequestInterval.toSeconds
-        extractClientIP { ip =>
-          var exists = true
-          // We can avoid using var
-          // But in this case we access our LRU twice.
-          lru.get(
-            ip,
-            () => {
-              exists = false
-              NotUsed
-            }
-          )
-          if (exists) {
-            val err = JsonRpcError.RateLimitError(minInterval)
-            complete((StatusCodes.TooManyRequests, err))
-          } else {
-            f.apply(())
+      extractClientIP { ip =>
+        var exists = true
+        // We can avoid using var
+        // But in this case we access our LRU twice.
+        lru.get(
+          ip,
+          () => {
+            exists = false
+            NotUsed
           }
+        )
+        if (exists) {
+          val err = JsonRpcError.RateLimitError(minInterval)
+          complete((StatusCodes.TooManyRequests, err))
+        } else {
+          f.apply(())
         }
-      } else f.apply(())
+      }
+    } else f.apply(())
   }
 
 }
