@@ -52,7 +52,13 @@ class EthashConsensus private (
 
   private implicit val timeout: Timeout = 5.seconds
 
-  override def sendMiner(msg: MinerProtocol): Task[MinerResponse] = {
+  override def sendMiner(msg: MinerProtocol): Unit = {
+    atomicMiner
+      .get()
+      .foreach(_ ! msg)
+  }
+
+  override def askMiner(msg: MinerProtocol): Task[MinerResponse] = {
     atomicMiner
       .get()
       .map(_.askFor[MinerResponse](msg))
@@ -67,8 +73,6 @@ class EthashConsensus private (
           case MockedPow => MockedMiner(node)
         }
         atomicMiner.set(Some(miner))
-        // Just create the Task which comes fromFuture (will start executing eagerly)
-        // Should runAsyncAndForget to be more explicit, but don't want to add a Scheduler dependency
         sendMiner(MinerProtocol.StartMining)
 
       case _ =>

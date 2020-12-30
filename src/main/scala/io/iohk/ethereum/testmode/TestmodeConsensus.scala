@@ -84,9 +84,14 @@ class TestmodeConsensus(
   override def stopProtocol(): Unit = {}
 
   /**
+    * Sends msg to the internal miner and waits for the response
+    */
+  override def askMiner(msg: MinerProtocol): Task[MinerResponse] = Task.now(MinerNotExist)
+
+  /**
     * Sends msg to the internal miner
     */
-  override def sendMiner(msg: MinerProtocol): Task[MinerResponse] = Task.now(MinerNotExist)
+  override def sendMiner(msg: MinerProtocol): Unit = {}
 }
 
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
