@@ -61,9 +61,14 @@ trait Consensus {
   def stopProtocol(): Unit
 
   /**
+    * Sends msg to the internal miner and waits for the response
+    */
+  def askMiner(msg: MinerProtocol): Task[MinerResponse]
+
+  /**
     * Sends msg to the internal miner
     */
-  def sendMiner(msg: MinerProtocol): Task[MinerResponse]
+  def sendMiner(msg: MinerProtocol): Unit
 }
 
 /**

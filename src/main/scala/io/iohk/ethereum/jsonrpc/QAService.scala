@@ -33,7 +33,7 @@ class QAService(
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     consensus
-      .sendMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
+      .askMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .onErrorHandle { throwable =>
         log.warn("Unable to mine requested blocks", throwable)
