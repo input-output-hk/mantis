@@ -462,7 +462,7 @@ class FakeJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     val config: JsonRpcHttpServerConfig,
-    val cors: HttpOriginMatcher,
+    val cors: HttpOriginMatcher
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {
