@@ -69,7 +69,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
 
   it should "allow 0 length passphrase when configured" in new TestSetup {
     val res1 = keyStore.newAccount("")
-    res1 shouldBe 'right
+    assert(res1.isRight)
   }
 
   it should "not allow 0 length passphrase when configured" in new TestSetup {
@@ -87,7 +87,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   it should "allow to create account with proper length passphrase, when empty is allowed" in new TestSetup {
     val newKeyStore = getKeyStore(noEmptyAllowedConfig)
     val res1 = newKeyStore.newAccount("aaaaaaaa")
-    res1 shouldBe 'right
+    assert(res1.isRight)
   }
 
   it should "return an error when the keystore dir cannot be initialized" in new TestSetup {

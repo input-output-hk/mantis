@@ -53,7 +53,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -73,7 +73,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
 
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
-    handshakerAfterStatusOpt shouldBe 'defined
+    assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
         peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
@@ -104,7 +104,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
 
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
-    handshakerAfterStatusOpt shouldBe 'defined
+    assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
         peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
@@ -143,7 +143,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -176,7 +176,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
-      case _ => fail
+      case _ => fail()
     }
   }
 

@@ -75,7 +75,7 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
     runTests(testName, args)
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     vm match {
       case extVm: ExtVMInterface => extVm.close()
       case _ =>

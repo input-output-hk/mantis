@@ -268,12 +268,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getWork" in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -307,12 +307,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getWork when fail to get ommers and transactions" in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -348,12 +348,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_submitWork" in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val nonce = s"0x0000000000000001"
     val mixHash = s"""0x${"01" * 32}"""
@@ -379,12 +379,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_submitHashrate" in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_submitHashrate",
@@ -400,12 +400,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_hashrate" in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_hashrate")
 
@@ -543,12 +543,12 @@ class JsonRpcControllerEthSpec
 
   it should "eth_coinbase " in new JsonRpcControllerFixture {
     // Just record the fact that this is going to be called, we do not care about the returned value
-    (validators.signedTransactionValidator _: (() => SignedTransactionValidator))
+    (() => validators.signedTransactionValidator)
       .expects()
       .returns(null)
       .anyNumberOfTimes()
 
-    (ledger.consensus _: (() => Consensus)).expects().returns(consensus).anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_coinbase")
 

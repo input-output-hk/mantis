@@ -25,7 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.web3j.protocol.core.methods.response.EthLog
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
 
 class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
@@ -781,7 +781,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     setupContractResponse1.getError shouldEqual null
 
     // Mine 2 Contract creation transactions
-    val _ = service.blockFlowable(false).take(2).blockingLast()
+    val unused = service.blockFlowable(false).take(2).blockingLast()
 
     // Get receipt for both contract creation transactions
     val receiptResponse = service.ethGetTransactionReceipt(setupContractResponse.getTransactionHash).send()

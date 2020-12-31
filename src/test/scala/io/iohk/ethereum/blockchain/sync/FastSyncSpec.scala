@@ -48,9 +48,9 @@ class FastSyncSpec
     lazy val bestBlockAtStart = testBlocks(10)
     lazy val expectedPivotBlockNumber = bestBlockAtStart.number - syncConfig.pivotBlockOffset
     lazy val expectedTargetBlockNumber = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers = twoAcceptedPeers.mapValues { peerInfo =>
+    lazy val testPeers = twoAcceptedPeers.map { case (k, peerInfo) =>
       val lastBlock = bestBlockAtStart
-      peerInfo
+      k -> peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)
         .copy(remoteStatus = peerInfo.remoteStatus.copy(bestHash = lastBlock.hash))
     }
@@ -89,7 +89,7 @@ class FastSyncSpec
 
   "FastSync" - {
     "for reporting progress" - {
-      "returns NotSyncing until pivot block is selected and first data being fetched" in testCaseM { fixture =>
+      "returns NotSyncing until pivot block is selected and first data being fetched" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {
@@ -98,7 +98,7 @@ class FastSyncSpec
         } yield assert(status === Status.NotSyncing)).timeout(timeout.duration)
       }
 
-      "returns Syncing when pivot block is selected and started fetching data" in testCaseM { fixture =>
+      "returns Syncing when pivot block is selected and started fetching data" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {
@@ -120,7 +120,7 @@ class FastSyncSpec
           .timeout(timeout.duration)
       }
 
-      "returns Syncing with block progress once both header and body is fetched" in testCaseM { fixture =>
+      "returns Syncing with block progress once both header and body is fetched" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {

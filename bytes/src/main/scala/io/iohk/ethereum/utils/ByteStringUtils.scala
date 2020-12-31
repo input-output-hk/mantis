@@ -49,6 +49,10 @@ object ByteStringUtils {
   }
 
   def concatByteStrings(bse: ByteStringElement*): ByteString = {
+    concatByteStrings(bse.toIterable)
+  }
+
+  def concatByteStrings(bse: Iterable[ByteStringElement]): ByteString = {
     val totalLength = bse.map(_.len).sum
     val result = new Array[Byte](totalLength)
     bse.foldLeft(0)( (i, el) => {

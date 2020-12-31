@@ -172,7 +172,7 @@ class FrameCodec(private val secrets: Secrets) {
       elements.append(bytes)
       i += bytes.length
     }
-    concatByteStrings(elements.toArray: _*)
+    concatByteStrings(elements)
   }
 
   private def processFramePadding(totalSize: Int): ByteString = {

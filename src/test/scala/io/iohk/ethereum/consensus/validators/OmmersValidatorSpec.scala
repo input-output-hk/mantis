@@ -62,7 +62,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
   it should "report a failure if there is an ommer too old" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 

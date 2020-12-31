@@ -400,7 +400,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit = {
-    (blockchain.genesisHeader _).expects().returning(header)
+    (() => blockchain.genesisHeader).expects().returning(header)
     setHeaderByHash(header.parentHash, None)
   }
 }

@@ -53,9 +53,9 @@ class RegularSyncSpec
 
   // Used only in sync tests
   var testSystem: ActorSystem = _
-  override def beforeEach: Unit =
+  override def beforeEach(): Unit =
     testSystem = ActorSystem()
-  override def afterEach: Unit =
+  override def afterEach(): Unit =
     TestKit.shutdownActorSystem(testSystem)
 
   def sync[T <: Fixture](test: => T): Future[Assertion] =
