@@ -122,7 +122,6 @@ lazy val node = {
       Dependencies.cats,
       Dependencies.monix,
       Dependencies.network,
-      Dependencies.twitterUtilCollection,
       Dependencies.crypto,
       Dependencies.scopt,
       Dependencies.logging,

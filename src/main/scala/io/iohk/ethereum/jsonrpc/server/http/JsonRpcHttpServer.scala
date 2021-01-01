@@ -25,7 +25,7 @@ import org.json4s.native.Serialization
 import org.json4s.{DefaultFormats, JInt, native}
 import scala.concurrent.duration.{FiniteDuration, _}
 
-trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
+trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig
@@ -54,37 +54,39 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
       }
       .result()
 
+  protected val rateLimit = new RateLimit(config.rateLimit)
+
   val route: Route = cors(corsSettings) {
     (path("healthcheck") & pathEndOrSingleSlash & get) {
       handleHealthcheck()
     } ~ (path("buildinfo") & pathEndOrSingleSlash & get) {
       handleBuildInfo()
     } ~ (pathEndOrSingleSlash & post) {
-      (extractClientIP & entity(as[JsonRpcRequest])) { (clientAddress, request) =>
-        handleRequest(clientAddress, request)
-      } ~ entity(as[Seq[JsonRpcRequest]]) { request =>
-        handleBatchRequest(request)
+      // TODO: maybe rate-limit this one too?
+      entity(as[JsonRpcRequest]) {
+        case statusReq if statusReq.method == FaucetJsonRpcController.Status =>
+          handleRequest(statusReq)
+        case jsonReq =>
+          rateLimit {
+            handleRequest(jsonReq)
+          }
+        // TODO: separate paths for single and multiple requests
+        // TODO: to prevent repeated body and json parsing
+      } ~ entity(as[Seq[JsonRpcRequest]]) {
+        case _ if config.rateLimit.enabled =>
+          complete(StatusCodes.MethodNotAllowed, JsonRpcError.MethodNotFound)
+        case reqSeq =>
+          complete {
+            Task
+              .traverse(reqSeq)(request => jsonRpcController.handleRequest(request))
+              .runToFuture
+          }
       }
     }
   }
 
-  def handleRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    //FIXME: FaucetJsonRpcController.Status should be part of a Healthcheck request or alike.
-    // As a temporary solution, it is being excluded from the Rate Limit.
-    if (config.rateLimit.enabled && request.method != FaucetJsonRpcController.Status) {
-      handleRateLimitedRequest(clientAddress, request)
-    } else complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
-  }
-
-  def handleRateLimitedRequest(clientAddress: RemoteAddress, request: JsonRpcRequest): StandardRoute = {
-    if (isBelowRateLimit(clientAddress))
-      complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
-    else {
-      log.warn(s"Request limit exceeded for ip ${clientAddress.toIP.getOrElse("unknown")}")
-      complete(
-        (StatusCodes.TooManyRequests, JsonRpcError.RateLimitError(config.rateLimit.minRequestInterval.toSeconds))
-      )
-    }
+  def handleRequest(request: JsonRpcRequest): StandardRoute = {
+    complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
   }
 
   private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f map { jsonRpcResponse =>
@@ -128,15 +130,6 @@ trait JsonRpcHttpServer extends Json4sSupport with RateLimit with Logger {
     )
   }
 
-  private def handleBatchRequest(requests: Seq[JsonRpcRequest]) = {
-    if (!config.rateLimit.enabled) {
-      complete {
-        Task
-          .traverse(requests)(request => jsonRpcController.handleRequest(request))
-          .runToFuture
-      }
-    } else complete(StatusCodes.MethodNotAllowed, JsonRpcError.MethodNotFound)
-  }
 }
 
 object JsonRpcHttpServer extends Logger {
@@ -160,12 +153,15 @@ object JsonRpcHttpServer extends Logger {
     }
 
   trait RateLimitConfig {
+    // TODO: Move the rateLimit.enabled setting upwards:
+    // TODO: If we don't need to limit the request rate at all - we don't have to define the other settings
     val enabled: Boolean
     val minRequestInterval: FiniteDuration
     val latestTimestampCacheSize: Int
   }
 
   object RateLimitConfig {
+    // TODO: Use pureconfig
     def apply(rateLimitConfig: TypesafeConfig): RateLimitConfig =
       new RateLimitConfig {
         override val enabled: Boolean = rateLimitConfig.getBoolean("enabled")
