@@ -35,7 +35,8 @@ class FastSyncStateStorage(val dataSource: DataSource)
       .addConcreteType[EvmCodeHash]
       .addConcreteType[StorageRootHash]
 
-  override def keySerializer: String => IndexedSeq[Byte] = k => ArraySeq.unsafeWrapArray(k.getBytes(StorageStringCharset.UTF8Charset))
+  override def keySerializer: String => IndexedSeq[Byte] = k =>
+    ArraySeq.unsafeWrapArray(k.getBytes(StorageStringCharset.UTF8Charset))
 
   override def keyDeserializer: IndexedSeq[Byte] => String = b =>
     new String(b.toArray, StorageStringCharset.UTF8Charset)

@@ -61,7 +61,8 @@ trait TransactionalKeyValueStorage[K, V] {
       result.map { case (key, value) =>
         val kseq = keyDeserializer(ArraySeq.unsafeWrapArray(key))
         val vseq = valueDeserializer(ArraySeq.unsafeWrapArray(value))
-        (kseq, vseq) }
+        (kseq, vseq)
+      }
     }
   }
 }

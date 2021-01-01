@@ -649,7 +649,9 @@ class EthService(
       case Right(data) =>
         call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
           .map(_.map { callResponse =>
-            IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]()))
+            IeleCallResponse(
+              rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]())
+            )
           })
       case Left(error) => Task.now(Left(error))
     }

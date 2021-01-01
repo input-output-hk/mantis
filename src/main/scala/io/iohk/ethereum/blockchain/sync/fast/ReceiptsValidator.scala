@@ -31,13 +31,13 @@ trait ReceiptsValidator {
       case (Some(header), receipt) =>
         validators.blockValidator.validateBlockAndReceipts(header, receipt) match {
           case Left(err) => Some(Invalid(err))
-          case _         => None
+          case _ => None
         }
       case (None, _) => Some(DbError)
     }
 
-    val receiptsValidationError = errorIterator.collectFirst {
-      case Some(error) => error
+    val receiptsValidationError = errorIterator.collectFirst { case Some(error) =>
+      error
     }
 
     receiptsValidationError.getOrElse(Valid(blockHashesWithReceipts))

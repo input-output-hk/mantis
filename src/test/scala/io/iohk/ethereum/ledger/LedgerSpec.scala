@@ -158,7 +158,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
 
     val correctGasUsed: BigInt = 0
-    val incorrectStateRoot: ByteString = concatByteStrings(((correctStateRoot.head + 1) & 0xff).toByte, correctStateRoot.tail)
+    val incorrectStateRoot: ByteString =
+      concatByteStrings(((correctStateRoot.head + 1) & 0xff).toByte, correctStateRoot.tail)
     val table: TableFor3[ByteString, BigInt, Validators] = Table[ByteString, BigInt, Validators](
       ("stateRootHash", "cumulativeGasUsedBlock", "validators"),
       (correctStateRoot, correctGasUsed + 1, new Mocks.MockValidatorsAlwaysSucceed),

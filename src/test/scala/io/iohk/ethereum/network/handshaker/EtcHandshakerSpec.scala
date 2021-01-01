@@ -219,7 +219,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   it should "fail if a status msg is received with invalid genesisHash" in new LocalPeerPV63Setup
     with RemotePeerPV63Setup {
-    val wrongGenesisHash = concatByteStrings( (localStatus.genesisHash.head + 1).toByte, localStatus.genesisHash.tail)
+    val wrongGenesisHash = concatByteStrings((localStatus.genesisHash.head + 1).toByte, localStatus.genesisHash.tail)
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt =

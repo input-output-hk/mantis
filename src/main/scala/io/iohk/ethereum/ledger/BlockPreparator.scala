@@ -313,7 +313,7 @@ class BlockPreparator(
 
         val validatedStx = for {
           accData <- accountDataOpt
-          _       <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
+          _ <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
         } yield (accData)
 
         validatedStx match {

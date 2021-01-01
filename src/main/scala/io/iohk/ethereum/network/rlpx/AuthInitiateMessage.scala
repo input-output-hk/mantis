@@ -45,7 +45,6 @@ case class AuthInitiateMessage(
     ByteString(if (knownPeer) 1.toByte else 0.toByte)
   )
 
-
 //  lazy val encoded: ByteString = {
 //    encodeECDSA(signature) ++
 //      ephemeralPublicHash ++
