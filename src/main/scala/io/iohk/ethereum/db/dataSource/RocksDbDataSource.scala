@@ -11,7 +11,7 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.rocksdb._
 
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
 

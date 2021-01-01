@@ -14,7 +14,7 @@ import monix.eval.Task
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, native}
 
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 

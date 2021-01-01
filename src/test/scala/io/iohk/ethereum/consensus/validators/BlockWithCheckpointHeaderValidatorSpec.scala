@@ -19,6 +19,7 @@ import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import ByteStringUtils.byteStringOrdering
 
 class BlockWithCheckpointHeaderValidatorSpec
     extends AnyFlatSpec
@@ -224,9 +225,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     import Ordering.Implicits._
     val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParent.hash)).sortBy(_.toSeq)
     val duplicatedSigner = ByteString(crypto.pubKeyFromKeyPair(keys.head))
-    val expectedSigners =
-      (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner)
-        .sortBy(_.toSeq)
+    val expectedSigners = (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner).sorted
     actualSigners shouldEqual expectedSigners
 
     val headerWithInvalidCheckpoint = checkpointBlockGenerator

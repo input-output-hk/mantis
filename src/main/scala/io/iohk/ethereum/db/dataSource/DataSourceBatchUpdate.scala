@@ -1,6 +1,6 @@
 package io.iohk.ethereum.db.dataSource
 
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 
 case class DataSourceBatchUpdate(dataSource: DataSource, updates: Array[DataUpdate] = Array.empty) {
 

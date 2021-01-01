@@ -23,6 +23,7 @@ import scodec.bits.BitVector
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
+import scala.math.Ordering.Implicits._
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
@@ -243,8 +244,7 @@ class PeerDiscoveryManagerSpec
       val lookupCount = AtomicInt(0)
 
       implicit val nodeOrd: Ordering[ENode] = {
-        implicit val byteOrd = Ordering.Iterable(Ordering.Byte)
-        Ordering.by(_.id.toByteArray.toIterable)
+        Ordering.by(_.id.toByteArray.toSeq)
       }
 
       (discoveryService.lookup _)

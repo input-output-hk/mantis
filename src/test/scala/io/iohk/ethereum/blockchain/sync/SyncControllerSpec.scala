@@ -536,7 +536,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
               sender ! MessageFromPeer(BlockHeaders(Seq(pivotHeader)), peer)
             } else {
               if (!onlyPivot) {
-                val start = msg.underlyingMsg.block.left.get
+                val start = msg.underlyingMsg.block.swap.toOption.get
                 val stop = start + msg.underlyingMsg.maxHeaders
                 val headers = (start until stop).flatMap(i => blockchainData.headers.get(i))
                 sender ! MessageFromPeer(BlockHeaders(headers), peer)

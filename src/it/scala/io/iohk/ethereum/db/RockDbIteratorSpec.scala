@@ -45,7 +45,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
       _ <- writeNValuesToDb(largeNum, db, Namespaces.NodeNamespace)
       fib <- db
         .iterate(Namespaces.NodeNamespace)
-        .map(_.right.get)
+        .map(_.toOption.get)
         .consumeWith(Consumer.foreachEval[Task, (Array[Byte], Array[Byte])] { _ =>
           for {
             cur <- counter.updateAndGet(i => i + 1)
@@ -71,7 +71,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
       _ <- writeNValuesToDb(largeNum, db, Namespaces.NodeNamespace)
       _ <- db
         .iterate(Namespaces.NodeNamespace)
-        .map(_.right.get)
+        .map(_.toOption.get)
         .consumeWith(Consumer.foreachEval[Task, (Array[Byte], Array[Byte])] { _ =>
           counter.update(current => current + 1)
         })
@@ -92,8 +92,8 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
       _ <- Task(codeStorage.update(Seq(), codeKeyValues).commit())
       _ <- Task(nodeStorage.update(Seq(), nodeKeyValues))
       result <- Task.parZip2(
-        codeStorage.storageContent.map(_.right.get).map(_._1).toListL,
-        nodeStorage.storageContent.map(_.right.get).map(_._1).toListL
+        codeStorage.storageContent.map(_.toOption.get).map(_._1).toListL,
+        nodeStorage.storageContent.map(_.toOption.get).map(_._1).toListL
       )
       (codeResult, nodeResult) = result
     } yield {
@@ -112,7 +112,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
           )
         )
       )
-      elems <- db.iterate(Namespaces.NodeNamespace).map(_.right.get).toListL
+      elems <- db.iterate(Namespaces.NodeNamespace).map(_.toOption.get).toListL
     } yield {
       val deserialized = elems.map { case (bytes, bytes1) => (ByteString(bytes), ByteString(bytes1)) }
       assert(elems.size == keyValues.size)

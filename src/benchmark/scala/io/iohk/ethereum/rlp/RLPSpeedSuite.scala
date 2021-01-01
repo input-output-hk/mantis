@@ -57,7 +57,7 @@ class RLPSpeedSuite
     val ITERATIONS: Int = 10000000
     log.info("Starting " + ITERATIONS + " decoding iterations...")
     val start1: Long = System.currentTimeMillis
-    (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); Unit }
+    (1 to ITERATIONS).foreach { _ => RLP.rawDecode(payload); () }
     val end1: Long = System.currentTimeMillis
     log.info("Result decode()\t: " + (end1 - start1) + "ms")
   }

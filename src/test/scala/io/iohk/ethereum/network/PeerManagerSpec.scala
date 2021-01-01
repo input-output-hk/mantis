@@ -471,8 +471,6 @@ class PeerManagerSpec
       genConnectedPeers(peerConfiguration.maxIncomingPeers, peerConfiguration.maxOutgoingPeers)
     }
 
-    implicit val noShrinkConnectedPeers: Shrink[ConnectedPeers] =
-      Shrink[ConnectedPeers](_ => Stream.empty)
   }
 
   trait TestSetup {

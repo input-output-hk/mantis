@@ -9,7 +9,7 @@ import io.iohk.ethereum.blockchain.sync.fast.FastSync._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 
 object FastSyncStateStorage {
 

@@ -8,6 +8,7 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import io.iohk.ethereum.utils.ByteStringUtils._
 
 class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
@@ -25,7 +26,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       }
 
       "report as invalid a block that doesn't have the correct state root hash" in new BlockValidationTestSetup {
-        val invalidStateRootHash: ByteString = (stateRootHash.head + 1).toByte +: stateRootHash.tail
+        val invalidStateRootHash: ByteString = concatByteStrings((stateRootHash.head + 1).toByte, stateRootHash.tail)
         blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft shouldBe true
       }
 

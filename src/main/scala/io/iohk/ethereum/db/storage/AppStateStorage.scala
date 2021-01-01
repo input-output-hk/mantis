@@ -5,7 +5,7 @@ import java.math.BigInteger
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
-import scala.collection.compat.immutable.ArraySeq
+import scala.collection.immutable.ArraySeq
 
 /**
   * This class is used to store app state variables
