@@ -127,6 +127,7 @@ lazy val node = {
       Dependencies.logging,
       Dependencies.apacheCommons,
       Dependencies.micrometer,
+      Dependencies.kamon,
       Dependencies.prometheus,
       Dependencies.cli,
       Dependencies.dependencies
