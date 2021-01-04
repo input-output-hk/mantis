@@ -36,4 +36,4 @@ scrape_configs:
     - targets:
         - localhost:9095
       labels:
-        alias: mantis-akka
+        alias: mantis-akka-node

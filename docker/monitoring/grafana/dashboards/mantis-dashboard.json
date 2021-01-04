@@ -15,8 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 12,
-  "iteration": 1609780100582,
+  "iteration": 1609803031315,
   "links": [],
   "panels": [
     {
@@ -72,7 +71,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -172,7 +171,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -269,7 +268,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -365,7 +364,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -461,7 +460,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -560,7 +559,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -656,7 +655,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -746,7 +745,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 2
+            "y": 37
           },
           "id": 101,
           "options": {
@@ -763,7 +762,7 @@
             },
             "textMode": "auto"
           },
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "targets": [
             {
               "expr": "morpho_checkpoint_stable_state_pow_block_number",
@@ -796,7 +795,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 2
+            "y": 37
           },
           "hiddenSeries": false,
           "id": 103,
@@ -816,7 +815,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -893,7 +892,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 9
+            "y": 44
           },
           "hiddenSeries": false,
           "id": 105,
@@ -913,7 +912,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -933,7 +932,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Block Number Pushed to Midnight",
+          "title": "Block Number Pushed to Mantis",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -949,6 +948,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:542",
               "decimals": null,
               "format": "short",
               "label": "Midnight Block Number",
@@ -958,6 +958,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:543",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -990,7 +991,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 15
+            "y": 50
           },
           "hiddenSeries": false,
           "id": 107,
@@ -1010,7 +1011,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1086,7 +1087,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 21
+            "y": 56
           },
           "hiddenSeries": false,
           "id": 109,
@@ -1106,7 +1107,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1182,7 +1183,7 @@
             "h": 6,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 62
           },
           "hiddenSeries": false,
           "id": 111,
@@ -1202,7 +1203,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -1222,7 +1223,7 @@
           "timeFrom": null,
           "timeRegions": [],
           "timeShift": null,
-          "title": "Latest Checkpoint Candidate fetched from Midnight",
+          "title": "Latest Checkpoint Candidate fetched from Mantis",
           "tooltip": {
             "shared": true,
             "sort": 0,
@@ -1238,6 +1239,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:634",
               "format": "short",
               "label": "Midnight Block Number",
               "logBase": 1,
@@ -1246,6 +1248,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:635",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -1264,7 +1267,7 @@
       "type": "row"
     },
     {
-      "collapsed": true,
+      "collapsed": false,
       "datasource": null,
       "gridPos": {
         "h": 1,
@@ -1273,1068 +1276,1067 @@
         "y": 37
       },
       "id": 77,
-      "panels": [
-        {
-          "cacheTimeout": null,
-          "colorBackground": false,
-          "colorValue": true,
-          "colors": [
-            "#299c46",
-            "rgba(237, 129, 40, 0.89)",
-            "#d44a3a"
-          ],
-          "datasource": "Prometheus",
-          "description": "Apdex given:\n- satisfied count = sent + received - low - high\n- tolerant count = low\n- total count = sent + received\n",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
-          },
-          "format": "none",
-          "gauge": {
-            "maxValue": 100,
-            "minValue": 0,
-            "show": false,
-            "thresholdLabels": false,
-            "thresholdMarkers": true
-          },
-          "gridPos": {
-            "h": 2,
-            "w": 12,
-            "x": 0,
-            "y": 3
-          },
-          "id": 95,
-          "interval": null,
-          "links": [],
-          "mappingType": 1,
-          "mappingTypes": [
-            {
-              "name": "value to text",
-              "value": 1
-            },
-            {
-              "name": "range to text",
-              "value": 2
-            }
-          ],
-          "maxDataPoints": 100,
-          "nullPointMode": "connected",
-          "nullText": null,
-          "postfix": "",
-          "postfixFontSize": "50%",
-          "prefix": "",
-          "prefixFontSize": "50%",
-          "rangeMaps": [
-            {
-              "from": "null",
-              "text": "N/A",
-              "to": "null"
-            }
-          ],
-          "sparkline": {
-            "fillColor": "rgba(31, 118, 189, 0.18)",
-            "full": false,
-            "lineColor": "rgb(31, 120, 193)",
-            "show": false,
-            "ymax": null,
-            "ymin": null
-          },
-          "tableColumn": "",
-          "targets": [
-            {
-              "expr": "(sum(increase(app_network_messages_received_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_messages_sent_counter_total{instance=\"$node\"}[$__range])) - sum(increase(app_network_peers_highSeverityOffense_counter_total{instance=\"$node\"}[$__range])) - sum(increase(app_network_peers_lowSeverityOffense_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_peers_lowSeverityOffense_counter_total{instance=\"$node\"}[$__range])) / 2) / (sum(increase(app_network_messages_received_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_messages_sent_counter_total{instance=\"$node\"}[$__range])))",
-              "interval": "",
-              "legendFormat": "",
-              "refId": "A"
-            }
-          ],
-          "thresholds": "0-1",
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "apdex_network_healthy $node",
-          "type": "singlestat",
-          "valueFontSize": "80%",
-          "valueMaps": [
-            {
-              "op": "=",
-              "text": "N/A",
-              "value": "null"
-            }
-          ],
-          "valueName": "avg"
-        },
-        {
-          "cacheTimeout": null,
-          "colorBackground": false,
-          "colorValue": true,
-          "colors": [
-            "#299c46",
-            "rgba(237, 129, 40, 0.89)",
-            "#C4162A"
-          ],
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {}
-            },
-            "overrides": []
-          },
-          "format": "none",
-          "gauge": {
-            "maxValue": 100,
-            "minValue": 0,
-            "show": false,
-            "thresholdLabels": false,
-            "thresholdMarkers": true
-          },
-          "gridPos": {
-            "h": 2,
-            "w": 12,
-            "x": 12,
-            "y": 3
-          },
-          "id": 85,
-          "interval": null,
-          "links": [],
-          "mappingType": 1,
-          "mappingTypes": [
-            {
-              "name": "value to text",
-              "value": 1
-            },
-            {
-              "name": "range to text",
-              "value": 2
-            }
-          ],
-          "maxDataPoints": 100,
-          "nullPointMode": "connected",
-          "nullText": null,
-          "postfix": "",
-          "postfixFontSize": "50%",
-          "prefix": "",
-          "prefixFontSize": "50%",
-          "rangeMaps": [
-            {
-              "from": "null",
-              "text": "N/A",
-              "to": "null"
-            }
-          ],
-          "sparkline": {
-            "fillColor": "rgba(31, 118, 189, 0.18)",
-            "full": false,
-            "lineColor": "rgb(31, 120, 193)",
-            "show": false,
-            "ymax": null,
-            "ymin": null
-          },
-          "tableColumn": "",
-          "targets": [
-            {
-              "expr": "app_network_peers_blacklisted_gauge{instance=\"$node\"}",
-              "interval": "",
-              "legendFormat": "",
-              "refId": "A"
-            }
-          ],
-          "thresholds": "",
-          "timeFrom": null,
-          "timeShift": null,
-          "title": "Blacklisted peers $node",
-          "type": "singlestat",
-          "valueFontSize": "80%",
-          "valueMaps": [
-            {
-              "op": "=",
-              "text": "N/A",
-              "value": "null"
-            }
-          ],
-          "valueName": "current"
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 8,
-            "w": 24,
-            "x": 0,
-            "y": 5
-          },
-          "hiddenSeries": false,
-          "id": 83,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "hideEmpty": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "connected",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 0.5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_discovery_foundPeers_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Discovered peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "decimals": null,
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 8,
-            "x": 0,
-            "y": 13
-          },
-          "hiddenSeries": false,
-          "id": 87,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_pending_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Incoming total peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 8,
-            "x": 8,
-            "y": 13
-          },
-          "hiddenSeries": false,
-          "id": 89,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_incoming_handshaked_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Incoming handshaked peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 8,
-            "x": 16,
-            "y": 13
-          },
-          "hiddenSeries": false,
-          "id": 116,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_incoming_total_gauge - app_network_peers_incoming_handshaked_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Incoming pending peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 11,
-            "w": 8,
-            "x": 0,
-            "y": 23
-          },
-          "hiddenSeries": false,
-          "id": 91,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_outgoing_handshaked_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Outgoing total peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 11,
-            "w": 8,
-            "x": 8,
-            "y": 23
-          },
-          "hiddenSeries": false,
-          "id": 93,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_outgoing_handshaked_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Outgoing handshaked peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 0,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 11,
-            "w": 8,
-            "x": 16,
-            "y": 23
-          },
-          "hiddenSeries": false,
-          "id": 115,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "app_network_peers_outgoing_total_gauge - app_network_peers_outgoing_handshaked_gauge",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Outgoing pending peers",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": "number of peers",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": true,
-          "cacheTimeout": null,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "description": "",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
-            "y": 34
-          },
-          "hiddenSeries": false,
-          "id": 79,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": false,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "increase(app_network_messages_sent_counter_total[$__range])",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Messages sent",
-          "tooltip": {
-            "shared": false,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "series",
-            "name": null,
-            "show": false,
-            "values": [
-              "current"
-            ]
-          },
-          "yaxes": [
-            {
-              "format": "none",
-              "label": "number of messages",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": true,
-          "cacheTimeout": null,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 9,
-            "w": 24,
-            "x": 0,
-            "y": 43
-          },
-          "hiddenSeries": false,
-          "id": 81,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "hideZero": false,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": false,
-          "linewidth": 1,
-          "links": [],
-          "nullPointMode": "null",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 2,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "increase(app_network_messages_received_counter_total[$__range])",
-              "interval": "",
-              "legendFormat": "{{instance}}",
-              "refId": "A"
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Messages received",
-          "tooltip": {
-            "shared": false,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "series",
-            "name": null,
-            "show": false,
-            "values": [
-              "total"
-            ]
-          },
-          "yaxes": [
-            {
-              "decimals": null,
-              "format": "none",
-              "label": "number of messages",
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        }
-      ],
+      "panels": [],
       "title": "network",
       "type": "row"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#d44a3a"
+      ],
+      "datasource": "Prometheus",
+      "description": "Apdex given:\n- satisfied count = sent + received - low - high\n- tolerant count = low\n- total count = sent + received\n",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 12,
+        "x": 0,
+        "y": 38
+      },
+      "id": 95,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "(sum(increase(app_network_messages_received_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_messages_sent_counter_total{instance=\"$node\"}[$__range])) - sum(increase(app_network_peers_highSeverityOffense_counter_total{instance=\"$node\"}[$__range])) - sum(increase(app_network_peers_lowSeverityOffense_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_peers_lowSeverityOffense_counter_total{instance=\"$node\"}[$__range])) / 2) / (sum(increase(app_network_messages_received_counter_total{instance=\"$node\"}[$__range])) + sum(increase(app_network_messages_sent_counter_total{instance=\"$node\"}[$__range])))",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "thresholds": "0-1",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "apdex_network_healthy $node",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "avg"
+    },
+    {
+      "cacheTimeout": null,
+      "colorBackground": false,
+      "colorValue": true,
+      "colors": [
+        "#299c46",
+        "rgba(237, 129, 40, 0.89)",
+        "#C4162A"
+      ],
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "format": "none",
+      "gauge": {
+        "maxValue": 100,
+        "minValue": 0,
+        "show": false,
+        "thresholdLabels": false,
+        "thresholdMarkers": true
+      },
+      "gridPos": {
+        "h": 2,
+        "w": 12,
+        "x": 12,
+        "y": 38
+      },
+      "id": 85,
+      "interval": null,
+      "links": [],
+      "mappingType": 1,
+      "mappingTypes": [
+        {
+          "name": "value to text",
+          "value": 1
+        },
+        {
+          "name": "range to text",
+          "value": 2
+        }
+      ],
+      "maxDataPoints": 100,
+      "nullPointMode": "connected",
+      "nullText": null,
+      "postfix": "",
+      "postfixFontSize": "50%",
+      "prefix": "",
+      "prefixFontSize": "50%",
+      "rangeMaps": [
+        {
+          "from": "null",
+          "text": "N/A",
+          "to": "null"
+        }
+      ],
+      "sparkline": {
+        "fillColor": "rgba(31, 118, 189, 0.18)",
+        "full": false,
+        "lineColor": "rgb(31, 120, 193)",
+        "show": false,
+        "ymax": null,
+        "ymin": null
+      },
+      "tableColumn": "",
+      "targets": [
+        {
+          "expr": "app_network_peers_blacklisted_gauge{instance=\"$node\"}",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "thresholds": "",
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Blacklisted peers $node",
+      "type": "singlestat",
+      "valueFontSize": "80%",
+      "valueMaps": [
+        {
+          "op": "=",
+          "text": "N/A",
+          "value": "null"
+        }
+      ],
+      "valueName": "current"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 40
+      },
+      "hiddenSeries": false,
+      "id": 83,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "hideEmpty": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "connected",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 0.5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_discovery_foundPeers_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Discovered peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 0,
+        "y": 48
+      },
+      "hiddenSeries": false,
+      "id": 87,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_pending_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Incoming total peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 8,
+        "y": 48
+      },
+      "hiddenSeries": false,
+      "id": 89,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_incoming_handshaked_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Incoming handshaked peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 8,
+        "x": 16,
+        "y": 48
+      },
+      "hiddenSeries": false,
+      "id": 116,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_incoming_total_gauge - app_network_peers_incoming_handshaked_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Incoming pending peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 0,
+        "y": 58
+      },
+      "hiddenSeries": false,
+      "id": 91,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_outgoing_handshaked_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Outgoing total peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 8,
+        "y": 58
+      },
+      "hiddenSeries": false,
+      "id": 93,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_outgoing_handshaked_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Outgoing handshaked peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 0,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 11,
+        "w": 8,
+        "x": 16,
+        "y": 58
+      },
+      "hiddenSeries": false,
+      "id": 115,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_network_peers_outgoing_total_gauge - app_network_peers_outgoing_handshaked_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Outgoing pending peers",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": "number of peers",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 69
+      },
+      "hiddenSeries": false,
+      "id": 79,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "increase(app_network_messages_sent_counter_total[$__range])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Messages sent",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": false,
+        "values": [
+          "current"
+        ]
+      },
+      "yaxes": [
+        {
+          "format": "none",
+          "label": "number of messages",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "cacheTimeout": null,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 9,
+        "w": 24,
+        "x": 0,
+        "y": 78
+      },
+      "hiddenSeries": false,
+      "id": 81,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "hideZero": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "links": [],
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "increase(app_network_messages_received_counter_total[$__range])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Messages received",
+      "tooltip": {
+        "shared": false,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "series",
+        "name": null,
+        "show": false,
+        "values": [
+          "total"
+        ]
+      },
+      "yaxes": [
+        {
+          "decimals": null,
+          "format": "none",
+          "label": "number of messages",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     },
     {
       "collapsed": true,
@@ -2343,7 +2345,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 87
       },
       "id": 72,
       "panels": [
@@ -2375,7 +2377,7 @@
             "h": 3,
             "w": 6,
             "x": 0,
-            "y": 4
+            "y": 88
           },
           "id": 74,
           "interval": null,
@@ -2456,7 +2458,7 @@
             "h": 6,
             "w": 18,
             "x": 6,
-            "y": 4
+            "y": 88
           },
           "hiddenSeries": false,
           "id": 97,
@@ -2477,7 +2479,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2568,7 +2570,7 @@
             "h": 3,
             "w": 6,
             "x": 0,
-            "y": 7
+            "y": 91
           },
           "id": 70,
           "interval": null,
@@ -2677,7 +2679,7 @@
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 10
+            "y": 94
           },
           "id": 113,
           "options": {
@@ -2692,7 +2694,7 @@
             "showThresholdLabels": false,
             "showThresholdMarkers": false
           },
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "targets": [
             {
               "expr": "",
@@ -2725,7 +2727,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 15
+            "y": 99
           },
           "hiddenSeries": false,
           "id": 114,
@@ -2746,7 +2748,7 @@
             "alertThreshold": true
           },
           "percentage": false,
-          "pluginVersion": "7.2.1",
+          "pluginVersion": "7.3.6",
           "pointradius": 2,
           "points": false,
           "renderer": "flot",
@@ -2818,7 +2820,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 88
       },
       "id": 34,
       "panels": [],
@@ -2856,7 +2858,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 40
+        "y": 89
       },
       "height": "",
       "id": 18,
@@ -2946,7 +2948,7 @@
         "h": 4,
         "w": 5,
         "x": 6,
-        "y": 40
+        "y": 89
       },
       "height": "",
       "id": 32,
@@ -3036,7 +3038,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 40
+        "y": 89
       },
       "id": 44,
       "interval": null,
@@ -3129,7 +3131,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 40
+        "y": 89
       },
       "id": 60,
       "interval": null,
@@ -3221,7 +3223,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 40
+        "y": 89
       },
       "id": 62,
       "interval": null,
@@ -3312,7 +3314,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 42
+        "y": 91
       },
       "id": 46,
       "interval": null,
@@ -3408,7 +3410,7 @@
         "h": 5,
         "w": 16,
         "x": 0,
-        "y": 44
+        "y": 93
       },
       "height": "",
       "hiddenSeries": false,
@@ -3434,7 +3436,7 @@
         "alertThreshold": true
       },
       "percentage": true,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3539,7 +3541,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 44
+        "y": 93
       },
       "id": 30,
       "interval": null,
@@ -3632,7 +3634,7 @@
         "h": 2,
         "w": 4,
         "x": 20,
-        "y": 44
+        "y": 93
       },
       "id": 38,
       "interval": null,
@@ -3725,7 +3727,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 46
+        "y": 95
       },
       "id": 36,
       "interval": null,
@@ -3794,7 +3796,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 49
+        "y": 98
       },
       "id": 8,
       "panels": [],
@@ -3820,7 +3822,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 50
+        "y": 99
       },
       "hiddenSeries": false,
       "id": 20,
@@ -3842,7 +3844,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -3925,7 +3927,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 50
+        "y": 99
       },
       "hiddenSeries": false,
       "id": 26,
@@ -3948,7 +3950,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4024,7 +4026,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 57
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 12,
@@ -4045,7 +4047,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4127,7 +4129,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 57
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 6,
@@ -4148,7 +4150,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4223,7 +4225,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 57
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 128,
@@ -4243,7 +4245,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -4319,7 +4321,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 64
+        "y": 113
       },
       "hiddenSeries": false,
       "id": 122,
@@ -4340,7 +4342,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4416,7 +4418,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 64
+        "y": 113
       },
       "hiddenSeries": false,
       "id": 14,
@@ -4437,7 +4439,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4526,7 +4528,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 64
+        "y": 113
       },
       "hiddenSeries": false,
       "id": 28,
@@ -4547,7 +4549,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -4625,7 +4627,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 120
       },
       "id": 124,
       "panels": [],
@@ -4660,7 +4662,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 72
+        "y": 121
       },
       "height": "",
       "id": 7,
@@ -4752,7 +4754,7 @@
         "h": 5,
         "w": 4,
         "x": 4,
-        "y": 72
+        "y": 121
       },
       "height": "",
       "id": 4,
@@ -4818,6 +4820,7 @@
     {
       "columns": [
         {
+          "$$hashKey": "object:380",
           "text": "Current",
           "value": "current"
         }
@@ -4834,7 +4837,7 @@
         "h": 5,
         "w": 6,
         "x": 8,
-        "y": 72
+        "y": 121
       },
       "id": 22,
       "links": [],
@@ -4911,7 +4914,7 @@
         "h": 5,
         "w": 10,
         "x": 14,
-        "y": 72
+        "y": 121
       },
       "hiddenSeries": false,
       "id": 126,
@@ -4934,7 +4937,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -4970,11 +4973,243 @@
       },
       "yaxes": [
         {
+          "$$hashKey": "object:244",
           "format": "short",
           "label": null,
           "logBase": 1,
           "max": null,
           "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:245",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "collapsed": false,
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 126
+      },
+      "id": 119,
+      "panels": [],
+      "title": "Akka Group Metrics",
+      "type": "row"
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 12,
+        "x": 0,
+        "y": 127
+      },
+      "hiddenSeries": false,
+      "id": 9,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "hideEmpty": true,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "maxPerRow": 4,
+      "nullPointMode": "null as zero",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "$$hashKey": "object:329",
+          "alias": "/0.95$/",
+          "dashes": true
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "histogram_quantile($percentile, sum(rate(akka_group_processing_time_seconds_bucket{instance=~\"$akka_node\"}[$interval])) by (le, group)) * 1000",
+          "format": "time_series",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "{{group}}",
+          "refId": "C",
+          "step": 4
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Processing Time ($percentile)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:336",
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "$$hashKey": "object:337",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 12,
+        "y": 127
+      },
+      "hiddenSeries": false,
+      "id": 10,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "hideEmpty": true,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "maxPerRow": 4,
+      "nullPointMode": "null as zero",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
+        {
+          "alias": "/0.95$/",
+          "dashes": true
+        }
+      ],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "histogram_quantile($percentile, sum(rate(akka_group_time_in_mailbox_seconds_bucket{instance=~\"$akka_node\"}[$interval])) by (le, group))",
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "{{group}}",
+          "refId": "C",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Time in Mailbox ($percentile)",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "s",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
           "show": true
         },
         {
@@ -4992,349 +5227,121 @@
       }
     },
     {
-      "collapsed": true,
-      "datasource": null,
-      "gridPos": {
-        "h": 1,
-        "w": 24,
-        "x": 0,
-        "y": 77
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "links": []
+        },
+        "overrides": []
       },
-      "id": 119,
-      "panels": [
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 10,
+        "w": 6,
+        "x": 18,
+        "y": 127
+      },
+      "hiddenSeries": false,
+      "id": 11,
+      "legend": {
+        "alignAsTable": true,
+        "avg": false,
+        "current": false,
+        "hideEmpty": true,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "links": [],
+      "maxPerRow": 2,
+      "nullPointMode": "null as zero",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 5,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [
         {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 12,
-            "x": 0,
-            "y": 8
-          },
-          "hiddenSeries": false,
-          "id": 9,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "hideEmpty": true,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "maxPerRow": 4,
-          "nullPointMode": "null as zero",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/0.95$/",
-              "dashes": true
-            }
-          ],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "histogram_quantile($percentile, sum(rate(akka_group_processing_time_seconds_bucket{instance=~\"$akka_node\"}[$interval])) by (le, group)) * 1000",
-              "format": "time_series",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{group}}",
-              "refId": "C",
-              "step": 4
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Processing Time ($percentile)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "s",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 6,
-            "x": 12,
-            "y": 8
-          },
-          "hiddenSeries": false,
-          "id": 10,
-          "legend": {
-            "avg": false,
-            "current": false,
-            "hideEmpty": true,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "maxPerRow": 4,
-          "nullPointMode": "null as zero",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/0.95$/",
-              "dashes": true
-            }
-          ],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "histogram_quantile($percentile, sum(rate(akka_group_time_in_mailbox_seconds_bucket{instance=~\"$akka_node\"}[$interval])) by (le, group))",
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{group}}",
-              "refId": "C",
-              "step": 10
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Time in Mailbox ($percentile)",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "s",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
-        },
-        {
-          "aliasColors": {},
-          "bars": false,
-          "dashLength": 10,
-          "dashes": false,
-          "datasource": "Prometheus",
-          "fieldConfig": {
-            "defaults": {
-              "custom": {},
-              "links": []
-            },
-            "overrides": []
-          },
-          "fill": 1,
-          "fillGradient": 0,
-          "gridPos": {
-            "h": 10,
-            "w": 6,
-            "x": 18,
-            "y": 8
-          },
-          "hiddenSeries": false,
-          "id": 11,
-          "legend": {
-            "alignAsTable": true,
-            "avg": false,
-            "current": false,
-            "hideEmpty": true,
-            "max": false,
-            "min": false,
-            "show": true,
-            "total": false,
-            "values": false
-          },
-          "lines": true,
-          "linewidth": 1,
-          "links": [],
-          "maxPerRow": 2,
-          "nullPointMode": "null as zero",
-          "options": {
-            "alertThreshold": true
-          },
-          "percentage": false,
-          "pluginVersion": "7.2.1",
-          "pointradius": 5,
-          "points": false,
-          "renderer": "flot",
-          "seriesOverrides": [
-            {
-              "alias": "/0.95$/",
-              "dashes": true
-            }
-          ],
-          "spaceLength": 10,
-          "stack": false,
-          "steppedLine": false,
-          "targets": [
-            {
-              "expr": "rate(akka_group_mailbox_size_sum{instance=~\"$akka_node\"}[$interval]) / rate(akka_group_mailbox_size_count{instance=~\"$akka_node\"}[$interval])",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "{{group}} mailbox",
-              "refId": "C",
-              "step": 10
-            },
-            {
-              "expr": "rate(akka_group_members_sum{instance=~\"$akka_node\"}[$interval]) / rate(akka_group_members_count{instance=~\"$akka_node\"}[$interval])",
-              "hide": false,
-              "interval": "",
-              "intervalFactor": 2,
-              "legendFormat": "members of {{group}} ",
-              "refId": "A",
-              "step": 10
-            }
-          ],
-          "thresholds": [],
-          "timeFrom": null,
-          "timeRegions": [],
-          "timeShift": null,
-          "title": "Mailbox Size / Number of Members",
-          "tooltip": {
-            "shared": true,
-            "sort": 0,
-            "value_type": "individual"
-          },
-          "type": "graph",
-          "xaxis": {
-            "buckets": null,
-            "mode": "time",
-            "name": null,
-            "show": true,
-            "values": []
-          },
-          "yaxes": [
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": "0",
-              "show": true
-            },
-            {
-              "format": "short",
-              "label": null,
-              "logBase": 1,
-              "max": null,
-              "min": null,
-              "show": true
-            }
-          ],
-          "yaxis": {
-            "align": false,
-            "alignLevel": null
-          }
+          "alias": "/0.95$/",
+          "dashes": true
         }
       ],
-      "title": "Akka Group Metrics",
-      "type": "row"
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(akka_group_mailbox_size_sum{instance=~\"$akka_node\"}[$interval]) / rate(akka_group_mailbox_size_count{instance=~\"$akka_node\"}[$interval])",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "{{group}} mailbox",
+          "refId": "C",
+          "step": 10
+        },
+        {
+          "expr": "rate(akka_group_members_sum{instance=~\"$akka_node\"}[$interval]) / rate(akka_group_members_count{instance=~\"$akka_node\"}[$interval])",
+          "hide": false,
+          "interval": "",
+          "intervalFactor": 2,
+          "legendFormat": "members of {{group}} ",
+          "refId": "A",
+          "step": 10
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Mailbox Size / Number of Members",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": "0",
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
     },
     {
       "collapsed": false,
@@ -5343,7 +5350,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 78
+        "y": 137
       },
       "id": 121,
       "panels": [],
@@ -5369,7 +5376,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 79
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 15,
@@ -5392,7 +5399,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -5470,7 +5477,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 79
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 16,
@@ -5495,7 +5502,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -5573,7 +5580,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 79
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 17,
@@ -5596,7 +5603,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 5,
       "points": false,
       "renderer": "flot",
@@ -5675,7 +5682,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 85
+        "y": 144
       },
       "hiddenSeries": false,
       "id": 50,
@@ -5698,7 +5705,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -5775,7 +5782,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 85
+        "y": 144
       },
       "hiddenSeries": false,
       "id": 51,
@@ -5798,7 +5805,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -5875,7 +5882,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 85
+        "y": 144
       },
       "hiddenSeries": false,
       "id": 52,
@@ -5898,7 +5905,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.1",
+      "pluginVersion": "7.3.6",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -5956,7 +5963,7 @@
       }
     }
   ],
-  "refresh": "30s",
+  "refresh": "10s",
   "schemaVersion": 26,
   "style": "dark",
   "tags": [],
@@ -5965,13 +5972,13 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "localhost:13798",
+          "value": "localhost:13798"
         },
         "datasource": "Prometheus",
         "definition": "label_values(jvm_classes_loaded, instance)",
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": null,
@@ -5992,20 +5999,20 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "localhost:9095",
+          "value": "localhost:9095"
         },
         "datasource": "Prometheus",
-        "definition": "label_values(akka_system_unhandled_messages_total,instance)",
+        "definition": "label_values(akka_system_active_actors_count,instance)",
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": "akka_node",
         "multi": false,
         "name": "akka_node",
         "options": [],
-        "query": "label_values(akka_system_unhandled_messages_total,instance)",
+        "query": "label_values(akka_system_active_actors_count,instance)",
         "refresh": 1,
         "regex": "",
         "skipUrlSync": false,
@@ -6025,6 +6032,7 @@
           "text": "1m",
           "value": "1m"
         },
+        "error": null,
         "hide": 0,
         "label": "interval",
         "name": "interval",
@@ -6098,6 +6106,7 @@
           "text": "0.95",
           "value": "0.95"
         },
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": "percentile",
@@ -6138,13 +6147,13 @@
       {
         "allValue": null,
         "current": {
-          "isNone": true,
           "selected": false,
-          "text": "None",
-          "value": ""
+          "text": "mantis_system",
+          "value": "mantis_system"
         },
         "datasource": "Prometheus",
         "definition": "label_values(akka_system_unhandled_messages_total, system)",
+        "error": null,
         "hide": 0,
         "includeAll": false,
         "label": null,
@@ -6184,5 +6193,5 @@
   "timezone": "utc",
   "title": "Mantis",
   "uid": "L3y-GTyWk",
-  "version": 64
+  "version": 1
 }

@@ -156,8 +156,9 @@ To fix this, update the version of Nix you are using, or in a pinch:
 #### Locally build & run monitoring client
 
 Setup a dashboard using Prometheus and Grafana, popular choice of monitoring stack.
+Before that you need enable the metrics in the file “metrics.conf”, setting metrics.enabled=true.
 
-Docker Compose initializing Grafana with preconfigured dashboard.
+Docker Compose initializing Grafana with a preconfigured dashboard.
 ```
 # Build monitoring client with docker compose
 docker-compose -f ./docker/monitoring/monitoring-docker-compose.yml up -d
