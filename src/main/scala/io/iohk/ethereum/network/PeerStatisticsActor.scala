@@ -4,10 +4,14 @@ import akka.actor._
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.Codes
 import java.time.Clock
+
+import io.iohk.ethereum.network.p2p.Message
+
 import scala.concurrent.duration.FiniteDuration
 
 class PeerStatisticsActor(
     peerEventBus: ActorRef,
+    clock: Clock,
     var maybeStats: Option[TimeSlotStats[PeerId, PeerStat]]
 ) extends Actor {
   import PeerStatisticsActor._
@@ -23,14 +27,7 @@ class PeerStatisticsActor(
 
   private def handlePeerEvents: Receive = {
     case PeerEvent.MessageFromPeer(msg, peerId) =>
-      val now = System.currentTimeMillis()
-      val obs = PeerStat(
-        responsesReceived = if (ResponseCodes(msg.code)) 1 else 0,
-        requestsReceived = if (RequestCodes(msg.code)) 1 else 0,
-        firstSeenTimeMillis = Some(now),
-        lastSeenTimeMillis = Some(now)
-      )
-      maybeStats = maybeStats.map(_.add(peerId, obs))
+      handleMessageFromPeer(msg, peerId)
 
     case PeerEvent.PeerDisconnected(peerId) =>
       maybeStats = maybeStats.map(_.remove(peerId))
@@ -45,13 +42,23 @@ class PeerStatisticsActor(
       val stats = maybeStats.map(_.get(peerId, Some(window))).getOrElse(PeerStat.empty)
       sender ! StatsForPeer(peerId, stats)
   }
+
+  private def handleMessageFromPeer(msg: Message, peerId: PeerId): Unit = {
+    val now = clock.millis
+    val obs = PeerStat(
+      responsesReceived = if (ResponseCodes(msg.code)) 1 else 0,
+      requestsReceived = if (RequestCodes(msg.code)) 1 else 0,
+      firstSeenTimeMillis = Some(now),
+      lastSeenTimeMillis = Some(now)
+    )
+    maybeStats = maybeStats.map(_.add(peerId, obs))
+  }
 }
 
 object PeerStatisticsActor {
-  def props(peerEventBus: ActorRef, slotDuration: FiniteDuration, slotCount: Int): Props =
+  def props(peerEventBus: ActorRef, clock: Clock, slotDuration: FiniteDuration, slotCount: Int): Props =
     Props {
-      implicit val clock = Clock.systemUTC()
-      new PeerStatisticsActor(peerEventBus, TimeSlotStats[PeerId, PeerStat](slotDuration, slotCount))
+      new PeerStatisticsActor(peerEventBus, clock, TimeSlotStats[PeerId, PeerStat](slotDuration, slotCount, clock))
     }
 
   case class GetStatsForAll(window: FiniteDuration)

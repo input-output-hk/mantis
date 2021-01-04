@@ -1,5 +1,6 @@
 package io.iohk.ethereum.txExecTest.util
 
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.ActorSystem
@@ -97,7 +98,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
-  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30))
+  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, Clock.systemUTC(), 1.minute, 30))
 
   val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.sync.util
 
 import java.nio.file.Files
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -26,15 +27,7 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{
-  EtcPeerManagerActor,
-  ForkResolver,
-  KnownNodesManager,
-  PeerEventBusActor,
-  PeerManagerActor,
-  PeerStatisticsActor,
-  ServerActor
-}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, PeerStatisticsActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
@@ -174,7 +167,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
   lazy val peerStatistics =
-    system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
+    system.actorOf(PeerStatisticsActor.props(peerEventBus, Clock.systemUTC, slotDuration = 1.minute, slotCount = 30))
 
   lazy val peerManager: ActorRef = system.actorOf(
     PeerManagerActor.props(
