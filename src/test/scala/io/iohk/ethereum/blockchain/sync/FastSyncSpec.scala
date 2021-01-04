@@ -22,7 +22,7 @@ class FastSyncSpec
     with FreeSpecBase
     with SpecFixtures
     with WithActorSystemShutDown { self =>
-  implicit val timeout: Timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(30.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
     override implicit lazy val system = self.system
