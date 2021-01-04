@@ -1065,54 +1065,6 @@
       url = "https://repo1.maven.org/maven2/com/trueaccord/scalapb/scalapb-runtime_2.12/0.6.6/scalapb-runtime_2.12-0.6.6.pom";
       sha256 = "1D151CC97E7A94E1795A66538692E047468C5D7E5491EC709A59F8D7B7ABB039";
     };
-    "nix-public/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0-javadoc.jar";
-      sha256 = "3400584E84FE765101EE84DDE208CBB4AECAE33A2093ED989AEBD802916F9BEB";
-    };
-    "nix-public/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0-sources.jar";
-      sha256 = "1FAAC80D74C5E99B30A32C81D5F8A675F5DA1889584893822A720E7C044BF2DF";
-    };
-    "nix-public/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0.jar";
-      sha256 = "5DF5983BB58E545CACD771504DC32A83CE27D4B2ABC45B3041ACD4F74ECF4418";
-    };
-    "nix-public/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-collection_2.12/19.1.0/util-collection_2.12-19.1.0.pom";
-      sha256 = "D2155349209C1EC451F08FE3A4ECE7A916B118E46F3492A81FC24B7B90E9EA7E";
-    };
-    "nix-public/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0-javadoc.jar";
-      sha256 = "0B1ACC67A5C6C8281FF0322899E0E1F3C28516094D166412E2DBF0C960E94C8E";
-    };
-    "nix-public/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0-sources.jar";
-      sha256 = "43F4E01682C3517DCA2CDB15678419CEA6C904886231C5507552AA996B48439A";
-    };
-    "nix-public/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0.jar";
-      sha256 = "E91061D0EC00F3573AA1311079E32A1F4A56D09BDE0D52715E4C035B2156AF52";
-    };
-    "nix-public/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-core_2.12/19.1.0/util-core_2.12-19.1.0.pom";
-      sha256 = "0D0ECBD7D803EB1CC5337805A07242E87D7CD3C371FC67C243B3D68615E0F4CB";
-    };
-    "nix-public/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0-javadoc.jar";
-      sha256 = "87695034BFFD441D11ED0B3672F412795CE1B9F5770CF2E882281623B781F708";
-    };
-    "nix-public/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0-sources.jar";
-      sha256 = "FD71104B195EDE70D78FD38D49B0F8B4419C33EF59D7E23592272CF68538CEF9";
-    };
-    "nix-public/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0.jar" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0.jar";
-      sha256 = "B1516320F07264AE2BE860F4C74FA2DF5EF8BD349C68D082D8EAECDFCF77F766";
-    };
-    "nix-public/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0.pom" = {
-      url = "https://repo1.maven.org/maven2/com/twitter/util-function_2.12/19.1.0/util-function_2.12-19.1.0.pom";
-      sha256 = "17DB0C4F7A9C79E6279A8A4D6CAAEAC2DF889FDD2D3BA002E648F436C34FC88B";
-    };
     "nix-public/com/typesafe/akka/akka-actor_2.12/2.5.23/akka-actor_2.12-2.5.23-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/typesafe/akka/akka-actor_2.12/2.5.23/akka-actor_2.12-2.5.23-javadoc.jar";
       sha256 = "5C129DD97237DAB58EC6FBA946978916057BB6BBC414113BE8083ECD68A889E6";
@@ -2608,22 +2560,6 @@
     "nix-public/org/scala-lang/modules/scala-java8-compat_2.12/0.8.0/scala-java8-compat_2.12-0.8.0.pom" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-java8-compat_2.12/0.8.0/scala-java8-compat_2.12-0.8.0.pom";
       sha256 = "49E2711154CE9BA76962E043F4F8A6D0B890CD9E2FC6D0E99C3A0E6AD6C1950E";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4-javadoc.jar";
-      sha256 = "228DA077BAEB60BB35E612780FB805126B0F88F9319AFDEA60E3BABEBC798BC2";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4-sources.jar";
-      sha256 = "CB4BA7B7E598530FAEC863E5069864A28268EE4C636B0C46443884DCC4E07AC6";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4.jar" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4.jar";
-      sha256 = "282C78D064D3E8F09B3663190D9494B85E0BB7D96B0DA05994FE994384D96111";
-    };
-    "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4.pom" = {
-      url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.0.4/scala-parser-combinators_2.12-1.0.4.pom";
-      sha256 = "B512704E22EEF743D6288DED94943DFE78F9BB0636CCB5AC1919364BF0B4EF2A";
     };
     "nix-public/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/org/scala-lang/modules/scala-parser-combinators_2.12/1.1.2/scala-parser-combinators_2.12-1.1.2-javadoc.jar";

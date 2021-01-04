@@ -94,8 +94,6 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "3.1.2"
   )
 
-  val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "19.1.0")
-
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 
   val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
