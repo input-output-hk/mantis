@@ -673,6 +673,26 @@
       url = "https://repo1.maven.org/maven2/jline/jline/2.14.6/jline-2.14.6.pom";
       sha256 = "1DF7B6F08DFB81A268D6B93B659A6A9E389C5D8C32BDF0754238BA6483A4E982";
     };
+    "nix-public/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12-javadoc.jar";
+      sha256 = "4F95579676F7C153EA3547D2D4EB8D0FF6A2254A7CB4937C33FD44FB3B155F99";
+    };
+    "nix-public/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12-sources.jar";
+      sha256 = "D81B86AFBBDB41EF14D0062517B7ACB8B804AE1F48B1C69127581F044CDC1391";
+    };
+    "nix-public/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12.jar" = {
+      url = "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12.jar";
+      sha256 = "A9C89697162C0A28F97F60B507458DEEFE6FB65F0B74C5D49358000DD6AFACD0";
+    };
+    "nix-public/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12.pom" = {
+      url = "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy-agent/1.9.12/byte-buddy-agent-1.9.12.pom";
+      sha256 = "570A34A7ABDD4D6A92718929C349AD0A9484199DB8F790B408E7E8E36C354EAC";
+    };
+    "nix-public/net/bytebuddy/byte-buddy-parent/1.9.12/byte-buddy-parent-1.9.12.pom" = {
+      url = "https://repo1.maven.org/maven2/net/bytebuddy/byte-buddy-parent/1.9.12/byte-buddy-parent-1.9.12.pom";
+      sha256 = "54C9C7082667843A314CDB0917E15633A54081DAD693E06E45F3C6977A0F2D31";
+    };
     "nix-public/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/net/java/dev/jna/jna-platform/4.5.0/jna-platform-4.5.0-javadoc.jar";
       sha256 = "F446AE69F9DA3098F2CF1BF68B4270F7C4CB3D1E5248A63A64DB6D40A2C0FEB5";
@@ -2580,6 +2600,22 @@
     "nix-sbt-plugin-releases/com.typesafe.sbt/sbt-native-packager/scala_2.12/sbt_1.0/1.7.5/srcs/sbt-native-packager-sources.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.typesafe.sbt/sbt-native-packager/scala_2.12/sbt_1.0/1.7.5/srcs/sbt-native-packager-sources.jar";
       sha256 = "B5A2E0FC8ED6A5359A4E5FEE211BCB2632E0538F3E6E269AB41BB1D5EF9D8BF4";
+    };
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/docs/sbt-kanela-runner-javadoc.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/docs/sbt-kanela-runner-javadoc.jar";
+      sha256 = "2CE6F3D6D3E6CDE23E7AEA160C771013CF71AD651CE43AC3F44A00D240BD9832";
+    };
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/ivys/ivy.xml" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/ivys/ivy.xml";
+      sha256 = "00BB88C915A979BA6F75B3000EDC245AB7F35848565CA9ABA0C4759CB8F9563C";
+    };
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/jars/sbt-kanela-runner.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/jars/sbt-kanela-runner.jar";
+      sha256 = "4DCBD99582F2DF0ECB7B34B3AC4C73601A32556F700333166AD1E0705EB5EC39";
+    };
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/srcs/sbt-kanela-runner-sources.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/srcs/sbt-kanela-runner-sources.jar";
+      sha256 = "EEE3DF952E35C96BDBB1D34A2AB60DC889E6792FA6F33B911D6B6A5A9845ABED";
     };
     "nix-sbt-plugin-releases/org.portable-scala/sbt-platform-deps/scala_2.12/sbt_1.0/1.0.0/docs/sbt-platform-deps-javadoc.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.portable-scala/sbt-platform-deps/scala_2.12/sbt_1.0/1.0.0/docs/sbt-platform-deps-javadoc.jar";
