@@ -1,0 +1,24 @@
+version: '3.1'
+
+services:
+
+    prometheus:
+        network_mode: host
+        image: prom/prometheus:v2.23.0
+        ports:
+            - '9090:9090'
+        volumes:
+            - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+    grafana:
+        network_mode: host
+        image: grafana/grafana:7.3.6
+        depends_on:
+            - prometheus
+        ports:
+            - '3000:3000'
+        volumes:
+            - ./grafana/provisioning:/etc/grafana/provisioning
+            - ./grafana/grafana.ini:/etc/grafana/grafana.ini
+            - ./grafana/dashboards:/var/lib/grafana/dashboards
+
