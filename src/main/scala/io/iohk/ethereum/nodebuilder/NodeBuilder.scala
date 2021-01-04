@@ -192,10 +192,12 @@ trait PeerEventBusBuilder {
 trait PeerStatisticsBuilder {
   self: ActorSystemBuilder with PeerEventBusBuilder =>
 
+  // TODO: a candidate to move upwards in trait hierarchy?
+  implicit val clock = Clock.systemUTC()
+
   lazy val peerStatistics: ActorRef = system.actorOf(
     PeerStatisticsActor.props(
       peerEventBus,
-      clock = Clock.systemUTC,
       // `slotCount * slotDuration` should be set so that it's at least as long
       // as any client of the `PeerStatisticsActor` requires.
       slotDuration = Config.Network.peer.statSlotDuration,

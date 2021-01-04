@@ -13,10 +13,8 @@ class TimeSlotStats[K, V: Monoid] private (
     // The last written position in the buffer.
     val lastIdx: Int,
     // Ring buffer of slots statistics.
-    val buffer: TimeSlotStats.Buffer[K, V],
-    // The time counter counter
-    clock: Clock
-) {
+    val buffer: TimeSlotStats.Buffer[K, V]
+)(implicit clock: Clock) {
   import TimeSlotStats._
 
   /** Overall length of the timewindow. */
@@ -105,7 +103,7 @@ class TimeSlotStats[K, V: Monoid] private (
       lastIdx: Int,
       buffer: Buffer[K, V]
   ): TimeSlotStats[K, V] =
-    new TimeSlotStats[K, V](slotDuration, lastIdx, buffer, this.clock)
+    new TimeSlotStats[K, V](slotDuration, lastIdx, buffer)
 }
 
 object TimeSlotStats {
@@ -128,9 +126,8 @@ object TimeSlotStats {
 
   def apply[K, V: Monoid](
       slotDuration: FiniteDuration,
-      slotCount: Int,
-      clock: Clock
-  ): Option[TimeSlotStats[K, V]] =
+      slotCount: Int
+  )(implicit clock: Clock): Option[TimeSlotStats[K, V]] =
     if (slotDuration == Duration.Zero || slotCount <= 0) None
     else
       Some {
@@ -138,7 +135,6 @@ object TimeSlotStats {
           slotDuration,
           lastIdx = slotCount - 1, // So the first slot we fill is going to be 0.
           buffer = Range(0, slotCount).map(_ -> Entry(0L, Map.empty[K, V])).toMap,
-          clock = clock
         )
       }
 }

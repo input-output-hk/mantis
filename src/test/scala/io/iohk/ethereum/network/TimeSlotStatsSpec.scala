@@ -153,10 +153,11 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
   it should "handle 0 in configuration" in {
     // This might happen if we base the values on something which can be 0.
-    val clock = Clock.systemUTC()
+    implicit val clock: Clock = Clock.systemUTC()
+
     val zeros = List(
-      TimeSlotStats[String, Int](slotDuration = 1.minutes, slotCount = 0, clock),
-      TimeSlotStats[String, Int](slotDuration = 0.minutes, slotCount = 1, clock)
+      TimeSlotStats[String, Int](slotDuration = 1.minutes, slotCount = 0),
+      TimeSlotStats[String, Int](slotDuration = 0.minutes, slotCount = 1)
     )
     Inspectors.forAll(zeros) {
       _ shouldBe empty
@@ -216,6 +217,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
 object TimeSlotStatsSpec {
 
+  implicit val clock = new MockClock()
 
   type TestState[K, V, A] = State[(TimeSlotStats[K, V], MockClock), A]
 
@@ -243,8 +245,7 @@ object TimeSlotStatsSpec {
     }
 
   def test[K, V: Monoid](s: TestState[K, V, Assertion]): Unit = {
-    implicit val clock = new MockClock()
-    val stats = TimeSlotStats[K, V](defaultSlotDuration, defaultSlotCount, clock).get
+    val stats = TimeSlotStats[K, V](defaultSlotDuration, defaultSlotCount).get
     s.run(stats -> clock).value
   }
 
@@ -264,8 +265,7 @@ object TimeSlotStatsSpec {
         v <- arbitrary[V]
       } yield (d, k, v)
       events <- Gen.listOfN(eventCount, event)
-      clock = new MockClock()
-      empty = TimeSlotStats[K, V](slotDuration, slotCount, clock)(Monoid[V]).get
+      empty = TimeSlotStats[K, V](slotDuration, slotCount)(Monoid[V], clock).get
       stats = events.foldLeft(empty) { case (stats, (duration, key, stat)) =>
         clock.windByMillis(duration.toMillis)
         stats.add(key, stat)

@@ -75,6 +75,6 @@ class PeerStatisticsSpec
 
     val peerEventBus = TestProbe()
     val peerStatistics =
-      system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, mockClock, slotDuration = 1.minute, slotCount = 30))
+      system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, slotDuration = 1.minute, slotCount = 30)(mockClock))
   }
 }

@@ -48,6 +48,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   import scala.language.postfixOps
 
+  implicit val clock = Clock.systemUTC()
+
   implicit val system = ActorSystem(peerName)
 
   val peerDiscoveryManager = TestProbe().ref
@@ -167,7 +169,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
   lazy val peerStatistics =
-    system.actorOf(PeerStatisticsActor.props(peerEventBus, Clock.systemUTC, slotDuration = 1.minute, slotCount = 30))
+    system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
 
   lazy val peerManager: ActorRef = system.actorOf(
     PeerManagerActor.props(
