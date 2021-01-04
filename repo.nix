@@ -1265,6 +1265,22 @@
       url = "https://repo1.maven.org/maven2/com/typesafe/akka/akka-testkit_2.12/2.6.9/akka-testkit_2.12-2.6.9.pom";
       sha256 = "649C6DEFA716E9B44A61E6CC77FA2AFCFD6AFC461A49301263950455939328FD";
     };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1-javadoc.jar";
+      sha256 = "362F6CD7C2396E3463E82E926ACCCAD0AD0B813717CD2F68359D3A57D2EF8630";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1-sources.jar";
+      sha256 = "F28FFD7E01B9ED0A8194CDE55555F46FD11984BF4CD97FCBA97621C15CF6CC12";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1.jar";
+      sha256 = "E6FADFC6108220D3A6B86AA7E4E16C9E7BB857BA58955886308BB13972264AF0";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1.pom" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1.pom";
+      sha256 = "6895BAE0EFA605283C27C1321D893A2ACD0A63A64D90AA9BC64446070F9E7605";
+    };
     "nix-public/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar";
       sha256 = "131B1CFF95E3F64FD6DF84695CA0D3C2FC85A9C08CDE9B9D86DB3EDC9E1561ED";
