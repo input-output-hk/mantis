@@ -89,8 +89,8 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
         log.debug("Client received msg: Empty")
         messageLoop[W, S](world)
 
-      case _ =>
-        log.debug("Client received unknown msg!")
+      case msg =>
+        log.warn(s"Client received unexpected message: ${msg}!")
         messageLoop[W, S](world)
     }
   }
