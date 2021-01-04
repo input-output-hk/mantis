@@ -12,7 +12,8 @@ import scala.concurrent.duration.FiniteDuration
 class PeerStatisticsActor(
     peerEventBus: ActorRef,
     var maybeStats: Option[TimeSlotStats[PeerId, PeerStat]]
-)(implicit clock: Clock) extends Actor {
+)(implicit clock: Clock)
+    extends Actor {
   import PeerStatisticsActor._
 
   override def preStart(): Unit = {

@@ -2,11 +2,10 @@ package io.iohk.ethereum.utils
 
 import java.time.{Clock, Instant, ZoneId}
 
-
 class MockClock(
-                 private var currentTimeMillis: Long = System.currentTimeMillis,
-                 zoneId: ZoneId = ZoneId.of("UTC")
-               ) extends Clock {
+    private var currentTimeMillis: Long = System.currentTimeMillis,
+    zoneId: ZoneId = ZoneId.of("UTC")
+) extends Clock {
   def windByMillis(by: Long): Unit =
     currentTimeMillis = currentTimeMillis + by
 

@@ -134,7 +134,7 @@ object TimeSlotStats {
         new TimeSlotStats[K, V](
           slotDuration,
           lastIdx = slotCount - 1, // So the first slot we fill is going to be 0.
-          buffer = Range(0, slotCount).map(_ -> Entry(0L, Map.empty[K, V])).toMap,
+          buffer = Range(0, slotCount).map(_ -> Entry(0L, Map.empty[K, V])).toMap
         )
       }
 }

@@ -60,9 +60,9 @@ class PeerStatisticsSpec
     statA.responsesReceived shouldBe 2
     val difference = for {
       first <- statA.firstSeenTimeMillis
-      last  <- statA.lastSeenTimeMillis
+      last <- statA.lastSeenTimeMillis
     } yield last - first
-    assert( difference.exists(_ >= TICK) )
+    assert(difference.exists(_ >= TICK))
 
     val statB = stats.stats(bob)
     statB.responsesReceived shouldBe 1

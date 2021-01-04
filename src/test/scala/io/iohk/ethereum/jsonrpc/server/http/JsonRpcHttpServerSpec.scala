@@ -469,7 +469,7 @@ class FakeJsonRpcHttpServer(
   def run(): Unit = ()
   override def corsAllowedOrigins: HttpOriginMatcher = cors
 
-  var mockedTime:Long = 0L
+  var mockedTime: Long = 0L
 
   override protected val rateLimit: RateLimit = new RateLimit(config.rateLimit) {
     override protected def getCurrentTimeNanos: Long = FakeJsonRpcHttpServer.this.mockedTime
