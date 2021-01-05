@@ -5,8 +5,10 @@ import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes
 import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.utils.MockClock
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import scala.concurrent.duration._
 
 class PeerStatisticsSpec
@@ -16,6 +18,14 @@ class PeerStatisticsSpec
     with Matchers {
 
   import PeerStatisticsActor._
+
+  val TICK: Long = 50
+  val mockClock = new MockClock(0L) {
+    override def millis(): Long = {
+      windByMillis(TICK)
+      super.millis()
+    }
+  }
 
   behavior of "PeerStatisticsActor"
 
@@ -48,7 +58,11 @@ class PeerStatisticsSpec
 
     val statA = stats.stats(alice)
     statA.responsesReceived shouldBe 2
-    statA.lastSeenTimeMillis shouldBe >(statA.firstSeenTimeMillis)
+    val difference = for {
+      first <- statA.firstSeenTimeMillis
+      last <- statA.lastSeenTimeMillis
+    } yield last - first
+    assert(difference.exists(_ >= TICK))
 
     val statB = stats.stats(bob)
     statB.responsesReceived shouldBe 1
@@ -61,6 +75,6 @@ class PeerStatisticsSpec
 
     val peerEventBus = TestProbe()
     val peerStatistics =
-      system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, slotDuration = 1.minute, slotCount = 30))
+      system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, slotDuration = 1.minute, slotCount = 30)(mockClock))
   }
 }
