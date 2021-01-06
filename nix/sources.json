@@ -3,13 +3,13 @@
         "branch": "master",
         "description": "Generates Nix definitions for your SBT builds",
         "homepage": null,
-        "owner": "input-output-hk",
+        "owner": "teozkr",
         "repo": "Sbtix",
-        "rev": "7b969a5641fce10500ca51cbe88af4ea160d7064",
-        "sha256": "19pg7rm36b0v9y3ibq5cwsq38pwj3xw3d8srv78svmpnrzm1dh9g",
+        "rev": "796c3e419132c89925fbcca187a43f6841caab42",
+        "sha256": "1s3da4zz309qsxn1jgdnzrhv8g6cvghj9kml0hflwsh6m03hwq73",
         "type": "tarball",
-        "url": "https://github.com/input-output-hk/Sbtix/archive/7b969a5641fce10500ca51cbe88af4ea160d7064.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+        "url": "https://gitlab.com/teozkr/Sbtix/-/archive/796c3e419132c89925fbcca187a43f6841caab42/Sbtix-796c3e419132c89925fbcca187a43f6841caab42.tar.gz",
+        "url_template": "https://gitlab.com/<owner>/Sbtix/-/archive/<rev>/<repo>-<rev>.tar.gz"
     },
     "gitignore": {
         "branch": "master",
