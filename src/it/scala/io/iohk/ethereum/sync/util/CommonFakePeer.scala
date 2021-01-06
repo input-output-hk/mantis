@@ -1,6 +1,7 @@
 package io.iohk.ethereum.sync.util
 
 import java.nio.file.Files
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
 
 import akka.actor.{ActorRef, ActorSystem}
@@ -54,6 +55,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   val config = Config.config
 
   import scala.language.postfixOps
+
+  implicit val clock = Clock.systemUTC()
 
   implicit val system = ActorSystem(peerName)
 
