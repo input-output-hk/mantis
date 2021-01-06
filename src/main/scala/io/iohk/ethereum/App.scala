@@ -5,8 +5,12 @@ import io.iohk.ethereum.crypto.{EcKeyGen, SignatureValidator}
 import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.faucet.Faucet
 import io.iohk.ethereum.utils.{Config, Logger}
+import kamon.Kamon
 
 object App extends Logger {
+  // this has to be VERY first line
+  // as it pre-loads the javaagent
+  Kamon.init()
 
   def main(args: Array[String]): Unit = {
 
