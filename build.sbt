@@ -1,4 +1,4 @@
-enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin, JavaAgent)
 
 import scala.sys.process.Process
 import NativePackagerHelper._
@@ -161,6 +161,8 @@ lazy val node = {
       ),
       buildInfoPackage := "io.iohk.ethereum.utils",
       fork in Test := true,
+      fork in run := true,
+      javaAgents += "org.aspectj" % "aspectjweaver" % "1.9.6" % "runtime",
       buildInfoOptions in Compile += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)

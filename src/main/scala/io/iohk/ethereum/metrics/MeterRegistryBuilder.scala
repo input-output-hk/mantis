@@ -2,10 +2,11 @@ package io.iohk.ethereum.metrics
 
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.LoggingUtils.getClassName
+import io.kontainers.micrometer.akka.AkkaMetricRegistry
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
 import io.micrometer.core.instrument._
-import io.micrometer.prometheus.{PrometheusMeterRegistry, PrometheusConfig}
+import io.micrometer.prometheus.{PrometheusConfig, PrometheusMeterRegistry}
 import io.prometheus.client.CollectorRegistry
 import io.micrometer.jmx.JmxMeterRegistry
 
@@ -14,7 +15,7 @@ object MeterRegistryBuilder extends Logger {
   private[this] final val StdMetricsClock = Clock.SYSTEM
 
   private[this] def onMeterAdded(m: Meter): Unit =
-    log.debug(s"New ${getClassName(m)} metric: " + m.getId.getName)
+    log.warn(s"New ${getClassName(m)} metric: " + m.getId.getName)
 
   /**
     * Build our meter registry consist in:
@@ -35,6 +36,7 @@ object MeterRegistryBuilder extends Logger {
       );
 
     log.info(s"Build Prometheus Meter Registry: ${prometheusMeterRegistry}")
+    AkkaMetricRegistry.setRegistry(prometheusMeterRegistry)
 
     val registry = new CompositeMeterRegistry(
       StdMetricsClock,

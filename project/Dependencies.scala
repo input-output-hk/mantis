@@ -135,9 +135,10 @@ object Dependencies {
     Seq(
       // Required to compile metrics library https://github.com/micrometer-metrics/micrometer/issues/1133#issuecomment-452434205
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
+      "io.kontainers" %% "micrometer-akka" % "0.12.2",
       provider % "micrometer-core" % version,
       provider % "micrometer-registry-jmx" % version,
-      provider % "micrometer-registry-prometheus" % version,
+      provider % "micrometer-registry-prometheus" % version
     )
   }
 
@@ -145,8 +146,10 @@ object Dependencies {
     val provider = "io.kamon"
     val version = "2.1.9"
     Seq(
-      provider %% "kamon-prometheus" % version,
-      provider %% "kamon-akka" % version
+      provider %% "kamon-prometheus" % version
+//      provider %% "kamon-bundle" % version
+//      provider %% "kamon-akka-http" % version,
+//      provider %% "kamon-akka" % version
     )
   }
 
