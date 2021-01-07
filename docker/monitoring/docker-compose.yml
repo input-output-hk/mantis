@@ -30,11 +30,11 @@ services:
     restart: always
 
   mantis:
-    image: mantis:3.2.1
+    image: mantis:latest
     ports:
-      - '8546:8546'
-      - '13798:13798'
-      - '9095:9095'
+      - 8546:8546
+      - 13798:13798
+      - 9095:9095
     networks:
       - mantis-net
     restart: always

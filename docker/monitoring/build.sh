@@ -3,6 +3,6 @@
 HERE=$(dirname $0)
 
 cd $HERE/../../
-sbt docker:publishLocal
+sbt 'set version := "latest"' docker:publishLocal
 
 docker-compose -f docker/monitoring/docker-compose.yml up -d
