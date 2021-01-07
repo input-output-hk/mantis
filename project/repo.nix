@@ -2537,6 +2537,22 @@
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.eed3si9n/sbt-buildinfo/scala_2.12/sbt_1.0/0.9.0/srcs/sbt-buildinfo-sources.jar";
       sha256 = "722E3E53A8DF94B23AA57742576D30A23791CF0CE8D34883B93395DDA89DAA28";
     };
+    "nix-sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/docs/sbt-javaagent-javadoc.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/docs/sbt-javaagent-javadoc.jar";
+      sha256 = "950A1565CFB964364190A76366B0EDC651EC988C9DDEB7C68145B5D676448AA5";
+    };
+    "nix-sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/ivys/ivy.xml" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/ivys/ivy.xml";
+      sha256 = "1D563F44573FEFFC05C821AFF013D10F47CE0AA042110F388C36CBD0AD17FD37";
+    };
+    "nix-sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/jars/sbt-javaagent.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/jars/sbt-javaagent.jar";
+      sha256 = "3B2DE301350934A1ADDF87B51E995865A2E5E9907EA8DDBD3FEE8149C05949B0";
+    };
+    "nix-sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/srcs/sbt-javaagent-sources.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.lightbend.sbt/sbt-javaagent/scala_2.12/sbt_1.0/0.1.6/srcs/sbt-javaagent-sources.jar";
+      sha256 = "BCA3FC71C6CCA26A437E3755CB6D152FF10BB3F1BBCB9954F1D5B30349AAB029";
+    };
     "nix-sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/docs/sbt-protoc-javadoc.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.thesamet/sbt-protoc/scala_2.12/sbt_1.0/0.99.25/docs/sbt-protoc-javadoc.jar";
       sha256 = "643A3377A1B08599C0208ABAFF21AD12B15B619BE250258DD6492B57986902A0";
@@ -2601,21 +2617,21 @@
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/com.typesafe.sbt/sbt-native-packager/scala_2.12/sbt_1.0/1.7.5/srcs/sbt-native-packager-sources.jar";
       sha256 = "B5A2E0FC8ED6A5359A4E5FEE211BCB2632E0538F3E6E269AB41BB1D5EF9D8BF4";
     };
-    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/docs/sbt-kanela-runner-javadoc.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/docs/sbt-kanela-runner-javadoc.jar";
-      sha256 = "2CE6F3D6D3E6CDE23E7AEA160C771013CF71AD651CE43AC3F44A00D240BD9832";
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/docs/sbt-kanela-runner-javadoc.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/docs/sbt-kanela-runner-javadoc.jar";
+      sha256 = "EF27CEF52F6F5C879E1555E776D0907FF17F51C49396B06419C3BCD94CF5A082";
     };
-    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/ivys/ivy.xml" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/ivys/ivy.xml";
-      sha256 = "00BB88C915A979BA6F75B3000EDC245AB7F35848565CA9ABA0C4759CB8F9563C";
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/ivys/ivy.xml" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/ivys/ivy.xml";
+      sha256 = "2AA0A27FE0C3D10805D011E56C5E93ED6D99213BE3AD86052B0B29C53F571E20";
     };
-    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/jars/sbt-kanela-runner.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/jars/sbt-kanela-runner.jar";
-      sha256 = "4DCBD99582F2DF0ECB7B34B3AC4C73601A32556F700333166AD1E0705EB5EC39";
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/jars/sbt-kanela-runner.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/jars/sbt-kanela-runner.jar";
+      sha256 = "DC7BB4B2142630ADC330164A000163F922D5F7DC507C79A755D08D8B63908662";
     };
-    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/srcs/sbt-kanela-runner-sources.jar" = {
-      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.6/srcs/sbt-kanela-runner-sources.jar";
-      sha256 = "EEE3DF952E35C96BDBB1D34A2AB60DC889E6792FA6F33B911D6B6A5A9845ABED";
+    "nix-sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/srcs/sbt-kanela-runner-sources.jar" = {
+      url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/io.kamon/sbt-kanela-runner/scala_2.12/sbt_1.0/2.0.5/srcs/sbt-kanela-runner-sources.jar";
+      sha256 = "D17E960CC0A87201D7334C95182D13305DCB9CC8FE438373A828178DFDD6AE5D";
     };
     "nix-sbt-plugin-releases/org.portable-scala/sbt-platform-deps/scala_2.12/sbt_1.0/1.0.0/docs/sbt-platform-deps-javadoc.jar" = {
       url = "https://repo.scala-sbt.org/scalasbt/sbt-plugin-releases/org.portable-scala/sbt-platform-deps/scala_2.12/sbt_1.0/1.0.0/docs/sbt-platform-deps-javadoc.jar";

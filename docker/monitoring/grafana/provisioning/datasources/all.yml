@@ -1,7 +1,0 @@
-datasources:
-- name: 'Prometheus'
-  type: 'prometheus'
-  access: 'browser'
-  url: 'http://localhost:9090'
-  is_default: true
-  editable: false

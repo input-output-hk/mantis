@@ -1613,21 +1613,37 @@
       url = "https://repo1.maven.org/maven2/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9.pom";
       sha256 = "B9791F4BBF68BC8AB04C4F85CD48BB5FB45038704B63BF447A013F1D033DAE2A";
     };
-    "nix-public/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5-javadoc.jar" = {
-      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5-javadoc.jar";
-      sha256 = "60B4D93E18518DC1AB241DD12E07D34C9056276F4CEF39851DE8C51FE4BBE2E2";
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-javadoc.jar";
+      sha256 = "BC1C5E35DFE9D847CD35FDEFBA98F21F37E62CD2FB4DDF288EC23CE00B686812";
     };
-    "nix-public/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5-sources.jar" = {
-      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5-sources.jar";
-      sha256 = "8F7AF4C06BFF139021F4F7AF285704678CC4DE1F3685481BC60EA3C14C9ABD0D";
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-sources.jar";
+      sha256 = "F9F7015D178C0C1AC1E4195799E2E504B7556B8B552323745C72B9A05930A425";
     };
-    "nix-public/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5.jar" = {
-      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5.jar";
-      sha256 = "97190F2D4D45F5BFFAE2CE7CE31FCD1F68F57EFBE80472EAE89DFE000F020623";
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.jar";
+      sha256 = "36DBCB9A0EAA4B6722A0348A021922952BFAF12B7DE333B1DECA40B0CF2AD7D0";
     };
-    "nix-public/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5.pom" = {
-      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.5/kanela-agent-1.0.5.pom";
-      sha256 = "E2DA22ECBB4CA6514B66783833D3A05C41C34495865B3FCAEEF6DFC00FD997F4";
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.pom";
+      sha256 = "3EAD8480D306050B518AB80BDA06F5447643B6C4E099F2D51B9A171AB1420C06";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-javadoc.jar";
+      sha256 = "E6AEB27674E8C15CE8970E7AD1BCF508BE842763B070570C33C68FA26066F336";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-sources.jar";
+      sha256 = "F25A304C3B309EB5DF496238F808663BF4BC691A8C6BD7205E867FB26B941297";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.jar";
+      sha256 = "ED15670146A3FEE7356F37981DB8A8FC8B0BB03CA15F05B2FF9DED0A3AFAAB07";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.pom";
+      sha256 = "86F033D021E1B226198E949EF196E445DAA4A65DCCE019EAC56EB85BED0C2D8C";
     };
     "nix-public/io/micrometer/micrometer-core/1.5.5/micrometer-core-1.5.5-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/io/micrometer/micrometer-core/1.5.5/micrometer-core-1.5.5-javadoc.jar";

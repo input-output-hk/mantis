@@ -13,7 +13,7 @@ scrape_configs:
   scheme: http
   static_configs:
   - targets:
-    - localhost:9090
+    - promethues:9090
     labels:
       alias: prometheus
 - job_name: node
@@ -24,7 +24,7 @@ scrape_configs:
   scheme: http
   static_configs:
   - targets:
-    - localhost:13798
+    - mantis:13798
     labels:
       alias: mantis-node
 - job_name: akka
@@ -34,6 +34,7 @@ scrape_configs:
   scheme: http
   static_configs:
     - targets:
-        - localhost:9095
+        - mantis:9095
       labels:
         alias: mantis-akka-node
+
