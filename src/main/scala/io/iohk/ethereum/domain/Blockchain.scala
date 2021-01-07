@@ -296,7 +296,7 @@ class BlockchainImpl(
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): ByteString = {
-    val storage = stateStorage.getBackingStorage(0) // TODO PP is it error?
+    val storage = stateStorage.getBackingStorage(0)
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
@@ -308,7 +308,7 @@ class BlockchainImpl(
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): Option[(BigInt, Seq[MptNode])] = {
-    val storage: MptStorage = stateStorage.getBackingStorage(0) // TODO PP is it error?
+    val storage: MptStorage = stateStorage.getBackingStorage(0)
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
