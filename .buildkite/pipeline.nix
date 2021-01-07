@@ -70,8 +70,8 @@ in
       '';
       artifactPaths = [
         "bytes/target/test-reports/**/*"
-        "bytes/target/scala-2.12/scoverage-report/**/*"
-        "bytes/target/scala-2.12/coverage-report/**/*"
+        "bytes/target/scala-2.13/scoverage-report/**/*"
+        "bytes/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -83,8 +83,8 @@ in
       '';
       artifactPaths = [
         "crypto/target/test-reports/**/*"
-        "crypto/target/scala-2.12/scoverage-report/**/*"
-        "crypto/target/scala-2.12/coverage-report/**/*"
+        "crypto/target/scala-2.13/scoverage-report/**/*"
+        "crypto/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -96,8 +96,8 @@ in
       '';
       artifactPaths = [
         "rlp/target/test-reports/**/*"
-        "rlp/target/scala-2.12/scoverage-report/**/*"
-        "rlp/target/scala-2.12/coverage-report/**/*"
+        "rlp/target/scala-2.13/scoverage-report/**/*"
+        "rlp/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -109,8 +109,8 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.12/scoverage-report/**/*"
-        "target/scala-2.12/coverage-report/**/*"
+        "target/scala-2.13/scoverage-report/**/*"
+        "target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -122,8 +122,8 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.12/scoverage-report/**/*"
-        "target/scala-2.12/coverage-report/**/*"
+        "target/scala-2.13/scoverage-report/**/*"
+        "target/scala-2.13/coverage-report/**/*"
       ];
     };
 
