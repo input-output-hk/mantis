@@ -6,6 +6,7 @@ else
   with pkgs;
 
   mkShell {
+    nativeBuildInputs = [ protobuf sbt ];
     inputsFrom = [ mantis ];
     buildInputs = [ (callPackage sources.Sbtix { }) ];
     SBTIX_GEN = "true";

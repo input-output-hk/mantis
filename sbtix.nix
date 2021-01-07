@@ -1,5 +1,5 @@
 # This file originates from SBTix
-{ runCommand, fetchurl, lib, stdenv, jdk, jre, sbt, writeText, makeWrapper }:
+{ runCommand, fetchurl, lib, stdenv, jdk, jre, sbt, writeText, makeWrapper, gawk }:
 with stdenv.lib;
 
 let sbtTemplate = repoDefs: versioning:
@@ -42,24 +42,38 @@ let sbtTemplate = repoDefs: versioning:
             '';
 
             unpackPhase = ''
+              runHook preUnpack
+
               ln -s ${buildSbt}  ./build.sbt
               ln -s ${mainScala} ./Main.scala
 
               mkdir -p ./project
 
               ln -s ${buildProperties} ./project/build.properties
+
+              runHook postUnpack
             '';
 
             buildInputs = [ jdk sbt ];
 
-            buildPhase = ''sbt update'';
+            buildPhase = ''
+              runHook preBuild
+
+              sbt update
+
+              runHook postBuild
+            '';
 
             installPhase =''
+              runHook preInstall
+
               mkdir -p $out
               # Copy the hidden ivy lock files. Only keep ivy cache folder, not ivy local. local might be empty now but I want to be sure it is not polluted in the future.
               rm -rf ./.ivy2/local
               cp -r --remove-destination ./.ivy2 $out/ivy
               cp -r --remove-destination ./.sbt $out/sbt
+
+              runHook postInstall
             '';
     });
 
@@ -149,7 +163,13 @@ in rec {
               ${sbtOptions}
             '';
 
-            buildPhase = ''pwd && sbt compile'';
+            buildPhase = ''
+              runHook preBuild
+
+              pwd && sbt compile
+
+              runHook postBuild
+            '';
         } // args // {
             repo = null;
             buildInputs = [ makeWrapper jdk sbt ] ++ buildInputs;
@@ -160,20 +180,28 @@ in rec {
 
     buildSbtLibrary = args: buildSbtProject ({
         installPhase = ''
+          runHook preInstall
+
           sbt publishLocal
           mkdir -p $out/
           cp ./.ivy2/local/* $out/ -r
+
+          runHook postInstall
         '';
     } // args);
 
     buildSbtProgram = args: buildSbtProject ({
         installPhase = ''
+          runHook preInstall
+
           sbt stage
           mkdir -p $out/
           cp target/universal/stage/* $out/ -r
           for p in $(find $out/bin/* -executable); do
-            wrapProgram "$p" --prefix PATH : ${jre}/bin
+            wrapProgram "$p" --prefix PATH : ${jre}/bin --prefix PATH : ${gawk}/bin
           done
+
+          runHook postInstall
         '';
     } // args);
 }
