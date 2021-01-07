@@ -74,7 +74,7 @@ val root = {
   if (!nixBuild)
     root
   else
-    root.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+    root.settings(PB.protocExecutable in Compile := file("protoc"))
 }
 
 scalacOptions := Seq(
