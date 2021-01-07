@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
-import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.SyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor
 import io.iohk.ethereum.db.dataSource.EphemDataSource

@@ -3,7 +3,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 import java.util.concurrent.atomic.AtomicLong
 
 import com.google.common.util.concurrent.AtomicDouble
-import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.metrics.MetricsContainer
 
 object SyncMetrics extends MetricsContainer {

@@ -5,7 +5,7 @@ import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
-import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.SyncState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.mpt.{HashNode, MptNode, MptTraversals}
