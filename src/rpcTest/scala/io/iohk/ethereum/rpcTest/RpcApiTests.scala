@@ -30,22 +30,22 @@ import scala.language.implicitConversions
 
 class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
 
-  "Json rpc service" should "be listening before all tests" taggedAs (MainNet, PrivNet) in new ScenarioSetup {
+  ("Json rpc service" should "be listening before all tests").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.netListening().send()
     response.isListening shouldBe true
   }
 
-  it should "return correct protocol version" taggedAs (MainNet, PrivNet) in new ScenarioSetup {
+  (it should "return correct protocol version").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.ethProtocolVersion().send()
     hexToBigInt(response.getProtocolVersion) shouldEqual protocolVersion
   }
 
-  it should "return correct client version" taggedAs (MainNet, PrivNet) in new ScenarioSetup {
+  (it should "return correct client version").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.web3ClientVersion().send()
     response.getWeb3ClientVersion shouldEqual clientVersion
   }
 
-  it should "correctly calculate Sha3" taggedAs (MainNet, PrivNet) in new ScenarioSetup {
+  (it should "correctly calculate Sha3").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.web3Sha3("").send()
     response.getResult shouldEqual "0xc5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
   }
@@ -759,7 +759,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response.getQuantity.asBigInt shouldEqual 0
   }
 
-  it should "eth_syncing on privnet" taggedAs (PrivNet, PrivNetNoMining) in new ScenarioSetup {
+  (it should "eth_syncing on privnet").taggedAs(PrivNet, PrivNetNoMining) in new ScenarioSetup {
     val response = service.ethSyncing().send()
     response.isSyncing shouldEqual false
   }
@@ -1094,7 +1094,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response = service.personalListAccounts().send()
     val personalAccounts = response.getAccountIds.asScala
 
-    personalAccounts should contain allOf (firstAccount.address, secondAccount.address, thirdAccount.address, gethAccount.address)
+    personalAccounts should contain.allOf(firstAccount.address, secondAccount.address, thirdAccount.address, gethAccount.address)
 
     val response1 = service.ethAccounts().send()
     val ethAccounts = response1.getAccounts.asScala
@@ -1113,7 +1113,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
 
     val response2 = service.personalListAccounts().send()
     val accounts = response2.getAccountIds.asScala
-    accounts should contain allOf (newAccId, newAccId1)
+    accounts should contain.allOf(newAccId, newAccId1)
 
     val transfer1 = service.ethSendTransaction(valueTransfer(firstAccount.address, newAccId, 1000)).send()
 
