@@ -75,7 +75,7 @@ class BlockFetcherStateSpec
           .flatMap(_.tryInsertBlock(testBlock, peerId))
 
         assert(result.map(_.waitingHeaders) === Right(Queue.empty))
-        assert(result.map(_.readyBlocks) === Right(Queue.empty.enqueue(front :+ testBlock)))
+        assert(result.map(_.readyBlocks) === Right(Queue.empty.enqueueAll(front :+ testBlock)))
         front.foreach { block =>
           assert(result.map(_.blockProviders(block.number)) === Right(peer))
         }
@@ -93,7 +93,7 @@ class BlockFetcherStateSpec
           .flatMap(_.tryInsertBlock(testBlock, peer))
 
         assert(result.map(_.readyBlocks) === Right(Queue.empty))
-        assert(result.map(_.waitingHeaders) === Right(Queue.empty.enqueue((front :+ testBlock).map(_.header))))
+        assert(result.map(_.waitingHeaders) === Right(Queue.empty.enqueueAll((front :+ testBlock).map(_.header))))
         assert(result.map(_.knownTop) === Right(testBlock.number))
       }
 
