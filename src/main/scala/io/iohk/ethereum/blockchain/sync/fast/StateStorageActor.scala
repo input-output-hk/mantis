@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{Actor, ActorLogging}
 import akka.pattern.pipe
-import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import monix.eval.Task
