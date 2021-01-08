@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import io.iohk.ethereum.ObjectGenerators._
 import io.iohk.ethereum.proof.AccountProofVerifier
@@ -139,11 +139,11 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
-    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
     val emptyMpt = MerklePatriciaTrie[Address, Account](
       storagesInstance.storages.stateStorage.getBackingStorage(0)
     )
     val mptWithAcc = emptyMpt.put(address, account)
+
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchain.storeBlockHeader(headerWithAcc).commit()
@@ -152,7 +152,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     retrievedAccountProof.isDefined shouldBe true
     retrievedAccountProof.map { proof =>
-      AccountProofVerifier.verifyProof(account.codeHash, address, proof) shouldBe Right(())
+      AccountProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe Right(())
     }
   }
 
