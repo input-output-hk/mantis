@@ -1,208 +1,78 @@
 # Mantis
 
-Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
+![Mantis Logo](https://raw.githubusercontent.com/input-output-hk/mantis/main/src/assets/logo.png)
 
-### Status - Release
+Ethereum Classic client written in Scala by the IOHK team.
 
-For continuous integration we're using:
-- [Buildkite](https://buildkite.com/input-output-hk/mantis) to run all the Scala build steps [![Build status](https://badge.buildkite.com/8a284e6f0af90afa544e06c8136b519f9f287f005ca581d8ed.svg?branch=master&theme=github)](https://buildkite.com/input-output-hk/mantis)
-- [Hydra](https://hydra.project42.iohkdev.io/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
+## About
 
-You can check the latest build results of the current branch by clicking the status icon in the header of the Github file browser.
+Mantis is a fully featured client, developed from the ground up and written in Scala for the Ethereum Classic network (ETC). Created by IOHK to add robustness and variety to the ETC's client share, it includes optimizations and network upgrades that improve network security, sustainability, and performance in the long term.
 
-Unit Test Code Coverage Status - TBD
+## Useful Links
 
-### Docs - FIXME: Update docs!
+* [Mantis User Documentation](https://docs.mantisclient.io/)
+* [Mantis Releases](https://github.com/input-output-hk/mantis/releases)
+* [Mantis issues](https://github.com/input-output-hk/mantis/issues)
+* [Mantis Discord](https://discord.gg/5BEpX2xV)
 
-For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
+## Getting Started
 
-### Download the client
+### Requirements
 
-The latest release can be downloaded from [here](https://github.com/input-output-hk/mantis/releases)
+* JVM version 1.8.x  
+* 4G of memory (RAM)  
+  Additional RAM is needed for the DAG file if mining is enabled.
+* 100GB of disk space to ensure fast sync of the node. 500GB is recommended for maintainability.
 
-### Command line version
 
-You can use generic launcher with appropriate parameter to connect with pre-configured network, it can be found in `bin` directory.
+### Installation
 
-Example:
-  - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
+Detailed install instructions [can be found in the documentation](https://docs.mantisclient.io/install/install-client/).
 
-Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
+## Usage
 
-### Command Line Interface
-
-`cli` is a tool that can be used to:
- 
- - generate a new private key
- ```
-./bin/mantis cli generate-private-key
-```
- - derive an address from private key
-```
-./bin/mantis cli derive-address 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
-```
- - generate genesis allocs (using private keys and/or addresses)
-```
-`./bin/mantis cli generate-alloc --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
-```
- - generate multiple key-pairs (following example generate 5 key-pairs)
- ```
-./bin/mantis cli generate-key-pairs 5
-```
-
-- encrypt private key (default passphrase is empty string)
- ```
-./bin/mantis cli encrypt-key --passphrase=pass 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
-```
-
-Command output uses the same format as keystore so it could be used ex. to setup private faucet
-
-ex.
-```
-{
-  "id":"3038d914-c4cd-43b7-9e91-3391ea443f95",
-  "address":"c28e15ebdcbb0bdcb281d9d5084182c9c66d5d12",
-  "version":3,
-  "crypto":{
-    "cipher":"aes-128-ctr",
-    "ciphertext":"6ecdb74b2a33dc3c016b460dccc96843d9d050aea3df27a3ae5348e85b3adc3e",
-    "cipherparams":{
-      "iv":"096b6490fe29e42e68e2db902920cad6"
-    },
-    "kdf":"scrypt",
-    "kdfparams":{
-      "salt":"cdcc875e116e2824ab02f387210c2f4ad7fd6fa1a4fc791cc92b981e3062a23e",
-      "n":262144,
-      "r":8,
-      "p":1,
-      "dklen":32
-    },
-    "mac":"8388ae431198d31d57e4c17f44335c2f15959b0d08d1145234d82f0d253fa593"
-  }
-}
-```
-
-### Building the client
-
-#### SBT
-
-##### Prerequisites to build
-
-- JDK 1.8 (download from [java.com](http://www.java.com))
-- sbt ([download sbt](http://www.scala-sbt.org/download.html))
-- python 2.7.15 (download from [python.org](https://www.python.org/downloads/))
-
-##### Build the client
-
-As an alternative to downloading the client build the client from source.
-
+To check and see if you installed correctly, run `mantis` or `mantis-launcher` from the bin directory. Remember to 
 
 ```
-git submodule update --recursive --init
-sbt dist
+./mantis mordor # change argument to desired network name
 ```
 
-in the root of the project.
+## Roadmap
 
-This updates all submodules and creates a distribution zip in `~/target/universal/`.
+Many of the current Mantis Development efforts are being concentrated on experimental ECIP implementations that could benefit the network as a whole by adding security, robustness and longevity to the Ethereum Classic chain.
 
-#### Nix
+Some of these efforts include:
 
-In the root of the project:
+* Checkpointing
+* ETC Proto-Treasury 
+* SHA3 consensus algorithm
 
-##### Build the client
-
-```
-nix-build
-```
-
-##### Regenerate lock files
-
-```
-nix-shell
-sbtix-gen-all2
-```
-
-OR
-
-If the "ensure Nix expressions are up-to-date" step of your CI
-build has failed, check the artifacts of that step. There should be a
-patch provided, which you can apply locally with:
-
-```
-patch -p1 < downloaded.patch
-```
-
-This patch will update the lock files for you.
-
-###### Why so many lock files?
-
-- `repo.nix`                 : generated by the `sbtix-gen` command and includes only the build dependencies for the project.
-- `project/repo.nix`         : generated by the `sbtix-gen-all` command and includes only the plugin dependencies. Also generates `repo.nix`.
-- `project/project/repo.nix` : generated by the `sbtix-gen-all2` command and includes only the plugin dependencies. Also generates `repo.nix` and `project/repo.nix`.
-
-##### error: unsupported argument 'submodules' to 'fetchGit'
-
-You get this error when you aren't using a new-enough version of Nix (fetchGit support for submodules is recent).
-
-To fix this, update the version of Nix you are using, or in a pinch:
-
-  - Remove the "submodules = true;" argument from fetchGit (in `./nix/pkgs/mantis/default.nix`).
-  - `git submodule update --recursive --init`
-  - `nix-build`
-
-### Monitoring
-
-#### Locally build & run monitoring client
-
-```
-# Build monitoring client docker image
-projectRoot $ docker build -f ./docker/monitoring-client.Dockerfile -t mantis-monitoring-client ./docker/
-# Run monitoring client in http://localhost:9090
-projectRoot $ docker run --network=host mantis-monitoring-client
-```
-
-### TLS setup
-
-Both the JSON RPC (on the node and faucet) can be additionally protected using TLS.
-On the development environment it's already properly configured with a development certificate.
-
-#### Generating a new certificate
-
-If a new certificate is required, create a new keystore with a certificate by running `./tls/gen-cert.sh`
-
-#### Configuring the node
-
-1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `application.conf` file:
-
-    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
-    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
-2. Enable TLS in specific config:
-    - For JSON RPC: `mantis.network.rpc.http.mode=https`
-
-#### Configuring the faucet
-
-1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `faucet.conf` file:
-
-    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
-    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
-2. Enable TLS in specific config:
-    - For JSON RPC: `mantis.network.rpc.http.mode=https`
-3. Configure the certificate used from RpcClient to connect with the node. Necessary if the node uses http secure. 
-   This certificate and password file to be used at `faucet.rpc-client.certificate` key on the `faucet.conf` file:
-
-    keystore-path: path to the keystore storing the certificates
-    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-    password-file: path to the file with the password used for accessing the certificate keystore
+More details on the roadmap can be [found in the documentation](https://docs.mantisclient.io/learn/-roadmap).
 
 
-### Feedback
+## Contributing
 
-Feedback gratefully received through the Ethereum Classic Forum (http://forum.ethereumclassic.org/)
+Mantis is open source and licensed under the Apache 2.0 License. We welcome all contributions from community members- PRs, issues and comments are encouraged.  
+When contributing to Mantis, please discuss the change you are planning on making via github issue or discord with the maintainers before making a change.
 
-### Known Issues
+### Pull Request Process
 
-There is a list of known issues in the 'RELEASE' file located in the root of the installation.
+1. Create a personal fork of the project on Github.
+2. Clone the fork on your local machine. Your remote repo on Github is called origin.
+3. Add the original repository as a remote called upstream.
+4. If you created your fork a while ago be sure to pull upstream changes into your local repository.
+5. Create a new branch to work on! Branch from develop if it exists, else from master. We recommend using gitflow branch naming (ie. feature/feature-name)
+6. Implement/fix your feature, comment your code.
+7. Squash your commits into a single commit with git's interactive rebase.
+8. From your fork open a pull request in the `develop` branch.
+9. Follow along the comments and possible issue the PR could have if brought up by the maintainer team.
 
+
+## License
+
+
+
+
+Update the README.md with details of changes to the interface, this includes new environment variables, exposed ports, useful file locations and container parameters.
+Increase the version numbers in any examples files and the README.md to the new version that this Pull Request would represent. The versioning scheme we use is SemVer.
+You may merge the Pull Request in once you have the sign-off of two other developers, or if you do not have permission to do that, you may request the second reviewer to merge it for you.
