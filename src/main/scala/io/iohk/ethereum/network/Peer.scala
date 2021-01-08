@@ -21,4 +21,6 @@ case class Peer(
 ) {
   // FIXME PeerId should be actual peerId i.e id derived form node public key
   def id: PeerId = PeerId.fromRef(ref)
+
+  def formattedAddress: String = s"${remoteAddress.getAddress.getHostAddress}:${remoteAddress.getPort}"
 }

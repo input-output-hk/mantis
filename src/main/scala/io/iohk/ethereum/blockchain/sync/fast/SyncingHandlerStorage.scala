@@ -3,11 +3,13 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.ParentChainWeightNotFound
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{RestartRequested, StartSyncingTo}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain, ChainWeight, Receipt}
 
-class FastSyncStorageHelper(
+class SyncingHandlerStorage(
     syncStateStorage: ActorRef,
+    syncStateScheduler: ActorRef,
     appStateStorage: AppStateStorage,
     blockchain: Blockchain) {
 
@@ -89,5 +91,13 @@ class FastSyncStorageHelper(
       }
       .reduce(_.and(_))
       .commit()
+  }
+
+  def startSyncingTo(pivotBlockHeader: BlockHeader): Unit = {
+    syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
+  }
+
+  def requestSyncRestart(): Unit = {
+    syncStateScheduler ! RestartRequested
   }
 }

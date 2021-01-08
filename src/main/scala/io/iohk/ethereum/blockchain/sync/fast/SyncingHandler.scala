@@ -30,7 +30,7 @@ import scala.concurrent.duration._
 // scalastyle:off number.of.methods
 class SyncingHandler(
     initialSyncState: SyncState,
-    storage: FastSyncStorageHelper,
+    storage: SyncingHandlerStorage,
     validator: FastSyncValidator,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
@@ -58,18 +58,6 @@ class SyncingHandler(
 
   private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
   private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
-
-  private val syncStateScheduler = context.actorOf(
-    SyncStateSchedulerActor
-      .props(
-        SyncStateScheduler(blockchain, syncConfig.stateSyncBloomFilterSize),
-        syncConfig,
-        etcPeerManager,
-        peerEventBus,
-        scheduler
-      ),
-    "state-scheduler"
-  )
 
   //Delay before starting to persist snapshot. It should be 0, as the presence of it marks that fast sync was started
   private val persistStateSnapshotDelay: FiniteDuration = 0.seconds
@@ -114,12 +102,7 @@ class SyncingHandler(
       requestedHeaders.get(peer).foreach { requestedNum =>
         removeRequestHandler(sender())
         requestedHeaders -= peer
-        if (
-          blockHeaders.nonEmpty && blockHeaders.size <= requestedNum && blockHeaders.head.number == syncState.bestBlockHeaderNumber + 1
-        )
-          handleBlockHeaders(peer, blockHeaders)
-        else
-          blacklist(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
+        handleBlockHeaders(peer, blockHeaders, requestedNum)
       }
 
     case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
@@ -177,7 +160,7 @@ class SyncingHandler(
         if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
         log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
         updatePivotSyncState(updateReason, pivotBlockHeader)
-        context become this.receive
+        context become receive
         processSyncing()
 
       case PivotBlockSelector.Result(pivotBlockHeader)
@@ -227,7 +210,7 @@ class SyncingHandler(
           } else {
             syncState = syncState.copy(updatingPivotBlock = false)
             stateSyncRestartRequested = false
-            syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
+            storage.startSyncingTo(pivotBlockHeader)
           }
         } else {
           syncState = syncState.updatePivotBlock(
@@ -340,8 +323,8 @@ class SyncingHandler(
     }
   }
 
-  private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
-    if (validator.checkHeadersChain(headers)) {
+  private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader], requested: BigInt) = {
+    if (validator.checkHeadersChain(headers, requested, syncState)) {
       processHeaders(peer, headers) match {
         case ParentChainWeightNotFound(header) =>
           // We could end in wrong fork and get blocked so we should rewind our state a little
@@ -407,9 +390,7 @@ class SyncingHandler(
           updateBestBlockIfNeeded(receivedHashes)
 
           val remainingReceipts = requestedHashes.drop(receipts.size)
-          if (remainingReceipts.nonEmpty) {
-            syncState = syncState.enqueueReceipts(remainingReceipts)
-          }
+          syncState = syncState.enqueueReceipts(remainingReceipts)
 
         case ReceiptsValidationResult.Invalid(error) =>
           val reason =
@@ -461,16 +442,15 @@ class SyncingHandler(
     storage.persistSyncState(syncState, bodies, receipts)
   }
 
-  private def printStatus() = {
-    val formatPeer: (Peer) => String = peer =>
-      s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
-    log.info(s"""|Block: ${storage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
-                 |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
-                 |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
-                 |""".stripMargin.replace("\n", " "))
+  private def printStatus(): Unit = {
+    log.info(
+      s"""|Block: ${storage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
+          |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+          |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
+          |""".stripMargin.replace("\n", " "))
     log.debug(
-      s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
-          |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
+      s"""|Connection status: connected(${assignedHandlers.values.map(_.formattedAddress).toSeq.sorted.mkString(", ")})/
+          |handshaked(${handshakedPeers.keys.map(_.formattedAddress).toSeq.sorted.mkString(", ")})
           | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
           |""".stripMargin.replace("\n", " ")
     )
@@ -481,9 +461,7 @@ class SyncingHandler(
     val receivedHashes = requestedHashes.take(blockBodies.size)
     updateBestBlockIfNeeded(receivedHashes)
     val remainingBlockBodies = requestedHashes.drop(blockBodies.size)
-    if (remainingBlockBodies.nonEmpty) {
-      syncState = syncState.enqueueBlockBodies(remainingBlockBodies)
-    }
+    syncState = syncState.enqueueBlockBodies(remainingBlockBodies)
   }
 
   def hasBestBlockFreshEnoughToUpdatePivotBlock(info: PeerInfo, state: SyncState, syncConfig: SyncConfig): Boolean = {
@@ -549,7 +527,7 @@ class SyncingHandler(
       } else if (noBlockchainWorkRemaining && !syncState.stateSyncFinished && notInTheMiddleOfUpdate) {
         if (pivotBlockIsStale()) {
           log.info("Restarting state sync to new pivot block")
-          syncStateScheduler ! RestartRequested
+          storage.requestSyncRestart()
           stateSyncRestartRequested = true
         }
       } else {
@@ -695,7 +673,7 @@ object SyncingHandler {
 
   def props(
       initialSyncState: SyncState,
-      fastSyncStorageHelper: FastSyncStorageHelper,
+      fastSyncStorageHelper: SyncingHandlerStorage,
       validator: FastSyncValidator,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
