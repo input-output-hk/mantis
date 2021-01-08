@@ -57,8 +57,8 @@ case object InvalidAccountProofForAccount extends AccountProofError
 /**
   * Spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
   * besu: https://github.com/PegaSysEng/pantheon/pull/1824/files
-  * openethereum: https://github.com/openethereum/openethereum/pull/9001/files
-  * go-ethereum: https://github.com/openethereum/parity-ethereum/pull/9001/files
+  * parity: https://github.com/openethereum/parity-ethereum/pull/9001
+  * geth: https://github.com/ethereum/go-ethereum/pull/17737
   */
 class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean) {
 
