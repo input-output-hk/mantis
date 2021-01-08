@@ -2,8 +2,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
 
 trait SyncBlocksValidator {
@@ -15,27 +13,43 @@ trait SyncBlocksValidator {
   def validators: Validators
 
   def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
-    var result: BlockBodyValidationResult = Valid
-    (requestedHashes zip blockBodies)
-      .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
-      .forall {
-        case (Some(header), body) =>
-          val validationResult: Either[StdBlockValidator.BlockError, BlockValid] =
-            validators.blockValidator.validateHeaderAndBody(header, body)
-          result = validationResult.fold(_ => Invalid, _ => Valid)
-          validationResult.isRight
-        case _ =>
-          result = DbError
-          false
-      }
-    result
+    val headersWithBodies = zipHeadersWithBodies(requestedHashes, blockBodies)
+    findInvalidHeaderWithBody(headersWithBodies).getOrElse(Valid)
   }
 
-  def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
-    if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) =>
-      parent.hash == child.parentHash && parent.number + 1 == child.number
+  private def zipHeadersWithBodies(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
+    requestedHashes.zip(blockBodies).map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
+  }
+
+  private def findInvalidHeaderWithBody(headersWithBodies: Seq[(Option[BlockHeader], BlockBody)]) = {
+    headersWithBodies.collectFirst {
+      case (Some(header), body) if !checkHeaderWithBody(header, body) => Invalid
+      case (None, _) => DbError
     }
-    else true
+  }
+
+  private def checkHeaderWithBody(header: BlockHeader, body: BlockBody) = {
+    validators.blockValidator.validateHeaderAndBody(header, body).isRight
+  }
+
+  def checkHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncState): Boolean = {
+    checkFulfillsRequest(headers, requestedNum, syncState) && checkHeadersAreChained(headers)
+  }
+
+  private def checkFulfillsRequest(blockHeaders: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncState) = {
+    blockHeaders.nonEmpty &&
+    blockHeaders.size <= requestedNum &&
+    blockHeaders.head.number == syncState.bestBlockHeaderNumber + 1
+  }
+
+  private def checkHeadersAreChained(headers: Seq[BlockHeader]) = {
+    headers.length <= 1 || headers.zip(headers.tail).forall(checkParentWithChild)
+  }
+
+  private def checkParentWithChild(pair: (BlockHeader, BlockHeader)) = {
+    val (parent, child) = pair
+    parent.hash == child.parentHash && parent.number + 1 == child.number
+  }
 }
 
 object SyncBlocksValidator {

@@ -29,6 +29,17 @@ class FastSync(
     "pivot-block-selector",
   )
   val syncStateStorageActor = context.actorOf(Props[StateStorageActor], "state-storage")
+  val syncStateScheduler = context.actorOf(
+    SyncStateSchedulerActor
+      .props(
+        SyncStateScheduler(blockchain, syncConfig.stateSyncBloomFilterSize),
+        syncConfig,
+        etcPeerManager,
+        peerEventBus,
+        scheduler
+      ),
+    "state-scheduler"
+  )
 
   syncStateStorageActor ! fastSyncStateStorage
 
@@ -57,7 +68,7 @@ class FastSync(
   }
 
   private def syncingHandlerProps(syncState: SyncState) = {
-    val storage = new FastSyncStorageHelper(syncStateStorageActor, appStateStorage, blockchain)
+    val storage = new SyncingHandlerStorage(syncStateStorageActor, syncStateScheduler, appStateStorage, blockchain)
     val validator = new FastSyncValidator(blockchain, validators)
     SyncingHandler.props(
       syncState,
