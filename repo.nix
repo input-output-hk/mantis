@@ -949,6 +949,22 @@
       url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/logging-interceptor/4.3.1/logging-interceptor-4.3.1.pom";
       sha256 = "223D16AE9706EA99D24EFAAE207E6F3315FF836CECB583430E08BEB9075B284F";
     };
+    "nix-public/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7-javadoc.jar";
+      sha256 = "A75A4A58CF3845BB9FD2604C4DA6C86807543B6B7584F9A60E17EF01BA7DE07D";
+    };
+    "nix-public/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7-sources.jar";
+      sha256 = "21E710BFE860930CD28C3F80CDA07FF48DF9FBCFD92413057B9504696033CE26";
+    };
+    "nix-public/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7.jar";
+      sha256 = "620D4FA43C5C6A5EF625760204A88799E1E4A65E1C7A1D8DA02E061C4CBB8000";
+    };
+    "nix-public/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7.pom" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/3.14.7/okhttp-3.14.7.pom";
+      sha256 = "C32919D3A2D29298C27D6634BC6E816AABFDA127C8114ACB89E38F476DD35E55";
+    };
     "nix-public/com/squareup/okhttp3/okhttp/4.3.1/okhttp-4.3.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/4.3.1/okhttp-4.3.1-javadoc.jar";
       sha256 = "CB6E40A784EB3D44FFF4474031E4424D92B5CCFFE3F78B4E0CA62A3FE8170564";
@@ -964,6 +980,30 @@
     "nix-public/com/squareup/okhttp3/okhttp/4.3.1/okhttp-4.3.1.pom" = {
       url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/okhttp/4.3.1/okhttp-4.3.1.pom";
       sha256 = "159AE044BB7C94C650FF1542088BC64840F166420611DE69B4E0FE33FDA5518B";
+    };
+    "nix-public/com/squareup/okhttp3/parent/3.14.7/parent-3.14.7.pom" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okhttp3/parent/3.14.7/parent-3.14.7.pom";
+      sha256 = "7AB7960682D1BB7B68D55CE3C8A3C3DFCCD8422B4D08A6640B9DE6F1138A0491";
+    };
+    "nix-public/com/squareup/okio/okio-parent/1.17.2/okio-parent-1.17.2.pom" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okio/okio-parent/1.17.2/okio-parent-1.17.2.pom";
+      sha256 = "E81F40146F2A0EB394B10FA3A175C85AB9FBE757AA418AA44D4B760EFE16F024";
+    };
+    "nix-public/com/squareup/okio/okio/1.17.2/okio-1.17.2-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2-javadoc.jar";
+      sha256 = "A8B6B8C5B0536D88BE25EF334168DBF05DD7D0DEA5B9B760D9B4D98B03834B60";
+    };
+    "nix-public/com/squareup/okio/okio/1.17.2/okio-1.17.2-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2-sources.jar";
+      sha256 = "F96949004BDC5951C27256B96C33667D3DBD5369C467A8FA0D4157DBA98B4252";
+    };
+    "nix-public/com/squareup/okio/okio/1.17.2/okio-1.17.2.jar" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2.jar";
+      sha256 = "F80CE42D2FFAC47AD4C47E1D6F980D604D247CEB1A886705CF4581AB0C9FE2B8";
+    };
+    "nix-public/com/squareup/okio/okio/1.17.2/okio-1.17.2.pom" = {
+      url = "https://repo1.maven.org/maven2/com/squareup/okio/okio/1.17.2/okio-1.17.2.pom";
+      sha256 = "CD57F75443AB6A714B203DA51994EE64ED0E919FEA81F04E4F4B5324E4BB03F0";
     };
     "nix-public/com/squareup/okio/okio/2.4.1/okio-2.4.1-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/squareup/okio/okio/2.4.1/okio-2.4.1-javadoc.jar";
@@ -1225,6 +1265,22 @@
       url = "https://repo1.maven.org/maven2/com/typesafe/akka/akka-testkit_2.12/2.6.9/akka-testkit_2.12-2.6.9.pom";
       sha256 = "649C6DEFA716E9B44A61E6CC77FA2AFCFD6AFC461A49301263950455939328FD";
     };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1-javadoc.jar";
+      sha256 = "362F6CD7C2396E3463E82E926ACCCAD0AD0B813717CD2F68359D3A57D2EF8630";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1-sources.jar";
+      sha256 = "F28FFD7E01B9ED0A8194CDE55555F46FD11984BF4CD97FCBA97621C15CF6CC12";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1.jar" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1.jar";
+      sha256 = "E6FADFC6108220D3A6B86AA7E4E16C9E7BB857BA58955886308BB13972264AF0";
+    };
+    "nix-public/com/typesafe/config/1.3.1/config-1.3.1.pom" = {
+      url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.1/config-1.3.1.pom";
+      sha256 = "6895BAE0EFA605283C27C1321D893A2ACD0A63A64D90AA9BC64446070F9E7605";
+    };
     "nix-public/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/com/typesafe/config/1.3.3/config-1.3.3-javadoc.jar";
       sha256 = "131B1CFF95E3F64FD6DF84695CA0D3C2FC85A9C08CDE9B9D86DB3EDC9E1561ED";
@@ -1460,6 +1516,134 @@
     "nix-public/io/dropwizard/metrics/metrics-parent/4.0.7/metrics-parent-4.0.7.pom" = {
       url = "https://repo1.maven.org/maven2/io/dropwizard/metrics/metrics-parent/4.0.7/metrics-parent-4.0.7.pom";
       sha256 = "FE0E8510E75529757440C0FE62EC2AD78A4EED1CAC9359C4D5FB3D58999BE781";
+    };
+    "nix-public/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9-javadoc.jar";
+      sha256 = "5680BA2BDCAB2FC0E5CC74B4686684E2FDBE0F37E61102F460468F5A986534EC";
+    };
+    "nix-public/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9-sources.jar";
+      sha256 = "FD2676D271E78117F87EEA2EAA34D9C7E3EEC637EF09F1C05F312AA84B1D6BC2";
+    };
+    "nix-public/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9.jar";
+      sha256 = "A794DBECF06DEE178F1DFDDBBA62EE4AF179E1D7275A30DCD73685ED2A870EEB";
+    };
+    "nix-public/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-akka_2.12/2.1.9/kamon-akka_2.12-2.1.9.pom";
+      sha256 = "A0BCCDA8CC368CEBBC18C9604CB7189CA78FE9E3DC022FA706F10CBD7638162D";
+    };
+    "nix-public/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9-javadoc.jar";
+      sha256 = "16A8EDCB025DA564574632F6BAF703A51D97EFE3538E211F3EB202D777499770";
+    };
+    "nix-public/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9-sources.jar";
+      sha256 = "84958184EBCEAD59B5376EA145D1FB5803127AAE3198708BB8207353A79A2179";
+    };
+    "nix-public/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9.jar";
+      sha256 = "F4D58AC12E130D5B2D98EC41FEE9498B03DB76F11C23B625D41582B167F06D85";
+    };
+    "nix-public/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-core_2.12/2.1.9/kamon-core_2.12-2.1.9.pom";
+      sha256 = "68B99728961CC9BD4BC965DCCA32DD25E64DDDB597CF9A0D96C6E12B38CA333A";
+    };
+    "nix-public/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9-javadoc.jar";
+      sha256 = "20DF563FE19727A7AC81A96CB7875B24F3DFB8AB8DA5E9510EAF53F6E0F6E61E";
+    };
+    "nix-public/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9-sources.jar";
+      sha256 = "75E20F5ACEE5AF654A5B5BB16A4CA3FD8A8134EB7C222B14A20C2E9DD60E1410";
+    };
+    "nix-public/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9.jar";
+      sha256 = "912706DB316D436F718C529604369C178D2495221FBCC25C0DC956BAA8FDAF32";
+    };
+    "nix-public/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-executors_2.12/2.1.9/kamon-executors_2.12-2.1.9.pom";
+      sha256 = "ADC8D412614608C2C99410FDE2B472B95BF0263EA02B423CA00745F12FEE0EB0";
+    };
+    "nix-public/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9-javadoc.jar";
+      sha256 = "797C69D4EC3C4DE8CDF8EA4382499849CEAA9A7D7A7C4F5C24580632F7DA960B";
+    };
+    "nix-public/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9-sources.jar";
+      sha256 = "F6E10428215A59D2EECBCE0D6F27E9420564BD7207BB826EA78DB6D1BE24A9E9";
+    };
+    "nix-public/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9.jar";
+      sha256 = "93B224BA09397C6EEFE316A5122B2784C8E252BEE9A1ED981F72E3F3A7890F76";
+    };
+    "nix-public/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-instrumentation-common_2.12/2.1.9/kamon-instrumentation-common_2.12-2.1.9.pom";
+      sha256 = "D38735B4DA373EAF8652E8DF571C6F610FF0FCAB65825370421868358043DCBD";
+    };
+    "nix-public/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9-javadoc.jar";
+      sha256 = "0C0DB6623C439F8885A743DB7C9F54F9EBC9AAFF6FF13042F50EF7B6EBAF40CA";
+    };
+    "nix-public/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9-sources.jar";
+      sha256 = "BF76D8AE4A0378D87A8E586EA527C5A1ACFF01C56BE92CA62250640E2FD7F654";
+    };
+    "nix-public/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9.jar";
+      sha256 = "8BD94DE203BF4428490128DDCA3EC74A9D8645BB496E6B81AC8EA96953DA4D5A";
+    };
+    "nix-public/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-prometheus_2.12/2.1.9/kamon-prometheus_2.12-2.1.9.pom";
+      sha256 = "754ACCB090DCAF349FC6C65632D9DE0F21F5220377B5496A7224A612324482DF";
+    };
+    "nix-public/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9-javadoc.jar";
+      sha256 = "A37FF520C8E0DD5D49C7F844609F11AF0FCFE041E5299BD13FDF1D6ED066B6B3";
+    };
+    "nix-public/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9-sources.jar";
+      sha256 = "3A350DB996F8FF049D15442DD605162F20133C19987872F683BFAEBFA54E19FA";
+    };
+    "nix-public/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9.jar";
+      sha256 = "72942CEDA2F1F3A236D150ADD277BA3AAA47DB4A52AF8C447966821BCF592EA9";
+    };
+    "nix-public/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kamon-scala-future_2.12/2.1.9/kamon-scala-future_2.12-2.1.9.pom";
+      sha256 = "B9791F4BBF68BC8AB04C4F85CD48BB5FB45038704B63BF447A013F1D033DAE2A";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-javadoc.jar";
+      sha256 = "BC1C5E35DFE9D847CD35FDEFBA98F21F37E62CD2FB4DDF288EC23CE00B686812";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3-sources.jar";
+      sha256 = "F9F7015D178C0C1AC1E4195799E2E504B7556B8B552323745C72B9A05930A425";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.jar";
+      sha256 = "36DBCB9A0EAA4B6722A0348A021922952BFAF12B7DE333B1DECA40B0CF2AD7D0";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.3/kanela-agent-1.0.3.pom";
+      sha256 = "3EAD8480D306050B518AB80BDA06F5447643B6C4E099F2D51B9A171AB1420C06";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-javadoc.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-javadoc.jar";
+      sha256 = "E6AEB27674E8C15CE8970E7AD1BCF508BE842763B070570C33C68FA26066F336";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-sources.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6-sources.jar";
+      sha256 = "F25A304C3B309EB5DF496238F808663BF4BC691A8C6BD7205E867FB26B941297";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.jar" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.jar";
+      sha256 = "ED15670146A3FEE7356F37981DB8A8FC8B0BB03CA15F05B2FF9DED0A3AFAAB07";
+    };
+    "nix-public/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.pom" = {
+      url = "https://repo1.maven.org/maven2/io/kamon/kanela-agent/1.0.6/kanela-agent-1.0.6.pom";
+      sha256 = "86F033D021E1B226198E949EF196E445DAA4A65DCCE019EAC56EB85BED0C2D8C";
     };
     "nix-public/io/micrometer/micrometer-core/1.5.5/micrometer-core-1.5.5-javadoc.jar" = {
       url = "https://repo1.maven.org/maven2/io/micrometer/micrometer-core/1.5.5/micrometer-core-1.5.5-javadoc.jar";

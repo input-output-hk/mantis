@@ -137,7 +137,16 @@ object Dependencies {
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
       provider % "micrometer-core" % version,
       provider % "micrometer-registry-jmx" % version,
-      provider % "micrometer-registry-prometheus" % version
+      provider % "micrometer-registry-prometheus" % version,
+    )
+  }
+
+  val kamon: Seq[ModuleID] = {
+    val provider = "io.kamon"
+    val version = "2.1.9"
+    Seq(
+      provider %% "kamon-prometheus" % version,
+      provider %% "kamon-akka" % version
     )
   }
 

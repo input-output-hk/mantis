@@ -155,12 +155,15 @@ To fix this, update the version of Nix you are using, or in a pinch:
 
 #### Locally build & run monitoring client
 
-```
-# Build monitoring client docker image
-projectRoot $ docker build -f ./docker/monitoring-client.Dockerfile -t mantis-monitoring-client ./docker/
-# Run monitoring client in http://localhost:9090
-projectRoot $ docker run --network=host mantis-monitoring-client
-```
+Setup a dashboard using Prometheus and Grafana, popular choice of monitoring stack.
+Before that you need enable the metrics in the file “metrics.conf”, setting mantis.metrics.enabled=true.
+
+You can start Docker Compose initializing Prometheus and Grafana with a preconfigured dashboard.
+For build the monitoring, you need to run the  following script: `./docker/monitoring/build.sh`
+This script prepares a docker image of mantis. And as a precondition you need to have installed docker-compose and sbt.
+
+We can see the dashboard called "Mantis" at URL: http://localhost:3000 using user and password: admin and admin
+
 
 ### TLS setup
 
