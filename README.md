@@ -162,7 +162,7 @@ You can start Docker Compose initializing Prometheus and Grafana with a preconfi
 For build the monitoring, you need to run the  following script: `./docker/monitoring/build.sh`
 This script prepares a docker image of mantis. And as a precondition you need to have installed docker-compose and sbt.
 
-We can see the dashboard called "Mantis" in the following host: http://localhost:3000 using user and password: admin and admin 
+We can see the dashboard called "Mantis" at URL: http://localhost:3000 using user and password: admin and admin
 
 
 ### TLS setup
