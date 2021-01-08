@@ -3,7 +3,7 @@ let
   inherit (stdenv.lib) optionalString makeLibraryPath;
   inherit (stdenv) cc isDarwin;
   LD_LIBRARY_PATH = makeLibraryPath [ cc.cc.lib ];
-  PATH = lib.makeBinPath [ jre gawk ];
+  PATH = lib.makeBinPath [ jre gawk coreutils ];
 in stdenv.mkDerivation {
   pname = "mantis";
   version = let
