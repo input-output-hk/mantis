@@ -1,6 +1,6 @@
 # Mantis
 
-![Mantis Logo](https://raw.githubusercontent.com/input-output-hk/mantis/main/src/assets/logo.png)
+![Mantis Logo](https://github.com/input-output-hk/mantis/blob/docs/readme-update/src/assets/logo.png)
 
 Ethereum Classic client written in Scala by the IOHK team.
 
