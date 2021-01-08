@@ -23,14 +23,14 @@ class StateStorageActor extends Actor with ActorLogging {
 
   def idle(storage: FastSyncStateStorage): Receive = {
     // begin saving of the state to the storage and become busy
-    case state: SyncState => persistState(storage, state)
+    case state: PersistentSyncState => persistState(storage, state)
 
     case GetStorage => sender() ! storage.getSyncState()
   }
 
-  def busy(storage: FastSyncStateStorage, stateToPersist: Option[SyncState]): Receive = {
+  def busy(storage: FastSyncStateStorage, stateToPersist: Option[PersistentSyncState]): Receive = {
     // update state waiting to be persisted later. we only keep newest state
-    case state: SyncState => context become busy(storage, Some(state))
+    case state: PersistentSyncState => context become busy(storage, Some(state))
     // exception was thrown during persisting of a state. push
     case Failure(e) => throw e
     // state was saved in the storage. become idle
@@ -41,7 +41,7 @@ class StateStorageActor extends Actor with ActorLogging {
     case GetStorage => sender() ! storage.getSyncState()
   }
 
-  private def persistState(storage: FastSyncStateStorage, syncState: SyncState): Unit = {
+  private def persistState(storage: FastSyncStateStorage, syncState: PersistentSyncState): Unit = {
     implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
     val persistingQueues: Task[Try[FastSyncStateStorage]] = Task {

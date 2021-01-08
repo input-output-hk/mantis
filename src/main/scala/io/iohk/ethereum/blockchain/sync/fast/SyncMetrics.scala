@@ -19,7 +19,7 @@ object SyncMetrics extends MetricsContainer {
   private[this] final val MptStateDownloadedNodesGauge =
     metrics.registry.gauge("fastsync.state.downloadedNodes.gauge", new AtomicLong(0L))
 
-  def measure(syncState: SyncState): Unit = {
+  def measure(syncState: PersistentSyncState): Unit = {
     PivotBlockNumberGauge.set(syncState.pivotBlock.number.toDouble)
     BestFullBlockNumberGauge.set(syncState.lastFullBlockNumber.toDouble)
     BestHeaderNumberGauge.set(syncState.bestBlockHeaderNumber.toDouble)

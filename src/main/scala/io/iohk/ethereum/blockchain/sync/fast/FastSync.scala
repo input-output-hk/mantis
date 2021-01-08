@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor._
+import akka.event.LoggingReceive
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.validators.Validators
@@ -45,7 +46,7 @@ class FastSync(
 
   override def receive: Receive = idle
 
-  def idle: Receive = {
+  def idle: Receive = LoggingReceive {
     case SyncProtocol.Start =>
       start()
     case SyncProtocol.GetStatus =>
@@ -60,23 +61,24 @@ class FastSync(
     }
   }
 
-  def startWithState(syncState: SyncState): Unit = {
+  def startWithState(syncState: PersistentSyncState): Unit = {
     log.info(s"Starting with existing state and asking for new pivot block")
     val syncingHandler = context.actorOf(syncingHandlerProps(syncState))
     syncingHandler ! SyncingHandler.AskForPivotBlockUpdate(SyncRestart)
     context become handlingSync(syncingHandler)
   }
 
-  private def syncingHandlerProps(syncState: SyncState) = {
+  private def syncingHandlerProps(syncState: PersistentSyncState) = {
     val storage = new SyncingHandlerStorage(syncStateStorageActor, syncStateScheduler, appStateStorage, blockchain)
     val validator = new FastSyncValidator(blockchain, validators)
+    val pivotBlockHandler = new PivotBlockHandler(syncState.pivotBlock, pivotBlockSelector, storage, syncConfig)
     SyncingHandler.props(
       syncState,
       storage,
       validator,
       peerEventBus,
       etcPeerManager,
-      pivotBlockSelector,
+      pivotBlockHandler,
       syncConfig,
       scheduler
     )
@@ -87,7 +89,7 @@ class FastSync(
     context become waitingForPivotBlock
   }
 
-  def waitingForPivotBlock: Receive = {
+  def waitingForPivotBlock: Receive = LoggingReceive {
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
     case PivotBlockSelector.Result(pivotBlockHeader) =>
       if (pivotBlockHeader.number < 1) {
@@ -105,10 +107,10 @@ class FastSync(
 
   private def generateInitialState(pivotBlockHeader: BlockHeader) = {
     val safeDownloadTarget = pivotBlockHeader.number + syncConfig.fastSyncBlockValidationX
-    SyncState(pivotBlockHeader, safeDownloadTarget = safeDownloadTarget)
+    PersistentSyncState(pivotBlockHeader, safeDownloadTarget = safeDownloadTarget)
   }
 
-  def handlingSync(syncingHandler: ActorRef): Receive = {
+  def handlingSync(syncingHandler: ActorRef): Receive = LoggingReceive {
     case Done =>
       syncStateStorageActor ! PoisonPill
       fastSyncStateStorage.purge()

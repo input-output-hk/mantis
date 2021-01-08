@@ -32,11 +32,11 @@ trait SyncBlocksValidator {
     validators.blockValidator.validateHeaderAndBody(header, body).isRight
   }
 
-  def checkHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncState): Boolean = {
+  def checkHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncingHandlerState): Boolean = {
     checkFulfillsRequest(headers, requestedNum, syncState) && checkHeadersAreChained(headers)
   }
 
-  private def checkFulfillsRequest(blockHeaders: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncState) = {
+  private def checkFulfillsRequest(blockHeaders: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncingHandlerState) = {
     blockHeaders.nonEmpty &&
     blockHeaders.size <= requestedNum &&
     blockHeaders.head.number == syncState.bestBlockHeaderNumber + 1
