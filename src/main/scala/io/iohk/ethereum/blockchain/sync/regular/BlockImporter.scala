@@ -90,6 +90,8 @@ class BlockImporter(
         }
       }
 
+    case NewCheckpointBlock(block, peerId) => importNewBlock(block, peerId, state)
+
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
 
     case ImportDone(newBehavior) =>
@@ -376,6 +378,7 @@ object BlockImporter {
   case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
   case class NewCheckpoint(parentHash: ByteString, signatures: Seq[ECDSASignature]) extends ImporterMsg
+  case class NewCheckpointBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg

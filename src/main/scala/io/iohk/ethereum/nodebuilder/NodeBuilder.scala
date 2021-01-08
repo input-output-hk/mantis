@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.time.Clock
+
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
@@ -32,8 +34,10 @@ import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHis
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import java.util.concurrent.atomic.AtomicReference
+
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -187,6 +191,9 @@ trait PeerEventBusBuilder {
 
 trait PeerStatisticsBuilder {
   self: ActorSystemBuilder with PeerEventBusBuilder =>
+
+  // TODO: a candidate to move upwards in trait hierarchy?
+  implicit val clock = Clock.systemUTC()
 
   lazy val peerStatistics: ActorRef = system.actorOf(
     PeerStatisticsActor.props(
