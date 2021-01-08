@@ -203,7 +203,11 @@ lazy val node = {
   if (!nixBuild)
     node
   else
-    node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+    node.settings(Seq(
+      PB.runProtoc in Compile := (args => Process("protoc", args) !),
+      PB.protocExecutable := file("protoc")
+    ))
+
 }
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
