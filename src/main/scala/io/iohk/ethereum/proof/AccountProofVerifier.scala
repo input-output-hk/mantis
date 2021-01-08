@@ -4,7 +4,7 @@ import akka.util.ByteString
 import cats.syntax.either._
 import cats.syntax.functor._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, NodeStorage, SerializingMptStorage}
+import io.iohk.ethereum.db.storage.{NodeStorage, SerializingMptStorage, StateStorage}
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.jsonrpc.{AccountProofError, InvalidAccountProofForAccount, InvalidAccountProofOrRootHash}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
@@ -12,20 +12,21 @@ import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 object AccountProofVerifier {
 
   def verifyProof(
-      stateTrieRoot: ByteString,
+      stateTrieRoot: Array[Byte],
       address: Address,
       proof: Vector[MptNode]
   ): Either[AccountProofError, Unit] = {
-    val storage = new ArchiveNodeStorage(new NodeStorage(EphemDataSource()))
-    proof.foreach { node =>
+    val emptyStorage = new NodeStorage(EphemDataSource())
+    val nodeStorage = proof.foldLeft(emptyStorage) { case (storage, node) =>
       storage.put(ByteString(node.hash), node.encode)
     }
+    val mptStore: SerializingMptStorage = StateStorage.mptStorageFromNodeStorage(nodeStorage)
 
     Either
       .catchNonFatal {
         MerklePatriciaTrie[Address, Account](
-          rootHash = stateTrieRoot.toArray,
-          source = new SerializingMptStorage(storage)
+          rootHash = stateTrieRoot,
+          source = mptStore
         )(Address.hashedAddressEncoder, Account.accountSerializer)
       }
       .leftMap(_ => InvalidAccountProofOrRootHash)

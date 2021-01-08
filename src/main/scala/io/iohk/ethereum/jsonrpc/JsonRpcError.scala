@@ -33,7 +33,6 @@ object JsonRpcError extends JsonMethodsImplicits {
   def InvalidParams(msg: String = "Invalid method parameters") = JsonRpcError(-32602, msg, None)
   val InternalError = JsonRpcError(-32603, "Internal JSON-RPC error", None)
   def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
-  val WorldStateUnavailable = LogicError("World state unavailable")
   val AccountLocked = LogicError("account is locked or unknown")
 
   // We use the recommendation from https://eth.wiki/json-rpc/json-rpc-error-codes-improvement-proposal
