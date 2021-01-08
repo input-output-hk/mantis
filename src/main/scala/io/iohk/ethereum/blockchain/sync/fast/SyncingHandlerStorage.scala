@@ -14,7 +14,7 @@ class SyncingHandlerStorage(
     blockchain: Blockchain) {
 
   def persistSyncState(
-      syncState: SyncState,
+      syncState: PersistentSyncState,
       requestedBlockBodies: Seq[ByteString],
       requestedReceipts: Seq[ByteString]): Unit = {
     syncStateStorage ! syncState.copy(
