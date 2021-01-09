@@ -22,7 +22,7 @@ in
   with pkgs;
 
   mkShell {
-    nativeBuildInputs = [ nix sbt solc jdk8 protoc-wrapper ];
+    nativeBuildInputs = [ sbt solc jdk8 protoc-wrapper ];
     # SBT = "sbt -v -mem 2048 -J-Xmx4g -Dsbt.ivy.home=/cache/ivy2 -Dsbt.boot.directory=/cache/sbt -Dmaven.repo.local=/cache/maven -Dnix=true";
     SBT = "sbt -v -mem 2048 -J-Xmx4g -Dnix=true";
   }
