@@ -203,8 +203,8 @@ lazy val node = {
   if (!nixBuild)
     node
   else
-    node.settings(PB.protocExecutable := file("protoc"))
-    //node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+    //node.settings(PB.protocExecutable := file("protoc"))
+    node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
 
 }
 

@@ -1,6 +1,7 @@
 { src
 , lib
 , stdenv
+, makeWrapper
 , writeShellScriptBin
 , bash
 , protobuf
@@ -31,7 +32,7 @@ let
 
     exec ${protobuf}/bin/protoc "$@"
   '';
-  nativeBuildInputs = [ protoc-wrapper jdk ];
+  nativeBuildInputs = [ protoc-wrapper jdk makeWrapper ];
 
   # read version from build.sbt
   version = let
@@ -49,7 +50,7 @@ in sbt.mkDerivation {
 
   # This sha represents the change dependencies of mantis.
   # Update this sha whenever you change the dependencies
-  depsSha256 = "sha256-P330xv1PkJIJX0JXMVdNHu8AGaa4/+Bju+NqgRcTTeo=";
+  depsSha256 = "sha256-yAaJUJgg5Sdnhr3mX85BquC3X1ygF6If/FOngMUIkPU=";
 
   # this is the command used to to create the fixed-output-derivation
   depsWarmupCommand = "sbt compile --debug -Dnix=true";
@@ -58,10 +59,6 @@ in sbt.mkDerivation {
   dontBuild = true;
 
   overrideDepsAttrs = oldAttrs: oldAttrs // {
-    preBuild = ''
-      ln -s ${protoc-wrapper}/bin/protoc protoc
-    '';
-
     # $out is a directory, thus the archive will fail to write a file
     preInstall = ''
       rm -rf $out
@@ -86,4 +83,7 @@ in sbt.mkDerivation {
   '';
 
   dontPatchShebangs = impure;
+
+  # limit warnings from trying to strip jar files
+  dontStrip = true;
 }
