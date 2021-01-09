@@ -124,6 +124,8 @@ will need to be updated so that it includes the new dependency state.
 To do so, please run:
 ```
 ./update-nix.sh
+git add ./nix/pkgs/mantis.nix
+git commit -m "Update nix-sbt sha"
 ```
 
 *NOTE:* This should only be necessary when updating dependencies
