@@ -25,9 +25,9 @@ fi
 
 echo "Determining new sha for sbt build, this can take several minutes to do a 'sbt compile'"
 
-NEW_SHA=$(nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>&1 | grep "  got: " | sed -r 's/\s+got:\s+//' | xargs $NIX_UNSTABLE hash to-sri --type sha256 )
+NEW_SHA=$(nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>&1 | grep "  got: " | sed -r 's/\s+got:\s+//' | xargs nix-hash --to-base32 --type sha256 )
 
-echo "New sha: $NEW_SHA"
+echo "Calculated sha: $NEW_SHA"
 
 update_sha() {
         echo "Updating sha in ./nix/pkgs/mantis.nix"
@@ -36,11 +36,11 @@ update_sha() {
 }
 
 if [ $# == 1 -o "$1" == "--check" ]; then
-        if grep -q $NEW_SHA ./nix/pkgs/mantis.nix; then
+        current_sha=$(cat ./nix/pkgs/mantis.nix | grep depsSha256 | sed 's/\s*depsSha256\s*=\s*//g' | sed -e 's/"//g' -e 's/;//g' | xargs nix-hash --to-base32 --type sha256 )
+        if [ "$current_sha" == "$NEW_SHA" ]; then
                 echo "./nix/pkgs/mantis.nix is up-to-date"
                 exit 0
         else
-                current_sha=$(cat ./nix/pkgs/mantis.nix | grep depsSha256 | sed 's/\s+depsSha256 =\s+//g' | sed 's/";//')
                 echo "wanted: $NEW_SHA"
                 echo "   got: $current_sha"
                 update_sha
