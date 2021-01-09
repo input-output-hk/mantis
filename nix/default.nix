@@ -15,7 +15,7 @@ let
 in import sources.nixpkgs {
   inherit system;
   overlays = [
-    overlay
     sbt-derivation-overlay
+    overlay
   ];
 }
