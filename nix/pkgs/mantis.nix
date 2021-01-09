@@ -5,6 +5,7 @@
 , writeShellScriptBin
 , bash
 , protobuf
+, coreutils
 , jdk
 , jre
 , gawk
@@ -41,7 +42,7 @@ let
   in builtins.elemAt captures 0;
 
   LD_LIBRARY_PATH = lib.makeLibraryPath [ stdenv.cc.cc.lib ];
-  PATH = lib.makeBinPath [ jre gawk ];
+  PATH = lib.makeBinPath [ coreutils jre gawk ];
 
 in sbt.mkDerivation {
   pname = "mantis";
