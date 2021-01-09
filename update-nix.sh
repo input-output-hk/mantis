@@ -3,6 +3,9 @@
 
 set -e
 
+# need to overwrite buildkite's version
+PATH=$(nix-build '<nixpkgs>' -A nixUnstable)/bin:$PATH
+
 name=$(basename $0)
 
 usage() {
