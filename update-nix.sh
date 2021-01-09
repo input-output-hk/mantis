@@ -4,7 +4,7 @@
 set -e
 
 # need to overwrite buildkite's version
-PATH=$(nix-build '<nixpkgs>' -A nixUnstable)/bin:$PATH
+NIX_UNSTABLE=$(nix-build '<nixpkgs>' -A nixUnstable)/bin/nix
 
 name=$(basename $0)
 
@@ -25,7 +25,7 @@ fi
 
 echo "Determining new sha for sbt build, this can take several minutes to do a 'sbt compile'"
 
-NEW_SHA=$(nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>&1 | grep "  got: " | sed -r 's/\s+got:\s+//' | xargs nix hash to-sri --type sha256 )
+NEW_SHA=$(nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>&1 | grep "  got: " | sed -r 's/\s+got:\s+//' | xargs $NIX_UNSTABLE hash to-sri --type sha256 )
 
 echo "New sha: $NEW_SHA"
 
