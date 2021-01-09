@@ -14,24 +14,7 @@ in
     nixExpr = commonAttrs // {
       label = "ensure Nix expressions are up-to-date";
       command = ''
-        echo "Checking if Nix expressions are up-to-date..."
-
-        nix-shell --run 'sbtix-gen-all2'
-
-        set +e
-        git diff --exit-code > nix-expr.patch
-        if [ "$?" -eq "1" ]; then
-          set -e
-          echo "Nix expressions not up-to-date."
-          echo "Download and apply the patch available in the artifact paths of this step:"
-          echo "  patch -p1 < nix-expr.patch"
-          echo "Aborting."
-          exit 1
-        else
-          set -e
-          echo "Nix expressions up-to-date!"
-          exit 0
-        fi
+        ./update-nix.sh --check
       '';
       retry.automatic = false;
       artifactPaths = [
