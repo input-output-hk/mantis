@@ -27,7 +27,7 @@ You can use generic launcher with appropriate parameter to connect with pre-conf
 Example:
   - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
 
-Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
+Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`. On a fresh Linux instance, it's recommended to use 8GB of memory to fully sync ETC, and have at least 100GB of disk space. Also `default-jdk` can be used if Java is not installed by default on the system.
 
 ### Command Line Interface
 
