@@ -1,25 +1,21 @@
 { system ? builtins.currentSystem, sources ? import ./sources.nix, src ? ../. }:
 
 let
-  overlay = final: prev: {
-    inherit sources;
+  overlay = final: prev: let
     inherit (import sources.gitignore { inherit (prev) lib; }) gitignoreSource;
+  in {
+    inherit sources;
 
-    sbtix = prev.callPackage ../sbtix.nix {
-      jdk = prev.openjdk8_headless;
-      jre = prev.openjdk8_headless.jre;
-    };
-
-    mantisPkgs = final.callPackage ./pkgs/mantis {
+    mantis = final.callPackage ./pkgs/mantis.nix {
       inherit (prev.openjdk8_headless) jre;
-      inherit src;
+      src = prev.lib.cleanSource (gitignoreSource src); #prev.lib.cleanSource src;
     };
-
-    inherit (final.mantisPkgs) mantis;
-
-    mkSrc = import sources.nix-mksrc { inherit (final) lib; };
   };
+  sbt-derivation-overlay = import sources.sbt-derivation;
 in import sources.nixpkgs {
   inherit system;
-  overlays = [ overlay ];
+  overlays = [
+    overlay
+    sbt-derivation-overlay
+  ];
 }
