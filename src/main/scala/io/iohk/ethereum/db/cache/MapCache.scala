@@ -5,7 +5,6 @@ import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import scala.collection.concurrent.{TrieMap, Map => CMap}
 import scala.concurrent.duration.FiniteDuration
 
-
 class MapCache[K, V](val cache: CMap[K, V], config: NodeCacheConfig) extends Cache[K, V] {
 
   @volatile private[this] var lastClear = System.nanoTime()
@@ -27,7 +26,7 @@ class MapCache[K, V](val cache: CMap[K, V], config: NodeCacheConfig) extends Cac
   override def drain: Seq[(K, V)] = {
     lastClear = System.nanoTime()
     cache.toList.flatMap { case (k, _) =>
-      cache.remove(k).map( v => k -> v )
+      cache.remove(k).map(v => k -> v)
     }
   }
 

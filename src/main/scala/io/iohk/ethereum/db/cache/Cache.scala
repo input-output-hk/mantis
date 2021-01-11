@@ -2,7 +2,6 @@ package io.iohk.ethereum.db.cache
 
 import io.iohk.ethereum.common.SimpleMap
 
-
 trait Cache[K, V] extends SimpleMap[K, V, Cache[K, V]] {
   def getValues: Seq[(K, V)]
 
@@ -15,7 +14,6 @@ trait Cache[K, V] extends SimpleMap[K, V, Cache[K, V]] {
     * @return all the values that were removed from the cache
     */
   def drain: Seq[(K, V)]
-
 
   def shouldPersist: Boolean
 }
