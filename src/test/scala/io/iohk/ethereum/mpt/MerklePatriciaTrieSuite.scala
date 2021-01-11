@@ -1,13 +1,13 @@
 package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
+import io.iohk.ethereum.proof.MptProofVerifier
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -577,6 +577,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
 
   test("getProof returns valid proof for existing key") {
     import scala.util.Random
+    import MptProofVerifier.verifyProof
 
     forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[(Int, Int)])) { keyValueList: Seq[(Int, Int)] =>
       // given
@@ -594,25 +595,15 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
         }
 
       // when
-      val proof: Option[Vector[MptNode]] = trie.getProof(keyToFind)
+      val proofOpt: Option[Vector[MptNode]] = trie.getProof(keyToFind)
 
       // then we can get proof if we know key exist
-      assert(proof.isDefined)
-
+      assert(proofOpt.isDefined)
       // then we can recreate MPT and get value using this key
-      val nodeStorage: NodeStorage = proof.get.foldLeft(emptyNodeStorage) { case (storage, node) =>
-        val k = ByteString(node.hash)
-        val v = node.encode
-        storage.put(k, v)
+      proofOpt.map{ p =>
+        val ver = verifyProof[Array[Byte],Array[Byte]](trie.getRootHash, keyToFind, p)
+        assert(ver == Right(()))
       }
-      val mptStore: SerializingMptStorage = StateStorage.mptStorageFromNodeStorage(nodeStorage)
-      val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
-        MerklePatriciaTrie[Array[Byte], Array[Byte]](
-          rootHash = trie.getRootHash,
-          source = mptStore
-        )
-
-      assert(recreatedTree.get(keyToFind).isDefined)
     }
   }
 

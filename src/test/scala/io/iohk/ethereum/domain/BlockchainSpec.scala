@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import io.iohk.ethereum.ObjectGenerators._
-import io.iohk.ethereum.proof.AccountProofVerifier
+import io.iohk.ethereum.proof.MptProofVerifier
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -152,7 +152,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     retrievedAccountProof.isDefined shouldBe true
     retrievedAccountProof.map { proof =>
-      AccountProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe Right(())
+      MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe Right(())
     }
   }
 
