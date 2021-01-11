@@ -1,10 +1,7 @@
 package io.iohk.ethereum.db.cache
 
 import java.util.concurrent.TimeUnit
-
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-
-import scala.collection.Seq
 import scala.collection.concurrent.{TrieMap, Map => CMap}
 import scala.concurrent.duration.FiniteDuration
 

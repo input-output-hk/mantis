@@ -6,7 +6,7 @@ import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import com.google.common.cache
 import com.google.common.cache.{CacheBuilder, RemovalNotification}
 
-import scala.collection.JavaConverters.asScalaIterator
+import scala.jdk.CollectionConverters._
 import scala.concurrent.duration.FiniteDuration
 
 class LruCache[K <: AnyRef, V <: AnyRef](
@@ -27,11 +27,11 @@ class LruCache[K <: AnyRef, V <: AnyRef](
       )
       .build()
 
-  override def drain(): Seq[(K, V)] = {
+  override def drain: Seq[(K, V)] = {
     this.lastClear = System.nanoTime()
     val mapView = lruCache.asMap
     val iter = mapView.entrySet.iterator
-    val result = asScalaIterator(iter).map { e =>
+    val result = iter.asScala.map { e =>
       val key = e.getKey
       val value = mapView.remove(key)
       key -> value
