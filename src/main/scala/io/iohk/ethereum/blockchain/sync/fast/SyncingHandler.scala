@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{Actor, ActorLogging, _}
-import akka.event.LoggingReceive
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
@@ -65,7 +64,14 @@ class SyncingHandler(
   private val heartBeat =
     scheduler.scheduleWithFixedDelay(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
+  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages orElse handleStatus
+
+  def handleStatus: Receive = {
+    case SyncProtocol.GetStatus =>
+      sender() ! currentSyncingStatus
+    case SyncStateSchedulerActor.StateSyncStats(saved, missing) =>
+      syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = (saved + missing))
+  }
 
   override def receive: Receive = handleCommonMessages orElse {
     case ProcessSyncing =>
@@ -76,14 +82,9 @@ class SyncingHandler(
       context become waitingForPivotBlockUpdate(reason)
   }
 
-  def handleStatus: Receive = LoggingReceive {
-    case SyncProtocol.GetStatus => sender() ! currentSyncingStatus
-    case SyncStateSchedulerActor.StateSyncStats(saved, missing) =>
-      syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = (saved + missing))
-  }
-
-  def syncing: Receive = handleCommonMessages orElse handleStatus orElse LoggingReceive {
-    case UpdatePivotBlock(reason) => updatePivotBlock(reason)
+  def syncing: Receive = handleCommonMessages orElse {
+    case UpdatePivotBlock(reason) =>
+      updatePivotBlock(reason)
     case WaitingForNewTargetBlock =>
       log.info("State sync stopped until receiving new pivot block")
       updatePivotBlock(ImportedLastBlock)
@@ -123,24 +124,24 @@ class SyncingHandler(
       handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
   }
 
-  def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
-    handleCommonMessages orElse handleStatus orElse {
-      case PivotBlockSelector.Result(pivotBlockHeader)
-        if pivotBlockHandler.newPivotIsGoodEnough(pivotBlockHeader, updateReason) =>
-        log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
-        pivotBlockHandler.updatePivotSyncState(updateReason, pivotBlockHeader)
-        context become receive
-        processSyncing()
+  def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive = handleCommonMessages orElse {
+    case PivotBlockSelector.Result(pivotBlockHeader)
+      if pivotBlockHandler.newPivotIsGoodEnough(pivotBlockHeader, updateReason) =>
+      log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
+      pivotBlockHandler.updatePivotSyncState(updateReason, pivotBlockHeader)
+      context become syncing
+      processSyncing()
 
-      case PivotBlockSelector.Result(pivotBlockHeader)
-        if !pivotBlockHandler.newPivotIsGoodEnough(pivotBlockHeader, updateReason) =>
-        log.info("Received pivot block is older than old one, re-scheduling asking for new one")
-        pivotBlockHandler.reScheduleAskForNewPivot(updateReason)
+    case PivotBlockSelector.Result(_) =>
+      log.info("Received pivot block is older than old one, re-scheduling asking for new one")
+      pivotBlockHandler.reScheduleAskForNewPivot(updateReason)
 
-      case PersistSyncState => persistSyncState()
+    case PersistSyncState =>
+      persistSyncState()
 
-      case UpdatePivotBlock(state) => updatePivotBlock(state)
-    }
+    case UpdatePivotBlock(state) =>
+      updatePivotBlock(state)
+  }
 
   def currentSyncingStatus: SyncProtocol.Status =
     SyncProtocol.Status.Syncing(

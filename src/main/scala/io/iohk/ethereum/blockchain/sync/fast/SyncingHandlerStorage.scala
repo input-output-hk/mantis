@@ -93,11 +93,11 @@ class SyncingHandlerStorage(
       .commit()
   }
 
-  def startSyncingTo(pivotBlockHeader: BlockHeader): Unit = {
+  def startSyncingTo(pivotBlockHeader: BlockHeader)(implicit sender: ActorRef): Unit = {
     syncStateScheduler ! StartSyncingTo(pivotBlockHeader.stateRoot, pivotBlockHeader.number)
   }
 
-  def requestSyncRestart(): Unit = {
+  def requestSyncRestart()(implicit sender: ActorRef): Unit = {
     syncStateScheduler ! RestartRequested
   }
 }
