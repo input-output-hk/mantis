@@ -591,4 +591,48 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
     def encodeJson(t: GetStorageRootResponse): JValue = encodeAsHex(t.storageRoot)
   }
+
+  def extractStorageKeys(input: JValue): Either[JsonRpcError, Seq[StorageProofKey]] = {
+    import cats.syntax.traverse._
+    import cats.syntax.either._
+    input match {
+      case JArray(elems) => elems.traverse { x =>
+        extractQuantity(x)
+          .map(StorageProofKey.apply)
+          .leftMap(_ => InvalidParams(s"Invalid param storage proof key: $x"))
+      }
+      case _ => Left(InvalidParams())
+    }
+  }
+
+  implicit val eth_getProof =
+    new JsonMethodDecoder[GetProofRequest] with JsonEncoder[GetProofResponse] {
+      override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetProofRequest] =
+        params match {
+          case Some(JArray((address: JString) :: storageKeys :: (blockNumber: JValue) :: Nil)) =>
+            for {
+              addressParsed <- extractAddress(address)
+              storageKeysParsed <- extractStorageKeys(storageKeys)
+              blockNumberParsed <- extractBlockParam(blockNumber)
+            } yield GetProofRequest(addressParsed, storageKeysParsed, blockNumberParsed)
+          case _ => Left(InvalidParams())
+        }
+
+      override def encodeJson(t: GetProofResponse): JValue = { // TODO PP simplify
+        JObject(
+          "accountProof" -> JArray(t.result.accountProof.toList.map { ap => encodeAsHex(ap) }),
+          "balance" -> encodeAsHex(t.result.balance),
+          "codeHash" -> encodeAsHex(t.result.codeHash),
+          "nonce" -> encodeAsHex(t.result.nonce),
+          "storageHash" -> encodeAsHex(t.result.storageHash),
+          "storageProof" -> JArray(t.result.storageProof.toList.map{ sp =>
+            JObject(
+              "key" -> encodeAsHex(sp.key.v),
+              "proof" -> JArray(sp.proof.toList.map{ p => encodeAsHex(p) } ),
+              "value" -> encodeAsHex(sp.value)
+            )
+          })
+        )
+      }
+    }
 }
