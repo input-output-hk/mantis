@@ -54,13 +54,17 @@ class FastSyncBranchResolver(
     case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
   }
 
-  private def validateBlocks(parentBlockHeader: BlockHeader, childBlockHeader: BlockHeader, searchState: SearchState, peer: Peer): Unit ={
-    if (validateBlockHeaders(parentBlockHeader, childBlockHeader)){
-      if(childBlockHeader.number == searchState.minBlockNumber)
+  private def validateBlocks(
+      parentBlockHeader: BlockHeader,
+      childBlockHeader: BlockHeader,
+      searchState: SearchState,
+      peer: Peer
+  ): Unit = {
+    if (validateBlockHeaders(parentBlockHeader, childBlockHeader)) {
+      if (childBlockHeader.number == searchState.minBlockNumber)
         initiator ! LastValidBlock(childBlockHeader.number)
       else requestBlockHeader(peer, searchState.copy(minBlockNumber = childBlockHeader.number + 1))
-    }
-    else requestBlockHeader(peer, searchState.copy(maxBlockNumber = childBlockHeader.number))
+    } else requestBlockHeader(peer, searchState.copy(maxBlockNumber = childBlockHeader.number))
   }
 
   private def getBestPeer: Option[(Peer, PeerInfo)] = {
@@ -73,7 +77,8 @@ class FastSyncBranchResolver(
   }
 
   private def requestBlockHeader(peer: Peer, searchState: SearchState): Unit = {
-    val blockHeaderNumber: BigInt = searchState.minBlockNumber + (searchState.maxBlockNumber - searchState.minBlockNumber) / 2
+    val blockHeaderNumber: BigInt =
+      searchState.minBlockNumber + (searchState.maxBlockNumber - searchState.minBlockNumber) / 2
     getBlockHeaders(peer, blockHeaderNumber + 1, 1)
     context become searchingLastValidBlock(searchState)
   }
@@ -132,7 +137,6 @@ object FastSyncBranchResolver {
 
   sealed trait BranchResolver
   case class StartBranchResolver() extends BranchResolver
-
 
   case class LastValidBlock(blockNumber: BigInt)
 }
