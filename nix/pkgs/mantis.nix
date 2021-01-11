@@ -6,8 +6,7 @@
 , bash
 , protobuf
 , coreutils
-, jdk
-, jre
+, jdk8
 , gawk
 , sbt
 , impure ? false
@@ -33,7 +32,7 @@ let
 
     exec ${protobuf}/bin/protoc "$@"
   '';
-  nativeBuildInputs = [ protoc-wrapper jdk makeWrapper ];
+  nativeBuildInputs = [ protoc-wrapper jdk8 makeWrapper ];
 
   # read version from build.sbt
   version = let
@@ -42,7 +41,7 @@ let
   in builtins.elemAt captures 0;
 
   LD_LIBRARY_PATH = lib.makeLibraryPath [ stdenv.cc.cc.lib ];
-  PATH = lib.makeBinPath [ coreutils jre gawk ];
+  PATH = lib.makeBinPath [ coreutils jdk8.jre gawk ];
 
 in sbt.mkDerivation {
   pname = "mantis";
@@ -51,7 +50,7 @@ in sbt.mkDerivation {
 
   # This sha represents the change dependencies of mantis.
   # Update this sha whenever you change the dependencies
-  depsSha256 = "sha256-yAaJUJgg5Sdnhr3mX85BquC3X1ygF6If/FOngMUIkPU=";
+  depsSha256 = "1zsf8yykr8a7p9za4lyw8l1rhqa7ppas049lawp9pn90sj0xkjh5";
 
   # this is the command used to to create the fixed-output-derivation
   depsWarmupCommand = "sbt compile --debug -Dnix=true";
