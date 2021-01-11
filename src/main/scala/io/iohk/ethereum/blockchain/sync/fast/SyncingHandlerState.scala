@@ -37,7 +37,6 @@ case class SyncingHandlerState(
     nextBlockToFullyValidate = (header.number - N) max 1
   )
 
-
   def isBlockchainWorkFinished(safeDownloadTarget: BigInt): Boolean =
     bestBlockHeaderNumber >= safeDownloadTarget && !blockChainWorkQueued
 }

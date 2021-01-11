@@ -11,12 +11,14 @@ class SyncingHandlerStorage(
     syncStateStorage: ActorRef,
     syncStateScheduler: ActorRef,
     appStateStorage: AppStateStorage,
-    blockchain: Blockchain) {
+    blockchain: Blockchain
+) {
 
   def persistSyncState(
       syncState: PersistentSyncState,
       requestedBlockBodies: Seq[ByteString],
-      requestedReceipts: Seq[ByteString]): Unit = {
+      requestedReceipts: Seq[ByteString]
+  ): Unit = {
     syncStateStorage ! syncState.copy(
       blockBodiesQueue = requestedBlockBodies.distinct ++ syncState.blockBodiesQueue,
       receiptsQueue = requestedReceipts.distinct ++ syncState.receiptsQueue
@@ -48,8 +50,7 @@ class SyncingHandlerStorage(
         appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
       }
       Some(bestReceivedBlock.number.max(lastStoredBestBlockNumber))
-    }
-    else None
+    } else None
   }
 
   private def getFullBlocks(receivedHashes: Seq[ByteString]): Seq[BlockHeader] = {

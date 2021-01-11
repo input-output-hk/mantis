@@ -41,7 +41,8 @@ class FastSyncStateStorage(val dataSource: DataSource)
   override def keyDeserializer: IndexedSeq[Byte] => String = b =>
     new String(b.toArray, StorageStringCharset.UTF8Charset)
 
-  override def valueSerializer: PersistentSyncState => IndexedSeq[Byte] = ss => compactPickledBytes(Pickle.intoBytes(ss))
+  override def valueSerializer: PersistentSyncState => IndexedSeq[Byte] = ss =>
+    compactPickledBytes(Pickle.intoBytes(ss))
 
   override def valueDeserializer: IndexedSeq[Byte] => PersistentSyncState =
     (bytes: IndexedSeq[Byte]) => Unpickle[PersistentSyncState].fromBytes(ByteBuffer.wrap(bytes.toArray[Byte]))
