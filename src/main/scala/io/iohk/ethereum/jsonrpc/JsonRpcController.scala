@@ -199,6 +199,8 @@ class JsonRpcController(
       )
     case req @ JsonRpcRequest(_, "eth_pendingTransactions", _, _) =>
       handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
+    case req @ JsonRpcRequest(_, "eth_getProof", _, _) =>
+      handle[GetProofRequest, GetProofResponse](ethService.getProof, req)
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
