@@ -19,7 +19,8 @@ class FastSync(
     etcPeerManager: ActorRef,
     syncConfig: SyncConfig,
     scheduler: Scheduler
-) extends Actor with ActorLogging {
+) extends Actor
+    with ActorLogging {
 
   import FastSync._
 
@@ -83,7 +84,7 @@ class FastSync(
   def startFromScratch(): Unit = {
     val pivotBlockSelector = context.actorOf(
       PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
-      "pivot-block-selector",
+      "pivot-block-selector"
     )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
     context become waitingForPivotBlock

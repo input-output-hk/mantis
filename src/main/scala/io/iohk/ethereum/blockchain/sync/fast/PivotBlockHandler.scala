@@ -17,8 +17,8 @@ class PivotBlockHandler(
     peerEventBus: ActorRef,
     etcPeerManager: ActorRef,
     storage: SyncingHandlerStorage,
-    syncConfig: SyncConfig)(
-    implicit context: ActorContext) {
+    syncConfig: SyncConfig
+)(implicit context: ActorContext) {
 
   private val log = context.system.log
   private val scheduler = context.system.scheduler
@@ -37,7 +37,7 @@ class PivotBlockHandler(
     log.info("Asking for new pivot block")
     val pivotBlockSelector: ActorRef = context.actorOf(
       PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
-      "pivot-block-selector",
+      "pivot-block-selector"
     )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
   }

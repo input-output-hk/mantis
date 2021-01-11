@@ -36,7 +36,11 @@ trait SyncBlocksValidator {
     checkFulfillsRequest(headers, requestedNum, syncState) && checkHeadersAreChained(headers)
   }
 
-  private def checkFulfillsRequest(blockHeaders: Seq[BlockHeader], requestedNum: BigInt, syncState: SyncingHandlerState) = {
+  private def checkFulfillsRequest(
+      blockHeaders: Seq[BlockHeader],
+      requestedNum: BigInt,
+      syncState: SyncingHandlerState
+  ) = {
     blockHeaders.nonEmpty &&
     blockHeaders.size <= requestedNum &&
     blockHeaders.head.number == syncState.bestBlockHeaderNumber + 1

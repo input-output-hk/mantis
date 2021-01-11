@@ -23,7 +23,6 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-
 // scalastyle:off number.of.methods
 class SyncingHandler(
     initialSyncState: PersistentSyncState,
@@ -32,12 +31,13 @@ class SyncingHandler(
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
     pivotBlockHandler: PivotBlockHandler,
-    val syncConfig: SyncConfig)(
-    implicit val scheduler: Scheduler
+    val syncConfig: SyncConfig
+)(implicit
+    val scheduler: Scheduler
 ) extends Actor
-  with ActorLogging
-  with PeerListSupport
-  with BlacklistSupport {
+    with ActorLogging
+    with PeerListSupport
+    with BlacklistSupport {
 
   import FastSync._
   import syncConfig._
@@ -126,7 +126,7 @@ class SyncingHandler(
 
   def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive = handleCommonMessages orElse {
     case PivotBlockSelector.Result(pivotBlockHeader)
-      if pivotBlockHandler.newPivotIsGoodEnough(pivotBlockHeader, updateReason) =>
+        if pivotBlockHandler.newPivotIsGoodEnough(pivotBlockHeader, updateReason) =>
       log.info(s"New pivot block with number ${pivotBlockHeader.number} received")
       pivotBlockHandler.updatePivotSyncState(updateReason, pivotBlockHeader)
       context become syncing
@@ -223,7 +223,11 @@ class SyncingHandler(
 
   private def updateValidationState(header: BlockHeader): Unit = {
     syncState = syncState.updateNextBlockToValidate(
-      header, pivotBlockHandler.pivotBlock, fastSyncBlockValidationK, fastSyncBlockValidationX)
+      header,
+      pivotBlockHandler.pivotBlock,
+      fastSyncBlockValidationK,
+      fastSyncBlockValidationX
+    )
   }
 
   private def processHeader(
@@ -387,8 +391,7 @@ class SyncingHandler(
   }
 
   private def printStatus(): Unit = {
-    log.info(
-      s"""|Block: ${storage.getBestBlockNumber()}/${pivotBlockHandler.pivotBlock.number}.
+    log.info(s"""|Block: ${storage.getBestBlockNumber()}/${pivotBlockHandler.pivotBlock.number}.
           |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
           |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
           |""".stripMargin.replace("\n", " "))
@@ -418,7 +421,9 @@ class SyncingHandler(
     } else {
       if (blockchainDataToDownload) {
         processDownloads()
-      } else if (noBlockchainWorkRemaining && !syncState.stateSyncFinished && pivotBlockHandler.notInTheMiddleOfUpdate) {
+      } else if (
+        noBlockchainWorkRemaining && !syncState.stateSyncFinished && pivotBlockHandler.notInTheMiddleOfUpdate
+      ) {
         if (pivotBlockHandler.pivotBlockIsStale(peersToDownloadFrom)) {
           log.info("Restarting state sync to new pivot block")
           storage.requestSyncRestart()
@@ -472,9 +477,9 @@ class SyncingHandler(
       requestBlockBodies(peer)
     } else if (
       requestedHeaders.isEmpty &&
-        context.child(BlockHeadersHandlerName).isEmpty &&
-        syncState.bestBlockHeaderNumber < pivotBlockHandler.safeDownloadTarget &&
-        peerInfo.maxBlockNumber >= pivotBlockHandler.pivotBlock.number
+      context.child(BlockHeadersHandlerName).isEmpty &&
+      syncState.bestBlockHeaderNumber < pivotBlockHandler.safeDownloadTarget &&
+      peerInfo.maxBlockNumber >= pivotBlockHandler.pivotBlock.number
     ) {
       requestBlockHeaders(peer)
     }
@@ -575,16 +580,19 @@ object SyncingHandler {
       etcPeerManager: ActorRef,
       pivotBlockHandler: PivotBlockHandler,
       syncConfig: SyncConfig,
-      scheduler: Scheduler): Props = {
-    Props(new SyncingHandler(
-      initialSyncState,
-      fastSyncStorageHelper,
-      validator,
-      peerEventBus,
-      etcPeerManager,
-      pivotBlockHandler,
-      syncConfig,
-    )(scheduler))
+      scheduler: Scheduler
+  ): Props = {
+    Props(
+      new SyncingHandler(
+        initialSyncState,
+        fastSyncStorageHelper,
+        validator,
+        peerEventBus,
+        etcPeerManager,
+        pivotBlockHandler,
+        syncConfig
+      )(scheduler)
+    )
   }
 
   case object ProcessSyncing

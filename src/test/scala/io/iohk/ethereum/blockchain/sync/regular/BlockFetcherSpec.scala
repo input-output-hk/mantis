@@ -256,14 +256,24 @@ class BlockFetcherSpec
       val checkpointBlock = (new CheckpointBlockGenerator)
         .generate(
           firstBlocksBatch.last,
-          Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(Seq(crypto.generateKeyPair(secureRandom)), firstBlocksBatch.last.hash))
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              firstBlocksBatch.last.hash
+            )
+          )
         )
 
       handleFirstBlockBatchHeaders()
 
       // Fetcher second request for headers
       val secondGetBlockHeadersRequest =
-        GetBlockHeaders(Left(secondBlocksBatch.head.number), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+        GetBlockHeaders(
+          Left(secondBlocksBatch.head.number),
+          syncConfig.blockHeadersPerRequest,
+          skip = 0,
+          reverse = false
+        )
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockHeadersRequest => () }
 
       // Respond second headers request
@@ -281,7 +291,10 @@ class BlockFetcherSpec
       peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockBodiesResponse))
 
       // send old checkpoint block
-      blockFetcher ! MessageFromPeer(PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)), fakePeer.id)
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
 
       importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize * 2))
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
@@ -302,7 +315,12 @@ class BlockFetcherSpec
       val checkpointBlock = (new CheckpointBlockGenerator)
         .generate(
           secondBlocksBatchFirstPart.last,
-          Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(Seq(crypto.generateKeyPair(secureRandom)), secondBlocksBatchFirstPart.last.hash))
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              secondBlocksBatchFirstPart.last.hash
+            )
+          )
         )
 
       val alternativeSecondBlocksBatch = secondBlocksBatchFirstPart :+ checkpointBlock
@@ -311,7 +329,12 @@ class BlockFetcherSpec
 
       // Fetcher second request for headers
       val secondGetBlockHeadersRequest =
-        GetBlockHeaders(Left(secondBlocksBatch.head.number), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+        GetBlockHeaders(
+          Left(secondBlocksBatch.head.number),
+          syncConfig.blockHeadersPerRequest,
+          skip = 0,
+          reverse = false
+        )
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockHeadersRequest => () }
 
       // Respond second headers request
@@ -321,7 +344,10 @@ class BlockFetcherSpec
       handleFirstBlockBatchBodies()
 
       // send old checkpoint block
-      blockFetcher ! MessageFromPeer(PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)), fakePeer.id)
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
 
       // Second bodies request
       val secondGetBlockBodiesRequest = GetBlockBodies(alternativeSecondBlocksBatch.map(_.hash))
@@ -349,11 +375,17 @@ class BlockFetcherSpec
 
       triggerFetching(10)
 
-      val alternativeBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
+      val alternativeBlocksBatch =
+        BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
       val checkpointBlock = (new CheckpointBlockGenerator)
         .generate(
           alternativeBlocksBatch.last,
-          Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(Seq(crypto.generateKeyPair(secureRandom)), alternativeBlocksBatch.last.hash))
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              alternativeBlocksBatch.last.hash
+            )
+          )
         )
 
       val alternativeBlocksBatchWithCheckpoint = alternativeBlocksBatch :+ checkpointBlock
@@ -361,7 +393,10 @@ class BlockFetcherSpec
       handleFirstBlockBatch()
 
       // send checkpoint block
-      blockFetcher ! MessageFromPeer(PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)), fakePeer.id)
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
 
       // Fetcher new request for headers
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
@@ -396,11 +431,17 @@ class BlockFetcherSpec
 
       triggerFetching(10)
 
-      val alternativeBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
+      val alternativeBlocksBatch =
+        BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
       val checkpointBlock = (new CheckpointBlockGenerator)
         .generate(
           alternativeBlocksBatch.last,
-          Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(Seq(crypto.generateKeyPair(secureRandom)), alternativeBlocksBatch.last.hash))
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              alternativeBlocksBatch.last.hash
+            )
+          )
         )
 
       handleFirstBlockBatch()
@@ -413,7 +454,10 @@ class BlockFetcherSpec
       importer.expectMsg(BlockFetcher.PickedBlocks(NonEmptyList(firstBlocksBatch.head, firstBlocksBatch.tail)))
 
       // send old checkpoint block
-      blockFetcher ! MessageFromPeer(PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)), fakePeer.id)
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
 
       importer.expectMsg(BlockImporter.OnTop)
 
@@ -487,7 +531,8 @@ class BlockFetcherSpec
     // Currently BlockFetcher only downloads first block-headers-per-request blocks without this
     def triggerFetching(startingNumber: BigInt = 1000): Unit = {
       val farAwayBlockTotalDifficulty = 100000
-      val farAwayBlock = Block(FixtureBlocks.ValidBlock.header.copy(number = startingNumber), FixtureBlocks.ValidBlock.body)
+      val farAwayBlock =
+        Block(FixtureBlocks.ValidBlock.header.copy(number = startingNumber), FixtureBlocks.ValidBlock.body)
 
       blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
