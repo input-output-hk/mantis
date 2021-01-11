@@ -15,6 +15,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import scala.util.{Random, Try}
 import org.scalatest.funsuite.AnyFunSuite
 
+import scala.collection.immutable.ArraySeq
+
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val dataSource: EphemDataSource = EphemDataSource()
@@ -295,12 +297,13 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val key4: Array[Byte] = Hex.decode("123500")
     val trie = emptyMpt.put(key1, key1).put(key2, key2).put(key3, key3).put(key4, key4)
     val wrongSource = EphemDataSource()
+    val rootValue = trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get
     wrongSource.update(
       Seq(
         DataSourceUpdate(
           IndexedSeq[Byte]('e'.toByte),
           toRemove = Seq(),
-          toUpsert = Seq(ByteString(trie.getRootHash) -> trie.nodeStorage.get(trie.getRootHash).cachedRlpEncoded.get)
+          toUpsert = (ByteString(trie.getRootHash) -> ArraySeq.unsafeWrapArray(rootValue)) :: Nil
         )
       )
     )

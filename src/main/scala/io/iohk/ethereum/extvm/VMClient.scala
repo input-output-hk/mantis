@@ -6,6 +6,7 @@ import Implicits._
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
+import scalapb.UnknownFieldSet
 
 import scala.annotation.tailrec
 
@@ -46,7 +47,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
         log.debug("Client received msg: CallResult")
         res
 
-      case Query.GetAccount(msg.GetAccount(address)) =>
+      case Query.GetAccount(msg.GetAccount(address, UnknownFieldSet.empty)) =>
         log.debug("Client received msg: GetAccount")
         val accountMsg = world.getAccount(address) match {
           case Some(acc) =>
@@ -62,20 +63,20 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
         messageHandler.sendMessage(accountMsg)
         messageLoop[W, S](world)
 
-      case Query.GetStorageData(msg.GetStorageData(address, offset)) =>
+      case Query.GetStorageData(msg.GetStorageData(address, offset, UnknownFieldSet.empty)) =>
         log.debug("Client received msg: GetStorageData")
         val value = world.getStorage(address).load(offset)
         val storageDataMsg = msg.StorageData(data = value)
         messageHandler.sendMessage(storageDataMsg)
         messageLoop[W, S](world)
 
-      case Query.GetCode(msg.GetCode(address)) =>
+      case Query.GetCode(msg.GetCode(address, UnknownFieldSet.empty)) =>
         log.debug("Client received msg: GetCode")
         val codeMsg = msg.Code(world.getCode(address))
         messageHandler.sendMessage(codeMsg)
         messageLoop[W, S](world)
 
-      case Query.GetBlockhash(msg.GetBlockhash(offset)) =>
+      case Query.GetBlockhash(msg.GetBlockhash(offset, UnknownFieldSet.empty)) =>
         log.debug("Client received msg: GetBlockhash")
         val blockhashMsg = world.getBlockHash(offset) match {
           case Some(value) => msg.Blockhash(hash = value)
@@ -86,6 +87,10 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
 
       case Query.Empty =>
         log.debug("Client received msg: Empty")
+        messageLoop[W, S](world)
+
+      case msg =>
+        log.warn(s"Client received unexpected message: ${msg}!")
         messageLoop[W, S](world)
     }
   }

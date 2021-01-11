@@ -46,7 +46,8 @@ object BootstrapDownload extends Logger {
       val out = new FileOutputStream(outFile)
       try {
         val buffer = new Array[Byte](bufferSize)
-        Stream.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
+
+        Iterator.continually(dis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
       } finally (out.close())
       Hex.toHexString(sha512.digest)
 
@@ -61,7 +62,7 @@ object BootstrapDownload extends Logger {
     try {
       val zis = new ZipInputStream(in)
       try {
-        Stream.continually(zis.getNextEntry).takeWhile(_ != null).foreach { file =>
+        Iterator.continually(zis.getNextEntry).takeWhile(_ != null).foreach { file =>
           if (!file.isDirectory) {
             val outPath = destination.resolve(file.getName)
             val outPathParent = outPath.getParent
@@ -73,7 +74,7 @@ object BootstrapDownload extends Logger {
             val out = new FileOutputStream(outFile)
             try {
               val buffer = new Array[Byte](bufferSize)
-              Stream.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
+              Iterator.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
             } finally (out.close())
           }
         }

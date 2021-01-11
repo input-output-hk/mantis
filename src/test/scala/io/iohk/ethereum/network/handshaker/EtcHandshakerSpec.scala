@@ -21,6 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
 import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteStringUtils._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -53,7 +54,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -73,7 +74,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
 
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
-    handshakerAfterStatusOpt shouldBe 'defined
+    assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
         peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
@@ -104,7 +105,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
 
     val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(remoteStatusMsg)
-    handshakerAfterStatusOpt shouldBe 'defined
+    assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
         peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
@@ -143,7 +144,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe true
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -176,7 +177,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
         bestBlockHash shouldBe remoteStatus.bestHash
         currentMaxBlockNumber shouldBe 0
         forkAccepted shouldBe false
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -218,7 +219,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   it should "fail if a status msg is received with invalid genesisHash" in new LocalPeerPV63Setup
     with RemotePeerPV63Setup {
-    val wrongGenesisHash = (localStatus.genesisHash.head + 1).toByte +: localStatus.genesisHash.tail
+    val wrongGenesisHash = concatByteStrings((localStatus.genesisHash.head + 1).toByte, localStatus.genesisHash.tail)
 
     val handshakerAfterHelloOpt = initHandshakerWithResolver.applyMessage(remoteHello)
     val handshakerAfterStatusOpt =

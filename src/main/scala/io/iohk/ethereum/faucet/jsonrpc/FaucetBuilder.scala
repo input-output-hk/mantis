@@ -97,10 +97,12 @@ trait ShutdownHookBuilder {
 
   def shutdown(): Unit = {
     Await.ready(
-      system.terminate.map(
-        _ ->
-          log.info("actor system finished")
-      )(system.dispatcher),
+      system
+        .terminate()
+        .map(
+          _ ->
+            log.info("actor system finished")
+        )(system.dispatcher),
       faucetConfig.shutdownTimeout
     )
   }

@@ -119,7 +119,7 @@ class FaucetHandlerSpec
     val sender = TestProbe()
 
     def withUnavailableFaucet(behaviour: => Unit): Unit = {
-      (walletService.getWallet _).expects().returning(Task.pure(Left(DecryptionFailed)))
+      (() => walletService.getWallet).expects().returning(Task.pure(Left(DecryptionFailed)))
 
       sender.send(faucetHandler, FaucetHandlerMsg.Status)
       sender.expectMsg(FaucetHandlerResponse.StatusResponse(FaucetStatus.FaucetUnavailable))
@@ -129,7 +129,7 @@ class FaucetHandlerSpec
     }
 
     def withInitializedFaucet(behaviour: => Unit): Unit = {
-      (walletService.getWallet _).expects().returning(Task.pure(Right(wallet)))
+      (() => walletService.getWallet).expects().returning(Task.pure(Right(wallet)))
 
       faucetHandler ! FaucetHandlerMsg.Initialization
 

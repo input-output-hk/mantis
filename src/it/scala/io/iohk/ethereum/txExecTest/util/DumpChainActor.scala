@@ -64,7 +64,8 @@ class DumpChainActor(
   var peers: Seq[Peer] = Nil
 
   override def preStart(): Unit = {
-    context.system.scheduler.scheduleOnce(4 seconds, () => peerManager ! GetPeers)
+    val r: Runnable = () => peerManager ! GetPeers
+    context.system.scheduler.scheduleOnce(4 seconds, r)
   }
 
   //Periodically try to connect to bootstrap peer in case the connection failed before dump termination

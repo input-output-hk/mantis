@@ -36,11 +36,11 @@ class PeerStatisticsActor(
   private def handleStatsRequests: Receive = {
     case GetStatsForAll(window) =>
       val stats = maybeStats.map(_.getAll(Some(window))).getOrElse(Map.empty)
-      sender ! StatsForAll(stats)
+      sender() ! StatsForAll(stats)
 
     case GetStatsForPeer(window, peerId) =>
       val stats = maybeStats.map(_.get(peerId, Some(window))).getOrElse(PeerStat.empty)
-      sender ! StatsForPeer(peerId, stats)
+      sender() ! StatsForPeer(peerId, stats)
   }
 
   private def handleMessageFromPeer(msg: Message, peerId: PeerId): Unit = {

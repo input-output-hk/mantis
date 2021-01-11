@@ -1,7 +1,7 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessageCompanion
+import scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.extvm.msg.{CallContext, VMQuery}
 import org.scalamock.scalatest.MockFactory

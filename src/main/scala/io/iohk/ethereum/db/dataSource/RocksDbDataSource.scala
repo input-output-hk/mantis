@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
+
 import io.iohk.ethereum.utils.Logger
 import cats.effect.Resource
 import io.iohk.ethereum.db.dataSource.DataSource._
@@ -10,6 +11,7 @@ import monix.eval.Task
 import monix.reactive.Observable
 import org.rocksdb._
 
+import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
 
@@ -38,7 +40,8 @@ class RocksDbDataSource(
     dbLock.readLock().lock()
     try {
       assureNotClosed()
-      Option(db.get(handles(namespace), readOptions, key.toArray))
+      val byteArray = db.get(handles(namespace), readOptions, key.toArray)
+      Option(ArraySeq.unsafeWrapArray(byteArray))
     } catch {
       case error: RocksDbDataSourceClosedException =>
         throw error
@@ -269,7 +272,7 @@ object RocksDbDataSource {
       namespaces: Seq[Namespace]
   ): (RocksDB, mutable.Buffer[ColumnFamilyHandle], ReadOptions, DBOptions, ColumnFamilyOptions) = {
     import rocksDbConfig._
-    import scala.collection.JavaConverters._
+    import scala.jdk.CollectionConverters._
 
     RocksDB.loadLibrary()
 

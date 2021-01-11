@@ -11,7 +11,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -60,7 +60,7 @@ class PendingTransactionsManager(
   private[this] final val TransactionsPoolSizeGauge =
     metrics.gauge(
       "transactions.pool.size.gauge",
-      () => pendingTransactions.size()
+      () => pendingTransactions.size().toDouble
     )
 
   /**

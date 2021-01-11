@@ -15,6 +15,8 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import scala.collection.immutable.ArraySeq
+
 class NodeDataSpec extends AnyFlatSpec with Matchers {
 
   import AccountImplicits._
@@ -48,11 +50,13 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
     None
   )
 
-  val encodedBranchNode = RLPList(
-    (Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
-      (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
-      (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable)): _*
-  )
+  val encodedBranchNode = {
+    val encodeableList: Array[RLPEncodeable] =
+      (Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
+        (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
+        (Array.fill[RLPValue](5)(RLPValue(Array.emptyByteArray)) :+ (Array.emptyByteArray: RLPEncodeable))
+    RLPList(ArraySeq.unsafeWrapArray(encodeableList): _*)
+  }
 
   val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
   val encodedExtensionNode =

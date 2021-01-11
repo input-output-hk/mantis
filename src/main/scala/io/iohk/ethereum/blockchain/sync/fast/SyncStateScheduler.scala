@@ -13,6 +13,7 @@ import io.vavr.collection.PriorityQueue
 import monix.eval.Task
 
 import scala.annotation.tailrec
+import scala.collection.immutable.ArraySeq
 import scala.util.Try
 
 /**
@@ -209,7 +210,8 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: LoadableBloomFilte
       }
 
     case n: BranchNode =>
-      Right(n.children.collect { case HashNode(childHash) =>
+      val children = ArraySeq.unsafeWrapArray(n.children)
+      Right(children.collect { case HashNode(childHash) =>
         StateNodeRequest(
           ByteString.fromArrayUnsafe(childHash),
           None,

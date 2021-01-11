@@ -60,8 +60,8 @@ object Dependencies {
   val testing: Seq[ModuleID] = Seq(
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
     "org.scalamock" %% "scalamock" % "5.0.0" % "test",
-    "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.14.3" % "it,test",
+    "org.scalatestplus" %% "scalacheck-1-15" % "3.2.3.0" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.15.1" % "it,test",
     "com.softwaremill.diffx" %% "diffx-core" % "0.3.30" % "test",
     "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.30" % "test"
   )
@@ -80,7 +80,7 @@ object Dependencies {
   )
 
   val network: Seq[ModuleID] = {
-    val scalanetVersion = "0.4.4-SNAPSHOT"
+    val scalanetVersion = "0.5.1-SNAPSHOT"
     Seq(
       "io.iohk" %% "scalanet" % scalanetVersion,
       "io.iohk" %% "scalanet-discovery" % scalanetVersion
@@ -96,7 +96,7 @@ object Dependencies {
 
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 
-  val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
+  val scopt = Seq("com.github.scopt" %% "scopt" % "4.0.0")
 
   val cli = Seq("com.monovore" %% "decline" % "1.3.0")
 

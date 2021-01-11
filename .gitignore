@@ -22,3 +22,4 @@ metals.sbt
 
 # Nix
 result
+.nix/

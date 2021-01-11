@@ -12,7 +12,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{OutOfGas, RevertOccurs}
 import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
@@ -21,6 +21,7 @@ import org.scalatest.prop.{TableFor2, TableFor3, TableFor4}
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import io.iohk.ethereum.utils.ByteStringUtils._
 
 // scalastyle:off magic.number
 class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures {
@@ -157,7 +158,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
 
     val correctGasUsed: BigInt = 0
-    val incorrectStateRoot: ByteString = ((correctStateRoot.head + 1) & 0xff).toByte +: correctStateRoot.tail
+    val incorrectStateRoot: ByteString =
+      concatByteStrings(((correctStateRoot.head + 1) & 0xff).toByte, correctStateRoot.tail)
     val table: TableFor3[ByteString, BigInt, Validators] = Table[ByteString, BigInt, Validators](
       ("stateRootHash", "cumulativeGasUsedBlock", "validators"),
       (correctStateRoot, correctGasUsed + 1, new Mocks.MockValidatorsAlwaysSucceed),
@@ -218,7 +220,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val txsExecResult = ledger.blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
       assert(txsExecResult.isRight)
-      val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+      val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
       val transaction1 = stx1.tx.tx
       val transaction2 = stx2.tx.tx
       // Check valid gasUsed

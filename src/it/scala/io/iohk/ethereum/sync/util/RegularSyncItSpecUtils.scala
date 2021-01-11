@@ -55,7 +55,7 @@ object RegularSyncItSpecUtils {
       system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, testSyncConfig, system.scheduler), "peers-client")
 
     lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus, Scheduler.global)
+      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
 
@@ -64,7 +64,7 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
-    lazy val validators = buildEthashConsensus.validators
+    lazy val validators = buildEthashConsensus().validators
 
     lazy val regularSync = system.actorOf(
       RegularSync.props(

@@ -5,6 +5,8 @@ import java.math.BigInteger
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
+import scala.collection.immutable.ArraySeq
+
 /**
   * This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
@@ -13,10 +15,12 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
 class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[Key, Value] {
 
   val namespace: IndexedSeq[Byte] = Namespaces.AppStateNamespace
-  def keySerializer: Key => IndexedSeq[Byte] = _.getBytes(StorageStringCharset.UTF8Charset)
+  def keySerializer: Key => IndexedSeq[Byte] = k =>
+    ArraySeq.unsafeWrapArray(k.getBytes(StorageStringCharset.UTF8Charset))
 
   def keyDeserializer: IndexedSeq[Byte] => Key = k => new String(k.toArray, StorageStringCharset.UTF8Charset)
-  def valueSerializer: String => IndexedSeq[Byte] = _.getBytes(StorageStringCharset.UTF8Charset)
+  def valueSerializer: String => IndexedSeq[Byte] = k =>
+    ArraySeq.unsafeWrapArray(k.getBytes(StorageStringCharset.UTF8Charset))
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) =>
     new String(valueBytes.toArray, StorageStringCharset.UTF8Charset)
 

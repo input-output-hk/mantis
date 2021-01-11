@@ -511,7 +511,7 @@ class EthService(
 
   // NOTE This is called from places that guarantee we are running Ethash consensus.
   private def removeObsoleteHashrates(now: Date): Unit = {
-    hashRate.retain { case (_, (_, reported)) =>
+    hashRate.filterInPlace { case (_, (_, reported)) =>
       Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
   }
@@ -648,8 +648,10 @@ class EthService(
     dataEither match {
       case Right(data) =>
         call(CallRequest(CallTx(tx.from, tx.to, tx.gas, tx.gasPrice, tx.value, ByteString(data)), req.block))
-          .map(_.right.map { callResponse =>
-            IeleCallResponse(rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]))
+          .map(_.map { callResponse =>
+            IeleCallResponse(
+              rlp.decode[Seq[ByteString]](callResponse.returnData.toArray[Byte])(seqEncDec[ByteString]())
+            )
           })
       case Left(error) => Task.now(Left(error))
     }

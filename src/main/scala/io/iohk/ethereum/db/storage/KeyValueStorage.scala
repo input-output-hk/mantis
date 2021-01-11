@@ -5,6 +5,8 @@ import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
 import monix.reactive.Observable
 
+import scala.collection.immutable.ArraySeq
+
 trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, V, T] {
 
   val dataSource: DataSource
@@ -48,7 +50,11 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
 
   def storageContent: Observable[Either[IterationError, (K, V)]] = {
     dataSource.iterate(namespace).map { result =>
-      result.map { case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value)) }
+      result.map { case (key, value) =>
+        val kseq = keyDeserializer(ArraySeq.unsafeWrapArray(key))
+        val vseq = valueDeserializer(ArraySeq.unsafeWrapArray(value))
+        (kseq, vseq)
+      }
     }
   }
 }

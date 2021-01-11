@@ -313,12 +313,11 @@ class BlockPreparator(
 
         val validatedStx = for {
           accData <- accountDataOpt
-          result <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
-        } yield result
+          _ <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
+        } yield (accData)
 
         validatedStx match {
-          case Right(_) =>
-            val (account, address) = accountDataOpt.right.get
+          case Right((account, address)) =>
             val TxResult(newWorld, gasUsed, logs, _, vmError) =
               executeTransaction(stx, address, blockHeader, world.saveAccount(address, account))
 

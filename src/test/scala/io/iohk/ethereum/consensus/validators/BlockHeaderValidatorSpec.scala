@@ -35,7 +35,7 @@ class BlockHeaderValidatorSpec
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validParent.header) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -165,14 +165,14 @@ class BlockHeaderValidatorSpec
       .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 

@@ -27,11 +27,19 @@ trait ReceiptsValidator {
       blockchain.getBlockHeaderByHash(hash) -> blockReceipts
     }
 
-    val receiptsValidationError = blockHeadersWithReceipts.collectFirst {
-      case (Some(header), receipt) if validators.blockValidator.validateBlockAndReceipts(header, receipt).isLeft =>
-        Invalid(validators.blockValidator.validateBlockAndReceipts(header, receipt).left.get)
-      case (None, _) => DbError
+    val errorIterator = blockHeadersWithReceipts.iterator.map {
+      case (Some(header), receipt) =>
+        validators.blockValidator.validateBlockAndReceipts(header, receipt) match {
+          case Left(err) => Some(Invalid(err))
+          case _ => None
+        }
+      case (None, _) => Some(DbError)
     }
+
+    val receiptsValidationError = errorIterator.collectFirst { case Some(error) =>
+      error
+    }
+
     receiptsValidationError.getOrElse(Valid(blockHashesWithReceipts))
   }
 

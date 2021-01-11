@@ -3,7 +3,7 @@ package io.iohk.ethereum.txExecTest
 import java.util.concurrent.Executors
 
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation, Ledger}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config
 import org.scalatest.flatspec.AnyFlatSpec

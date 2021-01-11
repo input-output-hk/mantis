@@ -11,8 +11,6 @@ import org.scalatest.matchers.should.Matchers
 
 class ArbitraryIntegerMptSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
-  implicit val bigIntListNoShrink = noShrink[List[BigInt]]
-
   def keyGen: Gen[BigInt] = byteArrayOfNItemsGen(128).map(BigInt.apply)
   def valueGen: Gen[BigInt] = byteArrayOfNItemsGen(128).map(BigInt.apply)
 

@@ -10,7 +10,15 @@ import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTran
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{
+  InvalidJump,
+  InvalidOpCode,
+  OutOfGas,
+  ProgramError,
+  RevertOccurs,
+  StackOverflow,
+  StackUnderflow
+}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.prop.{TableFor2, TableFor4}

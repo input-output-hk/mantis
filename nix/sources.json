@@ -1,16 +1,4 @@
 {
-    "Sbtix": {
-        "branch": "master",
-        "description": "Generates Nix definitions for your SBT builds",
-        "homepage": null,
-        "owner": "input-output-hk",
-        "repo": "Sbtix",
-        "rev": "7b969a5641fce10500ca51cbe88af4ea160d7064",
-        "sha256": "19pg7rm36b0v9y3ibq5cwsq38pwj3xw3d8srv78svmpnrzm1dh9g",
-        "type": "tarball",
-        "url": "https://github.com/input-output-hk/Sbtix/archive/7b969a5641fce10500ca51cbe88af4ea160d7064.tar.gz",
-        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
-    },
     "gitignore": {
         "branch": "master",
         "description": "Nix function for filtering local git sources",
@@ -60,15 +48,27 @@
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     },
     "nixpkgs": {
-        "branch": "nixos-20.03",
+        "branch": "nixpkgs-unstable",
         "description": "Nixpkgs/NixOS branches that track the Nixpkgs/NixOS channels",
         "homepage": null,
         "owner": "NixOS",
-        "repo": "nixpkgs-channels",
-        "rev": "e2bb73ce5f786b83e984b80199112f86b8a6cc9d",
-        "sha256": "0mpcdwhippvgsj3kj8vw35dgz94dnzgxgsfqqzcfpmvnzjc23vk7",
+        "repo": "nixpkgs",
+        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "sha256": "01zq4hhfvpyrr17zk9n911zg406afkyvv97mrcn61ajfc30fypkb",
         "type": "tarball",
-        "url": "https://github.com/NixOS/nixpkgs-channels/archive/e2bb73ce5f786b83e984b80199112f86b8a6cc9d.tar.gz",
+        "url": "https://github.com/NixOS/nixpkgs/archive/a98302aa9b9628915878a6ea9776c40a0bb02950.tar.gz",
+        "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
+    },
+    "sbt-derivation": {
+        "branch": "master",
+        "description": "mkDerivation for sbt, similar to buildGoModule",
+        "homepage": null,
+        "owner": "zaninime",
+        "repo": "sbt-derivation",
+        "rev": "9666b2b589ed68823fff1cefa4cd8a8ab54956c1",
+        "sha256": "17r74avh4i3llxbskfjhvbys3avqb2f26pzydcdkd8a9k204rg9z",
+        "type": "tarball",
+        "url": "https://github.com/zaninime/sbt-derivation/archive/9666b2b589ed68823fff1cefa4cd8a8ab54956c1.tar.gz",
         "url_template": "https://github.com/<owner>/<repo>/archive/<rev>.tar.gz"
     }
 }

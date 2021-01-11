@@ -87,9 +87,11 @@ object StdValidators {
     else if (header.stateRoot != stateRootHash)
       Left(ValidationAfterExecError(s"Block has invalid state root hash, expected ${Hex
         .toHexString(header.stateRoot.toArray)} but got ${Hex.toHexString(stateRootHash.toArray)}"))
-    else if (blockAndReceiptsValidation.isLeft)
-      Left(ValidationAfterExecError(blockAndReceiptsValidation.left.get.toString))
-    else
-      Right(BlockExecutionSuccess)
+    else {
+      blockAndReceiptsValidation match {
+        case Left(err) => Left(ValidationAfterExecError(err.toString))
+        case _ => Right(BlockExecutionSuccess)
+      }
+    }
   }
 }

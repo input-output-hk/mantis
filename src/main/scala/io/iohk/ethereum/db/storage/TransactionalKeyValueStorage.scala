@@ -4,6 +4,8 @@ import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate, DataSourceUpdate}
 import monix.reactive.Observable
 
+import scala.collection.immutable.ArraySeq
+
 /**
   * Represents transactional key value storage mapping keys of type K to values of type V
   * Note: all methods methods that perform updates return [[io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate]]
@@ -56,7 +58,11 @@ trait TransactionalKeyValueStorage[K, V] {
 
   def storageContent: Observable[Either[IterationError, (K, V)]] = {
     dataSource.iterate(namespace).map { result =>
-      result.map { case (key, value) => (keyDeserializer(key.toIndexedSeq), valueDeserializer(value)) }
+      result.map { case (key, value) =>
+        val kseq = keyDeserializer(ArraySeq.unsafeWrapArray(key))
+        val vseq = valueDeserializer(ArraySeq.unsafeWrapArray(value))
+        (kseq, vseq)
+      }
     }
   }
 }

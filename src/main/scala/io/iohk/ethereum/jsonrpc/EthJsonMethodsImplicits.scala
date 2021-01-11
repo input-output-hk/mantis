@@ -504,8 +504,13 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   private def extractFilter(obj: JObject): Either[JsonRpcError, Filter] = {
     def allSuccess[T](eithers: Seq[Either[JsonRpcError, T]]): Either[JsonRpcError, Seq[T]] = {
-      if (eithers.forall(_.isRight)) Right(eithers.map(_.right.get))
-      else Left(InvalidParams(msg = eithers.collect { case Left(err) => err.message }.mkString("\n")))
+      if (eithers.forall(_.isRight)) {
+        val values = eithers.collect { case Right(v) => v }
+        Right(values)
+      } else {
+        val values = eithers.collect { case Left(err) => err.message }
+        Left(InvalidParams(msg = values.mkString("\n")))
+      }
     }
 
     def parseTopic(jstr: JString): Either[JsonRpcError, ByteString] = {
@@ -557,8 +562,13 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
-    def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
-      opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+    def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] = {
+      opt match {
+        case Some(Right(v)) => Right(Option(v))
+        case Some(Left(e)) => Left(e)
+        case None => Right(None)
+      }
+    }
 
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))

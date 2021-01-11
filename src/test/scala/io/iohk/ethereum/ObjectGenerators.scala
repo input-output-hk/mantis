@@ -19,8 +19,6 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 // scalastyle:off number.of.methods
 trait ObjectGenerators {
 
-  def noShrink[T]: Shrink[T] = Shrink[T](_ => Stream.empty)
-
   def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
 
   def shortGen: Gen[Short] = Gen.choose(Short.MinValue, Short.MaxValue)
