@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.pattern._
 import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
-import io.iohk.ethereum.blockchain.sync.fast.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.PersistentSyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor
 import io.iohk.ethereum.db.dataSource.EphemDataSource
@@ -28,13 +28,13 @@ class StateStorageActorSpec
 
     val targetBlockHeader = Fixtures.Blocks.ValidBlock.header
     syncStateActor ! new FastSyncStateStorage(dataSource)
-    (0 to maxN).foreach(n => syncStateActor ! SyncState(targetBlockHeader).copy(downloadedNodesCount = n))
+    (0 to maxN).foreach(n => syncStateActor ! PersistentSyncState(targetBlockHeader).copy(downloadedNodesCount = n))
 
     eventually {
       (syncStateActor ? GetStorage)
-        .mapTo[Option[SyncState]]
+        .mapTo[Option[PersistentSyncState]]
         .map { syncState =>
-          val expected = SyncState(targetBlockHeader).copy(downloadedNodesCount = maxN)
+          val expected = PersistentSyncState(targetBlockHeader).copy(downloadedNodesCount = maxN)
           syncState shouldEqual Some(expected)
         }(system.dispatcher)
     }

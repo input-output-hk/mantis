@@ -4,8 +4,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.fast.FastSync
-import io.iohk.ethereum.blockchain.sync.fast.SyncState
+import io.iohk.ethereum.blockchain.sync.fast.{FastSync, PersistentSyncState, SyncingHandlerState}
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
@@ -32,7 +31,6 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -384,7 +382,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     // choose first pivot and as it is fresh enough start state sync
     eventually(timeout = eventuallyTimeOut) {
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-      syncState.isBlockchainWorkFinished shouldBe true
+      val state = SyncingHandlerState.fromPersistentState(syncState)
+      state.isBlockchainWorkFinished(syncState.safeDownloadTarget) shouldBe true
       syncState.updatingPivotBlock shouldBe false
       stateDownloadStarted shouldBe true
     }
@@ -654,7 +653,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       baseBlockHeader.copy(number = defaultExpectedPivotBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
     val defaultState =
-      SyncState(
+      PersistentSyncState(
         defaultPivotBlockHeader,
         safeDownloadTarget = defaultSafeDownloadTarget,
         bestBlockHeaderNumber = defaultBestBlock
@@ -699,7 +698,7 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       first +: genChain(first.hash, headers.tail)
     }
 
-    def startWithState(state: SyncState): Unit = {
+    def startWithState(state: PersistentSyncState): Unit = {
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
     }
 

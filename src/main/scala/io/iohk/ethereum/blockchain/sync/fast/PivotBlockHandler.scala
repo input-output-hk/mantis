@@ -14,7 +14,8 @@ import scala.concurrent.ExecutionContextExecutor
 
 class PivotBlockHandler(
     var pivotBlock: BlockHeader,
-    pivotBlockSelector: ActorRef,
+    peerEventBus: ActorRef,
+    etcPeerManager: ActorRef,
     storage: SyncingHandlerStorage,
     syncConfig: SyncConfig)(
     implicit context: ActorContext) {
@@ -29,9 +30,15 @@ class PivotBlockHandler(
   var stateSyncRestartRequested: Boolean = false
   var stateSyncFinished: Boolean = false
 
+  updatePivotBlock(pivotBlock, SyncRestart)
+
   def askForPivotBlockUpdate(): Unit = {
     updatingPivotBlock = true
     log.info("Asking for new pivot block")
+    val pivotBlockSelector: ActorRef = context.actorOf(
+      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
+      "pivot-block-selector",
+    )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
   }
 
@@ -75,7 +82,7 @@ class PivotBlockHandler(
     } else {
       updatingPivotBlock = false
       stateSyncRestartRequested = false
-      storage.startSyncingTo(pivotBlockHeader)
+      storage.startSyncingTo(pivotBlockHeader)(context.self)
     }
   }
 
