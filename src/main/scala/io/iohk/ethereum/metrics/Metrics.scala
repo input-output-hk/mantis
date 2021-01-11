@@ -6,6 +6,8 @@ import io.micrometer.core.instrument._
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.prometheus.client.exporter.HTTPServer
 import io.prometheus.client.hotspot.DefaultExports
+import kamon.Kamon
+
 import scala.util.Try
 
 case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: Int = 0) {
@@ -17,6 +19,7 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
   def start(): Unit = {
     server // We need this to evaluate the lazy val!
     DefaultExports.initialize()
+    Kamon.init()
   }
 
   def close(): Unit = {
