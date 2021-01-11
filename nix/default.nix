@@ -9,8 +9,10 @@ let
   in {
     inherit sources;
 
+    # match java version used by devs, this should also change the version used by sbt
+    jre = prev.jdk8.jre;
+
     mantis = final.callPackage ./pkgs/mantis.nix {
-      inherit (prev.openjdk8_headless) jre;
       src = cleanedSrc;
     };
   };
