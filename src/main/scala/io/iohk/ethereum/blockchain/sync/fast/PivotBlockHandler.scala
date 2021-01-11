@@ -77,13 +77,17 @@ class PivotBlockHandler(
     // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
     // Asking for this root would result only with empty transactions
     if (pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
-      stateSyncFinished = true
+      finishStateSync()
       updatingPivotBlock = false
     } else {
       updatingPivotBlock = false
       stateSyncRestartRequested = false
       storage.startSyncingTo(pivotBlockHeader)(context.self)
     }
+  }
+
+  def finishStateSync(): Unit = {
+    stateSyncFinished = true
   }
 
   def reScheduleAskForNewPivot(updateReason: PivotBlockUpdateReason): Unit = {

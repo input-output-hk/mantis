@@ -92,7 +92,7 @@ class SyncingHandler(
     case PrintStatus => printStatus()
     case PersistSyncState => persistSyncState()
     case StateSyncFinished =>
-      syncState = syncState.copy(stateSyncFinished = true)
+      pivotBlockHandler.finishStateSync()
       processSyncing()
 
     case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
@@ -422,7 +422,7 @@ class SyncingHandler(
       if (blockchainDataToDownload) {
         processDownloads()
       } else if (
-        noBlockchainWorkRemaining && !syncState.stateSyncFinished && pivotBlockHandler.notInTheMiddleOfUpdate
+        noBlockchainWorkRemaining && !pivotBlockHandler.stateSyncFinished && pivotBlockHandler.notInTheMiddleOfUpdate
       ) {
         if (pivotBlockHandler.pivotBlockIsStale(peersToDownloadFrom)) {
           log.info("Restarting state sync to new pivot block")
@@ -561,7 +561,7 @@ class SyncingHandler(
   def fullySynced: Boolean = {
     syncState.isBlockchainWorkFinished(pivotBlockHandler.safeDownloadTarget) &&
     assignedHandlers.isEmpty &&
-    syncState.stateSyncFinished
+    pivotBlockHandler.stateSyncFinished
   }
 
   private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
