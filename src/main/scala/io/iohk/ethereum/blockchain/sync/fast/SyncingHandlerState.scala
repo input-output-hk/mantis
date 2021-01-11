@@ -11,8 +11,7 @@ case class SyncingHandlerState(
     downloadedNodesCount: Long = 0,
     totalNodesCount: Long = 0,
     bestBlockHeaderNumber: BigInt = 0,
-    nextBlockToFullyValidate: BigInt = 1,
-    stateSyncFinished: Boolean = false
+    nextBlockToFullyValidate: BigInt = 1
 ) {
   def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncingHandlerState =
     copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)
@@ -51,8 +50,7 @@ object SyncingHandlerState {
       persistentState.downloadedNodesCount,
       persistentState.totalNodesCount,
       persistentState.bestBlockHeaderNumber,
-      persistentState.nextBlockToFullyValidate,
-      persistentState.stateSyncFinished
+      persistentState.nextBlockToFullyValidate
     )
   }
 }
