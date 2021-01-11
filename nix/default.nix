@@ -1,25 +1,24 @@
 { system ? builtins.currentSystem, sources ? import ./sources.nix, src ? ../. }:
 
 let
-  overlay = final: prev: {
-    inherit sources;
+  # we need to filter out the nix files in this repository as they will
+  # affect the fixed derivation calculation from sbt-derivation
+  overlay = final: prev: let
     inherit (import sources.gitignore { inherit (prev) lib; }) gitignoreSource;
+    cleanedSrc = prev.lib.cleanSource (gitignoreSource src);
+  in {
+    inherit sources;
 
-    sbtix = prev.callPackage ../sbtix.nix {
-      jdk = prev.openjdk8_headless;
-      jre = prev.openjdk8_headless.jre;
-    };
-
-    mantisPkgs = final.callPackage ./pkgs/mantis {
+    mantis = final.callPackage ./pkgs/mantis.nix {
       inherit (prev.openjdk8_headless) jre;
-      inherit src;
+      src = cleanedSrc;
     };
-
-    inherit (final.mantisPkgs) mantis;
-
-    mkSrc = import sources.nix-mksrc { inherit (final) lib; };
   };
+  sbt-derivation-overlay = import sources.sbt-derivation;
 in import sources.nixpkgs {
   inherit system;
-  overlays = [ overlay ];
+  overlays = [
+    sbt-derivation-overlay
+    overlay
+  ];
 }

@@ -14,7 +14,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
   organization := "io.iohk",
   version := "3.2.1",
-  scalaVersion := "2.13.3",
+  scalaVersion := "2.13.4",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
@@ -203,7 +203,9 @@ lazy val node = {
   if (!nixBuild)
     node
   else
+    //node.settings(PB.protocExecutable := file("protoc"))
     node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+
 }
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
