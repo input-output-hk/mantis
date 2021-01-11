@@ -1,4 +1,6 @@
-enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin, JavaAgent)
+
+javaAgents += "io.kamon" % "kanela-agent" % "1.0.6"
 
 import scala.sys.process.Process
 import NativePackagerHelper._
@@ -123,6 +125,7 @@ lazy val node = {
       Dependencies.logging,
       Dependencies.apacheCommons,
       Dependencies.micrometer,
+      Dependencies.kamon,
       Dependencies.prometheus,
       Dependencies.cli,
       Dependencies.dependencies
