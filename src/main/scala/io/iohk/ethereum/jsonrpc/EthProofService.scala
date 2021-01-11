@@ -50,9 +50,9 @@ final case class ProofAccount(
     storageProof: Seq[StorageProof]
 )
 
-sealed trait AccountProofError
-case object InvalidAccountProofOrRootHash extends AccountProofError
-case object InvalidAccountProofForAccount extends AccountProofError
+sealed trait MptProofError
+case object UnableRebuildMpt extends MptProofError
+case object KeyNotFoundInRebuidMpt extends MptProofError
 
 /**
   * Spec: [EIP-1186](https://eips.ethereum.org/EIPS/eip-1186)
