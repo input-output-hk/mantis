@@ -16,12 +16,12 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
   val fileName: String = "temp.txt"
   var file: File = _
 
-  override def beforeAll {
+  override def beforeAll(): Unit = {
     new FileOutputStream(fileName, false).getFD
     file = new File(fileName)
   }
 
-  override def afterAll {
+  override def afterAll(): Unit = {
     file.delete()
   }
 

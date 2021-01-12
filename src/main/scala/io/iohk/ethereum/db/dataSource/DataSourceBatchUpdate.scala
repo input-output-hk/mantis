@@ -1,5 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
+import scala.collection.immutable.ArraySeq
+
 case class DataSourceBatchUpdate(dataSource: DataSource, updates: Array[DataUpdate] = Array.empty) {
 
   def and(that: DataSourceBatchUpdate): DataSourceBatchUpdate = {
@@ -11,7 +13,7 @@ case class DataSourceBatchUpdate(dataSource: DataSource, updates: Array[DataUpda
   }
 
   def commit(): Unit = {
-    dataSource.update(updates)
+    dataSource.update(ArraySeq.unsafeWrapArray(updates))
   }
 
 }

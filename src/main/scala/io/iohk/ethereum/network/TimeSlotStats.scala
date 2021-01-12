@@ -42,8 +42,9 @@ class TimeSlotStats[K, V: Monoid] private (
   }
 
   /** Forget all statistics about a given key. */
-  def remove(key: K): TimeSlotStats[K, V] =
-    updated(lastIdx, buffer.mapValues(_.remove(key)))
+  def remove(key: K): TimeSlotStats[K, V] = {
+    updated(lastIdx, buffer.map { case (k, v) => k -> v.remove(key) })
+  }
 
   /** Aggregate stats for a key in all slots that are within the duration. */
   def get(key: K, window: Option[Duration] = None): V =

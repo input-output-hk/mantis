@@ -2,7 +2,6 @@ package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.cache.Cache
-import scala.collection._
 
 trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends SimpleMap[K, V, T] {
   type I <: KeyValueStorage[K, V, I]

@@ -190,7 +190,7 @@ object PV63 {
           val stateHash = postTransactionStateHash match {
             case RLPValue(bytes) if bytes.length > 1 => HashOutcome(ByteString(bytes))
             case RLPValue(bytes) if bytes.length == 1 && bytes.head == 1 => SuccessOutcome
-            case RLPValue(bytes) if bytes.isEmpty => FailureOutcome
+            case _ => FailureOutcome
           }
           Receipt(stateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")

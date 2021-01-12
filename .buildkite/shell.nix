@@ -17,17 +17,12 @@ let
 
     exec ${pkgs.protobuf}/bin/protoc "$@"
   '';
-
-  sbtix = pkgs.callPackage sources.Sbtix { };
-
 in
 
   with pkgs;
-  
+
   mkShell {
-  
-    buildInputs = [ sbt solc jdk8 protoc-wrapper sbtix ];
+    nativeBuildInputs = [ sbt solc jdk8 protoc-wrapper ];
     # SBT = "sbt -v -mem 2048 -J-Xmx4g -Dsbt.ivy.home=/cache/ivy2 -Dsbt.boot.directory=/cache/sbt -Dmaven.repo.local=/cache/maven -Dnix=true";
     SBT = "sbt -v -mem 2048 -J-Xmx4g -Dnix=true";
-    SBTIX_GEN = "true";
   }

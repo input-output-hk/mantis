@@ -23,6 +23,7 @@ import scodec.bits.BitVector
 import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
 import scala.util.control.NoStackTrace
+import scala.math.Ordering.Implicits._
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
@@ -141,7 +142,7 @@ class PeerDiscoveryManagerSpec
         .returning(sampleKnownUris)
         .once()
 
-      (discoveryService.getNodes _)
+      (() => discoveryService.getNodes)
         .expects()
         .returning(Task(sampleNodes.map(toENode)))
         .once()
@@ -190,12 +191,12 @@ class PeerDiscoveryManagerSpec
       override lazy val discoveryConfig =
         defaultConfig.copy(discoveryEnabled = true, reuseKnownNodes = true)
 
-      (knownNodesStorage.getKnownNodes _)
+      (() => knownNodesStorage.getKnownNodes())
         .expects()
         .returning(sampleKnownUris)
         .once()
 
-      (discoveryService.getNodes _)
+      (() => discoveryService.getNodes)
         .expects()
         .returning(Task(sampleNodes.map(toENode)))
         .once()
@@ -218,7 +219,7 @@ class PeerDiscoveryManagerSpec
       override lazy val discoveryConfig =
         defaultConfig.copy(discoveryEnabled = true, reuseKnownNodes = false)
 
-      (discoveryService.getNodes _)
+      (() => discoveryService.getNodes)
         .expects()
         .returning(Task.raiseError(new RuntimeException("Oh no!") with NoStackTrace))
         .atLeastOnce()
@@ -243,8 +244,7 @@ class PeerDiscoveryManagerSpec
       val lookupCount = AtomicInt(0)
 
       implicit val nodeOrd: Ordering[ENode] = {
-        implicit val byteOrd = Ordering.Iterable(Ordering.Byte)
-        Ordering.by(_.id.toByteArray.toIterable)
+        Ordering.by(_.id.toByteArray.toSeq)
       }
 
       (discoveryService.lookup _)
@@ -266,8 +266,8 @@ class PeerDiscoveryManagerSpec
           Set(n0, n1) shouldBe randomNodes
         }
 
-        lookupCount.get shouldBe >=(expectedLookups.start)
-        lookupCount.get shouldBe <=(expectedLookups.end)
+        lookupCount.get() shouldBe >=(expectedLookups.start)
+        lookupCount.get() shouldBe <=(expectedLookups.end)
       }
     }
   }

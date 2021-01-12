@@ -1,7 +1,7 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessageCompanion
+import scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
 import io.iohk.ethereum.utils.VmConfig

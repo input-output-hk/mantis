@@ -84,10 +84,12 @@ abstract class BaseNode extends Node {
     tryAndLogFailure(() => consensus.stopProtocol())
     tryAndLogFailure(() =>
       Await.ready(
-        system.terminate.map(
-          _ ->
-            log.info("actor system finished")
-        ),
+        system
+          .terminate()
+          .map(
+            _ ->
+              log.info("actor system finished")
+          ),
         shutdownTimeoutDuration
       )
     )

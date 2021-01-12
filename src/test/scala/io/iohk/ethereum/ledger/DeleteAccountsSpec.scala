@@ -48,7 +48,7 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
     val updatedWorldState = consensus.blockPreparator.deleteAccounts(accountAddresses)(worldStateWithStorage)
 
     val newWorld = InMemoryWorldStateProxy.persistState(updatedWorldState)
-    newWorld.getAccount(validAccountAddress) shouldBe 'empty
+    assert(newWorld.getAccount(validAccountAddress).isEmpty)
   }
 
   // scalastyle:off magic.number

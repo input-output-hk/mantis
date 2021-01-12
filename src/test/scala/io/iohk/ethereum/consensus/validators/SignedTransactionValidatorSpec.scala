@@ -90,14 +90,14 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   it should "report as valid a tx from before homestead" in {
     validateStx(signedTxBeforeHomestead, fromBeforeHomestead = true) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   it should "report as valid a tx from after homestead" in {
     validateStx(signedTxAfterHomestead, fromBeforeHomestead = false) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -107,7 +107,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(nonce = BigInt(invalidNonce)))
     validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -117,7 +117,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasLimit = BigInt(invalidGasLimit)))
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -127,7 +127,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasPrice = BigInt(invalidGasPrice)))
     validateStx(signedTxWithInvalidGasPrice, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -137,7 +137,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(value = BigInt(invalidValue)))
     validateStx(signedTxWithInvalidValue, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -148,7 +148,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = signatureWithInvalidS)
     validateStx(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -159,7 +159,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidSignatureLength = signedTxBeforeHomestead.copy(signature = signatureWithInvalidR)
     validateStx(signedTxWithInvalidSignatureLength, fromBeforeHomestead = true) match {
       case Left(_: TransactionSyntaxError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -168,7 +168,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidSignatureRandom = signedTxAfterHomestead.copy(signature = signatureWithInvalidR)
     validateStx(signedTxWithInvalidSignatureRandom, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -178,7 +178,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = signatureWithInvalidS)
     validateStx(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -187,7 +187,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidNonce = signedTxAfterHomestead.copy(tx = txWithInvalidNonce)
     validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = false) match {
       case Left(_: TransactionNonceError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -199,7 +199,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {
       case Left(_: TransactionNotEnoughGasForIntrinsicError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -213,7 +213,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       accumGasUsed = accumGasUsed
     ) match {
       case Left(_: TransactionSenderCantPayUpfrontCostError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -222,7 +222,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {
       case Left(_: TransactionGasLimitTooBigError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -237,7 +237,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       accumGasUsed = accumGasUsed
     ) match {
       case Left(SignedTransactionError.TransactionSignatureError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -252,7 +252,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
       accumGasUsed = accumGasUsed
     ) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 }

@@ -6,6 +6,8 @@ import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, HexPrefix, LeafNode}
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue}
 
+import scala.collection.immutable.ArraySeq
+
 class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor[RLPEncodeable] {
   val array: Array[RLPEncodeable] = new Array[RLPEncodeable](2)
 
@@ -18,7 +20,8 @@ class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor
   }
 
   override def done(): RLPEncodeable = {
-    RLPList(util.Arrays.copyOf[RLPEncodeable](array, 2): _*)
+    val copy = util.Arrays.copyOf[RLPEncodeable](array, 2)
+    RLPList(ArraySeq.unsafeWrapArray(copy): _*)
   }
 }
 

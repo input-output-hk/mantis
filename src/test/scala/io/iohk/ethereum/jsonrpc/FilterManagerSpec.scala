@@ -290,7 +290,7 @@ class FilterManagerSpec
       )
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
-    (blockGenerator.getPendingBlock _)
+    (() => blockGenerator.getPendingBlock)
       .expects()
       .returning(
         Some(

@@ -68,8 +68,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     assert(retrievedBlock.isDefined)
     assert(validBlock == retrievedBlock.get)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(validBlock.number)
-    blockchain.getBestBlockNumber should ===(validBlock.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
+    blockchain.getBestBlockNumber() should ===(validBlock.number)
   }
 
   it should "be able to rollback block with checkpoint and store the previous existed checkpoint" in new EphemBlockchainTestSetup {
@@ -96,8 +96,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(firstBlock.number)
-    blockchain.getBestBlockNumber should ===(secondBlock.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
+    blockchain.getBestBlockNumber() should ===(secondBlock.number)
   }
 
   it should "be able to rollback block with last checkpoint in the chain" in new EphemBlockchainTestSetup {
@@ -110,8 +110,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(validBlock.hash, withState = true)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(genesis.number)
-    blockchain.getBestBlockNumber should ===(genesis.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
+    blockchain.getBestBlockNumber() should ===(genesis.number)
   }
 
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {

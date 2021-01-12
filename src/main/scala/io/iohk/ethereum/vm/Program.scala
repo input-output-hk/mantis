@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.utils.ByteStringUtils.Padding
 
 import scala.annotation.tailrec
 
@@ -16,7 +17,7 @@ case class Program(code: ByteString) {
     code.lift(pc).getOrElse(0)
 
   def getBytes(from: Int, size: Int): ByteString =
-    code.slice(from, from + size).padTo(size, 0.toByte)
+    code.slice(from, from + size).padToByteString(size, 0.toByte)
 
   val length: Int = code.size
 

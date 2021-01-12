@@ -152,7 +152,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         txsExecResult.isRight shouldBe true
 
-        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
         resultingGasUsed shouldBe 0
         resultingReceipts shouldBe Nil
       }
@@ -184,7 +184,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
         txsExecResult.isRight shouldBe true
-        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
 
         val transaction: Transaction = validStxSignedByOrigin.tx.tx
         // Check valid world
@@ -252,7 +252,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
           txsExecResult.isRight shouldBe txValidAccordingToValidators
           if (txsExecResult.isRight) {
-            val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.right.get
+            val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
 
             val transaction = stx.tx.tx
             // Check valid world

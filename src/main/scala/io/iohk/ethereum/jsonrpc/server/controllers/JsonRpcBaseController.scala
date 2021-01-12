@@ -14,6 +14,7 @@ import monix.eval.Task
 import org.json4s.JsonDSL._
 import org.json4s.{DefaultFormats, native}
 
+import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
 
@@ -129,7 +130,7 @@ object JsonRpcBaseController {
             invalidApis.isEmpty,
             s"Invalid RPC APIs specified: ${invalidApis.mkString(",")}. Availables are ${availableApis.mkString(",")}"
           )
-          providedApis
+          ArraySeq.unsafeWrapArray(providedApis)
         }
 
         override def accountTransactionsMaxBlocks: Int = rpcConfig.getInt("account-transactions-max-blocks")

@@ -53,9 +53,9 @@ class RegularSyncSpec
 
   // Used only in sync tests
   var testSystem: ActorSystem = _
-  override def beforeEach: Unit =
+  override def beforeEach(): Unit =
     testSystem = ActorSystem()
-  override def afterEach: Unit =
+  override def afterEach(): Unit =
     TestKit.shutdownActorSystem(testSystem)
 
   def sync[T <: Fixture](test: => T): Future[Assertion] =
@@ -358,13 +358,11 @@ class RegularSyncSpec
       })
 
       "save fetched node" in sync(new Fixture(testSystem) {
-        implicit val ec: Scheduler = Scheduler(system.dispatcher)
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
-
-        (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
+        (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
         (ledger
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)

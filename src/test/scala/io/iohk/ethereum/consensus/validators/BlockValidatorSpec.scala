@@ -37,49 +37,49 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
   "Block" should "return a failure if created based on invalid transactions header" in {
     StdBlockValidator.validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
       case Left(BlockTransactionsHashError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "return a failure if created based on invalid ommers header" in {
     StdBlockValidator.validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
       case Left(BlockOmmersHashError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "return a failure if created based on invalid receipts header" in {
     StdBlockValidator.validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
       case Left(BlockReceiptsHashError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "return a failure if created based on invalid log bloom header" in {
     StdBlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
       case Left(BlockLogBloomError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
     StdBlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
       case Left(BlockTransactionsHashError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
     StdBlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
       case Left(BlockOmmersHashError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   "Block" should "correctly handle the case where a block has no receipts" in {
     StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
       case Right(validated) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 

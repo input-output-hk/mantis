@@ -179,7 +179,7 @@ class EthashMiner(
     // scalastyle:off magic.number
     val initNonce = BigInt(64, new Random())
 
-    (0 to numRounds).toStream
+    (0 to numRounds).iterator
       .map { n =>
         val nonce = (initNonce + n) % MaxNonce
         val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)

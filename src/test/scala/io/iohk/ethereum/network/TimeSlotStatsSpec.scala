@@ -249,9 +249,6 @@ object TimeSlotStatsSpec {
     s.run(stats -> clock).value
   }
 
-  implicit def noShrink[T]: Shrink[T] =
-    Shrink[T](_ => Stream.empty)
-
   def genTimeSlotStats[K: Arbitrary, V: Arbitrary: Monoid]: Gen[(TimeSlotStats[K, V], MockClock, FiniteDuration)] =
     for {
       slotDuration <- Gen.choose(1, 5 * 60).map(_.seconds)

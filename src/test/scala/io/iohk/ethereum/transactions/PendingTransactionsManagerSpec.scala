@@ -81,7 +81,7 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
       classOf[EtcPeerManagerActor.SendMessage]
     )
 
-    resps1.map(_.peerId) should contain allOf (peer2.id, peer3.id)
+    resps1.map(_.peerId) should contain.allOf(peer2.id, peer3.id)
     resps1.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg1.map(_.tx) }
     etcPeerManager.expectNoMessage()
 
@@ -95,7 +95,7 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
       classOf[EtcPeerManagerActor.SendMessage],
       classOf[EtcPeerManagerActor.SendMessage]
     )
-    resps2.map(_.peerId) should contain allOf (peer1.id, peer3.id)
+    resps2.map(_.peerId) should contain.allOf(peer1.id, peer3.id)
     resps2.map(_.message.underlyingMsg).foreach { case SignedTransactions(txs) => txs.toSet shouldEqual msg2.map(_.tx) }
     etcPeerManager.expectNoMessage()
 
