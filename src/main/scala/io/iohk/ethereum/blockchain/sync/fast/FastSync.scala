@@ -25,7 +25,7 @@ class FastSync(
   import FastSync._
 
   val syncController: ActorRef = context.parent
-  val syncStateStorageActor = context.actorOf(Props[StateStorageActor], "state-storage")
+  val syncStateStorageActor = context.actorOf(Props[StateStorageActor](), "state-storage")
   val syncStateScheduler = context.actorOf(
     SyncStateSchedulerActor
       .props(
