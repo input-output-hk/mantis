@@ -105,6 +105,8 @@ object Config {
       peerResponseTimeout: FiniteDuration,
       printStatusInterval: FiniteDuration,
       maxConcurrentRequests: Int,
+      skeletonHeadersPerRequest: Int,
+      skeletonIntervalSize: Int,
       blockHeadersPerRequest: Int,
       blockBodiesPerRequest: Int,
       receiptsPerRequest: Int,
