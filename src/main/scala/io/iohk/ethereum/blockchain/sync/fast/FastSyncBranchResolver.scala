@@ -4,18 +4,22 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, ResponseReceived}
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver._
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class FastSyncBranchResolver(
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
     val blockchain: Blockchain,
     val syncConfig: SyncConfig,
+    val appStateStorage: AppStateStorage,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging
@@ -28,42 +32,47 @@ class FastSyncBranchResolver(
 
   override def receive: Receive = { case StartBranchResolver() =>
     getBestPeer match {
-      case Some((peer, _)) => requestBlockHeaders(peer, blockchain.getBestBlockNumber())
-      case None => ???
+      case Some((peer, _)) => requestBlockHeadersGap(peer, blockchain.getBestBlockNumber())
+      case None =>
+        log.info(s"Still waiting for some peer, rescheduling StartBranchResolver")
+        scheduler.scheduleOnce(1.second, self, StartBranchResolver())
     }
   }
 
-  private def waitingForLastBlocks(bestBlockNumber: BigInt): Receive = {
+  private def waitingBlockHeadersGap(bestBlockNumber: BigInt): Receive = {
     case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
       log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
       getLastCorrectBlock(blockHeaders, bestBlockNumber) match {
-        case Some(lastValidBlockHeader) => initiator ! LastValidBlock(lastValidBlockHeader)
+        case Some(lastValidBlockHeader) =>
+          discardLastInvalidBlocks(bestBlockNumber, lastValidBlockHeader)
+          initiator ! BranchResolvedSuccessful()
         case None => requestBlockHeader(peer, SearchState(0, bestBlockNumber))
       }
     case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
   }
 
-  private def searchingLastValidBlock(searchState: SearchState): Receive = {
+  private def binarySearchingLastValidBlock(searchState: SearchState): Receive = {
     case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
       log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
       for {
         parentBlockHeader <- blockHeaders.headOption
         childBlockHeader <- blockchain.getBlockHeaderByNumber(parentBlockHeader.number - 1)
-      } yield validateBlocks(parentBlockHeader, childBlockHeader, searchState, peer)
+      } yield validateBlockHeaders(parentBlockHeader, childBlockHeader, searchState, peer)
 
     case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
   }
 
-  private def validateBlocks(
+  private def validateBlockHeaders(
       parentBlockHeader: BlockHeader,
       childBlockHeader: BlockHeader,
       searchState: SearchState,
       peer: Peer
   ): Unit = {
     if (validateBlockHeaders(parentBlockHeader, childBlockHeader)) {
-      if (childBlockHeader.number == searchState.minBlockNumber)
-        initiator ! LastValidBlock(childBlockHeader.number)
-      else requestBlockHeader(peer, searchState.copy(minBlockNumber = childBlockHeader.number + 1))
+      if (childBlockHeader.number == searchState.minBlockNumber) {
+        discardLastInvalidBlocks(blockchain.getBestBlockNumber(), childBlockHeader.number)
+        initiator ! BranchResolvedSuccessful()
+      } else requestBlockHeader(peer, searchState.copy(minBlockNumber = childBlockHeader.number + 1))
     } else requestBlockHeader(peer, searchState.copy(maxBlockNumber = childBlockHeader.number))
   }
 
@@ -71,16 +80,16 @@ class FastSyncBranchResolver(
     handshakedPeers.toList.sortBy { case (_, peerInfo) => peerInfo.maxBlockNumber }(Ordering[BigInt].reverse).headOption
   }
 
-  private def requestBlockHeaders(peer: Peer, bestBlockNumber: BigInt): Unit = {
+  private def requestBlockHeadersGap(peer: Peer, bestBlockNumber: BigInt): Unit = {
     getBlockHeaders(peer, bestBlockNumber - blockHeadersPerRequest + 1, blockHeadersPerRequest)
-    context become waitingForLastBlocks(bestBlockNumber)
+    context become waitingBlockHeadersGap(bestBlockNumber)
   }
 
   private def requestBlockHeader(peer: Peer, searchState: SearchState): Unit = {
     val blockHeaderNumber: BigInt =
       searchState.minBlockNumber + (searchState.maxBlockNumber - searchState.minBlockNumber) / 2
     getBlockHeaders(peer, blockHeaderNumber + 1, 1)
-    context become searchingLastValidBlock(searchState)
+    context become binarySearchingLastValidBlock(searchState)
   }
 
   private def getBlockHeaders(peer: Peer, blockNumber: BigInt, maxHeaders: BigInt): Unit = {
@@ -119,6 +128,16 @@ class FastSyncBranchResolver(
     }
     self ! StartBranchResolver()
   }
+
+  private def discardLastInvalidBlocks(lastBlock: BigInt, lastValidBlock: BigInt): Unit = {
+    (lastBlock to (lastValidBlock max 1) by -1).foreach { n =>
+      blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
+        blockchain.removeBlock(headerToRemove.hash, withState = false)
+      }
+    }
+    // TODO (maybe ETCM-77): Manage last checkpoint number too
+    appStateStorage.putBestBlockNumber((lastValidBlock - 1) max 0).commit()
+  }
 }
 
 object FastSyncBranchResolver {
@@ -127,16 +146,18 @@ object FastSyncBranchResolver {
       etcPeerManager: ActorRef,
       blockchain: Blockchain,
       syncConfig: SyncConfig,
+      appStateStorage: AppStateStorage,
       scheduler: Scheduler
   ): Props =
-    Props(new FastSyncBranchResolver(peerEventBus, etcPeerManager, blockchain, syncConfig, scheduler))
+    Props(new FastSyncBranchResolver(peerEventBus, etcPeerManager, blockchain, syncConfig, appStateStorage, scheduler))
 
   private val BlockHeadersHandlerName = "block-headers-request-handler"
 
   case class SearchState(minBlockNumber: BigInt, maxBlockNumber: BigInt)
 
-  sealed trait BranchResolver
-  case class StartBranchResolver() extends BranchResolver
+  sealed trait BranchResolverRequest
+  case class StartBranchResolver() extends BranchResolverRequest
 
-  case class LastValidBlock(blockNumber: BigInt)
+  sealed trait BranchResolverResponse
+  case class BranchResolvedSuccessful() extends BranchResolverResponse
 }
