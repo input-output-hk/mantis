@@ -601,7 +601,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       assert(proofOpt.isDefined)
       // then we can recreate MPT and get value using this key
       proofOpt.map{ p =>
-        val ver = verifyProof[Array[Byte],Array[Byte]](trie.getRootHash, keyToFind, p)
+        val ver = verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p)
         assert(ver == Right(()))
       }
     }
