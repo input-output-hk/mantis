@@ -10,13 +10,13 @@ import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatr
 
 object MptProofVerifier {
 
-  def verifyProof[K,V](
-    rootHash: Array[Byte],
-    key: K,
-    proof: Vector[MptNode]
+  def verifyProof[K, V](
+      rootHash: Array[Byte],
+      key: K,
+      proof: Vector[MptNode]
   )(implicit kSer: ByteArrayEncoder[K], vSer: ByteArraySerializable[V]): Either[MptProofError, Unit] = {
     val mptStore = mkStorage(proof)
-    rebuildMpt(rootHash, mptStore)(kSer,vSer)
+    rebuildMpt(rootHash, mptStore)(kSer, vSer)
       .leftMap(_ => UnableRebuildMpt)
       .flatMap { trie =>
         getKey(key, trie)
@@ -34,8 +34,10 @@ object MptProofVerifier {
     mptStore
   }
 
-  private def rebuildMpt[V, K](rootHash: Array[Byte], storage: SerializingMptStorage)(
-    implicit kSer: ByteArrayEncoder[K], vSer: ByteArraySerializable[V]): Either[Throwable, MerklePatriciaTrie[K, V]] =
+  private def rebuildMpt[V, K](rootHash: Array[Byte], storage: SerializingMptStorage)(implicit
+      kSer: ByteArrayEncoder[K],
+      vSer: ByteArraySerializable[V]
+  ): Either[Throwable, MerklePatriciaTrie[K, V]] =
     Either.catchNonFatal {
       MerklePatriciaTrie[K, V](
         rootHash = rootHash,

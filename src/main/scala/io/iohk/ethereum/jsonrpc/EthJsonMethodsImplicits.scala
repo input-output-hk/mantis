@@ -606,11 +606,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     import cats.syntax.traverse._
     import cats.syntax.either._
     input match {
-      case JArray(elems) => elems.traverse { x =>
-        extractQuantity(x)
-          .map(StorageProofKey.apply)
-          .leftMap(_ => InvalidParams(s"Invalid param storage proof key: $x"))
-      }
+      case JArray(elems) =>
+        elems.traverse { x =>
+          extractQuantity(x)
+            .map(StorageProofKey.apply)
+            .leftMap(_ => InvalidParams(s"Invalid param storage proof key: $x"))
+        }
       case _ => Left(InvalidParams())
     }
   }
@@ -635,10 +636,10 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           "codeHash" -> encodeAsHex(t.result.codeHash),
           "nonce" -> encodeAsHex(t.result.nonce),
           "storageHash" -> encodeAsHex(t.result.storageHash),
-          "storageProof" -> JArray(t.result.storageProof.toList.map{ sp =>
+          "storageProof" -> JArray(t.result.storageProof.toList.map { sp =>
             JObject(
               "key" -> encodeAsHex(sp.key.v),
-              "proof" -> JArray(sp.proof.toList.map{ p => encodeAsHex(p) } ),
+              "proof" -> JArray(sp.proof.toList.map { p => encodeAsHex(p) }),
               "value" -> encodeAsHex(sp.value)
             )
           })
