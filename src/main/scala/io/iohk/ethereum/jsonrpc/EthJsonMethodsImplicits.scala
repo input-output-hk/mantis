@@ -628,7 +628,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ => Left(InvalidParams())
         }
 
-      override def encodeJson(t: GetProofResponse): JValue = { // TODO PP simplify
+      override def encodeJson(t: GetProofResponse): JValue = {
         JObject(
           "accountProof" -> JArray(t.result.accountProof.toList.map { ap => encodeAsHex(ap) }),
           "balance" -> encodeAsHex(t.result.balance),
