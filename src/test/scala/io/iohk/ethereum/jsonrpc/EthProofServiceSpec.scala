@@ -37,7 +37,7 @@ class EthProofServiceSpec
     with NormalPatience
     with TypeCheckedTripleEquals {
 
-  "EthGetProof" should "handle getStorageAt request" in new TestSetup {
+  "EthProofService" should "handle getStorageAt request" in new TestSetup {
     // given
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
