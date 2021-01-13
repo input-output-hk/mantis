@@ -580,29 +580,22 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     import MptProofVerifier.verifyProof
 
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      // given
       val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
         .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
-
-      val keyToFind: Array[Byte] = input.headOption
-        .getOrElse(fail("Cant check proof for empty collection"))
-        ._1
 
       val trie = Random.shuffle(input)
         .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
           recTrie.put(key, value)
         }
 
-      // when
-      val proofOpt: Option[Vector[MptNode]] = trie.getProof(keyToFind)
-
-      // then we can get proof if we know key exist
-      assert(proofOpt.isDefined)
-      // then we can recreate MPT and get value using this key
-      proofOpt.map{ p =>
-        val ver = verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p)
-        assert(ver == Right(()))
-      }
+      input.toList.foreach(x => {
+        val keyToFind = x._1
+        val proof = trie.getProof(keyToFind)
+        assert(proof.isDefined)
+        proof.map{ p =>
+          assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == Right(()))
+        }
+      })
     }
   }
 
