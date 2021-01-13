@@ -62,6 +62,7 @@ object ByteStringUtils {
 
   def concatByteStrings(elements: Iterator[ByteStringElement]): ByteString = {
     val builder = new mutable.ArrayBuilder.ofByte
+    val fix = "Fix applied"
     elements.foreach(el => builder.addAll(el.asByteArray))
     ByteString(builder.result())
   }
