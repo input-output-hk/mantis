@@ -320,16 +320,24 @@ class BlockFetcherSpec
 
       handleFirstBlockBatchBodies()
 
+      // second bodies request
+      val secondGetBlockBodiesRequest = GetBlockBodies(secondBlocksBatch.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockBodiesRequest => ()}
+
       // send old checkpoint block
       blockFetcher ! MessageFromPeer(PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)), fakePeer.id)
 
-      // Second bodies request
-      val secondGetBlockBodiesRequest = GetBlockBodies(alternativeSecondBlocksBatch.map(_.hash))
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockBodiesRequest => () }
-
-      // Second bodies response
-      val secondGetBlockBodiesResponse = BlockBodies(alternativeSecondBlocksBatch.map(_.body))
+      // second bodies response
+      val secondGetBlockBodiesResponse = BlockBodies(secondBlocksBatch.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockBodiesResponse))
+
+      // third bodies request after adding checkpoint into the waiting headers queue
+      val thirdGetBlockBodiesRequest = GetBlockBodies(alternativeSecondBlocksBatch.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == thirdGetBlockBodiesRequest => ()}
+
+      // third bodies response
+      val thirdGetBlockBodiesResponse = BlockBodies(alternativeSecondBlocksBatch.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, thirdGetBlockBodiesResponse))
 
       // We need to wait a while in order to allow fetcher to process all the blocks
       system.scheduler.scheduleOnce(Timeouts.shortTimeout) {

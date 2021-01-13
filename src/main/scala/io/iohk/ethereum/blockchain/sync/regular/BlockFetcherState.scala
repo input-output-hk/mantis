@@ -100,8 +100,12 @@ case class BlockFetcherState(
         .withKnownTopAt(block.number)
       Right(newState)
     } else if (isExistInWaitingHeaders(block.header.parentHash)) {
+      // ignore already requested bodies
+      val newFetchingBodiesState =
+        if (fetchingBodiesState == AwaitingBodies) AwaitingBodiesToBeIgnored else fetchingBodiesState
       val newState = copy(
-        waitingHeaders = waitingHeaders.takeWhile(_.number < block.number).enqueue(block.header)
+        waitingHeaders = waitingHeaders.takeWhile(_.number < block.number).enqueue(block.header),
+        fetchingBodiesState = newFetchingBodiesState
       )
         .withKnownTopAt(block.number)
       Right(newState)
