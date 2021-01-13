@@ -557,7 +557,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     import scala.util.Random
     import MptProofVerifier.verifyProof
 
-    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[(Int, Int)])) { keyValueList: Seq[(Int, Int)] =>
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       // given
       val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
         .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
@@ -566,8 +566,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
         .getOrElse(fail("Cant check proof for empty collection"))
         ._1
 
-      val trie = Random
-        .shuffle(input)
+      val trie = Random.shuffle(input)
         .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
           recTrie.put(key, value)
         }
