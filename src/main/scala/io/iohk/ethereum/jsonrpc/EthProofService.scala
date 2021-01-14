@@ -30,7 +30,7 @@ final case class StorageProof(
   * Proof of account consists of:
   * - account object: nonce, balance, storageHash, codeHash
   * - Markle Proof for the account starting with stateRoot from specified block
-  * - Markle Proof for each requested storage entory starting with a storage Hash from the account
+  * - Markle Proof for each requested storage entry starting with a storage Hash from the account
   *
   * @param address the address of the account or contract of the request
   * @param accountProof Markle Proof for the account starting with stateRoot from specified block
