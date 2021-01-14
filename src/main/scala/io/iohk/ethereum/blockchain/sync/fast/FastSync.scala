@@ -211,11 +211,13 @@ class FastSync(
     }
 
     private def handleDownloadedSkeleton(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
+      removeRequestHandler(sender())
+      // TODO: Validate PoW of the headers
       val validatedSkeleton = currentSkeleton.flatMap(_.setSkeletonHeaders(blockHeaders))
       validatedSkeleton match {
         case Some(skeleton) =>
           currentSkeleton = validatedSkeleton
-          syncState = syncState.enqueueBlockHeaders(skeleton.batchStartingHeaders)
+          syncState = syncState.enqueueBlockHeaders(skeleton.batchStartingHeaderNumbers)
         case None if !requestedHeaders.contains(peer) =>
           blockHeadersError(peer)
         case None =>
@@ -230,7 +232,7 @@ class FastSync(
         currentSkeleton.flatMap(_.addBatch(blockHeaders)) match {
           case Some(skeleton) =>
             currentSkeleton = Some(skeleton)
-            skeleton.completeChain.foreach { completeChain =>
+            skeleton.fullChain.foreach { completeChain =>
               handleBlockHeadersChain(peer, completeChain)
               currentSkeleton = None
             }
@@ -834,11 +836,12 @@ class FastSync(
     }
 
     def requestNewSkeleton(peer: Peer): Unit = {
-      val skeleton = new HeaderSkeleton
+      val skeleton =
+        HeaderSkeleton(syncState.bestBlockHeaderNumber + 1, syncState.safeDownloadTarget, blockHeadersPerRequest)
 
       val msg = GetBlockHeaders(
-        Left(skeleton.firstSkeletonNumber),
-        skeleton.blockHeadersPerRequest,
+        Left(skeleton.firstSkeletonHeaderNumber),
+        skeleton.limit,
         skeleton.gapSize,
         reverse = false
       )
