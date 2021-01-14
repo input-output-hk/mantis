@@ -68,7 +68,7 @@ object ByteStringUtils {
       System.arraycopy(el.asByteArray, 0, array, index, el.len)
       index + el.len
     }
-    ByteString(array)
+    ByteString.fromArrayUnsafe(array)
   }
 
 }
