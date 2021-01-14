@@ -7,6 +7,7 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
+import io.iohk.ethereum.blockchain.sync.fast.HeaderSkeleton.{HeaderSkeletonError, InvalidBatchChain, InvalidBatchHash}
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
@@ -125,6 +126,8 @@ class FastSync(
 
     private var masterPeer: Option[Peer] = None
     private var currentSkeleton: Option[HeaderSkeleton] = None
+    private var batchFailuresCount = 0
+    private var blockHeadersQueue: Seq[BigInt] = Nil
 
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
@@ -212,12 +215,12 @@ class FastSync(
 
     private def handleDownloadedSkeleton(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
       removeRequestHandler(sender())
-      // TODO: Validate PoW of the headers
+      // TODO: Validate PoW of blockHeaders
       val validatedSkeleton = currentSkeleton.get.setSkeletonHeaders(blockHeaders)
       validatedSkeleton match {
         case Right(skeleton) =>
           currentSkeleton = Some(skeleton)
-          syncState = syncState.enqueueBlockHeaders(skeleton.batchStartingHeaderNumbers)
+          blockHeadersQueue ++= skeleton.batchStartingHeaderNumbers
         case Left(error) if !requestedHeaders.contains(peer) =>
           log.info(error.msg)
           blockHeadersError(peer)
@@ -229,21 +232,39 @@ class FastSync(
     private def handleDownloadedBatch(peer: Peer, blockHeaders: Seq[BlockHeader], requestedNum: BigInt) = {
       removeRequestHandler(sender())
       requestedHeaders -= peer
-      if (validHeadersChain(blockHeaders, requestedNum)) {
-        currentSkeleton.get.addBatch(blockHeaders) match {
-          case Right(skeleton) =>
-            currentSkeleton = Some(skeleton)
-            skeleton.fullChain.foreach { completeChain =>
-              handleBlockHeadersChain(peer, completeChain)
-              currentSkeleton = None
-            }
-          case Left(error) =>
-            // TODO:  If this keep failing after a couple of retries from different peers, the skeleton must be wrong
-            log.info(error.msg)
-            blockHeadersError(peer)
-        }
-      } else {
-        blockHeadersError(peer)
+      if (validHeadersChain(blockHeaders, requestedNum)) fillSkeletonGap(peer, blockHeaders)
+      else blockHeadersError(peer)
+    }
+
+    private def fillSkeletonGap(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
+      currentSkeleton.get.addBatch(blockHeaders) match {
+        case Right(skeleton) =>
+          currentSkeleton = Some(skeleton)
+          handleChainIfComplete(skeleton, peer)
+        case Left(error) =>
+          handleDownloadedBatchError(error, peer)
+      }
+    }
+
+    private def handleChainIfComplete(skeleton: HeaderSkeleton, peer: Peer) = {
+      skeleton.fullChain.foreach { completeChain =>
+        handleBlockHeadersChain(peer, completeChain)
+        currentSkeleton = None
+      }
+    }
+
+    private def handleDownloadedBatchError(error: HeaderSkeletonError, peer: Peer) = {
+      error match {
+        case _: InvalidBatchChain | _: InvalidBatchHash => // These are the reasons that make the master peer suspicious
+          batchFailuresCount += 1
+          if (batchFailuresCount > fastSyncMaxBatchRetries) {
+            log.info(s"Max skeleton batch failures reached. Master peer must be wrong.")
+            // TODO: Send message to branch resolver and wait for a resolution
+            batchFailuresCount = 0
+          }
+        case _ =>
+          log.info(error.msg)
+          blockHeadersError(peer)
       }
     }
 
@@ -505,8 +526,6 @@ class FastSync(
     def validHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt): Boolean = {
       headers.nonEmpty &&
       headers.size <= requestedNum &&
-      // TODO: This is true only for the first batch
-      // headers.head.number == syncState.bestBlockHeaderNumber + 1 &&
       checkHeadersChain(headers)
     }
 
@@ -762,7 +781,7 @@ class FastSync(
         requestReceipts(peer)
       } else if (syncState.blockBodiesQueue.nonEmpty) {
         requestBlockBodies(peer)
-      } else if (syncState.blockHeadersQueue.nonEmpty) {
+      } else if (blockHeadersQueue.nonEmpty) {
         requestBlockHeaders(peer)
       } else if (shouldRequestNewSkeleton(peerInfo)) {
         requestNewSkeleton(peer)
@@ -818,7 +837,7 @@ class FastSync(
     }
 
     def requestBlockHeaders(peer: Peer): Unit = {
-      val (start, remaining) = (syncState.blockHeadersQueue.head, syncState.blockHeadersQueue.tail)
+      val (start, remaining) = (blockHeadersQueue.head, blockHeadersQueue.tail)
       val limit = currentSkeleton.get.batchSize
 
       val handler = context.actorOf(
@@ -835,7 +854,7 @@ class FastSync(
       context watch handler
       assignedHandlers += (handler -> peer)
       requestedHeaders += (peer -> limit)
-      syncState = syncState.copy(blockHeadersQueue = remaining)
+      blockHeadersQueue = remaining
       peerRequestsTime += (peer -> Instant.now())
     }
 
@@ -941,7 +960,6 @@ object FastSync {
       pivotBlock: BlockHeader,
       lastFullBlockNumber: BigInt = 0,
       safeDownloadTarget: BigInt = 0,
-      blockHeadersQueue: Seq[BigInt] = Nil,
       blockBodiesQueue: Seq[ByteString] = Nil,
       receiptsQueue: Seq[ByteString] = Nil,
       downloadedNodesCount: Long = 0,
@@ -952,9 +970,6 @@ object FastSync {
       updatingPivotBlock: Boolean = false,
       stateSyncFinished: Boolean = false
   ) {
-
-    def enqueueBlockHeaders(blockHeaders: Seq[BigInt]): SyncState =
-      copy(blockHeadersQueue = blockHeadersQueue ++ blockHeaders)
 
     def enqueueBlockBodies(blockBodies: Seq[ByteString]): SyncState =
       copy(blockBodiesQueue = blockBodiesQueue ++ blockBodies)

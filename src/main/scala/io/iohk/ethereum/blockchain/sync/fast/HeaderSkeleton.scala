@@ -15,7 +15,7 @@ import io.iohk.ethereum.domain.BlockHeader
   * requested.
   *
   * Example:
-  * Given from = 0, to = 10, maxSkeletonHeaders = 4
+  * Given from = 0, to = 10, maxSkeletonHeaders = 3
   * Then:
   * - firstSkeletonHeaderNumber = 3
   * - gapSize = 2
@@ -23,11 +23,11 @@ import io.iohk.ethereum.domain.BlockHeader
   * - skeletonHeaderNumbers = Seq(3, 6, 9)
   * - batchStartingHeaderNumbers = Seq(0, 4, 7)
   *
-  *                gap                           batch                     batch
-  *           /----------\               /-------------------\      /------------------\
-  *   0        1        2        3        4        5        6        7       8        9           10
-  *   |                          |                          |                         |           |
-  * from               1stSkeletonHeader          2ndSkeletonHeader       lastSkeletonHeader      to
+  *         batch                    gap                          batch
+  *  /-------------------\      /-----------\              /------------------\
+  *   0        1        2        3        4        5        6        7       8        9         10
+  *   |                 |                          |                         |                  |
+  * from          1stSkeletonHeader          2ndSkeletonHeader       lastSkeletonHeader         to
   *
   * @param from Lower bound for this skeleton, inclusive
   * @param to Upper bound for this skeleton, inclusive
@@ -46,12 +46,12 @@ case class HeaderSkeleton(
   /**
     * Not to be confused with `from`. This is the number of the first header in the skeleton.
     */
-  lazy val firstSkeletonHeaderNumber: BigInt = from + batchSize
+  lazy val firstSkeletonHeaderNumber: BigInt = from + gapSize
 
   /**
     * Number of blocks in between each skeleton header
     */
-  lazy val gapSize: BigInt = remainingBlocks.min(maxSkeletonHeaders) - 2
+  lazy val gapSize: BigInt = batchSize - 1
 
 
   private lazy val remainingBlocks: BigInt = to - from
@@ -64,7 +64,7 @@ case class HeaderSkeleton(
     remainingSkeletonHeaders.min(maxSkeletonHeaders)
   }
 
-  private lazy val lastSkeletonHeaderNumber: BigInt = from + batchSize * (limit - 1)
+  private lazy val lastSkeletonHeaderNumber: BigInt = from + (batchSize * limit) - 1
   private lazy val skeletonHeaderNumbers: Seq[BigInt] =
     firstSkeletonHeaderNumber to lastSkeletonHeaderNumber by batchSize
 
@@ -98,7 +98,7 @@ case class HeaderSkeleton(
   /**
     * Number of batched headers to request to a peer
     */
-  lazy val batchSize: BigInt = gapSize + 1
+  lazy val batchSize: BigInt = remainingBlocks.min(maxSkeletonHeaders)
 
   /**
     * Use this method to update this state with a downloaded batch of headers
@@ -115,11 +115,19 @@ case class HeaderSkeleton(
   private def findSkeletonHeader(batchHeaders: Seq[BlockHeader]): Either[HeaderBatchError, BlockHeader] = {
     batchHeaders.lastOption match {
       case Some(header) =>
-        val maybeSkeleton = skeletonHeaders.find(s => s.number == header.number && s.hash == header.hash)
-        maybeSkeleton.toRight(InvalidBatchLastNumber(header.number, skeletonHeaderNumbers))
+        for {
+          byNumber <- findSkeletonHeaderByNumber(header)
+          byHash <- Either.cond(byNumber.hash == header.hash, byNumber, InvalidBatchHash(header, byNumber))
+        } yield byHash
       case None =>
         Left(EmptyDownloadedBatch(skeletonHeaderNumbers))
     }
+  }
+
+  private def findSkeletonHeaderByNumber(header: BlockHeader): Either[InvalidBatchLastNumber, BlockHeader] = {
+    skeletonHeaders
+      .find(_.number == header.number)
+      .toRight(InvalidBatchLastNumber(header.number, skeletonHeaderNumbers))
   }
 
   private def checkSkeletonParentHash(
@@ -150,7 +158,7 @@ case class HeaderSkeleton(
   lazy val fullChain: Option[Seq[BlockHeader]] =
     if (isFull) Some(batchStartingHeaderNumbers.flatMap(batches.apply))
     else None
-  private lazy val isFull: Boolean = batchStartingHeaderNumbers.forall(batches.contains)
+  private lazy val isFull: Boolean = batchSize == 1 || batchStartingHeaderNumbers.forall(batches.contains)
 }
 
 object HeaderSkeleton {
@@ -168,6 +176,9 @@ object HeaderSkeleton {
   sealed trait HeaderBatchError extends HeaderSkeletonError
   case class InvalidBatchLastNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Invalid batch last number. $downloaded wasn't found in $expected"
+  }
+  case class InvalidBatchHash(downloaded: BlockHeader, expected: BlockHeader) extends HeaderBatchError {
+    override def msg: String = s"Invalid batch last block hash. Expected $expected but was $downloaded"
   }
   case class EmptyDownloadedBatch(expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Downloaded empty headers batch. Expected $expected"
