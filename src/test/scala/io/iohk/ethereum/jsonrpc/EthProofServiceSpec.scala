@@ -19,7 +19,7 @@ import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.OptionValues
+import org.scalatest.{OneInstancePerTest, OptionValues}
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -35,7 +35,7 @@ class EthProofServiceSpec
     with OptionValues
     with MockFactory
     with NormalPatience
-    with TypeCheckedTripleEquals {
+    with TypeCheckedTripleEquals with OneInstancePerTest{
 
   "EthProofService" should "handle getStorageAt request" in new TestSetup {
     // given

@@ -62,6 +62,7 @@ case object KeyNotFoundInRebuidMpt extends MptProofError
   */
 class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean) {
 
+  import BlockResolver._
   /**
     * Get account and storage values for account including Merkle Proof.
     *
@@ -76,7 +77,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
       blockNumber: BlockParam
   ): Task[Either[JsonRpcError, ProofAccount]] = Task {
     for {
-      blockNumber <- resolveBlock(blockNumber).map(_.block.number)
+      blockNumber <- resolveBlock(blockNumber, blockchain, blockGenerator).map(_.block.number)
       account <- Either.fromOption(
         blockchain.getAccount(address, blockNumber),
         noAccount(address, blockNumber)
@@ -136,23 +137,23 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
   private def asRlpSerializedNode(node: MptNode): ByteString =
     ByteString(MptTraversals.encodeNode(node))
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain
-        .getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
-    }
-
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Pending =>
-        blockGenerator.getPendingBlockAndState
-          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
-          .map(Right.apply)
-          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
-    }
-  }
+//  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
+//    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+//      blockchain
+//        .getBlockByNumber(number)
+//        .map(Right.apply)
+//        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
+//    }
+//
+//    blockParam match {
+//      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+//      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+//      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+//      case BlockParam.Pending =>
+//        blockGenerator.getPendingBlockAndState
+//          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
+//          .map(Right.apply)
+//          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
+//    }
+//  }
 }

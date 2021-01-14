@@ -25,15 +25,12 @@ import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{
-  GetPendingTransactions,
-  PendingTransaction,
-  PendingTransactionsResponse
-}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.{GetPendingTransactions, PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
+import org.scalamock.handlers.CallHandler0
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
@@ -557,7 +554,8 @@ class EthServiceSpec
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
     lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
 
-    (() => ledger.consensus).expects().returns(cons).anyNumberOfTimes()
+//    (() => ledger.consensus).expects().returns(consensus)
+    (() => ledger.consensus).expects().returns(cons)
 
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -698,6 +696,7 @@ class EthServiceSpec
   }
 
   it should "handle getCode request" in new TestSetup {
+
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
     storagesInstance.storages.evmCodeStorage.put(ByteString("code hash"), ByteString("code code code")).commit()
 
@@ -1129,7 +1128,7 @@ class EthServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+  class TestSetup(implicit system: ActorSystem, f: (Option[CallHandler0[Consensus]]) => CallHandler0[Consensus]) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -1137,6 +1136,7 @@ class EthServiceSpec
     override lazy val stxLedger = mock[StxLedger]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    (() => ledger.consensus).expects().returns(consensus)
 
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
