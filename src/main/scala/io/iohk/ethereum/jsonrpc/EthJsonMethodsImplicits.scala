@@ -616,7 +616,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     }
   }
 
-  implicit val eth_getProof =
+  implicit val eth_getProof: JsonMethodDecoder[GetProofRequest] with JsonEncoder[GetProofResponse] =
     new JsonMethodDecoder[GetProofRequest] with JsonEncoder[GetProofResponse] {
       override def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetProofRequest] =
         params match {
