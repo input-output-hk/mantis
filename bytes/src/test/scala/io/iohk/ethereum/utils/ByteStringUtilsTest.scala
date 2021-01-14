@@ -48,9 +48,9 @@ class ByteStringUtilsTest extends AnyWordSpec with Matchers {
       val bsu = string2hash("0000FFFF")
       val seq = ArraySeq.unsafeWrapArray(bsu.toArray)
       bsu.padToByteString(3, 0) shouldEqual bsu // result is ByteString
-      bsu.padTo(3,0) shouldEqual seq            // result is Seq
+      bsu.padTo(3, 0) shouldEqual seq // result is Seq
 
-      val longSeq = ArraySeq[Byte](0, 0, -1, -1, 1 ,1)
+      val longSeq = ArraySeq[Byte](0, 0, -1, -1, 1, 1)
       val longBsu = string2hash("0000FFFF0101")
       bsu.padToByteString(6, 1) shouldEqual longBsu
       bsu.padTo(6, 1) shouldEqual longSeq
@@ -58,4 +58,3 @@ class ByteStringUtilsTest extends AnyWordSpec with Matchers {
 
   }
 }
-

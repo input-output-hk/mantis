@@ -5,6 +5,7 @@ import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInf
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
+import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.NetService._
@@ -32,6 +33,7 @@ class JsonRpcController(
     ethMiningService: EthMiningService,
     ethBlocksService: EthBlocksService,
     ethTxService: EthTxService,
+    ethUserService: EthUserService,
     personalService: PersonalService,
     testServiceOpt: Option[TestService],
     debugService: DebugService,
@@ -49,6 +51,7 @@ class JsonRpcController(
   import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
   import EthTxJsonMethodsImplicits._
+  import EthUserJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import QAJsonMethodsImplicits._
@@ -152,7 +155,7 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_estimateGas", _, _) =>
       handle[CallRequest, EstimateGasResponse](ethService.estimateGas, req)(eth_estimateGas, eth_estimateGas)
     case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
-      handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
+      handle[GetCodeRequest, GetCodeResponse](ethUserService.getCode, req)
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
       handle[GetUncleCountByBlockNumberRequest, GetUncleCountByBlockNumberResponse](
         ethBlocksService.getUncleCountByBlockNumber,
@@ -169,11 +172,11 @@ class JsonRpcController(
         req
       )
     case req @ JsonRpcRequest(_, "eth_getBalance", _, _) =>
-      handle[GetBalanceRequest, GetBalanceResponse](ethService.getBalance, req)
+      handle[GetBalanceRequest, GetBalanceResponse](ethUserService.getBalance, req)
     case req @ JsonRpcRequest(_, "eth_getStorageAt", _, _) =>
-      handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
+      handle[GetStorageAtRequest, GetStorageAtResponse](ethUserService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
-      handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+      handle[GetTransactionCountRequest, GetTransactionCountResponse](ethUserService.getTransactionCount, req)
     case req @ JsonRpcRequest(_, "eth_newFilter", _, _) =>
       handle[NewFilterRequest, NewFilterResponse](ethService.newFilter, req)
     case req @ JsonRpcRequest(_, "eth_newBlockFilter", _, _) =>
@@ -197,7 +200,7 @@ class JsonRpcController(
       // to be unlocked before calling
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
     case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
-      handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
+      handle[GetStorageRootRequest, GetStorageRootResponse](ethUserService.getStorageRoot, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByHash", _, _) =>
       handle[GetTransactionByHashRequest, RawTransactionResponse](ethTxService.getRawTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>

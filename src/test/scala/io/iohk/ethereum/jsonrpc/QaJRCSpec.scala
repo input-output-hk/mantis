@@ -247,6 +247,7 @@ class QaJRCSpec
     val ethMiningService = mock[EthMiningService]
     val ethBlocksService = mock[EthBlocksService]
     val ethTxService = mock[EthTxService]
+    val ethUserService = mock[EthUserService]
     val checkpointingService = mock[CheckpointingService]
     val mantisService = mock[MantisService]
     val qaService = mock[QAService]
@@ -259,6 +260,7 @@ class QaJRCSpec
         ethMiningService,
         ethBlocksService,
         ethTxService,
+        ethUserService,
         personalService,
         None,
         debugService,

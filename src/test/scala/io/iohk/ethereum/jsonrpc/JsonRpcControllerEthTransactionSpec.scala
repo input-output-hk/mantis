@@ -8,6 +8,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
+import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
@@ -320,10 +321,10 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionCount" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthUserService = mock[EthUserService]
+    override val jsonRpcController = newJsonRpcController(mockEthUserService)
 
-    (mockEthService.getTransactionCount _)
+    (mockEthUserService.getTransactionCount _)
       .expects(*)
       .returning(Task.now(Right(GetTransactionCountResponse(123))))
 

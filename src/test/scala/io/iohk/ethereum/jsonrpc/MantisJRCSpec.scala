@@ -24,6 +24,7 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
     val ethMiningService = mock[EthMiningService]
     val ethBlocksService = mock[EthBlocksService]
     val ethTxService = mock[EthTxService]
+    val ethUserService = mock[EthUserService]
     val qaService = mock[QAService]
     val checkpointingService = mock[CheckpointingService]
     val mantisService = mock[MantisService]
@@ -36,6 +37,7 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
         ethMiningService,
         ethBlocksService,
         ethTxService,
+        ethUserService,
         personalService,
         None,
         debugService,

@@ -118,6 +118,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethMiningService,
       ethBlocksService,
       ethTxService,
+      ethUserService,
       personalService,
       None,
       debugService,
@@ -126,6 +127,11 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       mantisService,
       config
     )
+  val ethUserService = new EthUserService(
+    blockchain,
+    ledger,
+    blockchainConfig
+  )
 
   protected def newJsonRpcController(ethService: EthService, proofService: ProofService = ProofServiceDummy) =
     new JsonRpcController(
@@ -135,6 +141,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethMiningService,
       ethBlocksService,
       ethTxService,
+      ethUserService,
       personalService,
       None,
       debugService,
@@ -152,6 +159,25 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethMiningService,
       ethBlocksService,
       ethTxService,
+      ethUserService,
+      personalService,
+      None,
+      debugService,
+      qaService,
+      checkpointingService,
+      mantisService,
+      config
+    )
+
+  protected def newJsonRpcController(ethUserService: EthUserService) =
+    new JsonRpcController(
+      web3Service,
+      netService,
+      ethService,
+      ethMiningService,
+      ethBlocksService,
+      ethTxService,
+      ethUserService,
       personalService,
       None,
       debugService,
