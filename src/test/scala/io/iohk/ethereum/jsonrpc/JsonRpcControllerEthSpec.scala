@@ -834,7 +834,7 @@ class JsonRpcControllerEthSpec
             "proof" -> JArray(
               List(
                 JString("0xdead"),
-                JString("0xbeef"),
+                JString("0xbeef")
               )
             ),
             "value" -> JString("0x7d0")
