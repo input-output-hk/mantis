@@ -140,8 +140,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
       blockchain
         .getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
+        .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
     }
 
     blockParam match {
