@@ -67,16 +67,16 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     *
     * @param address address of the account
     * @param storageKeys storage keys which should be proofed and included
-    * @param blockNumber block number or string "latest", "earliest"
+    * @param block block number or string "latest", "earliest"
     * @return
     */
   def run(
       address: Address,
       storageKeys: Seq[StorageProofKey],
-      blockNumber: BlockParam
+      block: BlockParam
   ): Task[Either[JsonRpcError, ProofAccount]] = Task {
     for {
-      blockNumber <- resolveBlock(blockNumber).map(_.block.number)
+      blockNumber <- resolveBlock(block).map(_.block.number)
       account <- Either.fromOption(
         blockchain.getAccount(address, blockNumber),
         noAccount(address, blockNumber)
