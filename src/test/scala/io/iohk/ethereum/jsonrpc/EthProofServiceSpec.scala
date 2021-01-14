@@ -110,7 +110,9 @@ class EthProofServiceSpec
 
     givenResult.storageProof.map(_.key) shouldBe storageKeys
     givenResult.storageProof.map(_.value.toString) shouldBe storageValues.map(_.mkString)
-    // ethGetProof.verifyProof(account.storageRoot, address, ???)
+    givenResult.storageProof.map(_.proof).foreach{ p =>
+      p should not be (empty)
+    }
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
