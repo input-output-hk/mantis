@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
+import com.softwaremill.diffx.scalatest.DiffMatcher
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
@@ -35,7 +36,8 @@ class EthProofServiceSpec
     with OptionValues
     with MockFactory
     with NormalPatience
-    with TypeCheckedTripleEquals {
+    with TypeCheckedTripleEquals
+    with DiffMatcher {
 
   "EthProofService" should "handle getStorageAt request" in new TestSetup {
     // given
@@ -100,7 +102,7 @@ class EthProofServiceSpec
 
     val givenResult = result.runSyncUnsafe().getOrElse(fail())
 
-    givenResult.address shouldBe address
+    givenResult.address should matchTo(address)
     givenResult.codeHash shouldBe account.codeHash
     givenResult.storageHash shouldBe account.storageRoot
 
@@ -110,8 +112,8 @@ class EthProofServiceSpec
 
     givenResult.storageProof.map(_.key) shouldBe storageKeys
     givenResult.storageProof.map(_.value.toString) shouldBe storageValues.map(_.mkString)
-    givenResult.storageProof.map(_.proof).foreach{ p =>
-      p should not be (empty)
+    givenResult.storageProof.map(_.proof).foreach { p =>
+      p should not be empty
     }
   }
 
