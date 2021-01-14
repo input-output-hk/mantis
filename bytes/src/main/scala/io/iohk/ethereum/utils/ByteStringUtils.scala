@@ -61,9 +61,14 @@ object ByteStringUtils {
   }
 
   def concatByteStrings(elements: Iterator[ByteStringElement]): ByteString = {
-    val builder = new mutable.ArrayBuilder.ofByte
-    elements.foreach(el => builder.addAll(el.asByteArray))
-    ByteString(builder.result())
+    val elementList: List[ByteStringElement] = elements.toList
+    val len = elementList.foldLeft(0)(_ + _.len)
+    val array = Array.ofDim[Byte](len)
+    elementList.foldLeft(0) { (index, el) =>
+      System.arraycopy(el.asByteArray, 0, array, index, el.len)
+      index + el.len
+    }
+    ByteString(array)
   }
 
 }
