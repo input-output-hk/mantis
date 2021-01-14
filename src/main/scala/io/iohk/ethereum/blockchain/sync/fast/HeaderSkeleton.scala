@@ -17,11 +17,11 @@ import io.iohk.ethereum.domain.BlockHeader
   * Example:
   * Given from = 0, to = 10, maxSkeletonHeaders = 3
   * Then:
-  * - firstSkeletonHeaderNumber = 3
+  * - firstSkeletonHeaderNumber = 2
   * - gapSize = 2
   * - batchSize = 3
-  * - skeletonHeaderNumbers = Seq(3, 6, 9)
-  * - batchStartingHeaderNumbers = Seq(0, 4, 7)
+  * - skeletonHeaderNumbers = Seq(2, 5, 8)
+  * - batchStartingHeaderNumbers = Seq(0, 3, 6)
   *
   *         batch                    gap                          batch
   *  /-------------------\      /-----------\              /------------------\
