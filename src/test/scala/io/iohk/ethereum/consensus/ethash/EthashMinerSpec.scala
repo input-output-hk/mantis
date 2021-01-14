@@ -8,8 +8,8 @@ import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService
-import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateResponse
+import io.iohk.ethereum.jsonrpc.{EthService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import monix.eval.Task
@@ -36,7 +36,7 @@ class EthashMinerSpec
     val bfm = blockForMining(parent.header)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
-    (ethService.submitHashRate _)
+    (miningService.submitHashRate _)
       .expects(*)
       .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
@@ -84,6 +84,7 @@ class EthashMinerSpec
     val pendingTransactionsManager = TestProbe()
 
     val ethService = mock[EthService]
+    val miningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     override val blockCreator = new EthashBlockCreator(
@@ -93,7 +94,7 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService))
+    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, miningService))
 
   }
 }

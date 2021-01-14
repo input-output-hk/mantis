@@ -10,13 +10,14 @@ import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.jsonrpc.EthService
-import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
+import io.iohk.ethereum.jsonrpc.{EthService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 
@@ -28,7 +29,8 @@ class EthashMiner(
     blockchain: Blockchain,
     blockCreator: EthashBlockCreator,
     syncController: ActorRef,
-    ethService: EthService
+    ethService: EthService,
+    miningService: EthMiningService
 ) extends Actor
     with ActorLogging {
 
@@ -70,7 +72,7 @@ class EthashMiner(
         val time = System.nanoTime() - startTime
         //FIXME: consider not reporting hash rate when time delta is zero
         val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
-        ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
+        miningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
             log.info(
@@ -199,10 +201,11 @@ object EthashMiner {
       blockchain: Blockchain,
       blockCreator: EthashBlockCreator,
       syncController: ActorRef,
-      ethService: EthService
+      ethService: EthService,
+      miningService: EthMiningService
   ): Props =
     Props(
-      new EthashMiner(blockchain, blockCreator, syncController, ethService)
+      new EthashMiner(blockchain, blockCreator, syncController, ethService, miningService)
     ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef = {
@@ -218,7 +221,8 @@ object EthashMiner {
           blockchain = node.blockchain,
           blockCreator = blockCreator,
           syncController = node.syncController,
-          ethService = node.ethService
+          ethService = node.ethService,
+          miningService = node.miningService
         )
         node.system.actorOf(minerProps)
       case consensus =>

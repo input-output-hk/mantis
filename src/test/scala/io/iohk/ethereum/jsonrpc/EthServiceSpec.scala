@@ -536,75 +536,6 @@ class EthServiceSpec
     response shouldEqual Right(SyncingResponse(None))
   }
 
-  it should "return requested work" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, Nil, *, *, *)
-      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
-
-    val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-
-    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
-    ommersPool.reply(OmmersPool.Ommers(Nil))
-
-    response shouldEqual Right(GetWorkResponse(powHash, seedHash, target))
-  }
-
-  it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
-
-    (() => ledger.consensus).expects().returns(cons).anyNumberOfTimes()
-
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
-
-    val response = ethService.getWork(GetWorkRequest()).runSyncUnsafe()
-    pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
-    pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
-
-    ommersPool.expectMsg(OmmersPool.GetOmmers(parentBlock.hash))
-    ommersPool.reply(OmmersPool.Ommers(Nil))
-
-    assert(response.isRight)
-    val responseData = response.toOption.get
-
-    val submitRequest =
-      SubmitWorkRequest(ByteString("nonce"), responseData.powHeaderHash, ByteString(Hex.decode("01" * 32)))
-    val response1 = ethService.submitWork(submitRequest).runSyncUnsafe()
-    response1 shouldEqual Right(SubmitWorkResponse(true))
-  }
-
-  it should "accept submitted correct PoW" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
-
-    val headerHash = ByteString(Hex.decode("01" * 32))
-
-    (blockGenerator.getPrepared _).expects(headerHash).returning(Some(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
-
-    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
-
-    val response = ethService.submitWork(req)
-    response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(true))
-  }
-
-  it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
-
-    val headerHash = ByteString(Hex.decode("01" * 32))
-
-    (blockGenerator.getPrepared _).expects(headerHash).returning(None)
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
-
-    val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
-
-    val response = ethService.submitWork(req)
-    response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(false))
-  }
-
   it should "execute call and return a value" in new TestSetup {
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
@@ -718,113 +649,6 @@ class EthServiceSpec
     val response = ethService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
     response.runSyncUnsafe() shouldEqual Right(GetCodeResponse(ByteString("code code code")))
-  }
-
-  it should "accept and report hashrate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    val rate: BigInt = 42
-    val id = ByteString("id")
-
-    ethService.submitHashRate(SubmitHashRateRequest(12, id)).runSyncUnsafe() shouldEqual Right(
-      SubmitHashRateResponse(true)
-    )
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id)).runSyncUnsafe() shouldEqual Right(
-      SubmitHashRateResponse(true)
-    )
-
-    val response = ethService.getHashRate(GetHashRateRequest())
-    response.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
-  }
-
-  it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    val rate: BigInt = 42
-    val id1 = ByteString("id1")
-    val id2 = ByteString("id2")
-
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id1)).runSyncUnsafe() shouldEqual Right(
-      SubmitHashRateResponse(true)
-    )
-    Thread.sleep(minerActiveTimeout.toMillis / 2)
-    ethService.submitHashRate(SubmitHashRateRequest(rate, id2)).runSyncUnsafe() shouldEqual Right(
-      SubmitHashRateResponse(true)
-    )
-
-    val response1 = ethService.getHashRate(GetHashRateRequest())
-    response1.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate * 2))
-
-    Thread.sleep(minerActiveTimeout.toMillis / 2)
-    val response2 = ethService.getHashRate(GetHashRateRequest())
-    response2.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
-  }
-
-  it should "return if node is mining base on getWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
-
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *, *)
-      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
-    ethService.getWork(GetWorkRequest())
-
-    val response = ethService.getMining(GetMiningRequest())
-
-    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
-  }
-
-  it should "return if node is mining base on submitWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
-
-    (blockGenerator.getPrepared _).expects(*).returning(Some(PendingBlock(block, Nil)))
-    (appStateStorage.getBestBlockNumber _).expects().returning(0)
-    ethService.submitWork(
-      SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32)))
-    )
-
-    val response = ethService.getMining(GetMiningRequest())
-
-    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
-  }
-
-  it should "return if node is mining base on submitHashRate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    ethService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
-
-    ethService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
-
-    val response = ethService.getMining(GetMiningRequest())
-
-    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
-  }
-
-  it should "return if node is mining after time out" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *, *)
-      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
-    ethService.getWork(GetWorkRequest())
-
-    Thread.sleep(minerActiveTimeout.toMillis)
-
-    val response = ethService.getMining(GetMiningRequest())
-
-    response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
-  }
-
-  it should "return correct coinbase" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
-
-    val response = ethService.getCoinbase(GetCoinbaseRequest())
-    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "return 0 gas price if there are no transactions" in new TestSetup {
@@ -1140,7 +964,6 @@ class EthServiceSpec
 
     val syncingController = TestProbe()
     val pendingTransactionsManager = TestProbe()
-    val ommersPool = TestProbe()
     val filterManager = TestProbe()
 
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
@@ -1172,8 +995,6 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
-
     lazy val ethService = new EthService(
       blockchain,
       ledger,
@@ -1181,12 +1002,10 @@ class EthServiceSpec
       keyStore,
       pendingTransactionsManager.ref,
       syncingController.ref,
-      ommersPool.ref,
       filterManager.ref,
       filterConfig,
       blockchainConfig,
       currentProtocolVersion,
-      jsonRpcConfig,
       getTransactionFromPoolTimeout,
       Timeouts.shortTimeout
     )

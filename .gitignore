@@ -6,6 +6,7 @@ project/plugins/project/
 .ensime_cache/
 .bloop
 out/
+.bsp/
 
 # IDE folders
 .idea/

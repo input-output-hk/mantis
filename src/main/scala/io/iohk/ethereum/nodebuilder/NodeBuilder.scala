@@ -378,13 +378,11 @@ trait EthServiceBuilder {
     with LedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
-    with OmmersPoolBuilder
     with ConsensusBuilder
     with ConsensusConfigBuilder
     with FilterManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with JSONRpcConfigBuilder
     with AsyncConfigBuilder =>
 
   lazy val ethService = new EthService(
@@ -394,14 +392,32 @@ trait EthServiceBuilder {
     keyStore,
     pendingTransactionsManager,
     syncController,
-    ommersPool,
     filterManager,
     filterConfig,
     blockchainConfig,
     Config.Network.protocolVersion,
-    jsonRpcConfig,
     txPoolConfig.getTransactionFromPoolTimeout,
     asyncConfig.askTimeout
+  )
+}
+
+trait MiningServiceBuilder {
+  self: BlockchainBuilder
+    with LedgerBuilder
+    with JSONRpcConfigBuilder
+    with OmmersPoolBuilder
+    with SyncControllerBuilder
+    with PendingTransactionsManagerBuilder
+    with TxPoolConfigBuilder =>
+
+  lazy val miningService = new EthMiningService(
+    blockchain,
+    ledger,
+    jsonRpcConfig,
+    ommersPool,
+    syncController,
+    pendingTransactionsManager,
+    txPoolConfig.getTransactionFromPoolTimeout
   )
 }
 
@@ -486,6 +502,7 @@ trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder
     with EthServiceBuilder
     with EthProofServiceBuilder
+    with MiningServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder
@@ -510,6 +527,7 @@ trait JSONRpcControllerBuilder {
       checkpointingService,
       mantisService,
       ethProofService,
+      miningService,
       jsonRpcConfig
     )
 }
@@ -680,6 +698,7 @@ trait Node
     with Web3ServiceBuilder
     with EthServiceBuilder
     with EthProofServiceBuilder
+    with MiningServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder
