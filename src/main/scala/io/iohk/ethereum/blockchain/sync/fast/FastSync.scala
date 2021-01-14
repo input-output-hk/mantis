@@ -237,6 +237,7 @@ class FastSync(
               currentSkeleton = None
             }
           case None =>
+            // TODO:  If this keep failing after a couple of retries from different peers, the skeleton must be wrong
             blockHeadersError(peer)
         }
       } else {
@@ -502,7 +503,8 @@ class FastSync(
     def validHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt): Boolean = {
       headers.nonEmpty &&
       headers.size <= requestedNum &&
-      headers.head.number == syncState.bestBlockHeaderNumber + 1 &&
+      // TODO: This is true only for the first batch
+      // headers.head.number == syncState.bestBlockHeaderNumber + 1 &&
       checkHeadersChain(headers)
     }
 

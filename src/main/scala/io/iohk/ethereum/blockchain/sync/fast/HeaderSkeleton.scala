@@ -72,14 +72,12 @@ case class HeaderSkeleton(
     * @param headers The downloaded skeleton
     * @return An optional value containing the updated structure if the validation succeeded
     */
-  def setSkeletonHeaders(headers: Seq[BlockHeader]): Option[HeaderSkeleton] = {
+  def setSkeletonHeaders(headers: Seq[BlockHeader]): Option[HeaderSkeleton] =
     Option.when(downloadedHeadersAreValid(headers))(copy(skeletonHeaders = headers))
-  }
 
-  private def downloadedHeadersAreValid(headers: Seq[BlockHeader]): Boolean = {
+  private def downloadedHeadersAreValid(headers: Seq[BlockHeader]): Boolean =
     headers.size == skeletonHeaderNumbers.size &&
     headers.zip(skeletonHeaderNumbers).forall { case (header, skeletonNumber) => header.number == skeletonNumber }
-  }
 
   /**
     * An ordered sequence with the numbers of the first block of each batch
@@ -90,22 +88,32 @@ case class HeaderSkeleton(
 
   /**
     * Use this method to update this state with a downloaded batch of headers
-    * @param headers The downloaded batch of headers
+    * @param batchHeaders The downloaded batch of headers
     * @return An optional value containing the updated structure if the validation succeeded
     */
-  def addBatch(headers: Seq[BlockHeader]): Option[HeaderSkeleton] = {
+  def addBatch(batchHeaders: Seq[BlockHeader]): Option[HeaderSkeleton] =
     for {
-      firstHeader <- headers.headOption
-      batchStartingNumber <- batchStartingHeaderNumbers.find(_ == firstHeader.number)
-    } yield copy(batches = batches + (batchStartingNumber -> headers))
-  }
+      lastBatchHeader <- batchHeaders.lastOption
+      _ <- skeletonHeaderNumbers.find(_ == lastBatchHeader.number)
+      prevToLastBatchHeader <- batchHeaders.dropRight(1).lastOption
+      _ <- skeletonHeaders.find(matchesBatch(_, lastBatchHeader, prevToLastBatchHeader))
+      firstBatchHeader <- batchHeaders.headOption
+      batchStartingNumber <- batchStartingHeaderNumbers.find(_ == firstBatchHeader.number)
+    } yield copy(batches = batches + (batchStartingNumber -> batchHeaders))
+
+  private def matchesBatch(
+      skeletonHeader: BlockHeader,
+      lastBatchHeader: BlockHeader,
+      prevToLastBatchHeader: BlockHeader): Boolean =
+    skeletonHeader.number == lastBatchHeader.number &&
+    skeletonHeader.hash == lastBatchHeader.hash &&
+    skeletonHeader.parentHash == prevToLastBatchHeader.hash
 
   /**
     * The complete skeleton plus the filled in batches, or `None` if not everything was downloaded
     */
-  lazy val fullChain: Option[Seq[BlockHeader]] = {
+  lazy val fullChain: Option[Seq[BlockHeader]] =
     if (isFull) Some(batchStartingHeaderNumbers.flatMap(batches.apply))
     else None
-  }
   private lazy val isFull: Boolean = batchStartingHeaderNumbers.forall(batches.contains)
 }
