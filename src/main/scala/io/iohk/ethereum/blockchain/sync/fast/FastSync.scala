@@ -213,15 +213,16 @@ class FastSync(
     private def handleDownloadedSkeleton(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
       removeRequestHandler(sender())
       // TODO: Validate PoW of the headers
-      val validatedSkeleton = currentSkeleton.flatMap(_.setSkeletonHeaders(blockHeaders))
+      val validatedSkeleton = currentSkeleton.get.setSkeletonHeaders(blockHeaders)
       validatedSkeleton match {
-        case Some(skeleton) =>
-          currentSkeleton = validatedSkeleton
+        case Right(skeleton) =>
+          currentSkeleton = Some(skeleton)
           syncState = syncState.enqueueBlockHeaders(skeleton.batchStartingHeaderNumbers)
-        case None if !requestedHeaders.contains(peer) =>
+        case Left(error) if !requestedHeaders.contains(peer) =>
+          log.info(error.msg)
           blockHeadersError(peer)
-        case None =>
-          log.debug("Requested a batch to the master peer")
+        case Left(error) =>
+          log.debug(s"Batch header was requested to master peer - ${error.msg}")
       }
     }
 
@@ -229,15 +230,16 @@ class FastSync(
       removeRequestHandler(sender())
       requestedHeaders -= peer
       if (validHeadersChain(blockHeaders, requestedNum)) {
-        currentSkeleton.flatMap(_.addBatch(blockHeaders)) match {
-          case Some(skeleton) =>
+        currentSkeleton.get.addBatch(blockHeaders) match {
+          case Right(skeleton) =>
             currentSkeleton = Some(skeleton)
             skeleton.fullChain.foreach { completeChain =>
               handleBlockHeadersChain(peer, completeChain)
               currentSkeleton = None
             }
-          case None =>
+          case Left(error) =>
             // TODO:  If this keep failing after a couple of retries from different peers, the skeleton must be wrong
+            log.info(error.msg)
             blockHeadersError(peer)
         }
       } else {
