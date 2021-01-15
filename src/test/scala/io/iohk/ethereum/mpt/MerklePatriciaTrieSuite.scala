@@ -8,6 +8,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
 import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -592,7 +593,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
         val proof = trie.getProof(keyToFind)
         assert(proof.isDefined)
         proof.map{ p =>
-          assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == Right(()))
+          assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == ValidProof)
         }
       })
     }
