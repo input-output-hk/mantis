@@ -631,12 +631,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
       override def encodeJson(t: GetProofResponse): JValue = {
         JObject(
-          "accountProof" -> JArray(t.result.accountProof.toList.map { ap => encodeAsHex(ap) }),
-          "balance" -> encodeAsHex(t.result.balance),
-          "codeHash" -> encodeAsHex(t.result.codeHash),
-          "nonce" -> encodeAsHex(t.result.nonce),
-          "storageHash" -> encodeAsHex(t.result.storageHash),
-          "storageProof" -> JArray(t.result.storageProof.toList.map { sp =>
+          "accountProof" -> JArray(t.proofAccount.accountProof.toList.map { ap => encodeAsHex(ap) }),
+          "balance" -> encodeAsHex(t.proofAccount.balance),
+          "codeHash" -> encodeAsHex(t.proofAccount.codeHash),
+          "nonce" -> encodeAsHex(t.proofAccount.nonce),
+          "storageHash" -> encodeAsHex(t.proofAccount.storageHash),
+          "storageProof" -> JArray(t.proofAccount.storageProof.toList.map { sp =>
             JObject(
               "key" -> encodeAsHex(sp.key.v),
               "proof" -> JArray(sp.proof.toList.map { p => encodeAsHex(p) }),

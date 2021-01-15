@@ -216,7 +216,7 @@ object EthService {
   case class EthPendingTransactionsRequest()
   case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
 
-  case class GetProofResponse(result: ProofAccount)
+  case class GetProofResponse(proofAccount: ProofAccount)
 }
 
 class EthService(
