@@ -7,6 +7,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
 import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
@@ -86,12 +87,11 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "handle eth_getRawTransactionByHash request" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    val mockEthTxService = mock[EthTxService]
+    override val jsonRpcController = newJsonRpcController(mockEthTxService)
 
     val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
-    (mockEthService.getRawTransactionByHash _)
+    (mockEthTxService.getRawTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(RawTransactionResponse(Some(txResponse)))))
 
@@ -300,12 +300,11 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByHash" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    val mockEthTxService = mock[EthTxService]
+    override val jsonRpcController = newJsonRpcController(mockEthTxService)
 
     val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
-    (mockEthService.getTransactionByHash _)
+    (mockEthTxService.getTransactionByHash _)
       .expects(*)
       .returning(Task.now(Right(GetTransactionByHashResponse(Some(txResponse)))))
 
@@ -322,8 +321,7 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getTransactionCount" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    override val jsonRpcController = newJsonRpcController(mockEthService)
 
     (mockEthService.getTransactionCount _)
       .expects(*)
@@ -342,9 +340,8 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getBlockTransactionCountByNumber " in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
     val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    override val jsonRpcController = newJsonRpcController(mockEthBlocksService)
 
     (mockEthBlocksService.getBlockTransactionCountByNumber _)
       .expects(*)
@@ -377,9 +374,8 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionReceipt post byzantium" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    val mockEthTxService = mock[EthTxService]
+    override val jsonRpcController = newJsonRpcController(mockEthTxService)
 
     val arbitraryValue = 42
     val arbitraryValue1 = 1
@@ -417,7 +413,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
 
-    (mockEthService.getTransactionReceipt _).expects(*).returning(Task.now(mockResponse))
+    (mockEthTxService.getTransactionReceipt _).expects(*).returning(Task.now(mockResponse))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionReceipt",
@@ -462,9 +458,8 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionReceipt pre byzantium" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
+    val mockEthTxService = mock[EthTxService]
+    override val jsonRpcController = newJsonRpcController(mockEthTxService)
 
     val arbitraryValue = 42
     val arbitraryValue1 = 1
@@ -502,7 +497,7 @@ class JsonRpcControllerEthTransactionSpec
       )
     )
 
-    (mockEthService.getTransactionReceipt _).expects(*).returning(Task.now(mockResponse))
+    (mockEthTxService.getTransactionReceipt _).expects(*).returning(Task.now(mockResponse))
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionReceipt",
@@ -547,27 +542,11 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   "eth_pendingTransactions" should "request pending transactions and return valid response when mempool is empty" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
-    (mockEthService.ethPendingTransactions _)
+    val mockEthTxService = mock[EthTxService]
+    (mockEthTxService.ethPendingTransactions _)
       .expects(*)
       .returning(Task.now(Right(EthPendingTransactionsResponse(List()))))
-    val jRpcController =
-      new JsonRpcController(
-        web3Service,
-        netService,
-        mockEthService,
-        ethMiningService,
-        ethBlocksService,
-        personalService,
-        None,
-        debugService,
-        qaService,
-        checkpointingService,
-        mantisService,
-        ProofServiceDummy,
-        miningService,
-        config
-      )
+    val jRpcController = newJsonRpcController(mockEthTxService)
 
     val request = JsonRpcRequest(
       "2.0",
@@ -602,27 +581,12 @@ class JsonRpcControllerEthTransactionSpec
       PendingTransaction(fakeTransaction, System.currentTimeMillis)
     })
 
-    val mockEthService = mock[EthService]
-    (mockEthService.ethPendingTransactions _)
+    val mockEthTxService = mock[EthTxService]
+    (mockEthTxService.ethPendingTransactions _)
       .expects(*)
       .returning(Task.now(Right(EthPendingTransactionsResponse(transactions))))
-    val jRpcController =
-      new JsonRpcController(
-        web3Service,
-        netService,
-        mockEthService,
-        ethMiningService,
-        ethBlocksService,
-        personalService,
-        None,
-        debugService,
-        qaService,
-        checkpointingService,
-        mantisService,
-        ProofServiceDummy,
-        miningService,
-        config
-      )
+    val jRpcController = newJsonRpcController(mockEthTxService)
+
     val request = JsonRpcRequest(
       "2.0",
       "eth_pendingTransactions",
