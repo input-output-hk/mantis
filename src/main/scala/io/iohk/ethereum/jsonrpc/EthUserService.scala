@@ -1,13 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import akka.util.ByteString
-import monix.eval.Task
 import io.iohk.ethereum.jsonrpc.EthService.ResolvedBlock
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.utils.BlockchainConfig
+import monix.eval.Task
 
 object EthUserService {
   case class GetStorageAtRequest(address: Address, position: BigInt, block: BlockParam)

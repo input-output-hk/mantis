@@ -110,6 +110,17 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethBlocksService = new EthBlocksService(blockchain, ledger, blockchainConfig)
 
+  val ethUserService = new EthUserService(
+    blockchain,
+    ledger,
+    blockchainConfig
+  )
+
+  val ethFilterService = new EthFilterService(
+    filterManager.ref,
+    filterConfig
+  )
+
   protected def newJsonRpcController(ethBlocksService: EthBlocksService) =
     new JsonRpcController(
       web3Service,
@@ -119,6 +130,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethBlocksService,
       ethTxService,
       ethUserService,
+      ethFilterService,
       personalService,
       None,
       debugService,
@@ -127,11 +139,6 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       mantisService,
       config
     )
-  val ethUserService = new EthUserService(
-    blockchain,
-    ledger,
-    blockchainConfig
-  )
 
   protected def newJsonRpcController(ethService: EthService, proofService: ProofService = ProofServiceDummy) =
     new JsonRpcController(
@@ -142,6 +149,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethBlocksService,
       ethTxService,
       ethUserService,
+      ethFilterService,
       personalService,
       None,
       debugService,
@@ -160,6 +168,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethBlocksService,
       ethTxService,
       ethUserService,
+      ethFilterService,
       personalService,
       None,
       debugService,
@@ -178,6 +187,26 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       ethBlocksService,
       ethTxService,
       ethUserService,
+      ethFilterService,
+      personalService,
+      None,
+      debugService,
+      qaService,
+      checkpointingService,
+      mantisService,
+      config
+    )
+
+  protected def newJsonRpcController(ethFilterService: EthFilterService) =
+    new JsonRpcController(
+      web3Service,
+      netService,
+      ethService,
+      ethMiningService,
+      ethBlocksService,
+      ethTxService,
+      ethUserService,
+      ethFilterService,
       personalService,
       None,
       debugService,

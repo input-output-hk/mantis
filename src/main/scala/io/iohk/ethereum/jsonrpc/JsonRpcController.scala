@@ -6,6 +6,7 @@ import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
+import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.NetService._
@@ -34,6 +35,7 @@ class JsonRpcController(
     ethBlocksService: EthBlocksService,
     ethTxService: EthTxService,
     ethUserService: EthUserService,
+    ethFilterService: EthFilterService,
     personalService: PersonalService,
     testServiceOpt: Option[TestService],
     debugService: DebugService,
@@ -52,6 +54,7 @@ class JsonRpcController(
   import EthJsonMethodsImplicits._
   import EthTxJsonMethodsImplicits._
   import EthUserJsonMethodsImplicits._
+  import EthFilterJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import QAJsonMethodsImplicits._
@@ -178,19 +181,19 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
       handle[GetTransactionCountRequest, GetTransactionCountResponse](ethUserService.getTransactionCount, req)
     case req @ JsonRpcRequest(_, "eth_newFilter", _, _) =>
-      handle[NewFilterRequest, NewFilterResponse](ethService.newFilter, req)
+      handle[NewFilterRequest, NewFilterResponse](ethFilterService.newFilter, req)
     case req @ JsonRpcRequest(_, "eth_newBlockFilter", _, _) =>
-      handle[NewBlockFilterRequest, NewFilterResponse](ethService.newBlockFilter, req)
+      handle[NewBlockFilterRequest, NewFilterResponse](ethFilterService.newBlockFilter, req)
     case req @ JsonRpcRequest(_, "eth_newPendingTransactionFilter", _, _) =>
-      handle[NewPendingTransactionFilterRequest, NewFilterResponse](ethService.newPendingTransactionFilter, req)
+      handle[NewPendingTransactionFilterRequest, NewFilterResponse](ethFilterService.newPendingTransactionFilter, req)
     case req @ JsonRpcRequest(_, "eth_uninstallFilter", _, _) =>
-      handle[UninstallFilterRequest, UninstallFilterResponse](ethService.uninstallFilter, req)
+      handle[UninstallFilterRequest, UninstallFilterResponse](ethFilterService.uninstallFilter, req)
     case req @ JsonRpcRequest(_, "eth_getFilterChanges", _, _) =>
-      handle[GetFilterChangesRequest, GetFilterChangesResponse](ethService.getFilterChanges, req)
+      handle[GetFilterChangesRequest, GetFilterChangesResponse](ethFilterService.getFilterChanges, req)
     case req @ JsonRpcRequest(_, "eth_getFilterLogs", _, _) =>
-      handle[GetFilterLogsRequest, GetFilterLogsResponse](ethService.getFilterLogs, req)
+      handle[GetFilterLogsRequest, GetFilterLogsResponse](ethFilterService.getFilterLogs, req)
     case req @ JsonRpcRequest(_, "eth_getLogs", _, _) =>
-      handle[GetLogsRequest, GetLogsResponse](ethService.getLogs, req)
+      handle[GetLogsRequest, GetLogsResponse](ethFilterService.getLogs, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
       handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethTxService.getTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionReceipt", _, _) =>

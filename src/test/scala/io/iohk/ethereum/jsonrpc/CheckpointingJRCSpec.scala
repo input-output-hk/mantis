@@ -212,6 +212,7 @@ class CheckpointingJRCSpec
     val ethBlocksService = mock[EthBlocksService]
     val ethTxService = mock[EthTxService]
     val ethUserService = mock[EthUserService]
+    val ethFilterService = mock[EthFilterService]
     val qaService = mock[QAService]
     val checkpointingService = mock[CheckpointingService]
     val mantisService = mock[MantisService]
@@ -225,6 +226,7 @@ class CheckpointingJRCSpec
         ethBlocksService,
         ethTxService,
         ethUserService,
+        ethFilterService,
         personalService,
         None,
         debugService,
