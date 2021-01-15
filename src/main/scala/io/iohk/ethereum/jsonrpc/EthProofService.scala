@@ -5,11 +5,18 @@ import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthService._
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
+import io.iohk.ethereum.jsonrpc.ProofService.{
+  GetProofRequest,
+  GetProofResponse,
+  ProofAccount,
+  StorageProof,
+  StorageProofKey
+}
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
 
 object ProofService {
+
   /**
     * Request to eth get proof
     *
@@ -35,9 +42,9 @@ object ProofService {
     * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
     */
   case class StorageProof(
-    key: StorageProofKey,
-    value: BigInt,
-    proof: Seq[ByteString]
+      key: StorageProofKey,
+      value: BigInt,
+      proof: Seq[ByteString]
   )
 
   /**
@@ -57,13 +64,13 @@ object ProofService {
     * @param storageProof current block header PoW hash
     */
   case class ProofAccount(
-    address: Address,
-    accountProof: Seq[ByteString],
-    balance: BigInt,
-    codeHash: ByteString,
-    nonce: UInt256,
-    storageHash: ByteString,
-    storageProof: Seq[StorageProof]
+      address: Address,
+      accountProof: Seq[ByteString],
+      balance: BigInt,
+      codeHash: ByteString,
+      nonce: UInt256,
+      storageHash: ByteString,
+      storageProof: Seq[StorageProof]
   )
 
   sealed trait MptProofError
@@ -88,7 +95,7 @@ trait ProofService {
   * geth: https://github.com/ethereum/go-ethereum/pull/17737
   */
 class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean)
-  extends ProofService {
+    extends ProofService {
 
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
     run(req.address, req.storageKeys, req.blockNumber)
