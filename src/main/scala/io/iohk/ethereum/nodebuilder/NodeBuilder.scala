@@ -361,10 +361,7 @@ trait TestServiceBuilder {
 }
 
 trait EthProofServiceBuilder {
-  self: StorageBuilder
-    with BlockchainBuilder
-    with BlockchainConfigBuilder
-    with ConsensusBuilder =>
+  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
 
   lazy val ethProofService: ProofService = new EthProofService(
     blockchain,
