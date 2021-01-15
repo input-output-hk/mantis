@@ -175,8 +175,8 @@ object FastSyncBranchResolver {
   case class SearchState(minBlockNumber: BigInt, maxBlockNumber: BigInt)
 
   sealed trait BranchResolverRequest
-  object StartBranchResolver extends BranchResolverRequest
+  case object StartBranchResolver extends BranchResolverRequest
 
   sealed trait BranchResolverResponse
-  object BranchResolvedSuccessful extends BranchResolverResponse
+  case object BranchResolvedSuccessful extends BranchResolverResponse
 }
