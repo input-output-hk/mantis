@@ -80,7 +80,7 @@ class FastSyncBranchResolver(
   private def finalizeBranchResolver(lastBlock: BigInt, lastValidBlock: BigInt): Unit = {
     discardLastInvalidBlocks(lastBlock, lastValidBlock)
     context become receive
-    log.info("branch resolver finished")
+    log.info("branch resolution completed")
     fastSync ! BranchResolvedSuccessful
   }
 
