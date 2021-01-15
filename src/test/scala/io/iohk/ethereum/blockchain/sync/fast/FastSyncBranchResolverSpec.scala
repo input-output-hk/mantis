@@ -39,7 +39,7 @@ class FastSyncBranchResolverSpec
 
   "FastSyncBranchResolver" - {
     "fetch headers from the new master peer" - {
-      "resolving the chain from the first request to the new master peer, and then removes the last two blocks" in new TestSetup {
+      "the chain is repaired from the first request to the new master pair and then the last two blocks are removed" in new TestSetup {
         val sender = TestProbe("sender")(system)
 
         val commonBlocks: List[Block] = BlockHelpers.generateChain(
@@ -70,7 +70,7 @@ class FastSyncBranchResolverSpec
       }
 
       //TODO: work in progress
-      /*"resolving the chain doing binary searching with the new master peer" in new TestSetup {
+      /*"The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" in new TestSetup {
 
       }*/
     }
