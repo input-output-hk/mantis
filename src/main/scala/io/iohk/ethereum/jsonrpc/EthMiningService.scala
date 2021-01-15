@@ -23,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
+import io.iohk.ethereum.transactions.TransactionPicker
 
 object EthMiningService {
 
@@ -51,9 +52,9 @@ class EthMiningService(
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
     syncingController: ActorRef,
-    pendingTransactionsManager: ActorRef,
-    getTransactionFromPoolTimeout: FiniteDuration
-) extends Logger {
+    val pendingTransactionsManager: ActorRef,
+    val getTransactionFromPoolTimeout: FiniteDuration
+) extends TransactionPicker {
 
   import EthMiningService._
 
@@ -162,18 +163,6 @@ class EthMiningService(
           OmmersPool.Ommers(Nil)
         }
     })(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
-
-  // TODO This seems to be re-implemented in TransactionPicker, probably move to a better place? Also generalize the error message.
-  private[jsonrpc] val getTransactionsFromPool: Task[PendingTransactionsResponse] = {
-    implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
-
-    pendingTransactionsManager
-      .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
-      .onErrorRecoverWith { case ex: Throwable =>
-        log.error("Failed to get pending transactions, passing empty transactions list", ex)
-        Task.now(PendingTransactionsResponse(Nil))
-      }
-  }
 
   private[jsonrpc] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
     consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(

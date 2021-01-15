@@ -85,42 +85,6 @@ object EthService {
   case class IeleCallResponse(returnData: Seq[ByteString])
   case class EstimateGasResponse(gas: BigInt)
 
-  // case class NewFilterRequest(filter: Filter)
-  // case class Filter(
-  //     fromBlock: Option[BlockParam],
-  //     toBlock: Option[BlockParam],
-  //     address: Option[Address],
-  //     topics: Seq[Seq[ByteString]]
-  // )
-
-  // case class NewBlockFilterRequest()
-  // case class NewPendingTransactionFilterRequest()
-
-  // case class NewFilterResponse(filterId: BigInt)
-
-  // case class UninstallFilterRequest(filterId: BigInt)
-  // case class UninstallFilterResponse(success: Boolean)
-
-  // case class GetFilterChangesRequest(filterId: BigInt)
-  // case class GetFilterChangesResponse(filterChanges: FilterChanges)
-
-  // case class GetFilterLogsRequest(filterId: BigInt)
-  // case class GetFilterLogsResponse(filterLogs: FilterLogs)
-
-  // case class GetLogsRequest(filter: Filter)
-  // case class GetLogsResponse(filterLogs: LogFilterLogs)
-  // case class GetUncleCountByBlockNumberRequest(block: BlockParam)
-  // case class GetUncleCountByBlockNumberResponse(result: BigInt)
-
-  // case class GetUncleCountByBlockHashRequest(blockHash: ByteString)
-  // case class GetUncleCountByBlockHashResponse(result: BigInt)
-
-  // case class GetCoinbaseRequest()
-  // case class GetCoinbaseResponse(address: Address)
-
-  // case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
-  // case class GetBlockTransactionCountByNumberResponse(result: BigInt)
-
   case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStateProxy])
 
   def resolveBlock(
@@ -146,30 +110,6 @@ object EthService {
           .getOrElse(resolveBlock(blockchain, ledger, BlockParam.Latest)) //Default behavior in other clients
     }
   }
-
-  def resolveBlock(
-      blockParam: BlockParam,
-      blockchain: Blockchain,
-      blockGenerator: BlockGenerator
-  ): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain
-        .getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
-    }
-
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Pending =>
-        blockGenerator.getPendingBlockAndState
-          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
-          .map(Right.apply)
-          .getOrElse(resolveBlock(BlockParam.Latest, blockchain, blockGenerator)) //Default behavior in other clients
-    }
-  }
 }
 
 class EthService(
@@ -177,24 +117,15 @@ class EthService(
     ledger: Ledger,
     stxLedger: StxLedger,
     keyStore: KeyStore,
-    val pendingTransactionsManager: ActorRef,
     syncingController: ActorRef,
-    filterManager: ActorRef,
-    filterConfig: FilterConfig,
-    blockchainConfig: BlockchainConfig,
     protocolVersion: Int,
-    val getTransactionFromPoolTimeout: FiniteDuration,
     askTimeout: Timeout
-) extends TransactionPicker {
+) {
 
   import EthService._
 
   val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
   val lastActive = new AtomicReference[Option[Date]](None)
-
-  private[this] def consensus = ledger.consensus
-  private[this] def blockGenerator: BlockGenerator = consensus.blockGenerator
-  private[this] def fullConsensusConfig = consensus.config
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Task.now(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
@@ -259,106 +190,6 @@ class EthService(
       doCall(req)(stxLedger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
   }
-
-  // def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-  //   import req.filter._
-  //   filterManager
-  //     .askFor[FM.NewFilterResponse](FM.NewLogFilter(fromBlock, toBlock, address, topics))
-  //     .map { resp =>
-  //       Right(NewFilterResponse(resp.id))
-  //     }
-  // }
-
-  // def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-  //   filterManager
-  //     .askFor[FM.NewFilterResponse](FM.NewBlockFilter)
-  //     .map { resp =>
-  //       Right(NewFilterResponse(resp.id))
-  //     }
-  // }
-
-  // def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-  //   filterManager
-  //     .askFor[FM.NewFilterResponse](FM.NewPendingTransactionFilter)
-  //     .map { resp =>
-  //       Right(NewFilterResponse(resp.id))
-  //     }
-  // }
-
-  // def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-  //   filterManager
-  //     .askFor[FM.UninstallFilterResponse.type](FM.UninstallFilter(req.filterId))
-  //     .map(_ => Right(UninstallFilterResponse(success = true)))
-  // }
-
-  // def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
-  //   filterManager
-  //     .askFor[FM.FilterChanges](FM.GetFilterChanges(req.filterId))
-  //     .map { filterChanges =>
-  //       Right(GetFilterChangesResponse(filterChanges))
-  //     }
-  // }
-
-  // def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-  //   filterManager
-  //     .askFor[FM.FilterLogs](FM.GetFilterLogs(req.filterId))
-  //     .map { filterLogs =>
-  //       Right(GetFilterLogsResponse(filterLogs))
-  //     }
-  // }
-
-  // def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
-  //   implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-  //   import req.filter._
-
-  //   filterManager
-  //     .askFor[FM.LogFilterLogs](FM.GetLogs(fromBlock, toBlock, address, topics))
-  //     .map { filterLogs =>
-  //       Right(GetLogsResponse(filterLogs))
-  //     }
-  // def getUncleCountByBlockNumber(
-  //     req: GetUncleCountByBlockNumberRequest
-  // ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
-  //   Task {
-  //     resolveBlock(blockchain, ledger, req.block).map { case ResolvedBlock(block, _) =>
-  //       GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
-  //     }
-  //   }
-  // }
-
-  // def getUncleCountByBlockHash(
-  //     req: GetUncleCountByBlockHashRequest
-  // ): ServiceResponse[GetUncleCountByBlockHashResponse] = {
-  //   Task {
-  //     blockchain.getBlockBodyByHash(req.blockHash) match {
-  //       case Some(blockBody) =>
-  //         Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
-  //       case None =>
-  //         Left(
-  //           JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
-  //         )
-  //     }
-  //   }
-  // }
-
-  // def getBlockTransactionCountByNumber(
-  //     req: GetBlockTransactionCountByNumberRequest
-  // ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
-  //   Task {
-  //     resolveBlock(blockchain, ledger, req.block).map { case ResolvedBlock(block, _) =>
-  //       GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
-  //     }
-  //   }
-  // }
 
   private def doCall[A](req: CallRequest)(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A

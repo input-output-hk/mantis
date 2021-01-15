@@ -178,13 +178,8 @@ class EthServiceSpec
       ledger,
       stxLedger,
       keyStore,
-      pendingTransactionsManager.ref,
       syncingController.ref,
-      filterManager.ref,
-      filterConfig,
-      blockchainConfig,
       currentProtocolVersion,
-      getTransactionFromPoolTimeout,
       Timeouts.shortTimeout
     )
 

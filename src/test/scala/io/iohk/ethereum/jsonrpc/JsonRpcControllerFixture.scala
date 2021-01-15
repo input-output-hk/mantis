@@ -82,13 +82,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     ledger,
     stxLedger,
     keyStore,
-    pendingTransactionsManager.ref,
     syncingController.ref,
-    filterManager.ref,
-    filterConfig,
-    blockchainConfig,
     currentProtocolVersion,
-    getTransactionFromPoolTimeout,
     Timeouts.shortTimeout
   )
 
