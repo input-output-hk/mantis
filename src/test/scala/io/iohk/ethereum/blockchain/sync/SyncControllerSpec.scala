@@ -6,10 +6,10 @@ import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -32,7 +32,6 @@ import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.time.{Seconds, Span}
-
 import scala.concurrent.Await
 import scala.concurrent.duration._
 
@@ -118,8 +117,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
   it should "handle blocks that fail validation" in new TestSetup(
     _validators = new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-        Left(HeaderPoWError)
+      override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+        override def validate(
+            blockHeader: BlockHeader,
+            getBlockHeaderByHash: GetBlockHeaderByHash): Either[BlockHeaderError, BlockHeaderValid] = {
+          Left(HeaderPoWError)
+        }
+
+        override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+          Left(HeaderPoWError)
       }
     }
   ) {
@@ -211,14 +217,24 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   }
 
   it should "update pivot block if pivot fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-      {
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash)
+      : Either[BlockHeaderError, BlockHeaderValid] = {
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
         } else {
           Left(HeaderPoWError)
         }
       }
+
+      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        if (blockHeader.number != 399500 + 10) {
+          Right(BlockHeaderValid)
+        } else {
+          Left(HeaderPoWError)
+        }
     }
   }) {
     startWithState(defaultStateBeforeNodeRestart)

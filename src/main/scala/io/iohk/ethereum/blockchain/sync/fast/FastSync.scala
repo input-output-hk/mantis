@@ -7,7 +7,7 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.blockchain.sync.fast.HeaderSkeleton.{HeaderSkeletonError, InvalidBatchChain, InvalidBatchHash}
+import io.iohk.ethereum.blockchain.sync.fast.HeaderSkeleton._
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
@@ -117,7 +117,7 @@ class FastSync(
     //not part of syncstate as we do not want to persist is.
     private var stateSyncRestartRequested = false
 
-    private var requestedHeaders: Map[Peer, BigInt] = Map.empty
+    private var requestedHeaders: Map[Peer, (BigInt, BigInt)] = Map.empty
 
     private var syncState = initialSyncState
 
@@ -127,7 +127,7 @@ class FastSync(
     private var masterPeer: Option[Peer] = None
     private var currentSkeleton: Option[HeaderSkeleton] = None
     private var batchFailuresCount = 0
-    private var blockHeadersQueue: Seq[BigInt] = Nil
+    private var blockHeadersQueue: Seq[(BigInt, BigInt)] = Nil
 
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
@@ -218,7 +218,7 @@ class FastSync(
       validateDownloadedSkeleton(blockHeaders) match {
         case Right(skeleton) =>
           currentSkeleton = Some(skeleton)
-          blockHeadersQueue ++= skeleton.batchStartingHeaderNumbers
+          blockHeadersQueue ++= skeleton.batchStartingHeaderNumbers.map(_ -> skeleton.batchSize)
         case Left(Left(blockHeaderError)) =>
           log.info(s"PoW of skeleton from $peer failed: $blockHeaderError")
           blockHeadersError(peer)
@@ -241,20 +241,20 @@ class FastSync(
       )
     }
 
-    private def handleDownloadedBatch(peer: Peer, blockHeaders: Seq[BlockHeader], requestedNum: BigInt) = {
+    private def handleDownloadedBatch(peer: Peer, blockHeaders: Seq[BlockHeader], request: (BigInt, BigInt)) = {
       removeRequestHandler(sender())
       requestedHeaders -= peer
-      if (validHeadersChain(blockHeaders, requestedNum)) fillSkeletonGap(peer, blockHeaders)
-      else blockHeadersError(peer)
+      if (validHeadersChain(blockHeaders, request._2)) fillSkeletonGap(peer, request, blockHeaders)
+      else handleDownloadedBatchError(InvalidDownloadedChain(blockHeaders), request, peer)
     }
 
-    private def fillSkeletonGap(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
+    private def fillSkeletonGap(peer: Peer, request: (BigInt, BigInt), blockHeaders: Seq[BlockHeader]) = {
       currentSkeleton.get.addBatch(blockHeaders) match {
         case Right(skeleton) =>
           currentSkeleton = Some(skeleton)
           handleChainIfComplete(skeleton, peer)
         case Left(error) =>
-          handleDownloadedBatchError(error, peer)
+          handleDownloadedBatchError(error, request, peer)
       }
     }
 
@@ -265,13 +265,18 @@ class FastSync(
       }
     }
 
-    private def handleDownloadedBatchError(error: HeaderSkeletonError, peer: Peer) = {
+    private def handleDownloadedBatchError(error: HeaderSkeletonError, request: (BigInt, BigInt), peer: Peer) = {
+      blockHeadersQueue :+= request
       error match {
-        case _: InvalidBatchChain | _: InvalidBatchHash => // These are the reasons that make the master peer suspicious
+        case _: InvalidPenultimateHeader |
+            _: InvalidBatchHash => // These are the reasons that make the master peer suspicious
           batchFailuresCount += 1
           if (batchFailuresCount > fastSyncMaxBatchRetries) {
-            log.info(s"Max skeleton batch failures reached. Master peer must be wrong.")
+            log.info("Max skeleton batch failures reached. Master peer must be wrong.")
+            blacklist(peer.id, blacklistDuration, "Max skeleton batch failures reached.")
+            // TODO: Rewind a configured number of blocks
             // TODO: Send message to branch resolver and wait for a resolution
+            currentSkeleton = None
           }
         case _ =>
           log.info(error.msg)
@@ -795,7 +800,7 @@ class FastSync(
       } else if (blockHeadersQueue.nonEmpty) {
         requestBlockHeaders(peer)
       } else if (shouldRequestNewSkeleton(peerInfo)) {
-        requestNewSkeleton(peer)
+        requestSkeletonHeaders(peer)
       }
     }
 
@@ -848,8 +853,7 @@ class FastSync(
     }
 
     def requestBlockHeaders(peer: Peer): Unit = {
-      val (start, remaining) = (blockHeadersQueue.head, blockHeadersQueue.tail)
-      val limit = currentSkeleton.get.batchSize
+      val (request @ (start, limit), remaining) = (blockHeadersQueue.head, blockHeadersQueue.tail)
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
@@ -864,12 +868,12 @@ class FastSync(
 
       context watch handler
       assignedHandlers += (handler -> peer)
-      requestedHeaders += (peer -> limit)
+      requestedHeaders += (peer -> request)
       blockHeadersQueue = remaining
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def requestNewSkeleton(peer: Peer): Unit = {
+    def requestSkeletonHeaders(peer: Peer): Unit = {
       val skeleton =
         HeaderSkeleton(syncState.bestBlockHeaderNumber + 1, syncState.safeDownloadTarget, blockHeadersPerRequest)
 

@@ -105,13 +105,13 @@ object EtcPeerManagerFake {
         case sendMsg @ EtcPeerManagerActor.SendMessage(rawMsg, peerId) =>
           requests.onNext(sendMsg)
           val response = rawMsg.underlyingMsg match {
-            case GetBlockHeaders(startingBlock, maxHeaders, _, false) =>
-              val blockMatchesStart: Block => Boolean = block =>
-                startingBlock.fold(nr => block.number == nr, hash => block.hash == hash)
+            case GetBlockHeaders(startingBlock, maxHeaders, skip, false) =>
               val headers = blocks.tails
-                .find(_.headOption.exists(blockMatchesStart))
+                .find(_.headOption.exists(blockMatchesStart(_, startingBlock)))
                 .toList
                 .flatten
+                .zipWithIndex
+                .collect { case (block, index) if index % (skip + 1) == 0 => block }
                 .take(maxHeaders.toInt)
                 .map(_.header)
               BlockHeaders(headers)
@@ -132,5 +132,8 @@ object EtcPeerManagerFake {
       }
       this
     }
+
+    def blockMatchesStart(block: Block, startingBlock: Either[BigInt, ByteString]): Boolean =
+      startingBlock.fold(nr => block.number == nr, hash => block.hash == hash)
   }
 }
