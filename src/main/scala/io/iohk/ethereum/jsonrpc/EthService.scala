@@ -6,13 +6,12 @@ import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, _}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
@@ -25,7 +24,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
 import io.iohk.ethereum.utils._
 import monix.eval.Task
-import org.bouncycastle.util.encoders.Hex
 
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
@@ -41,29 +39,8 @@ object EthService {
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
 
-  case class ChainIdRequest()
-  case class ChainIdResponse(value: Byte)
-
-  case class BestBlockNumberRequest()
-  case class BestBlockNumberResponse(bestBlockNumber: BigInt)
-
-  case class TxCountByBlockHashRequest(blockHash: ByteString)
-  case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
-
-  case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
-  case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
-
-  case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
-  case class BlockByNumberResponse(blockResponse: Option[BlockResponse])
-
   case class GetTransactionByBlockHashAndIndexRequest(blockHash: ByteString, transactionIndex: BigInt)
   case class GetTransactionByBlockHashAndIndexResponse(transactionResponse: Option[TransactionResponse])
-
-  case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
-  case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
-
-  case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
-  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
 
   case class GetTransactionByHashRequest(txHash: ByteString)
   case class GetTransactionByHashResponse(txResponse: Option[TransactionResponse])
@@ -130,25 +107,16 @@ object EthService {
   case class GetCodeRequest(address: Address, block: BlockParam)
   case class GetCodeResponse(result: ByteString)
 
-  case class GetUncleCountByBlockNumberRequest(block: BlockParam)
-  case class GetUncleCountByBlockNumberResponse(result: BigInt)
-
-  case class GetUncleCountByBlockHashRequest(blockHash: ByteString)
-  case class GetUncleCountByBlockHashResponse(result: BigInt)
-
-  case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
-  case class GetBlockTransactionCountByNumberResponse(result: BigInt)
-
   case class GetBalanceRequest(address: Address, block: BlockParam)
   case class GetBalanceResponse(value: BigInt)
 
   case class GetStorageAtRequest(address: Address, position: BigInt, block: BlockParam)
   case class GetStorageAtResponse(value: ByteString)
 
+  case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStateProxy])
+
   case class GetTransactionCountRequest(address: Address, block: BlockParam)
   case class GetTransactionCountResponse(value: BigInt)
-
-  case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStateProxy])
 
   case class NewFilterRequest(filter: Filter)
   case class Filter(
@@ -180,6 +148,30 @@ object EthService {
 
   case class EthPendingTransactionsRequest()
   case class EthPendingTransactionsResponse(pendingTransactions: Seq[PendingTransaction])
+
+  def resolveBlock(
+      blockParam: BlockParam,
+      blockchain: Blockchain,
+      blockGenerator: BlockGenerator
+  ): Either[JsonRpcError, ResolvedBlock] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+      blockchain
+        .getBlockByNumber(number)
+        .map(Right.apply)
+        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
+    }
+
+    blockParam match {
+      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Pending =>
+        blockGenerator.getPendingBlockAndState
+          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
+          .map(Right.apply)
+          .getOrElse(resolveBlock(BlockParam.Latest, blockchain, blockGenerator)) //Default behavior in other clients
+    }
+  }
 }
 
 class EthService(
@@ -203,65 +195,11 @@ class EthService(
   val lastActive = new AtomicReference[Option[Date]](None)
 
   private[this] def consensus = ledger.consensus
-  private[this] def blockGenerator = consensus.blockGenerator
+  private[this] def blockGenerator: BlockGenerator = consensus.blockGenerator
   private[this] def fullConsensusConfig = consensus.config
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Task.now(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
-
-  def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
-    Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
-
-  /**
-    * eth_blockNumber that returns the number of most recent block.
-    *
-    * @return Current block number the client is on.
-    */
-  def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Task {
-    Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
-  }
-
-  /**
-    * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
-    *
-    * @param request with the hash of the block requested
-    * @return the number of txs that the block has or None if the client doesn't have the block requested
-    */
-  def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] =
-    Task {
-      val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
-      Right(TxCountByBlockHashResponse(txsCount))
-    }
-
-  /**
-    * Implements the eth_getBlockByHash method that fetches a requested block.
-    *
-    * @param request with the hash of the block requested
-    * @return the block requested or None if the client doesn't have the block
-    */
-  def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
-    val BlockByBlockHashRequest(blockHash, fullTxs) = request
-    val blockOpt = blockchain.getBlockByHash(blockHash)
-    val weight = blockchain.getChainWeightByHash(blockHash)
-
-    val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
-    Right(BlockByBlockHashResponse(blockResponseOpt))
-  }
-
-  /**
-    * Implements the eth_getBlockByNumber method that fetches a requested block.
-    *
-    * @param request with the block requested (by it's number or by tag)
-    * @return the block requested or None if the client doesn't have the block
-    */
-  def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Task {
-    val BlockByNumberRequest(blockParam, fullTxs) = request
-    val blockResponseOpt = resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
-      val weight = blockchain.getChainWeightByHash(block.header.hash)
-      BlockResponse(block, weight, fullTxs = fullTxs, pendingBlock = pending.isDefined)
-    }
-    Right(BlockByNumberResponse(blockResponseOpt))
-  }
 
   /**
     * Implements the eth_getRawTransactionByHash - fetch raw transaction data of a transaction with the given hash.
@@ -367,64 +305,6 @@ class EthService(
         transaction <- blockTxs.lift(transactionIndex.toInt)
       } yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))
     }
-
-  /**
-    * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
-    *
-    * @param request with the hash of the block and the index of the uncle requested
-    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
-    */
-  def getUncleByBlockHashAndIndex(
-      request: UncleByBlockHashAndIndexRequest
-  ): ServiceResponse[UncleByBlockHashAndIndexResponse] = Task {
-    val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
-    val uncleHeaderOpt = blockchain
-      .getBlockBodyByHash(blockHash)
-      .flatMap { body =>
-        if (uncleIndex >= 0 && uncleIndex < body.uncleNodesList.size)
-          Some(body.uncleNodesList.apply(uncleIndex.toInt))
-        else
-          None
-      }
-    val weight = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getChainWeightByHash(uncleHeader.hash))
-
-    //The block in the response will not have any txs or uncles
-    val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
-      BlockResponse(blockHeader = uncleHeader, weight = weight, pendingBlock = false)
-    }
-    Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
-  }
-
-  /**
-    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
-    *
-    * @param request with the number/tag of the block and the index of the uncle requested
-    * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
-    */
-  def getUncleByBlockNumberAndIndex(
-      request: UncleByBlockNumberAndIndexRequest
-  ): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Task {
-    val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
-    val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
-      .flatMap { case ResolvedBlock(block, pending) =>
-        if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
-          val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
-          val weight = blockchain.getChainWeightByHash(uncleHeader.hash)
-
-          //The block in the response will not have any txs or uncles
-          Some(
-            BlockResponse(
-              blockHeader = uncleHeader,
-              weight = weight,
-              pendingBlock = pending.isDefined
-            )
-          )
-        } else
-          None
-      }
-
-    Right(UncleByBlockNumberAndIndexResponse(uncleBlockResponseOpt))
-  }
 
   def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
     val blockDifference = 30
@@ -535,7 +415,7 @@ class EthService(
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Task {
-      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
+      resolveBlock(req.block, blockchain, blockGenerator).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(
           block.header.number,
           blockchainConfig.accountStartNonce,
@@ -544,41 +424,6 @@ class EthService(
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )
         GetCodeResponse(world.getCode(req.address))
-      }
-    }
-  }
-
-  def getUncleCountByBlockNumber(
-      req: GetUncleCountByBlockNumberRequest
-  ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
-    Task {
-      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
-      }
-    }
-  }
-
-  def getUncleCountByBlockHash(
-      req: GetUncleCountByBlockHashRequest
-  ): ServiceResponse[GetUncleCountByBlockHashResponse] = {
-    Task {
-      blockchain.getBlockBodyByHash(req.blockHash) match {
-        case Some(blockBody) =>
-          Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
-        case None =>
-          Left(
-            JsonRpcError.InvalidParams(s"Block with hash ${Hex.toHexString(req.blockHash.toArray[Byte])} not found")
-          )
-      }
-    }
-  }
-
-  def getBlockTransactionCountByNumber(
-      req: GetBlockTransactionCountByNumberRequest
-  ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
-    Task {
-      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
   }
@@ -614,7 +459,7 @@ class EthService(
   }
 
   private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
-    resolveBlock(block)
+    resolveBlock(block, blockchain, blockGenerator)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList
         if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
@@ -717,7 +562,7 @@ class EthService(
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(makeResponse: Account => T): ServiceResponse[T] =
     Task {
-      resolveBlock(blockParam)
+      resolveBlock(blockParam, blockchain, blockGenerator)
         .map { case ResolvedBlock(block, _) =>
           blockchain
             .getAccount(address, block.header.number)
@@ -728,35 +573,16 @@ class EthService(
       Left(JsonRpcError.NodeNotFound)
     }
 
-  private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain
-        .getBlockByNumber(number)
-        .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
-    }
-
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Pending =>
-        blockGenerator.getPendingBlockAndState
-          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
-          .map(Right.apply)
-          .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
-    }
-  }
-
   private def doCall[A](req: CallRequest)(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A
   ): Either[JsonRpcError, A] = for {
     stx <- prepareTransaction(req)
-    block <- resolveBlock(req.block)
+    block <- resolveBlock(req.block, blockchain, blockGenerator)
   } yield f(stx, block.block.header, block.pendingState)
 
   private def getGasLimit(req: CallRequest): Either[JsonRpcError, BigInt] =
     if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
-    else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
+    else resolveBlock(BlockParam.Latest, blockchain, blockGenerator).map(r => r.block.header.gasLimit)
 
   private def prepareTransaction(req: CallRequest): Either[JsonRpcError, SignedTransactionWithSender] = {
     getGasLimit(req).map { gasLimit =>

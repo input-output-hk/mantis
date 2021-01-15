@@ -29,8 +29,7 @@ class EthashMiner(
     blockchain: Blockchain,
     blockCreator: EthashBlockCreator,
     syncController: ActorRef,
-    ethService: EthService,
-    miningService: EthMiningService
+    ethMiningService: EthMiningService
 ) extends Actor
     with ActorLogging {
 
@@ -72,7 +71,7 @@ class EthashMiner(
         val time = System.nanoTime() - startTime
         //FIXME: consider not reporting hash rate when time delta is zero
         val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
-        miningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
+        ethMiningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
         mineResult match {
           case MiningSuccessful(_, pow, nonce) =>
             log.info(
@@ -202,10 +201,10 @@ object EthashMiner {
       blockCreator: EthashBlockCreator,
       syncController: ActorRef,
       ethService: EthService,
-      miningService: EthMiningService
+      ethMiningService: EthMiningService
   ): Props =
     Props(
-      new EthashMiner(blockchain, blockCreator, syncController, ethService, miningService)
+      new EthashMiner(blockchain, blockCreator, syncController, ethMiningService)
     ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef = {
@@ -222,7 +221,7 @@ object EthashMiner {
           blockCreator = blockCreator,
           syncController = node.syncController,
           ethService = node.ethService,
-          miningService = node.miningService
+          ethMiningService = node.ethMiningService
         )
         node.system.actorOf(minerProps)
       case consensus =>

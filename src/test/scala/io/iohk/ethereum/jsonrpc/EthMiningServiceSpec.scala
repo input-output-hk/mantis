@@ -31,8 +31,8 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
-class MiningServiceSpec
-    extends TestKit(ActorSystem("MiningServiceSpec_ActorSystem"))
+class EthMiningServiceSpec
+    extends TestKit(ActorSystem("EthMiningServiceSpec_ActorSystem"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with Matchers
@@ -42,15 +42,15 @@ class MiningServiceSpec
   "MiningServiceSpec" should "return if node is mining base on getWork" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
-    miningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
+    ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
-    miningService.getWork(GetWorkRequest())
+    ethMiningService.getWork(GetWorkRequest())
 
-    val response = miningService.getMining(GetMiningRequest())
+    val response = ethMiningService.getMining(GetMiningRequest())
 
     response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
@@ -58,15 +58,15 @@ class MiningServiceSpec
   it should "return if node is mining base on submitWork" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
-    miningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
+    ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
     (blockGenerator.getPrepared _).expects(*).returning(Some(PendingBlock(block, Nil)))
     (appStateStorage.getBestBlockNumber _).expects().returning(0)
-    miningService.submitWork(
+    ethMiningService.submitWork(
       SubmitWorkRequest(ByteString("nonce"), ByteString(Hex.decode("01" * 32)), ByteString(Hex.decode("01" * 32)))
     )
 
-    val response = miningService.getMining(GetMiningRequest())
+    val response = ethMiningService.getMining(GetMiningRequest())
 
     response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
@@ -74,10 +74,10 @@ class MiningServiceSpec
   it should "return if node is mining base on submitHashRate" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
-    miningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
-    miningService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
+    ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
+    ethMiningService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
 
-    val response = miningService.getMining(GetMiningRequest())
+    val response = ethMiningService.getMining(GetMiningRequest())
 
     response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(true))
   }
@@ -89,11 +89,11 @@ class MiningServiceSpec
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.storeBlock(parentBlock).commit()
-    miningService.getWork(GetWorkRequest())
+    ethMiningService.getWork(GetWorkRequest())
 
     Thread.sleep(minerActiveTimeout.toMillis)
 
-    val response = miningService.getMining(GetMiningRequest())
+    val response = ethMiningService.getMining(GetMiningRequest())
 
     response.runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
   }
@@ -106,7 +106,7 @@ class MiningServiceSpec
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
-    val response = miningService.getWork(GetWorkRequest()).runSyncUnsafe()
+    val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
@@ -123,7 +123,7 @@ class MiningServiceSpec
 
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
-    val response = miningService.getWork(GetWorkRequest()).runSyncUnsafe()
+    val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
     pendingTransactionsManager.reply(PendingTransactionsManager.PendingTransactionsResponse(Nil))
 
@@ -135,7 +135,7 @@ class MiningServiceSpec
 
     val submitRequest =
       SubmitWorkRequest(ByteString("nonce"), responseData.powHeaderHash, ByteString(Hex.decode("01" * 32)))
-    val response1 = miningService.submitWork(submitRequest).runSyncUnsafe()
+    val response1 = ethMiningService.submitWork(submitRequest).runSyncUnsafe()
     response1 shouldEqual Right(SubmitWorkResponse(true))
   }
 
@@ -149,7 +149,7 @@ class MiningServiceSpec
 
     val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
 
-    val response = miningService.submitWork(req)
+    val response = ethMiningService.submitWork(req)
     response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(true))
   }
 
@@ -163,14 +163,14 @@ class MiningServiceSpec
 
     val req = SubmitWorkRequest(ByteString("nonce"), headerHash, ByteString(Hex.decode("01" * 32)))
 
-    val response = miningService.submitWork(req)
+    val response = ethMiningService.submitWork(req)
     response.runSyncUnsafe() shouldEqual Right(SubmitWorkResponse(false))
   }
 
   it should "return correct coinbase" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus)
 
-    val response = miningService.getCoinbase(GetCoinbaseRequest())
+    val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
     response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
@@ -180,14 +180,14 @@ class MiningServiceSpec
     val rate: BigInt = 42
     val id = ByteString("id")
 
-    miningService.submitHashRate(SubmitHashRateRequest(12, id)).runSyncUnsafe() shouldEqual Right(
+    ethMiningService.submitHashRate(SubmitHashRateRequest(12, id)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
-    miningService.submitHashRate(SubmitHashRateRequest(rate, id)).runSyncUnsafe() shouldEqual Right(
+    ethMiningService.submitHashRate(SubmitHashRateRequest(rate, id)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
 
-    val response = miningService.getHashRate(GetHashRateRequest())
+    val response = ethMiningService.getHashRate(GetHashRateRequest())
     response.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
   }
 
@@ -198,123 +198,119 @@ class MiningServiceSpec
     val id1 = ByteString("id1")
     val id2 = ByteString("id2")
 
-    miningService.submitHashRate(SubmitHashRateRequest(rate, id1)).runSyncUnsafe() shouldEqual Right(
+    ethMiningService.submitHashRate(SubmitHashRateRequest(rate, id1)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
     Thread.sleep(minerActiveTimeout.toMillis / 2)
-    miningService.submitHashRate(SubmitHashRateRequest(rate, id2)).runSyncUnsafe() shouldEqual Right(
+    ethMiningService.submitHashRate(SubmitHashRateRequest(rate, id2)).runSyncUnsafe() shouldEqual Right(
       SubmitHashRateResponse(true)
     )
 
-    val response1 = miningService.getHashRate(GetHashRateRequest())
+    val response1 = ethMiningService.getHashRate(GetHashRateRequest())
     response1.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate * 2))
 
     Thread.sleep(minerActiveTimeout.toMillis / 2)
-    val response2 = miningService.getHashRate(GetHashRateRequest())
+    val response2 = ethMiningService.getHashRate(GetHashRateRequest())
     response2.runSyncUnsafe() shouldEqual Right(GetHashRateResponse(rate))
   }
-}
 
-// NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
-  val blockGenerator = mock[EthashBlockGenerator]
-  val appStateStorage = mock[AppStateStorage]
-  override lazy val ledger = mock[Ledger]
-  override lazy val stxLedger = mock[StxLedger]
+  // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+    val blockGenerator = mock[EthashBlockGenerator]
+    val appStateStorage = mock[AppStateStorage]
+    override lazy val ledger = mock[Ledger]
+    override lazy val stxLedger = mock[StxLedger]
+    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
-  override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
-  override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    val syncingController = TestProbe()
+    val pendingTransactionsManager = TestProbe()
+    val ommersPool = TestProbe()
 
-  val syncingController = TestProbe()
-  val pendingTransactionsManager = TestProbe()
-  val ommersPool = TestProbe()
+    val minerActiveTimeout: FiniteDuration = 5.seconds
+    val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-  val minerActiveTimeout: FiniteDuration = 5.seconds
-  val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
+    lazy val minerKey = crypto.keyPairFromPrvKey(
+      ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
+    )
 
-  lazy val minerKey = crypto.keyPairFromPrvKey(
-    ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
-  )
+    lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
-  lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+    lazy val restrictedGenerator = new RestrictedEthashBlockGeneratorImpl(
+      validators = MockValidatorsAlwaysSucceed,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = consensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
 
-  lazy val restrictedGenerator = new RestrictedEthashBlockGeneratorImpl(
-    validators = MockValidatorsAlwaysSucceed,
-    blockchain = blockchain,
-    blockchainConfig = blockchainConfig,
-    consensusConfig = consensusConfig,
-    blockPreparator = consensus.blockPreparator,
-    difficultyCalc,
-    minerKey
-  )
+    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-  val jsonRpcConfig = JsonRpcConfig(Config.config, available)
+    lazy val ethMiningService = new EthMiningService(
+      blockchain,
+      ledger,
+      jsonRpcConfig,
+      ommersPool.ref,
+      syncingController.ref,
+      pendingTransactionsManager.ref,
+      getTransactionFromPoolTimeout
+    )
 
-  lazy val miningService = new EthMiningService(
-    blockchain,
-    ledger,
-    jsonRpcConfig,
-    ommersPool.ref,
-    syncingController.ref,
-    pendingTransactionsManager.ref,
-    getTransactionFromPoolTimeout
-  )
+    val difficulty = 131072
+    val parentBlock = Block(
+      header = BlockHeader(
+        parentHash = ByteString.empty,
+        ommersHash = ByteString.empty,
+        beneficiary = ByteString.empty,
+        stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash),
+        transactionsRoot = ByteString.empty,
+        receiptsRoot = ByteString.empty,
+        logsBloom = ByteString.empty,
+        difficulty = difficulty,
+        number = 0,
+        gasLimit = 16733003,
+        gasUsed = 0,
+        unixTimestamp = 1494604900,
+        extraData = ByteString.empty,
+        mixHash = ByteString.empty,
+        nonce = ByteString.empty
+      ),
+      body = BlockBody.empty
+    )
+    val block = Block(
+      header = BlockHeader(
+        parentHash = parentBlock.header.hash,
+        ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
+        beneficiary = ByteString(Hex.decode("000000000000000000000000000000000000002a")),
+        stateRoot = ByteString(Hex.decode("2627314387b135a548040d3ca99dbf308265a3f9bd9246bee3e34d12ea9ff0dc")),
+        transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+        logsBloom = ByteString(Hex.decode("00" * 256)),
+        difficulty = difficulty,
+        number = 1,
+        gasLimit = 16733003,
+        gasUsed = 0,
+        unixTimestamp = 1494604913,
+        extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
+        mixHash = ByteString.empty,
+        nonce = ByteString.empty
+      ),
+      body = BlockBody.empty
+    )
+    val seedHash = ByteString(Hex.decode("00" * 32))
+    val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
+    val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
-  val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
 
-  val difficulty = 131072
-  val parentBlock = Block(
-    header = BlockHeader(
-      parentHash = ByteString.empty,
-      ommersHash = ByteString.empty,
-      beneficiary = ByteString.empty,
-      stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash),
-      transactionsRoot = ByteString.empty,
-      receiptsRoot = ByteString.empty,
-      logsBloom = ByteString.empty,
-      difficulty = difficulty,
-      number = 0,
-      gasLimit = 16733003,
-      gasUsed = 0,
-      unixTimestamp = 1494604900,
-      extraData = ByteString.empty,
-      mixHash = ByteString.empty,
-      nonce = ByteString.empty
-    ),
-    body = BlockBody.empty
-  )
-  val block = Block(
-    header = BlockHeader(
-      parentHash = parentBlock.header.hash,
-      ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-      beneficiary = ByteString(Hex.decode("000000000000000000000000000000000000002a")),
-      stateRoot = ByteString(Hex.decode("2627314387b135a548040d3ca99dbf308265a3f9bd9246bee3e34d12ea9ff0dc")),
-      transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
-      logsBloom = ByteString(Hex.decode("00" * 256)),
-      difficulty = difficulty,
-      number = 1,
-      gasLimit = 16733003,
-      gasUsed = 0,
-      unixTimestamp = 1494604913,
-      extraData = ByteString(Hex.decode("6d696e6564207769746820657463207363616c61")),
-      mixHash = ByteString.empty,
-      nonce = ByteString.empty
-    ),
-    body = BlockBody.empty
-  )
-  val seedHash = ByteString(Hex.decode("00" * 32))
-  val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
-  val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
-
-  val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
-  val txSender = SignedTransaction.getSender(txToRequest).get
-
-  val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
-    None,
-    UInt256.Zero,
-    ByteString.empty,
-    noEmptyAccounts = false,
-    ethCompatibleStorage = true
-  )
+    val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
+      None,
+      UInt256.Zero,
+      ByteString.empty,
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
+  }
 }

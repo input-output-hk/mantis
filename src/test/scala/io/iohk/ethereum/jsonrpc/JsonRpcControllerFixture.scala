@@ -92,7 +92,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     Timeouts.shortTimeout
   )
 
-  val miningService = new EthMiningService(
+  val ethMiningService = new EthMiningService(
     blockchain,
     ledger,
     config,
@@ -102,11 +102,15 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
+  val ethBlocksService = new EthBlocksService(blockchain, ledger, blockchainConfig)
+
   protected def newJsonRpcController(ethService: EthService, proofService: ProofService = ProofServiceDummy) =
     new JsonRpcController(
       web3Service,
       netService,
       ethService,
+      ethMiningService,
+      ethBlocksService,
       personalService,
       None,
       debugService,
@@ -118,7 +122,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       config
     )
 
-  val jsonRpcController = newJsonRpcController(ethService)
+  val jsonRpcController = newJsonRpcController(ethService, ethBlocksService)
 
   val blockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     logsBloom = BloomFilter.EmptyBloomFilter,

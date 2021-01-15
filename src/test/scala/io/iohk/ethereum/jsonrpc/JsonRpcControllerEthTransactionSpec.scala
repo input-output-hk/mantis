@@ -5,6 +5,7 @@ import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -86,7 +87,8 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "handle eth_getRawTransactionByHash request" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
     val txResponse: SignedTransaction = Fixtures.Blocks.Block3125369.body.transactionList.head
     (mockEthService.getRawTransactionByHash _)
@@ -125,6 +127,12 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" in new JsonRpcControllerFixture {
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -148,6 +156,12 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new JsonRpcControllerFixture {
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -171,6 +185,12 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by number" in new JsonRpcControllerFixture {
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -194,6 +214,12 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by tag" in new JsonRpcControllerFixture {
     // given
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -219,6 +245,12 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" in new JsonRpcControllerFixture {
     // given
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -243,6 +275,12 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by number" in new JsonRpcControllerFixture {
+    (() => validators.signedTransactionValidator)
+      .expects()
+      .returns(null)
+      .anyNumberOfTimes()
+    (() => ledger.consensus).expects().returns(consensus)
+
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -263,7 +301,8 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getTransactionByHash" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
     val txResponse = TransactionResponse(Fixtures.Blocks.Block3125369.body.transactionList.head)
     (mockEthService.getTransactionByHash _)
@@ -283,7 +322,8 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getTransactionCount" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
     (mockEthService.getTransactionCount _)
       .expects(*)
@@ -303,9 +343,10 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getBlockTransactionCountByNumber " in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
-    (mockEthService.getBlockTransactionCountByNumber _)
+    (mockEthBlocksService.getBlockTransactionCountByNumber _)
       .expects(*)
       .returning(Task.now(Right(GetBlockTransactionCountByNumberResponse(17))))
 
@@ -337,7 +378,8 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getTransactionReceipt post byzantium" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
     val arbitraryValue = 42
     val arbitraryValue1 = 1
@@ -421,7 +463,8 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getTransactionReceipt pre byzantium" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthBlocksService = mock[EthBlocksService]
+    override val jsonRpcController = newJsonRpcController(mockEthService, mockEthBlocksService)
 
     val arbitraryValue = 42
     val arbitraryValue1 = 1
@@ -513,6 +556,8 @@ class JsonRpcControllerEthTransactionSpec
         web3Service,
         netService,
         mockEthService,
+        ethMiningService,
+        ethBlocksService,
         personalService,
         None,
         debugService,
@@ -566,6 +611,8 @@ class JsonRpcControllerEthTransactionSpec
         web3Service,
         netService,
         mockEthService,
+        ethMiningService,
+        ethBlocksService,
         personalService,
         None,
         debugService,

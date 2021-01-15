@@ -36,7 +36,7 @@ class EthashMinerSpec
     val bfm = blockForMining(parent.header)
 
     (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
-    (miningService.submitHashRate _)
+    (ethMiningService.submitHashRate _)
       .expects(*)
       .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
@@ -84,7 +84,7 @@ class EthashMinerSpec
     val pendingTransactionsManager = TestProbe()
 
     val ethService = mock[EthService]
-    val miningService = mock[EthMiningService]
+    val ethMiningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     override val blockCreator = new EthashBlockCreator(
@@ -94,7 +94,7 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, miningService))
+    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
 
   }
 }

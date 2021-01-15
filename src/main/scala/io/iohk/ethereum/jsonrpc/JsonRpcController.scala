@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
@@ -27,6 +28,8 @@ class JsonRpcController(
     web3Service: Web3Service,
     netService: NetService,
     ethService: EthService,
+    ethMiningService: EthMiningService,
+    ethBlocksService: EthBlocksService,
     personalService: PersonalService,
     testServiceOpt: Option[TestService],
     debugService: DebugService,
@@ -87,13 +90,13 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
       handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
     case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
-      handle[ChainIdRequest, ChainIdResponse](ethService.chainId, req)
+      handle[ChainIdRequest, ChainIdResponse](ethBlocksService.chainId, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
       handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
     case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
-      handle[SubmitHashRateRequest, SubmitHashRateResponse](miningService.submitHashRate, req)
+      handle[SubmitHashRateRequest, SubmitHashRateResponse](ethMiningService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
-      handle[GetHashRateRequest, GetHashRateResponse](miningService.getHashRate, req)
+      handle[GetHashRateRequest, GetHashRateResponse](ethMiningService.getHashRate, req)
     case req @ JsonRpcRequest(_, "eth_gasPrice", _, _) =>
       handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
@@ -102,21 +105,24 @@ class JsonRpcController(
         req
       )
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
-      handle[GetMiningRequest, GetMiningResponse](miningService.getMining, req)
+      handle[GetMiningRequest, GetMiningResponse](ethMiningService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
-      handle[GetWorkRequest, GetWorkResponse](miningService.getWork, req)
+      handle[GetWorkRequest, GetWorkResponse](ethMiningService.getWork, req)
     case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
-      handle[SubmitWorkRequest, SubmitWorkResponse](miningService.submitWork, req)
+      handle[SubmitWorkRequest, SubmitWorkResponse](ethMiningService.submitWork, req)
     case req @ JsonRpcRequest(_, "eth_blockNumber", _, _) =>
-      handle[BestBlockNumberRequest, BestBlockNumberResponse](ethService.bestBlockNumber, req)
+      handle[BestBlockNumberRequest, BestBlockNumberResponse](ethBlocksService.bestBlockNumber, req)
     case req @ JsonRpcRequest(_, "eth_coinbase", _, _) =>
-      handle[GetCoinbaseRequest, GetCoinbaseResponse](miningService.getCoinbase, req)
+      handle[GetCoinbaseRequest, GetCoinbaseResponse](ethMiningService.getCoinbase, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>
-      handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
+      handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](
+        ethBlocksService.getBlockTransactionCountByHash,
+        req
+      )
     case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
-      handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, req)
+      handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethBlocksService.getByBlockHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockByNumber", _, _) =>
-      handle[BlockByNumberRequest, BlockByNumberResponse](ethService.getBlockByNumber, req)
+      handle[BlockByNumberRequest, BlockByNumberResponse](ethBlocksService.getBlockByNumber, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](
         ethService.getTransactionByBlockHashAndIndex,
@@ -124,12 +130,12 @@ class JsonRpcController(
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](
-        ethService.getUncleByBlockHashAndIndex,
+        ethBlocksService.getUncleByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockNumberAndIndex", _, _) =>
       handle[UncleByBlockNumberAndIndexRequest, UncleByBlockNumberAndIndexResponse](
-        ethService.getUncleByBlockNumberAndIndex,
+        ethBlocksService.getUncleByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_accounts", _, _) =>
@@ -146,17 +152,17 @@ class JsonRpcController(
       handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
       handle[GetUncleCountByBlockNumberRequest, GetUncleCountByBlockNumberResponse](
-        ethService.getUncleCountByBlockNumber,
+        ethBlocksService.getUncleCountByBlockNumber,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockHash", _, _) =>
       handle[GetUncleCountByBlockHashRequest, GetUncleCountByBlockHashResponse](
-        ethService.getUncleCountByBlockHash,
+        ethBlocksService.getUncleCountByBlockHash,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByNumber", _, _) =>
       handle[GetBlockTransactionCountByNumberRequest, GetBlockTransactionCountByNumberResponse](
-        ethService.getBlockTransactionCountByNumber,
+        ethBlocksService.getBlockTransactionCountByNumber,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getBalance", _, _) =>

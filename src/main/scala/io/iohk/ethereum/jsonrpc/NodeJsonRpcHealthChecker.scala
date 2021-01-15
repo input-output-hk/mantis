@@ -1,13 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
+import io.iohk.ethereum.jsonrpc.EthBlocksService.BlockByNumberRequest
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.NetService._
 import monix.eval.Task
 
 class NodeJsonRpcHealthChecker(
     netService: NetService,
-    ethService: EthService
+    ethBlocksService: EthBlocksService
 ) extends JsonRpcHealthChecker {
 
   protected def mainService: String = "node health"
@@ -16,15 +17,15 @@ class NodeJsonRpcHealthChecker(
   final val peerCountHC = JsonRpcHealthcheck("peerCount", netService.peerCount(PeerCountRequest()))
   final val earliestBlockHC = JsonRpcHealthcheck(
     "earliestBlock",
-    ethService.getBlockByNumber(BlockByNumberRequest(BlockParam.Earliest, true))
+    ethBlocksService.getBlockByNumber(BlockByNumberRequest(BlockParam.Earliest, fullTxs = true))
   )
   final val latestBlockHC = JsonRpcHealthcheck(
     "latestBlock",
-    ethService.getBlockByNumber(BlockByNumberRequest(BlockParam.Latest, true))
+    ethBlocksService.getBlockByNumber(BlockByNumberRequest(BlockParam.Latest, fullTxs = true))
   )
   final val pendingBlockHC = JsonRpcHealthcheck(
     "pendingBlock",
-    ethService.getBlockByNumber(BlockByNumberRequest(BlockParam.Pending, true))
+    ethBlocksService.getBlockByNumber(BlockByNumberRequest(BlockParam.Pending, fullTxs = true))
   )
 
   override def healthCheck(): Task[HealthcheckResponse] = {
