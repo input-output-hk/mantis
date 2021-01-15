@@ -576,14 +576,13 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
   }
 
   test("getProof returns valid proof for existing key") {
-    import scala.util.Random
     import MptProofVerifier.verifyProof
 
     forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
         .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
 
-      val trie = Random.shuffle(input)
+      val trie = input
         .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
           recTrie.put(key, value)
         }
