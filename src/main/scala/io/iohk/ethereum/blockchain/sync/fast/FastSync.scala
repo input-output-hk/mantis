@@ -16,7 +16,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -215,18 +215,30 @@ class FastSync(
 
     private def handleDownloadedSkeleton(peer: Peer, blockHeaders: Seq[BlockHeader]) = {
       removeRequestHandler(sender())
-      // TODO: Validate PoW of blockHeaders
-      val validatedSkeleton = currentSkeleton.get.setSkeletonHeaders(blockHeaders)
-      validatedSkeleton match {
+      validateDownloadedSkeleton(blockHeaders) match {
         case Right(skeleton) =>
           currentSkeleton = Some(skeleton)
           blockHeadersQueue ++= skeleton.batchStartingHeaderNumbers
-        case Left(error) if !requestedHeaders.contains(peer) =>
-          log.info(error.msg)
+        case Left(Left(blockHeaderError)) =>
+          log.info(s"PoW of skeleton from $peer failed: $blockHeaderError")
           blockHeadersError(peer)
-        case Left(error) =>
-          log.debug(s"Batch header was requested to master peer - ${error.msg}")
+        case Left(Right(headerSkeletonError)) if !requestedHeaders.contains(peer) =>
+          log.info(headerSkeletonError.msg)
+          blockHeadersError(peer)
+        case Left(Right(headerSkeletonError)) =>
+          log.debug(s"Batch header was requested to master peer - ${headerSkeletonError.msg}")
       }
+    }
+
+    private def validateDownloadedSkeleton(
+        downloadedSkeleton: Seq[BlockHeader]
+    ): Either[Either[BlockHeaderError, HeaderSkeletonError], HeaderSkeleton] = {
+      val validatedHeaders =
+        downloadedSkeleton.map(validateHeaderOnly).find(_.isLeft).getOrElse(Right(BlockHeaderValid))
+      validatedHeaders.fold(
+        blockHeaderError => Left(Left(blockHeaderError)),
+        _ => currentSkeleton.get.setSkeletonHeaders(downloadedSkeleton).left.map(Right(_))
+      )
     }
 
     private def handleDownloadedBatch(peer: Peer, blockHeaders: Seq[BlockHeader], requestedNum: BigInt) = {
@@ -260,7 +272,6 @@ class FastSync(
           if (batchFailuresCount > fastSyncMaxBatchRetries) {
             log.info(s"Max skeleton batch failures reached. Master peer must be wrong.")
             // TODO: Send message to branch resolver and wait for a resolution
-            batchFailuresCount = 0
           }
         case _ =>
           log.info(error.msg)

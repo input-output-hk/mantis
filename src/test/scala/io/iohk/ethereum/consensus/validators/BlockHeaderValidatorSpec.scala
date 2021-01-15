@@ -307,10 +307,8 @@ class BlockHeaderValidatorSpec
       extends BlockHeaderValidatorSkeleton(blockchainConfig) {
     override protected def difficulty: DifficultyCalculator = difficultyCalculator
 
-    override def validateEvenMore(
-        blockHeader: BlockHeader,
-        parentHeader: BlockHeader
-    ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+    override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      Right(BlockHeaderValid)
   }
 
   val parentBody: BlockBody = BlockBody.empty

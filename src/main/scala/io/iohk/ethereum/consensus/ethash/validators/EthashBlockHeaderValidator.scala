@@ -23,10 +23,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
 
   protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
 
-  def validateEvenMore(
-      blockHeader: BlockHeader,
-      parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] =
+  def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     validatePoW(blockHeader)
 
   /**
