@@ -16,6 +16,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum._
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -77,9 +78,10 @@ class EthProofServiceSpec
     val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
     val storageKeys = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
+    val request = GetProofRequest(address, storageKeys, blockNumber)
 
     // when
-    val result = ethGetProof.run(address, storageKeys, blockNumber)
+    val result = ethGetProof.getProof(request)
 
     // then
     val balanceResponse: GetBalanceResponse = ethService
@@ -100,7 +102,9 @@ class EthProofServiceSpec
         .value
     }
 
-    val givenResult = result.runSyncUnsafe().getOrElse(fail())
+    val givenResult = result.runSyncUnsafe()
+      .getOrElse(fail())
+      .proofAccount
 
     givenResult.address should matchTo(address)
     givenResult.codeHash shouldBe account.codeHash

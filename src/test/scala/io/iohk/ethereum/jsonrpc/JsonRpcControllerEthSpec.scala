@@ -13,6 +13,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
@@ -810,9 +811,9 @@ class JsonRpcControllerEthSpec
     )
 
     // setup
-    val mockEthService = mock[EthService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
-    (mockEthService.getProof _)
+    val mockProofService = mock[EthProofService]
+    override val jsonRpcController = newJsonRpcController(ethService, mockProofService)
+    (mockProofService.getProof _)
       .expects(expectedDecodedRequest)
       .returning(Task.now(Right(expectedEncodedResponse)))
 

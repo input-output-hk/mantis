@@ -5,7 +5,7 @@ import cats.syntax.either._
 import cats.syntax.functor._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.{NodeStorage, SerializingMptStorage, StateStorage}
-import io.iohk.ethereum.jsonrpc.{MptProofError, KeyNotFoundInRebuidMpt, UnableRebuildMpt}
+import io.iohk.ethereum.jsonrpc.ProofService.MptProofError
 import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie, MptNode}
 
 object MptProofVerifier {
@@ -17,10 +17,10 @@ object MptProofVerifier {
   )(implicit kSer: ByteArrayEncoder[K], vSer: ByteArraySerializable[V]): Either[MptProofError, Unit] = {
     val mptStore = mkStorage(proof)
     rebuildMpt(rootHash, mptStore)(kSer, vSer)
-      .leftMap(_ => UnableRebuildMpt)
+      .leftMap(_ => MptProofError.UnableRebuildMpt)
       .flatMap { trie =>
         getKey(key, trie)
-          .leftMap(_ => KeyNotFoundInRebuidMpt)
+          .leftMap(_ => MptProofError.KeyNotFoundInRebuidMpt)
       }
       .void
   }

@@ -360,6 +360,19 @@ trait TestServiceBuilder {
     new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
 }
 
+trait EthProofServiceBuilder {
+  self: StorageBuilder
+    with BlockchainBuilder
+    with BlockchainConfigBuilder
+    with ConsensusBuilder =>
+
+  lazy val ethProofService: ProofService = new EthProofService(
+    blockchain,
+    consensus.blockGenerator,
+    blockchainConfig.ethCompatibleStorage
+  )
+}
+
 trait EthServiceBuilder {
   self: StorageBuilder
     with BlockchainBuilder
@@ -475,6 +488,7 @@ trait JSONRpcConfigBuilder {
 trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder
     with EthServiceBuilder
+    with EthProofServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder
@@ -498,6 +512,7 @@ trait JSONRpcControllerBuilder {
       qaService,
       checkpointingService,
       mantisService,
+      ethProofService,
       jsonRpcConfig
     )
 }
@@ -667,6 +682,7 @@ trait Node
     with SyncControllerBuilder
     with Web3ServiceBuilder
     with EthServiceBuilder
+    with EthProofServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder

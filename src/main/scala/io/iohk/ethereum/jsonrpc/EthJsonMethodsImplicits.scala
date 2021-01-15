@@ -4,6 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, StorageProofKey}
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull._
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}

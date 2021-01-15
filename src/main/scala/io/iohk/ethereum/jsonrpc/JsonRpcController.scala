@@ -6,12 +6,8 @@ import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GenerateCheckpointRequest,
-  GenerateCheckpointResponse,
-  GetFederationMembersInfoRequest,
-  GetFederationMembersInfoResponse
-}
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse}
+import io.iohk.ethereum.jsonrpc.QAService.{GenerateCheckpointRequest, GenerateCheckpointResponse, GetFederationMembersInfoRequest, GetFederationMembersInfoResponse}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
@@ -31,6 +27,7 @@ class JsonRpcController(
     qaService: QAService,
     checkpointingService: CheckpointingService,
     mantisService: MantisService,
+    proofService: ProofService,
     override val config: JsonRpcConfig
 ) extends ApisBuilder
     with Logger
@@ -200,7 +197,7 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_pendingTransactions", _, _) =>
       handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
     case req @ JsonRpcRequest(_, "eth_getProof", _, _) =>
-      handle[GetProofRequest, GetProofResponse](ethService.getProof, req)
+      handle[GetProofRequest, GetProofResponse](proofService.getProof, req)
   }
 
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {

@@ -259,6 +259,7 @@ class QaJRCSpec
         qaService,
         checkpointingService,
         mantisService,
+        ProofServiceDummy,
         config
       )
 
