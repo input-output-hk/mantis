@@ -7,7 +7,12 @@ import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, Ge
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse}
-import io.iohk.ethereum.jsonrpc.QAService.{GenerateCheckpointRequest, GenerateCheckpointResponse, GetFederationMembersInfoRequest, GetFederationMembersInfoResponse}
+import io.iohk.ethereum.jsonrpc.QAService.{
+  GenerateCheckpointRequest,
+  GenerateCheckpointResponse,
+  GetFederationMembersInfoRequest,
+  GetFederationMembersInfoResponse
+}
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
