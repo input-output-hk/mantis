@@ -149,8 +149,13 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.storeBlockHeader(headerWithAcc).commit()
 
-    val retrievedAccountProof = blockchain.getAccountProof(address, headerWithAcc.number)
+    //unhappy path
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    retrievedAccountProofWrong.isDefined shouldBe false
 
+    //happy path
+    val retrievedAccountProof = blockchain.getAccountProof(address, headerWithAcc.number)
     retrievedAccountProof.isDefined shouldBe true
     retrievedAccountProof.map { proof =>
       MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe ValidProof

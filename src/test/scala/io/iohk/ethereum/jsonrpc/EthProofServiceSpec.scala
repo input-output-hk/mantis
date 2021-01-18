@@ -121,6 +121,17 @@ class EthProofServiceSpec
     }
   }
 
+  "EthProofService" should "return an error when the proof is requested for non-existing account" in new TestSetup {
+    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
+    val key = 999
+    val storageKeys = Seq(StorageProofKey(key))
+    val blockNumber = BlockParam.Latest
+    val wrongAddress = Address(666)
+    val request = GetProofRequest(wrongAddress, storageKeys, blockNumber)
+    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
+    retrievedAccountProofWrong.runSyncUnsafe().isLeft shouldBe true
+  }
+
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
     val keyStore = mock[KeyStore]

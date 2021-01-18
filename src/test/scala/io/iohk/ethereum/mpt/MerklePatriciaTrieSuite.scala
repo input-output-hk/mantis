@@ -554,26 +554,22 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(proof.isEmpty)
   }
 
-  test("getProof returns empty result for not existing key") {
-    // given
-    val key1: Array[Byte] = Hex.decode("10000001")
-    val key2: Array[Byte] = Hex.decode("10000002")
-    val key3: Array[Byte] = Hex.decode("10000003")
+  test("getProof returns empty result for non-existing key") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
+        .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
 
-    val val1: Array[Byte] = Hex.decode("0101")
-    val val2: Array[Byte] = Hex.decode("0102")
-    val val3: Array[Byte] = Hex.decode("0103")
+      val trie = input
+        .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
+          recTrie.put(key, value)
+        }
 
-    val trie = EmptyTrie
-      .put(key1, val1)
-      .put(key2, val2)
-      .put(key3, val3)
-
-    // when
-    val proof = trie.getProof(Hex.decode("00000001"))
-
-    // then
-    assert(proof.isEmpty)
+      input.toList.foreach(x => {
+        val keyToFind = x._1 ++ Array(Byte.MaxValue)
+        val proof = trie.getProof(keyToFind)
+        assert(proof.isEmpty)
+      })
+    }
   }
 
   test("getProof returns valid proof for existing key") {

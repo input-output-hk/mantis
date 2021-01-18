@@ -844,6 +844,25 @@ class JsonRpcControllerEthSpec
     )
   }
 
+  it should "return error with custom error in data in eth_getProof" in new JsonRpcControllerFixture {
+    val mockEthProofService = mock[EthProofService]
+    override val jsonRpcController = newJsonRpcController(ethService, mockEthProofService)
+
+    (mockEthProofService.getProof _)
+      .expects(*)
+      .returning(Task.now(Left(JsonRpcError.NodeNotFound)))
+
+    val request: JsonRpcRequest =
+      newJsonRpcRequest("eth_getProof", List(
+        JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+        JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
+        JString("latest")
+      ))
+
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
+    response should haveError(JsonRpcError.NodeNotFound)
+  }
+
   it should "eth_getFilterLogs" in new JsonRpcControllerFixture {
     val mockEthService = mock[EthService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
