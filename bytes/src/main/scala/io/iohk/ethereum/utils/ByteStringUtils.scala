@@ -61,7 +61,7 @@ object ByteStringUtils {
     concatByteStrings(it)
   }
 
-  def concatByteStrings(elements: Seq[ByteStringElement]): ByteString = {
+  def concatByteStrings(elements: Iterable[ByteStringElement]): ByteString = {
     val len = elements.foldLeft(0)(_ + _.len)
     val bb = java.nio.ByteBuffer.allocate(len)
     elements.foreach { el => bb.put(el.asByteArray) }
