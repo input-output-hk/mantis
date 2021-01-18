@@ -1,17 +1,17 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.actor.ActorRef
 import akka.util.ByteString
+import akka.util.Timeout
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import monix.eval.Task
 import io.iohk.ethereum.jsonrpc.FilterManager.FilterChanges
 import io.iohk.ethereum.jsonrpc.FilterManager.FilterLogs
-import akka.util.Timeout
-import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import akka.actor.ActorRef
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+import monix.eval.Task
 
 object EthFilterService {
   case class NewFilterRequest(filter: Filter)
@@ -45,11 +45,11 @@ class EthFilterService(
     filterConfig: FilterConfig
 ) {
   import EthFilterService._
+  implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
   def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
     import req.filter._
+
     filterManager
       .askFor[FM.NewFilterResponse](FM.NewLogFilter(fromBlock, toBlock, address, topics))
       .map { resp =>
@@ -57,53 +57,40 @@ class EthFilterService(
       }
   }
 
-  def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+  def newBlockFilter(req: NewBlockFilterRequest): ServiceResponse[NewFilterResponse] =
     filterManager
       .askFor[FM.NewFilterResponse](FM.NewBlockFilter)
       .map { resp =>
         Right(NewFilterResponse(resp.id))
       }
-  }
 
-  def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+  def newPendingTransactionFilter(req: NewPendingTransactionFilterRequest): ServiceResponse[NewFilterResponse] =
     filterManager
       .askFor[FM.NewFilterResponse](FM.NewPendingTransactionFilter)
       .map { resp =>
         Right(NewFilterResponse(resp.id))
       }
-  }
 
-  def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
+  def uninstallFilter(req: UninstallFilterRequest): ServiceResponse[UninstallFilterResponse] =
     filterManager
       .askFor[FM.UninstallFilterResponse.type](FM.UninstallFilter(req.filterId))
       .map(_ => Right(UninstallFilterResponse(success = true)))
-  }
 
-  def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
-
+  def getFilterChanges(req: GetFilterChangesRequest): ServiceResponse[GetFilterChangesResponse] =
     filterManager
       .askFor[FM.FilterChanges](FM.GetFilterChanges(req.filterId))
       .map { filterChanges =>
         Right(GetFilterChangesResponse(filterChanges))
       }
-  }
 
-  def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+  def getFilterLogs(req: GetFilterLogsRequest): ServiceResponse[GetFilterLogsResponse] =
     filterManager
       .askFor[FM.FilterLogs](FM.GetFilterLogs(req.filterId))
       .map { filterLogs =>
         Right(GetFilterLogsResponse(filterLogs))
       }
-  }
 
   def getLogs(req: GetLogsRequest): ServiceResponse[GetLogsResponse] = {
-    implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
     import req.filter._
 
     filterManager
@@ -112,5 +99,4 @@ class EthFilterService(
         Right(GetLogsResponse(filterLogs))
       }
   }
-
 }
