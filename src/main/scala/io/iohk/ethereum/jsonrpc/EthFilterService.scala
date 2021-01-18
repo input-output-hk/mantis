@@ -45,7 +45,7 @@ class EthFilterService(
     filterConfig: FilterConfig
 ) {
   import EthFilterService._
-  implicit val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
+  implicit lazy val timeout: Timeout = Timeout(filterConfig.filterManagerQueryTimeout)
 
   def newFilter(req: NewFilterRequest): ServiceResponse[NewFilterResponse] = {
     import req.filter._
