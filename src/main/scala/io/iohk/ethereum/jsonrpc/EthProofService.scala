@@ -73,6 +73,25 @@ object ProofService {
       storageProof: Seq[StorageProof]
   )
 
+  object ProofAccount {
+
+    def apply(
+        account: Account,
+        accountProof: Seq[ByteString],
+        storageProof: Seq[StorageProof],
+        address: Address
+    ): ProofAccount =
+      ProofAccount(
+        address = address,
+        accountProof = accountProof,
+        balance = account.balance,
+        codeHash = account.codeHash,
+        nonce = account.nonce,
+        storageHash = account.storageRoot,
+        storageProof = storageProof
+      )
+  }
+
   sealed trait MptProofError
   object MptProofError {
     case object UnableRebuildMpt extends MptProofError
@@ -98,7 +117,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     extends ProofService {
 
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
-    run(req.address, req.storageKeys, req.blockNumber)
+    getProofAccount(req.address, req.storageKeys, req.blockNumber)
       .map(_.map(GetProofResponse.apply))
   }
 
@@ -110,7 +129,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     * @param block block number or string "latest", "earliest"
     * @return
     */
-  def run(
+  def getProofAccount(
       address: Address,
       storageKeys: Seq[StorageProofKey],
       block: BlockParam
@@ -126,7 +145,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
         noAccountProof(address, blockNumber)
       )
       storageProof <- getStorageProof(account, storageKeys)
-    } yield mkAccountProof(account, accountProof, storageProof, address)
+    } yield ProofAccount(account, accountProof, storageProof, address)
   }
 
   def getStorageProof(
@@ -156,22 +175,6 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
 
   private def noAccountProof(address: Address, blockNumber: BigInt): JsonRpcError =
     JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
-
-  private def mkAccountProof(
-      account: Account,
-      accountProof: Seq[ByteString],
-      storageProof: Seq[StorageProof],
-      address: Address
-  ): ProofAccount =
-    ProofAccount(
-      address = address,
-      accountProof = accountProof,
-      balance = account.balance,
-      codeHash = account.codeHash,
-      nonce = account.nonce,
-      storageHash = account.storageRoot,
-      storageProof = storageProof
-    )
 
   private def asRlpSerializedNode(node: MptNode): ByteString =
     ByteString(MptTraversals.encodeNode(node))
