@@ -12,7 +12,7 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
@@ -21,7 +21,7 @@ import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown, crypto}
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -302,8 +302,6 @@ class EthMiningServiceSpec
     val seedHash = ByteString(Hex.decode("00" * 32))
     val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
-
-    val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
 
     val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
       None,

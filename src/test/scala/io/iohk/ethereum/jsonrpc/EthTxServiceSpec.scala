@@ -1,36 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum._
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.EthTxService._
-import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.WithActorSystemShutDown
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+
+import scala.concurrent.duration.{Duration, DurationInt, FiniteDuration}
 
 class EthTxServiceSpec
     extends TestKit(ActorSystem("EthServiceSpec_ActorSystem"))
@@ -379,7 +371,7 @@ class EthTxServiceSpec
   }
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     val appStateStorage = mock[AppStateStorage]
     override lazy val ledger = mock[Ledger]
     val pendingTransactionsManager = TestProbe()

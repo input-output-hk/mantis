@@ -9,9 +9,9 @@ import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{GetUncleCountByBlockHashResponse, GetUncleCountByBlockNumberResponse}
+import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
@@ -24,8 +24,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
-import io.iohk.ethereum.{Fixtures, Timeouts}
+import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex

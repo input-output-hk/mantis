@@ -12,7 +12,6 @@ import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
@@ -416,7 +415,7 @@ class EthBlocksServiceSpec
     )
   }
 
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[EthashBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     override lazy val ledger = mock[Ledger]

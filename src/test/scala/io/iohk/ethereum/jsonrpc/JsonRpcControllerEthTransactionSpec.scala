@@ -6,7 +6,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
-import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog

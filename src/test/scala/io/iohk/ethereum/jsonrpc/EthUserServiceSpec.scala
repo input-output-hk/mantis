@@ -2,36 +2,22 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum._
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
 
 class EthUserServiceSpec
     extends TestKit(ActorSystem("EthServiceSpec_ActorSystem"))
@@ -102,20 +88,10 @@ class EthUserServiceSpec
     response.runSyncUnsafe() shouldEqual Left(JsonRpcError.NodeNotFound)
   }
   it should "handle getStorageAt request" in new TestSetup {
-    import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
 
     import MerklePatriciaTrie.defaultByteArraySerializable
-
-    val byteArrayUInt256Serializer = new ByteArrayEncoder[UInt256] {
-      override def toBytes(input: UInt256): Array[Byte] = input.bytes.toArray[Byte]
-    }
-
-    val rlpUInt256Serializer = new ByteArraySerializable[UInt256] {
-      override def fromBytes(bytes: Array[Byte]): UInt256 = ByteString(bytes).toUInt256
-      override def toBytes(input: UInt256): Array[Byte] = input.toBytes
-    }
 
     val storageMpt =
       io.iohk.ethereum.domain.EthereumUInt256Mpt
@@ -160,7 +136,7 @@ class EthUserServiceSpec
     response.runSyncUnsafe() shouldEqual Right(GetTransactionCountResponse(BigInt(999)))
   }
 
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     override lazy val ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
