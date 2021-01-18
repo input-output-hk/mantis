@@ -58,7 +58,7 @@ class FastSyncBranchResolver(
         peer
       )
     case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
-    case Terminated(ref) => log.debug(s"TODO:... $ref")
+    case Terminated(ref) => log.debug(s"TODO:... $ref") //TODO
   }
 
   private def binarySearchingLastValidBlock(searchState: SearchState, blockHeaderNumberToSearch: BigInt): Receive =
@@ -72,7 +72,7 @@ class FastSyncBranchResolver(
       case ResponseReceived(peer, BlockHeaders(blockHeaders), _) =>
         log.warning("*** Invalid validation - Received {} block headers from peer {} ***", blockHeaders.size, peer)
       case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
-      case Terminated(ref) => log.debug(s"TODO:... $ref")
+      case Terminated(ref) => log.debug(s"TODO:... $ref") //TODO
     }
 
   private def validateBlockHeaders(
