@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler, Terminated}
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, ResponseReceived}
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver._
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
@@ -41,63 +41,77 @@ class FastSyncBranchResolver(
     }
   }
 
-  private def waitingBlockHeadersGap(bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
-    case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) => {
+  private def waitingBlockHeadersGap(masterPeer: Peer, bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
+    case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) if peer == masterPeer =>
       log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
       getLastCorrectBlock(blockHeaders, bestBlockNumber) match {
         case Some(lastValidBlockHeader) =>
-          finalizeBranchResolver(bestBlockNumber, lastValidBlockHeader)
-        case None => requestBlockHeader(peer, SearchState(0, bestBlockNumber))
+          finalizeBranchResolver(bestBlockNumber, lastValidBlockHeader, masterPeer)
+        case None =>
+          log.info("validation continue with binary searching")
+          requestBlockHeader(SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer = masterPeer))
       }
+    case ResponseReceived(peer, BlockHeaders(blockHeaders), _) =>
+      log.warning(
+        "*** Invalid validation - Received {} block headers from a non-master peer {} ***",
+        blockHeaders.size,
+        peer
+      )
+    case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
+    case Terminated(ref) => log.debug(s"TODO:... $ref")
+  }
+
+  private def binarySearchingLastValidBlock(searchState: SearchState, blockHeaderNumberToSearch: BigInt): Receive =
+    handleCommonMessages orElse {
+      case ResponseReceived(peer, BlockHeaders(Seq(childBlockHeader: BlockHeader)), timeTaken)
+          if peer == searchState.masterPeer && childBlockHeader.number == blockHeaderNumberToSearch =>
+        log.info("*** Received 1 block header searched in {} ms ***", timeTaken)
+        blockchain
+          .getBlockHeaderByNumber(childBlockHeader.number - 1)
+          .foreach(validateBlockHeaders(_, childBlockHeader, searchState))
+      case ResponseReceived(peer, BlockHeaders(blockHeaders), _) =>
+        log.warning("*** Invalid validation - Received {} block headers from peer {} ***", blockHeaders.size, peer)
+      case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
+      case Terminated(ref) => log.debug(s"TODO:... $ref")
     }
-    case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
-  }
-
-  private def binarySearchingLastValidBlock(searchState: SearchState): Receive = handleCommonMessages orElse {
-    case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
-      log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
-      for {
-        parentBlockHeader <- blockHeaders.headOption
-        childBlockHeader <- blockchain.getBlockHeaderByNumber(parentBlockHeader.number - 1)
-      } yield validateBlockHeaders(parentBlockHeader, childBlockHeader, searchState, peer)
-
-    case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
-  }
 
   private def validateBlockHeaders(
       parentBlockHeader: BlockHeader,
       childBlockHeader: BlockHeader,
-      searchState: SearchState,
-      peer: Peer
+      searchState: SearchState
   ): Unit = {
-    if (validateBlockHeaders(parentBlockHeader, childBlockHeader)) {
-      if (childBlockHeader.number == searchState.minBlockNumber)
-        finalizeBranchResolver(blockchain.getBestBlockNumber(), childBlockHeader.number)
-      else requestBlockHeader(peer, searchState.copy(minBlockNumber = childBlockHeader.number + 1))
-    } else requestBlockHeader(peer, searchState.copy(maxBlockNumber = childBlockHeader.number))
+    if (validateBlockHeaders(childBlockHeader, parentBlockHeader)) {
+      if (parentBlockHeader.number == searchState.minBlockNumber)
+        finalizeBranchResolver(blockchain.getBestBlockNumber(), parentBlockHeader.number, searchState.masterPeer)
+      else requestBlockHeader(searchState.copy(minBlockNumber = parentBlockHeader.number + 1))
+    } else if (parentBlockHeader.number == searchState.minBlockNumber)
+      finalizeBranchResolver(blockchain.getBestBlockNumber(), parentBlockHeader.number - 1, searchState.masterPeer)
+    else
+      requestBlockHeader(searchState.copy(maxBlockNumber = parentBlockHeader.number))
   }
 
-  private def finalizeBranchResolver(lastBlock: BigInt, lastValidBlock: BigInt): Unit = {
-    discardLastInvalidBlocks(lastBlock, lastValidBlock)
+  private def finalizeBranchResolver(lastBlock: BigInt, firstCommonBlockNumber: BigInt, masterPeer: Peer): Unit = {
+    discardLastInvalidBlocks(lastBlock, firstCommonBlockNumber)
     context become receive
-    log.info("branch resolution completed")
-    fastSync ! BranchResolvedSuccessful
+    log.info(s"branch resolution completed - firstCommonBlockNumber $firstCommonBlockNumber")
+    fastSync ! BranchResolvedSuccessful(firstCommonBlockNumber = firstCommonBlockNumber, masterPeer = masterPeer)
   }
 
   private def getBestPeer: Option[(Peer, PeerInfo)] = {
     handshakedPeers.toList.sortBy { case (_, peerInfo) => peerInfo.maxBlockNumber }(Ordering[BigInt].reverse).headOption
   }
 
-  private def requestBlockHeadersGap(peer: Peer, bestBlockNumber: BigInt): Unit = {
-    getBlockHeaders(peer, bestBlockNumber - blockHeadersPerRequest + 1, blockHeadersPerRequest)
-    context become waitingBlockHeadersGap(bestBlockNumber)
+  private def requestBlockHeadersGap(masterPeer: Peer, bestBlockNumber: BigInt): Unit = {
+    getBlockHeaders(masterPeer, bestBlockNumber - blockHeadersPerRequest + 1, blockHeadersPerRequest)
+    context become waitingBlockHeadersGap(masterPeer, bestBlockNumber)
   }
 
-  private def requestBlockHeader(peer: Peer, searchState: SearchState): Unit = {
+  private def requestBlockHeader(searchState: SearchState): Unit = {
     val blockHeaderNumber: BigInt =
       searchState.minBlockNumber + (searchState.maxBlockNumber - searchState.minBlockNumber) / 2
-    getBlockHeaders(peer, blockHeaderNumber + 1, 1)
-    context become binarySearchingLastValidBlock(searchState)
+    val blockHeaderNumberToSearch: BigInt = blockHeaderNumber + 1
+    getBlockHeaders(searchState.masterPeer, blockHeaderNumberToSearch, 1)
+    context become binarySearchingLastValidBlock(searchState, blockHeaderNumberToSearch)
   }
 
   private def getBlockHeaders(peer: Peer, blockNumber: BigInt, maxHeaders: BigInt): Unit = {
@@ -109,8 +123,7 @@ class FastSyncBranchResolver(
         peerEventBus,
         requestMsg = GetBlockHeaders(Left(blockNumber), maxHeaders, skip = 0, reverse = false),
         responseMsgCode = Codes.BlockHeadersCode
-      ),
-      BlockHeadersHandlerName
+      )
     )
 
     context watch handler
@@ -126,7 +139,7 @@ class FastSyncBranchResolver(
   }
 
   private def validateBlockHeaders(childBlockHeader: BlockHeader, parentBlockHeader: BlockHeader): Boolean =
-    parentBlockHeader.hash == childBlockHeader.parentHash && parentBlockHeader.number + 1 == childBlockHeader.number
+    parentBlockHeader.isParentOf(childBlockHeader)
 
   private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String): Unit = {
     log.error(s"response failure from peer $peer - reason $reason")
@@ -170,13 +183,11 @@ object FastSyncBranchResolver {
       )
     )
 
-  private val BlockHeadersHandlerName = "block-headers-request-handler"
-
-  case class SearchState(minBlockNumber: BigInt, maxBlockNumber: BigInt)
+  case class SearchState(minBlockNumber: BigInt, maxBlockNumber: BigInt, masterPeer: Peer)
 
   sealed trait BranchResolverRequest
   case object StartBranchResolver extends BranchResolverRequest
 
   sealed trait BranchResolverResponse
-  case object BranchResolvedSuccessful extends BranchResolverResponse
+  case class BranchResolvedSuccessful(firstCommonBlockNumber: BigInt, masterPeer: Peer) extends BranchResolverResponse
 }
