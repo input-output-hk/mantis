@@ -2,10 +2,10 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.serialization.{ JsonEncoder, JsonMethodDecoder }
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import org.json4s.Extraction
-import org.json4s.JsonAST.{ JArray, JBool, JField, JString, JValue }
+import org.json4s.JsonAST.{JArray, JBool, JField, JString, JValue}
 
 object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_chainId = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {
