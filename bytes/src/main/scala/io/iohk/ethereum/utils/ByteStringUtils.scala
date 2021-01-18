@@ -4,6 +4,7 @@ import akka.util.ByteString
 
 import scala.collection.mutable
 import scala.math.Ordering.Implicits._
+import scala.collection.mutable.ArrayBuilder
 
 object ByteStringUtils {
   def hash2string(hash: ByteString): String =
@@ -56,19 +57,15 @@ object ByteStringUtils {
   }
 
   def concatByteStrings(head: ByteStringElement, tail: ByteStringElement*): ByteString = {
-    val it = Iterator.single(head) ++ tail.iterator
+    val it = head +: tail
     concatByteStrings(it)
   }
 
-  def concatByteStrings(elements: Iterator[ByteStringElement]): ByteString = {
-    val elementList: List[ByteStringElement] = elements.toList
-    val len = elementList.foldLeft(0)(_ + _.len)
-    val array = Array.ofDim[Byte](len)
-    elementList.foldLeft(0) { (index, el) =>
-      System.arraycopy(el.asByteArray, 0, array, index, el.len)
-      index + el.len
-    }
-    ByteString.fromArrayUnsafe(array)
+  def concatByteStrings(elements: Seq[ByteStringElement]): ByteString = {
+    val len = elements.foldLeft(0)(_ + _.len)
+    val bb = java.nio.ByteBuffer.allocate(len)
+    elements.foreach { el => bb.put(el.asByteArray) }
+    ByteString.fromArrayUnsafe( bb.array() )
   }
 
 }

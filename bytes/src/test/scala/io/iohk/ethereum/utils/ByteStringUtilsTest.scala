@@ -5,6 +5,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers
 import ByteStringUtils._
 import scala.collection.immutable.ArraySeq
+import scala.collection.mutable.{ArrayBuffer, ArrayBuilder}
 import scala.util.{Try, Success, Failure}
 
 class ByteStringUtilsTest extends AnyWordSpec with Matchers {
@@ -56,6 +57,45 @@ class ByteStringUtilsTest extends AnyWordSpec with Matchers {
       bsu.padTo(6, 1) shouldEqual longSeq
     }
 
+    "operate on bytebuf as the fastest tool for concatenation" in {
+      val buffer = arrayBufferTime
+      val builder = arrayBuilderTime
+      val bytebuf = byteBufferTime
+      assert(bytebuf < buffer)
+      assert(bytebuf < builder)
+    }
+
   }
+
+  val CAPACITY = 1000000
+
+  def arrayBufferTime: Long = {
+      var aBuffer = new ArrayBuffer[Byte](CAPACITY)
+      var time = System.nanoTime()
+      for (i <- 0 until CAPACITY) {
+          aBuffer += (i & 0xFF).toByte
+      }
+      System.nanoTime() - time
+  }
+
+  def arrayBuilderTime: Long = {
+      var aBuilder = new ArrayBuilder.ofByte
+      aBuilder.sizeHint(CAPACITY)
+      var time = System.nanoTime()
+      for (i <- 0 until CAPACITY) {
+          aBuilder += (i & 0xFF).toByte
+      }
+      System.nanoTime() - time
+  }
+
+  def byteBufferTime: Long = {
+      var aBuffer = java.nio.ByteBuffer.allocate(CAPACITY)
+      var time = System.nanoTime()
+      for (i <- 0 until CAPACITY) {
+          aBuffer.put((i & 0xFF).toByte)
+      }
+      System.nanoTime() - time
+  }
+
 }
 
