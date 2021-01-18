@@ -1,38 +1,27 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
+import akka.util.{ ByteString, Timeout }
 import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, _}
+import io.iohk.ethereum.domain.{ BlockHeader, _ }
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
-import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.ledger.{ InMemoryWorldStateProxy, Ledger, StxLedger }
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{PendingTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils._
 import monix.eval.Task
 
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
-import scala.concurrent.duration.FiniteDuration
+import scala.collection.concurrent.{ TrieMap, Map => ConcurrentMap }
 import scala.language.existentials
 import scala.reflect.ClassTag
-import scala.util.{Failure, Success, Try}
-import io.iohk.ethereum.transactions.TransactionPicker
 
 // scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {

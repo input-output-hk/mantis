@@ -12,9 +12,6 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
 import java.time.Duration

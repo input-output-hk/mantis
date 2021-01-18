@@ -52,6 +52,8 @@ class JsonRpcController(
   import CheckpointingJsonMethodsImplicits._
   import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
+  import EthBlocksJsonMethodsImplicits._
+  import EthMiningJsonMethodsImplicits._
   import EthTxJsonMethodsImplicits._
   import EthUserJsonMethodsImplicits._
   import EthFilterJsonMethodsImplicits._

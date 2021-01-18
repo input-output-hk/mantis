@@ -16,7 +16,6 @@ import scala.util.Failure
 import akka.actor.ActorRef
 import scala.concurrent.duration.FiniteDuration
 import io.iohk.ethereum.transactions.TransactionPicker
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.Ledger
 
 object EthTxService {
