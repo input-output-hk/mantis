@@ -40,7 +40,7 @@ object EthBlocksService {
   case class GetUncleCountByBlockHashResponse(result: BigInt)
 }
 
-class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig: BlockchainConfig) extends Logger {
+class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig: BlockchainConfig) {
   import EthBlocksService._
 
   private[jsonrpc] def consensus = ledger.consensus

@@ -23,7 +23,6 @@ import scala.collection.concurrent.{ TrieMap, Map => ConcurrentMap }
 import scala.language.existentials
 import scala.reflect.ClassTag
 
-// scalastyle:off number.of.methods number.of.types file.size.limit
 object EthService {
 
   case class ProtocolVersionRequest()
