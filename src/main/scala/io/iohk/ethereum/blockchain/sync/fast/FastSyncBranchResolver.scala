@@ -44,9 +44,9 @@ class FastSyncBranchResolver(
   private def waitingBlockHeadersGap(masterPeer: Peer, bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
     case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) if peer == masterPeer =>
       log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
-      getLastCorrectBlock(blockHeaders, bestBlockNumber) match {
-        case Some(lastValidBlockHeader) =>
-          finalizeBranchResolver(bestBlockNumber, lastValidBlockHeader, masterPeer)
+      getFirstCommonBlock(blockHeaders, bestBlockNumber) match {
+        case Some(firstCommonBlockNumber) =>
+          finalizeBranchResolver(bestBlockNumber, firstCommonBlockNumber, masterPeer)
         case None =>
           log.info("validation continue with binary searching")
           requestBlockHeader(SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer = masterPeer))
@@ -129,7 +129,7 @@ class FastSyncBranchResolver(
     context watch handler
   }
 
-  private def getLastCorrectBlock(candidateHeaders: Seq[BlockHeader], bestBlockNumber: BigInt): Option[BigInt] = {
+  private def getFirstCommonBlock(candidateHeaders: Seq[BlockHeader], bestBlockNumber: BigInt): Option[BigInt] = {
     candidateHeaders.reverse
       .zip(bestBlockNumber to ((bestBlockNumber - blockHeadersPerRequest) max 1) by -1)
       .find { case (child, childNumber) =>
