@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl, UInt256, _}
-import io.iohk.ethereum.jsonrpc.EthService.{ProtocolVersionRequest, _}
+import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
@@ -25,7 +25,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 class EthServiceSpec
-    extends TestKit(ActorSystem("EthServiceSpec_ActorSystem"))
+    extends TestKit(ActorSystem("EthInfoServiceSpec_ActorSystem"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with Matchers
@@ -35,11 +35,17 @@ class EthServiceSpec
     with NormalPatience
     with TypeCheckedTripleEquals {
 
-  "EthService" should "return ethereum protocol version" in new TestSetup {
+  "EthInfoService" should "return ethereum protocol version" in new TestSetup {
     val response = ethService.protocolVersion(ProtocolVersionRequest()).runSyncUnsafe()
     val protocolVersion = response.toOption.get.value
 
     Integer.parseInt(protocolVersion.drop(2), 16) shouldEqual currentProtocolVersion
+  }
+
+  it should "return configured chain id" in new TestSetup {
+    val response = ethService.chainId(ChainIdRequest()).runSyncUnsafe().toOption.get
+
+    assert(response === ChainIdResponse(blockchainConfig.chainId))
   }
 
   it should "return syncing info if the peer is syncing" in new TestSetup {
@@ -51,7 +57,7 @@ class EthServiceSpec
 
     response shouldEqual SyncingResponse(
       Some(
-        EthService.SyncingStatus(
+        EthInfoService.SyncingStatus(
           startingBlock = 999,
           currentBlock = 200,
           highestBlock = 10000,
@@ -147,8 +153,9 @@ class EthServiceSpec
 
     val currentProtocolVersion = 11
 
-    lazy val ethService = new EthService(
+    lazy val ethService = new EthInfoService(
       blockchain,
+      blockchainConfig,
       ledger,
       stxLedger,
       keyStore,

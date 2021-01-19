@@ -8,10 +8,6 @@ import org.json4s.Extraction
 import org.json4s.JsonAST.{JArray, JBool, JField, JString, JValue}
 
 object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
-  implicit val eth_chainId = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {
-    def encodeJson(t: ChainIdResponse) = encodeAsHex(t.value)
-  }
-
   implicit val eth_blockNumber = new NoParamsMethodDecoder(BestBlockNumberRequest())
     with JsonEncoder[BestBlockNumberResponse] {
     override def encodeJson(t: BestBlockNumberResponse): JValue = Extraction.decompose(t.bestBlockNumber)

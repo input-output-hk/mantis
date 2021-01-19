@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.jsonrpc.{EthService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
@@ -200,7 +200,7 @@ object EthashMiner {
       blockchain: Blockchain,
       blockCreator: EthashBlockCreator,
       syncController: ActorRef,
-      ethService: EthService,
+      ethInfoService: EthInfoService,
       ethMiningService: EthMiningService
   ): Props =
     Props(
@@ -220,7 +220,7 @@ object EthashMiner {
           blockchain = node.blockchain,
           blockCreator = blockCreator,
           syncController = node.syncController,
-          ethService = node.ethService,
+          ethInfoService = node.ethInfoService,
           ethMiningService = node.ethMiningService
         )
         node.system.actorOf(minerProps)

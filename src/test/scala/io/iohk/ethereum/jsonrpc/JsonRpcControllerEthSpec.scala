@@ -10,7 +10,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{GetUncleCountByBlockHashResponse, GetUncleCountByBlockNumberResponse}
 import io.iohk.ethereum.jsonrpc.EthFilterService._
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -451,7 +451,7 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_call" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
+    val mockEthService = mock[EthInfoService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
     (mockEthService.call _).expects(*).returning(Task.now(Right(CallResponse(ByteString("asd")))))
@@ -474,7 +474,7 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_estimateGas" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthService]
+    val mockEthService = mock[EthInfoService]
     override val jsonRpcController = newJsonRpcController(mockEthService)
 
     (mockEthService.estimateGas _)

@@ -2,8 +2,6 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
-import io.iohk.ethereum.jsonrpc.EthService.ResolvedBlock
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -23,26 +21,24 @@ object EthUserService {
 }
 
 class EthUserService(
-    blockchain: Blockchain,
-    ledger: Ledger,
+    val blockchain: Blockchain,
+    val ledger: Ledger,
     blockchainConfig: BlockchainConfig
-) {
+) extends ResolveBlock {
   import EthUserService._
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Task {
-      EthService
-        .resolveBlock(blockchain, ledger, req.block)
-        .map { case ResolvedBlock(block, _) =>
-          val world = blockchain.getWorldStateProxy(
-            block.header.number,
-            blockchainConfig.accountStartNonce,
-            block.header.stateRoot,
-            noEmptyAccounts = false,
-            ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-          )
-          GetCodeResponse(world.getCode(req.address))
-        }
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
+        val world = blockchain.getWorldStateProxy(
+          block.header.number,
+          blockchainConfig.accountStartNonce,
+          block.header.stateRoot,
+          noEmptyAccounts = false,
+          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+        )
+        GetCodeResponse(world.getCode(req.address))
+      }
     }
   }
 
@@ -70,8 +66,7 @@ class EthUserService(
 
   private def withAccount[T](address: Address, blockParam: BlockParam)(makeResponse: Account => T): ServiceResponse[T] =
     Task {
-      EthService
-        .resolveBlock(blockchain, ledger, blockParam)
+      resolveBlock(blockParam)
         .map { case ResolvedBlock(block, _) =>
           blockchain
             .getAccount(address, block.header.number)

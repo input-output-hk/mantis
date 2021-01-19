@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.EthFilterService._
@@ -30,7 +30,7 @@ import org.json4s.JsonDSL._
 class JsonRpcController(
     web3Service: Web3Service,
     netService: NetService,
-    ethService: EthService,
+    ethInfoService: EthInfoService,
     ethMiningService: EthMiningService,
     ethBlocksService: EthBlocksService,
     ethTxService: EthTxService,
@@ -99,11 +99,11 @@ class JsonRpcController(
   // scalastyle:off method.length
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
-      handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+      handle[ProtocolVersionRequest, ProtocolVersionResponse](ethInfoService.protocolVersion, req)
     case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
-      handle[ChainIdRequest, ChainIdResponse](ethBlocksService.chainId, req)
+      handle[ChainIdRequest, ChainIdResponse](ethInfoService.chainId, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
-      handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
+      handle[SyncingRequest, SyncingResponse](ethInfoService.syncing, req)
     case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
       handle[SubmitHashRateRequest, SubmitHashRateResponse](ethMiningService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
@@ -156,9 +156,9 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "eth_sendTransaction", _, _) =>
       handle[SendTransactionRequest, SendTransactionResponse](personalService.sendTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
-      handle[CallRequest, CallResponse](ethService.call, req)(eth_call, eth_call)
+      handle[CallRequest, CallResponse](ethInfoService.call, req)(eth_call, eth_call)
     case req @ JsonRpcRequest(_, "eth_estimateGas", _, _) =>
-      handle[CallRequest, EstimateGasResponse](ethService.estimateGas, req)(eth_estimateGas, eth_estimateGas)
+      handle[CallRequest, EstimateGasResponse](ethInfoService.estimateGas, req)(eth_estimateGas, eth_estimateGas)
     case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
       handle[GetCodeRequest, GetCodeResponse](ethUserService.getCode, req)
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
@@ -253,7 +253,7 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "iele_sendTransaction", _, _) =>
       handle[SendIeleTransactionRequest, SendTransactionResponse](personalService.sendIeleTransaction, req)
     case req @ JsonRpcRequest(_, "iele_call", _, _) =>
-      handle[IeleCallRequest, IeleCallResponse](ethService.ieleCall, req)
+      handle[IeleCallRequest, IeleCallResponse](ethInfoService.ieleCall, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {

@@ -8,7 +8,7 @@ import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.{EthService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -83,7 +83,7 @@ class EthashMinerSpec
     val ommersPool = TestProbe()
     val pendingTransactionsManager = TestProbe()
 
-    val ethService = mock[EthService]
+    val ethService = mock[EthInfoService]
     val ethMiningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 

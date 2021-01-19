@@ -2,16 +2,12 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.jsonrpc.EthService.{BlockParam, ResolvedBlock}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
 object EthBlocksService {
-  case class ChainIdRequest()
-  case class ChainIdResponse(value: Byte)
-
   case class BestBlockNumberRequest()
   case class BestBlockNumberResponse(bestBlockNumber: BigInt)
 
@@ -40,14 +36,11 @@ object EthBlocksService {
   case class GetUncleCountByBlockHashResponse(result: BigInt)
 }
 
-class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig: BlockchainConfig) {
+class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends ResolveBlock {
   import EthBlocksService._
 
   private[jsonrpc] def consensus = ledger.consensus
   private[jsonrpc] def blockGenerator = consensus.blockGenerator
-
-  def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
-    Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
 
   /**
     * eth_blockNumber that returns the number of most recent block.
@@ -94,7 +87,7 @@ class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig:
   def getBlockByNumber(request: BlockByNumberRequest): ServiceResponse[BlockByNumberResponse] = Task {
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt =
-      EthService.resolveBlock(blockchain, ledger, blockParam).toOption.map { case ResolvedBlock(block, pending) =>
+      resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
         val weight = blockchain.getChainWeightByHash(block.header.hash)
         BlockResponse(block, weight, fullTxs = fullTxs, pendingBlock = pending.isDefined)
       }
@@ -105,7 +98,7 @@ class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig:
       req: GetBlockTransactionCountByNumberRequest
   ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
     Task {
-      EthService.resolveBlock(blockchain, ledger, req.block).map { case ResolvedBlock(block, _) =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
@@ -148,9 +141,7 @@ class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig:
       request: UncleByBlockNumberAndIndexRequest
   ): ServiceResponse[UncleByBlockNumberAndIndexResponse] = Task {
     val UncleByBlockNumberAndIndexRequest(blockParam, uncleIndex) = request
-    val uncleBlockResponseOpt = EthService
-      .resolveBlock(blockchain, ledger, blockParam)
-      .toOption
+    val uncleBlockResponseOpt = resolveBlock(blockParam).toOption
       .flatMap { case ResolvedBlock(block, pending) =>
         if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
@@ -175,7 +166,7 @@ class EthBlocksService(blockchain: Blockchain, ledger: Ledger, blockchainConfig:
       req: GetUncleCountByBlockNumberRequest
   ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
     Task {
-      EthService.resolveBlock(blockchain, ledger, req.block).map { case ResolvedBlock(block, _) =>
+      resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }

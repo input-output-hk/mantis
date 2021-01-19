@@ -6,7 +6,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie

@@ -6,7 +6,6 @@ import akka.util.Timeout
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.jsonrpc.FilterManager.FilterChanges
 import io.iohk.ethereum.jsonrpc.FilterManager.FilterLogs
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs

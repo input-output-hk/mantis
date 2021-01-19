@@ -2,7 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
 import io.iohk.ethereum.jsonrpc.EthBlocksService.BlockByNumberRequest
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.NetService._
 import monix.eval.Task
 

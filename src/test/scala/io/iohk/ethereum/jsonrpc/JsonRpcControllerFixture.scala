@@ -77,8 +77,9 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val checkpointingService = mock[CheckpointingService]
   val mantisService = mock[MantisService]
 
-  val ethService = new EthService(
+  val ethService = new EthInfoService(
     blockchain,
+    blockchainConfig,
     ledger,
     stxLedger,
     keyStore,
@@ -103,7 +104,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, ledger, blockchainConfig)
+  val ethBlocksService = new EthBlocksService(blockchain, ledger)
 
   val ethUserService = new EthUserService(
     blockchain,
@@ -135,7 +136,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       config
     )
 
-  protected def newJsonRpcController(ethService: EthService, proofService: ProofService = ProofServiceDummy) =
+  protected def newJsonRpcController(ethService: EthInfoService, proofService: ProofService = ProofServiceDummy) =
     new JsonRpcController(
       web3Service,
       netService,

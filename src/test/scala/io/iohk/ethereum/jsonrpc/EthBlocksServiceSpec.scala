@@ -10,7 +10,6 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
@@ -40,12 +39,6 @@ class EthBlocksServiceSpec
 
     val response = ethBlocksService.bestBlockNumber(BestBlockNumberRequest()).runSyncUnsafe(Duration.Inf).toOption.get
     response.bestBlockNumber shouldEqual bestBlockNumber
-  }
-
-  it should "return configured chain id" in new TestSetup {
-    val response = ethBlocksService.chainId(ChainIdRequest()).runSyncUnsafe().toOption.get
-
-    assert(response === ChainIdResponse(blockchainConfig.chainId))
   }
 
   it should "answer eth_getBlockTransactionCountByHash with None when the requested block isn't in the blockchain" in new TestSetup {
@@ -424,8 +417,7 @@ class EthBlocksServiceSpec
 
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
-      ledger,
-      blockchainConfig
+      ledger
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

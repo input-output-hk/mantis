@@ -22,8 +22,11 @@ import java.util.concurrent.atomic.AtomicReference
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.language.existentials
 import scala.reflect.ClassTag
+import io.iohk.ethereum.utils.BlockchainConfig
 
-object EthService {
+object EthInfoService {
+  case class ChainIdRequest()
+  case class ChainIdResponse(value: Byte)
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
@@ -37,15 +40,6 @@ object EthService {
       pulledStates: BigInt
   )
   case class SyncingResponse(syncStatus: Option[SyncingStatus])
-
-  sealed trait BlockParam
-
-  object BlockParam {
-    case class WithNumber(n: BigInt) extends BlockParam
-    case object Latest extends BlockParam
-    case object Pending extends BlockParam
-    case object Earliest extends BlockParam
-  }
 
   case class CallTx(
       from: Option[ByteString],
@@ -72,51 +66,26 @@ object EthService {
   case class IeleCallRequest(tx: IeleCallTx, block: BlockParam)
   case class IeleCallResponse(returnData: Seq[ByteString])
   case class EstimateGasResponse(gas: BigInt)
-
-  case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStateProxy])
-
-  def resolveBlock(
-      blockchain: Blockchain,
-      ledger: Ledger,
-      blockParam: BlockParam
-  ): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-      blockchain
-        .getBlockByNumber(number)
-        .map(Right.apply)
-        .getOrElse(Left(JsonRpcError.InvalidParams(s"Block $number not found")))
-    }
-
-    blockParam match {
-      case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Pending =>
-        ledger.consensus.blockGenerator.getPendingBlockAndState
-          .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
-          .map(Right.apply)
-          .getOrElse(resolveBlock(blockchain, ledger, BlockParam.Latest)) //Default behavior in other clients
-    }
-  }
 }
 
-class EthService(
-    blockchain: Blockchain,
-    ledger: Ledger,
+class EthInfoService(
+    val blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    val ledger: Ledger,
     stxLedger: StxLedger,
     keyStore: KeyStore,
     syncingController: ActorRef,
     protocolVersion: Int,
     askTimeout: Timeout
-) {
+) extends ResolveBlock {
 
-  import EthService._
-
-  val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
-  val lastActive = new AtomicReference[Option[Date]](None)
+  import EthInfoService._
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
     Task.now(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
+
+  def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
+    Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
 
   /**
     * Implements the eth_syncing method that returns syncing information if the node is syncing.
@@ -183,12 +152,12 @@ class EthService(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A
   ): Either[JsonRpcError, A] = for {
     stx <- prepareTransaction(req)
-    block <- resolveBlock(blockchain, ledger, req.block)
+    block <- resolveBlock(req.block)
   } yield f(stx, block.block.header, block.pendingState)
 
   private def getGasLimit(req: CallRequest): Either[JsonRpcError, BigInt] =
     if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
-    else resolveBlock(blockchain, ledger, BlockParam.Latest).map(r => r.block.header.gasLimit)
+    else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
 
   private def prepareTransaction(req: CallRequest): Either[JsonRpcError, SignedTransactionWithSender] = {
     getGasLimit(req).map { gasLimit =>

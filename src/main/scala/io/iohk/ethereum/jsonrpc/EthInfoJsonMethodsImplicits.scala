@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, StorageProofKey}
@@ -13,7 +13,9 @@ import org.json4s.JsonDSL._
 import org.json4s.Extraction
 
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
-//  implicit val transactionResponseJsonEncoder: JsonEncoder[TransactionResponse] = Extraction.decompose(_)
+  implicit val eth_chainId = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {
+    def encodeJson(t: ChainIdResponse) = encodeAsHex(t.value)
+  }
 
   implicit val eth_protocolVersion = new NoParamsMethodDecoder(ProtocolVersionRequest())
     with JsonEncoder[ProtocolVersionResponse] {

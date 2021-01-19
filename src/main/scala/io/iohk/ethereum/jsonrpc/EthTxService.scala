@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import monix.eval.Task
 import io.iohk.ethereum.domain.Blockchain
@@ -37,11 +36,12 @@ object EthTxService {
 }
 
 class EthTxService(
-    blockchain: Blockchain,
-    ledger: Ledger,
+    val blockchain: Blockchain,
+    val ledger: Ledger,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration
-) extends TransactionPicker {
+) extends TransactionPicker
+    with ResolveBlock {
   import EthTxService._
 
   /**
@@ -214,8 +214,7 @@ class EthTxService(
   }
 
   private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
-    EthService
-      .resolveBlock(blockchain, ledger, block)
+    resolveBlock(block)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList
         if (transactionIndex >= 0 && transactionIndex < blockTxs.size)
