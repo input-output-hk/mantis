@@ -133,8 +133,9 @@ class FastSync(
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
     private val syncStateStorageActor = context.actorOf(Props[StateStorageActor](), "state-storage")
-
     syncStateStorageActor ! fastSyncStateStorage
+
+    private val branchResolver = context.actorOf(Props[FastSyncBranchResolver](), "fast-sync-branch-resolver")
 
     private val syncStateScheduler = context.actorOf(
       SyncStateSchedulerActor
@@ -268,19 +269,24 @@ class FastSync(
     private def handleDownloadedBatchError(error: HeaderSkeletonError, request: (BigInt, BigInt), peer: Peer) = {
       blockHeadersQueue :+= request
       error match {
-        case _: InvalidPenultimateHeader |
-            _: InvalidBatchHash => // These are the reasons that make the master peer suspicious
-          batchFailuresCount += 1
-          if (batchFailuresCount > fastSyncMaxBatchRetries) {
-            log.info("Max skeleton batch failures reached. Master peer must be wrong.")
-            blacklist(peer.id, blacklistDuration, "Max skeleton batch failures reached.")
-            // TODO: Rewind a configured number of blocks
-            // TODO: Send message to branch resolver and wait for a resolution
-            currentSkeleton = None
-          }
+        // These are the reasons that make the master peer suspicious
+        case InvalidPenultimateHeader(_, header) => handleMasterPeerFailure(header)
+        case InvalidBatchHash(_, header) => handleMasterPeerFailure(header)
+        // Otherwise probably it's just this peer's fault
         case _ =>
           log.info(error.msg)
           blockHeadersError(peer)
+      }
+    }
+
+    private def handleMasterPeerFailure(header: BlockHeader): Unit = {
+      batchFailuresCount += 1
+      if (batchFailuresCount > fastSyncMaxBatchRetries) {
+        log.info("Max skeleton batch failures reached. Master peer must be wrong.")
+        handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+        branchResolver ! FastSyncBranchResolver.StartBranchResolver
+        // TODO: Become waiting for a branch resolution
+        currentSkeleton = None
       }
     }
 
@@ -540,9 +546,7 @@ class FastSync(
     }
 
     def validHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt): Boolean = {
-      headers.nonEmpty &&
-      headers.size <= requestedNum &&
-      checkHeadersChain(headers)
+      headers.nonEmpty && headers.size <= requestedNum && checkHeadersChain(headers)
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
