@@ -67,10 +67,10 @@ class FastSyncBranchResolverSpec
           block => block
         )
 
-        val firstBlockHeadersGap: List[Block] =
+        val firstBatchBlockHeaders: List[Block] =
           blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
 
-        val blocksSentFromPee: Map[Int, List[Block]] = Map(1 -> firstBlockHeadersGap)
+        val blocksSentFromPee: Map[Int, List[Block]] = Map(1 -> firstBatchBlockHeaders)
 
         saveBlocks(blocksSaved)
         val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPee)
@@ -109,11 +109,11 @@ class FastSyncBranchResolverSpec
           block => block
         )
 
-        val firstBlockHeadersGap =
+        val firstBatchBlockHeaders =
           blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
 
         val blocksSentFromPee: Map[Int, List[Block]] = Map(
-          1 -> firstBlockHeadersGap,
+          1 -> firstBatchBlockHeaders,
           2 -> List(blocksSavedInPeer.get(5).get),
           3 -> List(blocksSavedInPeer.get(8).get),
           4 -> List(blocksSavedInPeer.get(7).get),

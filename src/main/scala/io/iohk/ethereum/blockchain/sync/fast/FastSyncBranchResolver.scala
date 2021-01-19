@@ -34,14 +34,14 @@ class FastSyncBranchResolver(
 
   override def receive: Receive = handleCommonMessages orElse { case StartBranchResolver =>
     getBestPeer match {
-      case Some((peer, _)) => requestBlockHeadersGap(peer, blockchain.getBestBlockNumber())
+      case Some((peer, _)) => requestBatchBlockHeaders(peer, blockchain.getBestBlockNumber())
       case None =>
         log.info(s"Still waiting for some peer, rescheduling StartBranchResolver")
         scheduler.scheduleOnce(1.second, self, StartBranchResolver)
     }
   }
 
-  private def waitingBlockHeadersGap(masterPeer: Peer, bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
+  private def waitingBatchBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
     case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) if peer == masterPeer =>
       log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
       getFirstCommonBlock(blockHeaders, bestBlockNumber) match {
@@ -101,9 +101,9 @@ class FastSyncBranchResolver(
     handshakedPeers.toList.sortBy { case (_, peerInfo) => peerInfo.maxBlockNumber }(Ordering[BigInt].reverse).headOption
   }
 
-  private def requestBlockHeadersGap(masterPeer: Peer, bestBlockNumber: BigInt): Unit = {
+  private def requestBatchBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Unit = {
     getBlockHeaders(masterPeer, bestBlockNumber - blockHeadersPerRequest + 1, blockHeadersPerRequest)
-    context become waitingBlockHeadersGap(masterPeer, bestBlockNumber)
+    context become waitingBatchBlockHeaders(masterPeer, bestBlockNumber)
   }
 
   private def requestBlockHeader(searchState: SearchState): Unit = {
