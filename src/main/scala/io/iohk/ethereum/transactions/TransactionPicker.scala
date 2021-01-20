@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus.ethash
+package io.iohk.ethereum.transactions
 
 import akka.actor.ActorRef
 import akka.util.Timeout
@@ -16,7 +16,7 @@ trait TransactionPicker extends Logger {
 
   implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
-  protected def getTransactionsFromPool: Task[PendingTransactionsResponse] = {
+  def getTransactionsFromPool: Task[PendingTransactionsResponse] = {
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .onErrorHandle { ex =>
