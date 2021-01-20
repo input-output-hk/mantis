@@ -53,17 +53,6 @@ class PeerStatisticsActor(
     )
     maybeStats = maybeStats.map(_.add(peerId, obs))
   }
-
-  private def handleMessageFromPeer(msg: Message, peerId: PeerId): Unit = {
-    val now = clock.millis
-    val obs = PeerStat(
-      responsesReceived = if (ResponseCodes(msg.code)) 1 else 0,
-      requestsReceived = if (RequestCodes(msg.code)) 1 else 0,
-      firstSeenTimeMillis = Some(now),
-      lastSeenTimeMillis = Some(now)
-    )
-    maybeStats = maybeStats.map(_.add(peerId, obs))
-  }
 }
 
 object PeerStatisticsActor {

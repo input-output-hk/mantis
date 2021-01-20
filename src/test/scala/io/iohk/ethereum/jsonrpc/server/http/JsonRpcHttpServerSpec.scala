@@ -22,12 +22,6 @@ import org.json4s.{DefaultFormats, Extraction}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import akka.http.scaladsl.model.headers._
-import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
-import io.iohk.ethereum.utils.{BuildInfo, Logger}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import org.json4s.{DefaultFormats, Extraction}
-import org.json4s.native.JsonMethods
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {

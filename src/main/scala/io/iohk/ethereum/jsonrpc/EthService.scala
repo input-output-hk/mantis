@@ -33,7 +33,6 @@ import org.bouncycastle.util.encoders.Hex
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-import scala.annotation.tailrec
 import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
