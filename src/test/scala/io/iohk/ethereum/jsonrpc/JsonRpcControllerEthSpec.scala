@@ -13,6 +13,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
@@ -769,6 +770,97 @@ class JsonRpcControllerEthSpec
         )
       )
     )
+  }
+
+  it should "decode and encode eth_getProof request and response" in new JsonRpcControllerFixture {
+    val request: JsonRpcRequest = JsonRpcRequest(
+      jsonrpc = "2.0",
+      method = "eth_getProof",
+      params = Some(JArray(List(
+        JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+        JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
+        JString("latest")
+      ))),
+      id = Some(JInt(1))
+    )
+
+    val expectedDecodedRequest = GetProofRequest(
+      address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
+      storageKeys = List(StorageProofKey(BigInt("39309028074332508661983559455579427211983204215636056653337583610388178777121"))),
+      blockNumber = BlockParam.Latest
+    )
+    val expectedEncodedResponse: GetProofResponse = GetProofResponse(
+      ProofAccount(
+        address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
+        accountProof = Seq( ByteString(Hex.decode("1234")) ),
+        balance = BigInt(0x0),
+        codeHash = ByteString(Hex.decode("123eeaa22a")),
+        nonce = 0,
+        storageHash = ByteString(Hex.decode("1a2b3c")),
+        storageProof = Seq(
+          StorageProof(
+            key = StorageProofKey(42),
+            value = BigInt(2000),
+            proof = Seq(
+              ByteString(Hex.decode("dead")),
+              ByteString(Hex.decode("beef"))
+            )
+          )
+        )
+      )
+    )
+
+    // setup
+    val mockProofService = mock[EthProofService]
+    override val jsonRpcController = newJsonRpcController(ethService, mockProofService)
+    (mockProofService.getProof _)
+      .expects(expectedDecodedRequest)
+      .returning(Task.now(Right(expectedEncodedResponse)))
+
+    // when
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
+
+    // then
+    response should haveObjectResult(
+        "accountProof" -> JArray(List(
+          JString("0x1234")
+        )),
+        "balance" -> JString("0x0"),
+        "codeHash" -> JString("0x123eeaa22a"),
+        "nonce" -> JString("0x0"),
+        "storageHash" -> JString("0x1a2b3c"),
+        "storageProof" -> JArray(List(
+          JObject(
+            "key" -> JString("0x2a"),
+            "proof" -> JArray(
+              List(
+                JString("0xdead"),
+                JString("0xbeef")
+              )
+            ),
+            "value" -> JString("0x7d0")
+          )
+        ))
+    )
+  }
+
+  it should "return error with custom error in data in eth_getProof" in new JsonRpcControllerFixture {
+    val mockEthProofService = mock[EthProofService]
+    override val jsonRpcController = newJsonRpcController(ethService, mockEthProofService)
+
+    (mockEthProofService.getProof _)
+      .expects(*)
+      .returning(Task.now(Left(JsonRpcError.NodeNotFound)))
+
+    val request: JsonRpcRequest =
+      newJsonRpcRequest("eth_getProof", List(
+        JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+        JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
+        JString("latest")
+      ))
+
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
+    response should haveError(JsonRpcError.NodeNotFound)
   }
 
   it should "eth_getFilterLogs" in new JsonRpcControllerFixture {

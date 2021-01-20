@@ -519,6 +519,7 @@ class JsonRpcControllerEthTransactionSpec
         qaService,
         checkpointingService,
         mantisService,
+        ProofServiceDummy,
         config
       )
 
@@ -570,6 +571,7 @@ class JsonRpcControllerEthTransactionSpec
         qaService,
         checkpointingService,
         mantisService,
+        ProofServiceDummy,
         config
       )
     val request = JsonRpcRequest(

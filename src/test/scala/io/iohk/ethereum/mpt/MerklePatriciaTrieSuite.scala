@@ -1,13 +1,14 @@
 package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
+import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -553,44 +554,44 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(proof.isEmpty)
   }
 
-  test("getProof returns valid proof for existing key") {
-    import scala.util.Random
-
-    forAll(Gen.nonEmptyListOf(Arbitrary.arbitrary[(Int, Int)])) { keyValueList: Seq[(Int, Int)] =>
-      // given
+  test("getProof returns empty result for non-existing key") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
       val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
         .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
 
-      val keyToFind: Array[Byte] = input.headOption
-        .getOrElse(fail("Cant check proof for empty collection"))
-        ._1
-
-      val trie = Random
-        .shuffle(input)
+      val trie = input
         .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
           recTrie.put(key, value)
         }
 
-      // when
-      val proof: Option[Vector[MptNode]] = trie.getProof(keyToFind)
+      input.toList.foreach(x => {
+        val keyToFind = x._1 ++ Array(Byte.MaxValue)
+        val proof = trie.getProof(keyToFind)
+        assert(proof.isEmpty)
+      })
+    }
+  }
 
-      // then we can get proof if we know key exist
-      assert(proof.isDefined)
+  test("getProof returns valid proof for existing key") {
+    import MptProofVerifier.verifyProof
 
-      // then we can recreate MPT and get value using this key
-      val nodeStorage: NodeStorage = proof.get.foldLeft(emptyNodeStorage) { case (storage, node) =>
-        val k = ByteString(node.hash)
-        val v = node.encode
-        storage.put(k, v)
-      }
-      val mptStore: SerializingMptStorage = StateStorage.mptStorageFromNodeStorage(nodeStorage)
-      val recreatedTree: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
-        MerklePatriciaTrie[Array[Byte], Array[Byte]](
-          rootHash = trie.getRootHash,
-          source = mptStore
-        )
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
+        .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
 
-      assert(recreatedTree.get(keyToFind).isDefined)
+      val trie = input
+        .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
+          recTrie.put(key, value)
+        }
+
+      input.toList.foreach(x => {
+        val keyToFind = x._1
+        val proof = trie.getProof(keyToFind)
+        assert(proof.isDefined)
+        proof.map{ p =>
+          assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == ValidProof)
+        }
+      })
     }
   }
 

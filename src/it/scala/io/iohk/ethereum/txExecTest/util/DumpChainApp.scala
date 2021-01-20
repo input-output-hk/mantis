@@ -144,6 +144,14 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
     override lazy val hash: ByteString = genesisHash
   }
 
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = None
+
+  override def getStorageProofAt(
+      rootHash: NodeHash,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): Option[(BigInt, Seq[MptNode])] = None
+
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())

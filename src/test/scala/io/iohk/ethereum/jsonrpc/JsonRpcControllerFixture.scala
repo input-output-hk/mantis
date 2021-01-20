@@ -94,7 +94,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     Timeouts.shortTimeout
   )
 
-  protected def newJsonRpcController(ethService: EthService) =
+  protected def newJsonRpcController(ethService: EthService, proofService: ProofService = ProofServiceDummy) =
     new JsonRpcController(
       web3Service,
       netService,
@@ -105,6 +105,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       qaService,
       checkpointingService,
       mantisService,
+      proofService,
       config
     )
 
