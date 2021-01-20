@@ -234,7 +234,6 @@ class CheckpointingJRCSpec
         checkpointingService,
         mantisService,
         ProofServiceDummy,
-        miningService,
         config
       )
 

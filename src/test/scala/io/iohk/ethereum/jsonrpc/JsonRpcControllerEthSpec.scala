@@ -14,7 +14,13 @@ import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
+import io.iohk.ethereum.jsonrpc.ProofService.{
+  GetProofRequest,
+  GetProofResponse,
+  ProofAccount,
+  StorageProof,
+  StorageProofKey
+}
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
   OptionNoneToJNullSerializer,
   QuantitiesSerializer,
@@ -451,10 +457,10 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_call" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthInfoService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthInfoService = mock[EthInfoService]
+    override val jsonRpcController = super.jsonRpcController.copy(ethInfoService = mockEthInfoService)
 
-    (mockEthService.call _).expects(*).returning(Task.now(Right(CallResponse(ByteString("asd")))))
+    (mockEthInfoService.call _).expects(*).returning(Task.now(Right(CallResponse(ByteString("asd")))))
 
     val json = List(
       JObject(
@@ -474,10 +480,10 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_estimateGas" in new JsonRpcControllerFixture {
-    val mockEthService = mock[EthInfoService]
-    override val jsonRpcController = newJsonRpcController(mockEthService)
+    val mockEthInfoService = mock[EthInfoService]
+    override val jsonRpcController = super.jsonRpcController.copy(ethInfoService = mockEthInfoService)
 
-    (mockEthService.estimateGas _)
+    (mockEthInfoService.estimateGas _)
       .expects(*)
       .anyNumberOfTimes()
       .returning(Task.now(Right(EstimateGasResponse(2310))))
@@ -510,7 +516,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getCode" in new JsonRpcControllerFixture {
     val mockEthUserService = mock[EthUserService]
-    override val jsonRpcController = newJsonRpcController(mockEthUserService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethUserService = mockEthUserService)
 
     (mockEthUserService.getCode _)
       .expects(*)
@@ -530,7 +536,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getUncleCountByBlockNumber" in new JsonRpcControllerFixture {
     val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthBlocksService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethBlocksService = mockEthBlocksService)
 
     (mockEthBlocksService.getUncleCountByBlockNumber _)
       .expects(*)
@@ -549,7 +555,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getUncleCountByBlockHash " in new JsonRpcControllerFixture {
     val mockEthBlocksService = mock[EthBlocksService]
-    override val jsonRpcController = newJsonRpcController(mockEthBlocksService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethBlocksService = mockEthBlocksService)
 
     (mockEthBlocksService.getUncleCountByBlockHash _)
       .expects(*)
@@ -583,7 +589,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getBalance" in new JsonRpcControllerFixture {
     val mockEthUserService = mock[EthUserService]
-    override val jsonRpcController = newJsonRpcController(mockEthUserService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethUserService = mockEthUserService)
 
     (mockEthUserService.getBalance _)
       .expects(*)
@@ -603,7 +609,7 @@ class JsonRpcControllerEthSpec
 
   it should "return error with custom error in data in eth_balance" in new JsonRpcControllerFixture {
     val mockEthUserService = mock[EthUserService]
-    override val jsonRpcController = newJsonRpcController(mockEthUserService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethUserService = mockEthUserService)
 
     (mockEthUserService.getBalance _)
       .expects(*)
@@ -623,7 +629,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getStorageAt" in new JsonRpcControllerFixture {
     val mockEthUserService = mock[EthUserService]
-    override val jsonRpcController = newJsonRpcController(mockEthUserService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethUserService = mockEthUserService)
 
     (mockEthUserService.getStorageAt _)
       .expects(*)
@@ -670,7 +676,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_newFilter" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.newFilter _)
       .expects(*)
@@ -694,7 +700,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_newBlockFilter" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.newBlockFilter _)
       .expects(*)
@@ -713,7 +719,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_newPendingTransactionFilter" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.newPendingTransactionFilter _)
       .expects(*)
@@ -730,7 +736,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_uninstallFilter" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.uninstallFilter _)
       .expects(*)
@@ -747,7 +753,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getFilterChanges" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.getFilterChanges _)
       .expects(*)
@@ -800,23 +806,28 @@ class JsonRpcControllerEthSpec
     val request: JsonRpcRequest = JsonRpcRequest(
       jsonrpc = "2.0",
       method = "eth_getProof",
-      params = Some(JArray(List(
-        JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
-        JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
-        JString("latest")
-      ))),
+      params = Some(
+        JArray(
+          List(
+            JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+            JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
+            JString("latest")
+          )
+        )
+      ),
       id = Some(JInt(1))
     )
 
     val expectedDecodedRequest = GetProofRequest(
       address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
-      storageKeys = List(StorageProofKey(BigInt("39309028074332508661983559455579427211983204215636056653337583610388178777121"))),
+      storageKeys =
+        List(StorageProofKey(BigInt("39309028074332508661983559455579427211983204215636056653337583610388178777121"))),
       blockNumber = BlockParam.Latest
     )
     val expectedEncodedResponse: GetProofResponse = GetProofResponse(
       ProofAccount(
         address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
-        accountProof = Seq( ByteString(Hex.decode("1234")) ),
+        accountProof = Seq(ByteString(Hex.decode("1234"))),
         balance = BigInt(0x0),
         codeHash = ByteString(Hex.decode("123eeaa22a")),
         nonce = 0,
@@ -835,9 +846,9 @@ class JsonRpcControllerEthSpec
     )
 
     // setup
-    val mockProofService = mock[EthProofService]
-    override val jsonRpcController = newJsonRpcController(ethService, mockProofService)
-    (mockProofService.getProof _)
+    val mockEthProofService = mock[EthProofService]
+    override val jsonRpcController = super.jsonRpcController.copy(proofService = mockEthProofService)
+    (mockEthProofService.getProof _)
       .expects(expectedDecodedRequest)
       .returning(Task.now(Right(expectedEncodedResponse)))
 
@@ -846,14 +857,17 @@ class JsonRpcControllerEthSpec
 
     // then
     response should haveObjectResult(
-        "accountProof" -> JArray(List(
+      "accountProof" -> JArray(
+        List(
           JString("0x1234")
-        )),
-        "balance" -> JString("0x0"),
-        "codeHash" -> JString("0x123eeaa22a"),
-        "nonce" -> JString("0x0"),
-        "storageHash" -> JString("0x1a2b3c"),
-        "storageProof" -> JArray(List(
+        )
+      ),
+      "balance" -> JString("0x0"),
+      "codeHash" -> JString("0x123eeaa22a"),
+      "nonce" -> JString("0x0"),
+      "storageHash" -> JString("0x1a2b3c"),
+      "storageProof" -> JArray(
+        List(
           JObject(
             "key" -> JString("0x2a"),
             "proof" -> JArray(
@@ -864,24 +878,28 @@ class JsonRpcControllerEthSpec
             ),
             "value" -> JString("0x7d0")
           )
-        ))
+        )
+      )
     )
   }
 
   it should "return error with custom error in data in eth_getProof" in new JsonRpcControllerFixture {
     val mockEthProofService = mock[EthProofService]
-    override val jsonRpcController = newJsonRpcController(ethService, mockEthProofService)
+    override val jsonRpcController = super.jsonRpcController.copy(proofService = mockEthProofService)
 
     (mockEthProofService.getProof _)
       .expects(*)
       .returning(Task.now(Left(JsonRpcError.NodeNotFound)))
 
     val request: JsonRpcRequest =
-      newJsonRpcRequest("eth_getProof", List(
-        JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
-        JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
-        JString("latest")
-      ))
+      newJsonRpcRequest(
+        "eth_getProof",
+        List(
+          JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+          JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
+          JString("latest")
+        )
+      )
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveError(JsonRpcError.NodeNotFound)
@@ -889,7 +907,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getFilterLogs" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.getFilterLogs _)
       .expects(*)
@@ -918,8 +936,7 @@ class JsonRpcControllerEthSpec
 
   it should "eth_getLogs" in new JsonRpcControllerFixture {
     val mockEthFilterService = mock[EthFilterService]
-
-    override val jsonRpcController = newJsonRpcController(mockEthFilterService)
+    override val jsonRpcController = super.jsonRpcController.copy(ethFilterService = mockEthFilterService)
 
     (mockEthFilterService.getLogs _)
       .expects(*)

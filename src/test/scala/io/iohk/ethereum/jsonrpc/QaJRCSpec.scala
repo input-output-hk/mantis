@@ -270,7 +270,6 @@ class QaJRCSpec
         checkpointingService,
         mantisService,
         ProofServiceDummy,
-        miningService,
         config
       )
 

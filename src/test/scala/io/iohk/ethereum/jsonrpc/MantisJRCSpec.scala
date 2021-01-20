@@ -47,7 +47,6 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
         checkpointingService,
         mantisService,
         ProofServiceDummy,
-        miningService,
         config
       )
 

@@ -27,7 +27,7 @@ import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import org.json4s.JsonDSL._
 
-class JsonRpcController(
+case class JsonRpcController(
     web3Service: Web3Service,
     netService: NetService,
     ethInfoService: EthInfoService,
@@ -43,7 +43,6 @@ class JsonRpcController(
     checkpointingService: CheckpointingService,
     mantisService: MantisService,
     proofService: ProofService,
-    miningService: EthMiningService,
     override val config: JsonRpcConfig
 ) extends ApisBuilder
     with Logger
@@ -58,6 +57,7 @@ class JsonRpcController(
   import EthUserJsonMethodsImplicits._
   import EthFilterJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
+  import EthProofJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._

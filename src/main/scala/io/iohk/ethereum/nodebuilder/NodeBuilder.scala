@@ -527,7 +527,6 @@ trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder
     with EthInfoServiceBuilder
     with EthProofServiceBuilder
-    with MiningServiceBuilder
     with EthMiningServiceBuilder
     with EthBlocksServiceBuilder
     with EthTxServiceBuilder
@@ -562,7 +561,6 @@ trait JSONRpcControllerBuilder {
       checkpointingService,
       mantisService,
       ethProofService,
-      miningService,
       jsonRpcConfig
     )
 }
@@ -733,7 +731,6 @@ trait Node
     with Web3ServiceBuilder
     with EthInfoServiceBuilder
     with EthProofServiceBuilder
-    with MiningServiceBuilder
     with EthMiningServiceBuilder
     with EthBlocksServiceBuilder
     with EthTxServiceBuilder

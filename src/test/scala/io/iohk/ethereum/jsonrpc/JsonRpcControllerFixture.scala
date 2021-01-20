@@ -71,13 +71,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val appStateStorage = mock[AppStateStorage]
   val web3Service = new Web3Service
   val netService = mock[NetService]
-  val personalService = mock[PersonalService]
-  val debugService = mock[DebugService]
-  val qaService = mock[QAService]
-  val checkpointingService = mock[CheckpointingService]
-  val mantisService = mock[MantisService]
 
-  val ethService = new EthInfoService(
+  val ethInfoService = new EthInfoService(
     blockchain,
     blockchainConfig,
     ledger,
@@ -97,14 +92,15 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout
   )
+
+  val ethBlocksService = new EthBlocksService(blockchain, ledger)
+
   val ethTxService = new EthTxService(
     blockchain,
     ledger,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout
   )
-
-  val ethBlocksService = new EthBlocksService(blockchain, ledger)
 
   val ethUserService = new EthUserService(
     blockchain,
@@ -116,12 +112,17 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     filterManager.ref,
     filterConfig
   )
+  val personalService = mock[PersonalService]
+  val debugService = mock[DebugService]
+  val qaService = mock[QAService]
+  val checkpointingService = mock[CheckpointingService]
+  val mantisService = mock[MantisService]
 
-  protected def newJsonRpcController(ethBlocksService: EthBlocksService) =
-    new JsonRpcController(
+  def jsonRpcController =
+    JsonRpcController(
       web3Service,
       netService,
-      ethService,
+      ethInfoService,
       ethMiningService,
       ethBlocksService,
       ethTxService,
@@ -133,88 +134,9 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
       qaService,
       checkpointingService,
       mantisService,
+      ProofServiceDummy,
       config
     )
-
-  protected def newJsonRpcController(ethService: EthInfoService, proofService: ProofService = ProofServiceDummy) =
-    new JsonRpcController(
-      web3Service,
-      netService,
-      ethService,
-      ethMiningService,
-      ethBlocksService,
-      ethTxService,
-      ethUserService,
-      ethFilterService,
-      personalService,
-      None,
-      debugService,
-      qaService,
-      checkpointingService,
-      mantisService,
-      config
-    )
-
-  protected def newJsonRpcController(ethTxService: EthTxService) =
-    new JsonRpcController(
-      web3Service,
-      netService,
-      ethService,
-      ethMiningService,
-      ethBlocksService,
-      ethTxService,
-      ethUserService,
-      ethFilterService,
-      personalService,
-      None,
-      debugService,
-      qaService,
-      checkpointingService,
-      mantisService,
-      config
-    )
-
-  protected def newJsonRpcController(ethUserService: EthUserService) =
-    new JsonRpcController(
-      web3Service,
-      netService,
-      ethService,
-      ethMiningService,
-      ethBlocksService,
-      ethTxService,
-      ethUserService,
-      ethFilterService,
-      personalService,
-      None,
-      debugService,
-      qaService,
-      checkpointingService,
-      mantisService,
-      config
-    )
-
-  protected def newJsonRpcController(ethFilterService: EthFilterService) =
-    new JsonRpcController(
-      web3Service,
-      netService,
-      ethService,
-      ethMiningService,
-      ethBlocksService,
-      ethTxService,
-      ethUserService,
-      ethFilterService,
-      personalService,
-      None,
-      debugService,
-      qaService,
-      checkpointingService,
-      mantisService,
-      proofService,
-      miningService,
-      config
-    )
-
-  val jsonRpcController = newJsonRpcController(ethService)
 
   val blockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     logsBloom = BloomFilter.EmptyBloomFilter,
