@@ -8,7 +8,6 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, EthereumUInt256Mpt, UInt256}
-import io.iohk.ethereum.jsonrpc.EthService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
@@ -27,6 +26,10 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetStorageAtRequest
 
 class EthProofServiceSpec
     extends TestKit(ActorSystem("EthGetProofSpec_ActorSystem"))
@@ -84,25 +87,26 @@ class EthProofServiceSpec
     val result = ethGetProof.getProof(request)
 
     // then
-    val balanceResponse: GetBalanceResponse = ethService
+    val balanceResponse: GetBalanceResponse = ethUserService
       .getBalance(GetBalanceRequest(address, BlockParam.Latest))
       .runSyncUnsafe()
-      .getOrElse(fail("ethService.getBalance did not get valid response"))
+      .getOrElse(fail("ethUserService.getBalance did not get valid response"))
 
-    val transactionCountResponse = ethService
+    val transactionCountResponse = ethUserService
       .getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
       .runSyncUnsafe()
-      .getOrElse(fail("ethService.getTransactionCount did not get valid response"))
+      .getOrElse(fail("ethUserService.getTransactionCount did not get valid response"))
 
     val storageValues: Seq[ByteString] = storageKeys.map { position =>
-      ethService
+      ethUserService
         .getStorageAt(GetStorageAtRequest(address, position.v, BlockParam.Latest))
         .runSyncUnsafe()
-        .getOrElse(fail("ethService.getStorageAt did not get valid response"))
+        .getOrElse(fail("ethUserService.getStorageAt did not get valid response"))
         .value
     }
 
-    val givenResult = result.runSyncUnsafe()
+    val givenResult = result
+      .runSyncUnsafe()
       .getOrElse(fail())
       .proofAccount
 
@@ -134,44 +138,13 @@ class EthProofServiceSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[EthashBlockGenerator]
-    val keyStore = mock[KeyStore]
+
     override lazy val ledger = mock[Ledger]
-    override lazy val stxLedger = mock[StxLedger]
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
-
-    val syncingController = TestProbe()
-    val pendingTransactionsManager = TestProbe()
-    val ommersPool = TestProbe()
-    val filterManager = TestProbe()
-
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
-    val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
-
-    val filterConfig = new FilterConfig {
-      override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
-      override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
-    }
-
-    val currentProtocolVersion = 11
-
-    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
-
-    val ethService = new EthService(
+    val ethUserService = new EthUserService(
       blockchain,
       ledger,
-      stxLedger,
-      keyStore,
-      pendingTransactionsManager.ref,
-      syncingController.ref,
-      ommersPool.ref,
-      filterManager.ref,
-      filterConfig,
-      blockchainConfig,
-      currentProtocolVersion,
-      jsonRpcConfig,
-      getTransactionFromPoolTimeout,
-      Timeouts.shortTimeout
+      blockchainConfig
     )
   }
 }

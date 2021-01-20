@@ -13,10 +13,10 @@ object ByteStringUtils {
   def string2hash(hash: String): ByteString =
     ByteString(Hex.decode(hash))
 
-
   implicit class Padding(val bs: ByteString) extends AnyVal {
     def padToByteString(length: Int, b: Byte): ByteString = {
-      if (length <= bs.length) bs else {
+      if (length <= bs.length) bs
+      else {
         val len = Math.max(bs.length, length)
         val result = new Array[Byte](len)
         bs.copyToArray(result, 0)
@@ -29,7 +29,6 @@ object ByteStringUtils {
       }
     }
   }
-
 
   sealed trait ByteStringElement {
     def len: Int

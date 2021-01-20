@@ -2,8 +2,13 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthBlocksService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
+import io.iohk.ethereum.jsonrpc.EthTxService._
+import io.iohk.ethereum.jsonrpc.EthUserService._
+import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse}
@@ -22,10 +27,15 @@ import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import org.json4s.JsonDSL._
 
-class JsonRpcController(
+case class JsonRpcController(
     web3Service: Web3Service,
     netService: NetService,
-    ethService: EthService,
+    ethInfoService: EthInfoService,
+    ethMiningService: EthMiningService,
+    ethBlocksService: EthBlocksService,
+    ethTxService: EthTxService,
+    ethUserService: EthUserService,
+    ethFilterService: EthFilterService,
     personalService: PersonalService,
     testServiceOpt: Option[TestService],
     debugService: DebugService,
@@ -41,7 +51,13 @@ class JsonRpcController(
   import CheckpointingJsonMethodsImplicits._
   import DebugJsonMethodsImplicits._
   import EthJsonMethodsImplicits._
+  import EthBlocksJsonMethodsImplicits._
+  import EthMiningJsonMethodsImplicits._
+  import EthTxJsonMethodsImplicits._
+  import EthUserJsonMethodsImplicits._
+  import EthFilterJsonMethodsImplicits._
   import IeleJsonMethodsImplicits._
+  import EthProofJsonMethodsImplicits._
   import JsonMethodsImplicits._
   import QAJsonMethodsImplicits._
   import TestJsonMethodsImplicits._
@@ -83,124 +99,127 @@ class JsonRpcController(
   // scalastyle:off method.length
   private def handleEthRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "eth_protocolVersion", _, _) =>
-      handle[ProtocolVersionRequest, ProtocolVersionResponse](ethService.protocolVersion, req)
+      handle[ProtocolVersionRequest, ProtocolVersionResponse](ethInfoService.protocolVersion, req)
     case req @ JsonRpcRequest(_, "eth_chainId", _, _) =>
-      handle[ChainIdRequest, ChainIdResponse](ethService.chainId, req)
+      handle[ChainIdRequest, ChainIdResponse](ethInfoService.chainId, req)
     case req @ JsonRpcRequest(_, "eth_syncing", _, _) =>
-      handle[SyncingRequest, SyncingResponse](ethService.syncing, req)
+      handle[SyncingRequest, SyncingResponse](ethInfoService.syncing, req)
     case req @ JsonRpcRequest(_, "eth_submitHashrate", _, _) =>
-      handle[SubmitHashRateRequest, SubmitHashRateResponse](ethService.submitHashRate, req)
+      handle[SubmitHashRateRequest, SubmitHashRateResponse](ethMiningService.submitHashRate, req)
     case req @ JsonRpcRequest(_, "eth_hashrate", _, _) =>
-      handle[GetHashRateRequest, GetHashRateResponse](ethService.getHashRate, req)
+      handle[GetHashRateRequest, GetHashRateResponse](ethMiningService.getHashRate, req)
     case req @ JsonRpcRequest(_, "eth_gasPrice", _, _) =>
-      handle[GetGasPriceRequest, GetGasPriceResponse](ethService.getGetGasPrice, req)
+      handle[GetGasPriceRequest, GetGasPriceResponse](ethTxService.getGetGasPrice, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockNumberAndIndex", _, _) =>
       handle[GetTransactionByBlockNumberAndIndexRequest, GetTransactionByBlockNumberAndIndexResponse](
-        ethService.getTransactionByBlockNumberAndIndex,
+        ethTxService.getTransactionByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_mining", _, _) =>
-      handle[GetMiningRequest, GetMiningResponse](ethService.getMining, req)
+      handle[GetMiningRequest, GetMiningResponse](ethMiningService.getMining, req)
     case req @ JsonRpcRequest(_, "eth_getWork", _, _) =>
-      handle[GetWorkRequest, GetWorkResponse](ethService.getWork, req)
+      handle[GetWorkRequest, GetWorkResponse](ethMiningService.getWork, req)
     case req @ JsonRpcRequest(_, "eth_submitWork", _, _) =>
-      handle[SubmitWorkRequest, SubmitWorkResponse](ethService.submitWork, req)
+      handle[SubmitWorkRequest, SubmitWorkResponse](ethMiningService.submitWork, req)
     case req @ JsonRpcRequest(_, "eth_blockNumber", _, _) =>
-      handle[BestBlockNumberRequest, BestBlockNumberResponse](ethService.bestBlockNumber, req)
+      handle[BestBlockNumberRequest, BestBlockNumberResponse](ethBlocksService.bestBlockNumber, req)
     case req @ JsonRpcRequest(_, "eth_coinbase", _, _) =>
-      handle[GetCoinbaseRequest, GetCoinbaseResponse](ethService.getCoinbase, req)
+      handle[GetCoinbaseRequest, GetCoinbaseResponse](ethMiningService.getCoinbase, req)
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByHash", _, _) =>
-      handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](ethService.getBlockTransactionCountByHash, req)
+      handle[TxCountByBlockHashRequest, TxCountByBlockHashResponse](
+        ethBlocksService.getBlockTransactionCountByHash,
+        req
+      )
     case req @ JsonRpcRequest(_, "eth_getBlockByHash", _, _) =>
-      handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethService.getByBlockHash, req)
+      handle[BlockByBlockHashRequest, BlockByBlockHashResponse](ethBlocksService.getByBlockHash, req)
     case req @ JsonRpcRequest(_, "eth_getBlockByNumber", _, _) =>
-      handle[BlockByNumberRequest, BlockByNumberResponse](ethService.getBlockByNumber, req)
+      handle[BlockByNumberRequest, BlockByNumberResponse](ethBlocksService.getBlockByNumber, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, GetTransactionByBlockHashAndIndexResponse](
-        ethService.getTransactionByBlockHashAndIndex,
+        ethTxService.getTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockHashAndIndex", _, _) =>
       handle[UncleByBlockHashAndIndexRequest, UncleByBlockHashAndIndexResponse](
-        ethService.getUncleByBlockHashAndIndex,
+        ethBlocksService.getUncleByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleByBlockNumberAndIndex", _, _) =>
       handle[UncleByBlockNumberAndIndexRequest, UncleByBlockNumberAndIndexResponse](
-        ethService.getUncleByBlockNumberAndIndex,
+        ethBlocksService.getUncleByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_accounts", _, _) =>
       handle[ListAccountsRequest, ListAccountsResponse](personalService.listAccounts, req)
     case req @ JsonRpcRequest(_, "eth_sendRawTransaction", _, _) =>
-      handle[SendRawTransactionRequest, SendRawTransactionResponse](ethService.sendRawTransaction, req)
+      handle[SendRawTransactionRequest, SendRawTransactionResponse](ethTxService.sendRawTransaction, req)
     case req @ JsonRpcRequest(_, "eth_sendTransaction", _, _) =>
       handle[SendTransactionRequest, SendTransactionResponse](personalService.sendTransaction, req)
     case req @ JsonRpcRequest(_, "eth_call", _, _) =>
-      handle[CallRequest, CallResponse](ethService.call, req)(eth_call, eth_call)
+      handle[CallRequest, CallResponse](ethInfoService.call, req)(eth_call, eth_call)
     case req @ JsonRpcRequest(_, "eth_estimateGas", _, _) =>
-      handle[CallRequest, EstimateGasResponse](ethService.estimateGas, req)(eth_estimateGas, eth_estimateGas)
+      handle[CallRequest, EstimateGasResponse](ethInfoService.estimateGas, req)(eth_estimateGas, eth_estimateGas)
     case req @ JsonRpcRequest(_, "eth_getCode", _, _) =>
-      handle[GetCodeRequest, GetCodeResponse](ethService.getCode, req)
+      handle[GetCodeRequest, GetCodeResponse](ethUserService.getCode, req)
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockNumber", _, _) =>
       handle[GetUncleCountByBlockNumberRequest, GetUncleCountByBlockNumberResponse](
-        ethService.getUncleCountByBlockNumber,
+        ethBlocksService.getUncleCountByBlockNumber,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getUncleCountByBlockHash", _, _) =>
       handle[GetUncleCountByBlockHashRequest, GetUncleCountByBlockHashResponse](
-        ethService.getUncleCountByBlockHash,
+        ethBlocksService.getUncleCountByBlockHash,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getBlockTransactionCountByNumber", _, _) =>
       handle[GetBlockTransactionCountByNumberRequest, GetBlockTransactionCountByNumberResponse](
-        ethService.getBlockTransactionCountByNumber,
+        ethBlocksService.getBlockTransactionCountByNumber,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getBalance", _, _) =>
-      handle[GetBalanceRequest, GetBalanceResponse](ethService.getBalance, req)
+      handle[GetBalanceRequest, GetBalanceResponse](ethUserService.getBalance, req)
     case req @ JsonRpcRequest(_, "eth_getStorageAt", _, _) =>
-      handle[GetStorageAtRequest, GetStorageAtResponse](ethService.getStorageAt, req)
+      handle[GetStorageAtRequest, GetStorageAtResponse](ethUserService.getStorageAt, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionCount", _, _) =>
-      handle[GetTransactionCountRequest, GetTransactionCountResponse](ethService.getTransactionCount, req)
+      handle[GetTransactionCountRequest, GetTransactionCountResponse](ethUserService.getTransactionCount, req)
     case req @ JsonRpcRequest(_, "eth_newFilter", _, _) =>
-      handle[NewFilterRequest, NewFilterResponse](ethService.newFilter, req)
+      handle[NewFilterRequest, NewFilterResponse](ethFilterService.newFilter, req)
     case req @ JsonRpcRequest(_, "eth_newBlockFilter", _, _) =>
-      handle[NewBlockFilterRequest, NewFilterResponse](ethService.newBlockFilter, req)
+      handle[NewBlockFilterRequest, NewFilterResponse](ethFilterService.newBlockFilter, req)
     case req @ JsonRpcRequest(_, "eth_newPendingTransactionFilter", _, _) =>
-      handle[NewPendingTransactionFilterRequest, NewFilterResponse](ethService.newPendingTransactionFilter, req)
+      handle[NewPendingTransactionFilterRequest, NewFilterResponse](ethFilterService.newPendingTransactionFilter, req)
     case req @ JsonRpcRequest(_, "eth_uninstallFilter", _, _) =>
-      handle[UninstallFilterRequest, UninstallFilterResponse](ethService.uninstallFilter, req)
+      handle[UninstallFilterRequest, UninstallFilterResponse](ethFilterService.uninstallFilter, req)
     case req @ JsonRpcRequest(_, "eth_getFilterChanges", _, _) =>
-      handle[GetFilterChangesRequest, GetFilterChangesResponse](ethService.getFilterChanges, req)
+      handle[GetFilterChangesRequest, GetFilterChangesResponse](ethFilterService.getFilterChanges, req)
     case req @ JsonRpcRequest(_, "eth_getFilterLogs", _, _) =>
-      handle[GetFilterLogsRequest, GetFilterLogsResponse](ethService.getFilterLogs, req)
+      handle[GetFilterLogsRequest, GetFilterLogsResponse](ethFilterService.getFilterLogs, req)
     case req @ JsonRpcRequest(_, "eth_getLogs", _, _) =>
-      handle[GetLogsRequest, GetLogsResponse](ethService.getLogs, req)
+      handle[GetLogsRequest, GetLogsResponse](ethFilterService.getLogs, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionByHash", _, _) =>
-      handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethService.getTransactionByHash, req)
+      handle[GetTransactionByHashRequest, GetTransactionByHashResponse](ethTxService.getTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getTransactionReceipt", _, _) =>
-      handle[GetTransactionReceiptRequest, GetTransactionReceiptResponse](ethService.getTransactionReceipt, req)
+      handle[GetTransactionReceiptRequest, GetTransactionReceiptResponse](ethTxService.getTransactionReceipt, req)
     case req @ JsonRpcRequest(_, "eth_sign", _, _) =>
       // Even if it's under eth_xxx this method actually does the same as personal_sign but needs the account
       // to be unlocked before calling
       handle[SignRequest, SignResponse](personalService.sign, req)(eth_sign, personal_sign)
     case req @ JsonRpcRequest(_, "eth_getStorageRoot", _, _) =>
-      handle[GetStorageRootRequest, GetStorageRootResponse](ethService.getStorageRoot, req)
+      handle[GetStorageRootRequest, GetStorageRootResponse](ethUserService.getStorageRoot, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByHash", _, _) =>
-      handle[GetTransactionByHashRequest, RawTransactionResponse](ethService.getRawTransactionByHash, req)
+      handle[GetTransactionByHashRequest, RawTransactionResponse](ethTxService.getRawTransactionByHash, req)
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockHashAndIndex", _, _) =>
       handle[GetTransactionByBlockHashAndIndexRequest, RawTransactionResponse](
-        ethService.getRawTransactionByBlockHashAndIndex,
+        ethTxService.getRawTransactionByBlockHashAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_getRawTransactionByBlockNumberAndIndex", _, _) =>
       handle[GetTransactionByBlockNumberAndIndexRequest, RawTransactionResponse](
-        ethService.getRawTransactionByBlockNumberAndIndex,
+        ethTxService.getRawTransactionByBlockNumberAndIndex,
         req
       )
     case req @ JsonRpcRequest(_, "eth_pendingTransactions", _, _) =>
-      handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethService.ethPendingTransactions, req)
+      handle[EthPendingTransactionsRequest, EthPendingTransactionsResponse](ethTxService.ethPendingTransactions, req)
     case req @ JsonRpcRequest(_, "eth_getProof", _, _) =>
       handle[GetProofRequest, GetProofResponse](proofService.getProof, req)
   }
@@ -234,7 +253,7 @@ class JsonRpcController(
     case req @ JsonRpcRequest(_, "iele_sendTransaction", _, _) =>
       handle[SendIeleTransactionRequest, SendTransactionResponse](personalService.sendIeleTransaction, req)
     case req @ JsonRpcRequest(_, "iele_call", _, _) =>
-      handle[IeleCallRequest, IeleCallResponse](ethService.ieleCall, req)
+      handle[IeleCallRequest, IeleCallResponse](ethInfoService.ieleCall, req)
   }
 
   private def handlePersonalRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
