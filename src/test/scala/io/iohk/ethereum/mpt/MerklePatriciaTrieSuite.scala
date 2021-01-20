@@ -554,22 +554,26 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(proof.isEmpty)
   }
 
-  test("getProof returns empty result for non-existing key") {
-    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
-      val input: Seq[(Array[Byte], Array[Byte])] = keyValueList
-        .map { case (k, v) => k.toString.getBytes() -> v.toString.getBytes() }
+  test("getProof returns proof result for non-existing address") {
+      // given
+      val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
+      val key1: Array[Byte] = Hex.decode("10000001")
+      val key2: Array[Byte] = Hex.decode("10000002")
+      val key3: Array[Byte] = Hex.decode("30000003")
+      val key4: Array[Byte] = Hex.decode("10000004") //a key that doesn't have a corresponding value in the trie
 
-      val trie = input
-        .foldLeft(emptyMpt) { case (recTrie, (key, value)) =>
-          recTrie.put(key, value)
-        }
-
-      input.toList.foreach(x => {
-        val keyToFind = x._1 ++ Array(Byte.MaxValue)
-        val proof = trie.getProof(keyToFind)
-        assert(proof.isEmpty)
-      })
-    }
+      val val1: Array[Byte] = Hex.decode("0101")
+      val val2: Array[Byte] = Hex.decode("0102")
+      val val3: Array[Byte] = Hex.decode("0103")
+      val trie = EmptyTrie
+        .put(key1, val1)
+        .put(key2, val2)
+        .put(key3, val3)
+      // when
+      val proof: Option[Vector[MptNode]] = trie.getProof(key4)
+      // then
+      assert(proof.isDefined)
+      proof.foreach(_.foreach(MptUtils.showMptNode(_, true, " ")))
   }
 
   test("getProof returns valid proof for existing key") {
@@ -619,4 +623,44 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val obtained = trie.get(key)
       assert(obtained.isEmpty)
     }
+}
+
+object MptUtils {
+  import io.iohk.ethereum.mpt._
+  import org.bouncycastle.util.encoders.Hex
+  def show(val1: Array[Byte]): String =
+    Hex.encode(val1).map(_.toChar).mkString
+  def showKV(key1: Array[Byte], trie: MerklePatriciaTrie[Array[Byte], Array[Byte]]): String =
+    show(key1) + " -> " + trie.get(key1).map(show)
+  def showMptNode(n: MptNode, showNull: Boolean = false, indent: String): Unit = {
+    n match {
+      case LeafNode(key, value, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(s"$indent LeafNode(${show(key.toArray)} -> ${show(value.toArray)})")
+      case ExtensionNode(sharedKey, next, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(s"$indent ExtensionNode(sharedKey = ${show(sharedKey.toArray)}")
+        println(s"$indent next = ")
+        showMptNode(next, false, indent + " ")
+        println(s"$indent )")
+      case BranchNode(children, terminator, cachedHash, cachedRlpEncoded, parsedRlp) =>
+        if (showNull) println("\n")
+        println(
+          s"$indent BranchNode(children = ${children.filterNot(n => n.isInstanceOf[NullNode.type]).size}, terminator = ${terminator
+            .map(e => show(e.toArray))}"
+        )
+        println(s"$indent children: ")
+        children.map(showMptNode(_, false, indent + " "))
+        println(s"$indent )")
+      case NullNode =>
+        if (showNull) println(s"$indent NullNode")
+      case other =>
+        if (showNull) println("\n")
+        println(s"$indent $other")
+    }
+  }
+  def showMptTrie[K, V](mpt: MerklePatriciaTrie[K, V]): Unit = {
+    println(s"MPT ROOT HASH ${mpt.getRootHash} rootNode: ")
+    mpt.rootNode.map(n => showMptNode(n, false, "  "))
+  }
 }
