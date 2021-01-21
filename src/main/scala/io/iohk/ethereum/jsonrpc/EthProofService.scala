@@ -143,14 +143,14 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
         blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
-      storageProof <- getStorageProof(account, storageKeys)
+      storageProof <- Either.right(getStorageProof(account, storageKeys))
     } yield ProofAccount(account, accountProof, storageProof, address)
   }
 
   def getStorageProof(
       account: Account,
       storageKeys: Seq[StorageProofKey]
-  ): Either[JsonRpcError, Seq[StorageProof]] = {
+  ): Seq[StorageProof] = {
     storageKeys.toList
       .map { storageKey =>
         blockchain
@@ -158,22 +158,17 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
             rootHash = account.storageRoot,
             position = storageKey.v,
             ethCompatibleStorage = ethCompatibleStorage
-          )
-          .map { case (value, proof) => StorageProof(storageKey, value, proof.map(asRlpSerializedNode)) }
-          .toRight(noStorageProof(account, storageKey))
+          ) match {
+        case (value, proof) => StorageProof(storageKey, value, proof.map(asRlpSerializedNode))
+        }
       }
-      .sequence
-      .map(_.toSeq)
   }
 
-  private def noStorageProof(account: Account, storagekey: StorageProofKey): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for [${account.toString}] storage key [${storagekey.toString}]")
-
   private def noAccount(address: Address, blockNumber: BigInt): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+    JsonRpcError.LogicError(s"No account found for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
   private def noAccountProof(address: Address, blockNumber: BigInt): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+    JsonRpcError.LogicError(s"No account proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
   private def asRlpSerializedNode(node: MptNode): ByteString =
     ByteString(MptTraversals.encodeNode(node))

@@ -25,7 +25,6 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
 import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
 import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest

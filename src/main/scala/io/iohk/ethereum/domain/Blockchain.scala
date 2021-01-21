@@ -95,11 +95,17 @@ trait Blockchain {
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
+  /**
+    * Get a storage-value and its proof being the path from the root node until the last matching node.
+    *
+    * @param rootHash storage root hash
+    * @param position storage position
+    */
   def getStorageProofAt(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[MptNode])]
+  ): (BigInt, Seq[MptNode])
 
   /**
     * Returns the receipts based on a block hash
@@ -307,16 +313,16 @@ class BlockchainImpl(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[MptNode])] = {
+  ): (BigInt, Seq[MptNode]) = {
+    val defaultValue = BigInt(0)
     val storage: MptStorage = stateStorage.getBackingStorage(0)
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     }
-    for {
-      value <- mpt.get(position)
-      proof <- mpt.getProof(position)
-    } yield (value, proof)
+    val value = mpt.get(position).getOrElse(defaultValue)
+    val proof = mpt.getProof(position).getOrElse(Seq.empty)
+    (value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {

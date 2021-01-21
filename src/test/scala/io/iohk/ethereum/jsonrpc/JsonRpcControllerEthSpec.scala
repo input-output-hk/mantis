@@ -803,13 +803,15 @@ class JsonRpcControllerEthSpec
   }
 
   it should "decode and encode eth_getProof request and response" in new JsonRpcControllerFixture {
+    val address = "0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"
+
     val request: JsonRpcRequest = JsonRpcRequest(
       jsonrpc = "2.0",
       method = "eth_getProof",
       params = Some(
         JArray(
           List(
-            JString("0x7F0d15C7FAae65896648C8273B6d7E43f58Fa842"),
+            JString(address),
             JArray(List(JString("0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))),
             JString("latest")
           )
@@ -819,14 +821,14 @@ class JsonRpcControllerEthSpec
     )
 
     val expectedDecodedRequest = GetProofRequest(
-      address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
+      address = Address(address),
       storageKeys =
         List(StorageProofKey(BigInt("39309028074332508661983559455579427211983204215636056653337583610388178777121"))),
       blockNumber = BlockParam.Latest
     )
     val expectedEncodedResponse: GetProofResponse = GetProofResponse(
       ProofAccount(
-        address = Address("0x7f0d15c7faae65896648c8273b6d7e43f58fa842"),
+        address = Address(address),
         accountProof = Seq(ByteString(Hex.decode("1234"))),
         balance = BigInt(0x0),
         codeHash = ByteString(Hex.decode("123eeaa22a")),
