@@ -573,7 +573,6 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val proof: Option[Vector[MptNode]] = trie.getProof(key4)
       // then
       assert(proof.isDefined)
-      proof.foreach(_.foreach(MptUtils.showMptNode(_, true, " ")))
   }
 
   test("getProof returns valid proof for existing key") {
@@ -623,44 +622,4 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val obtained = trie.get(key)
       assert(obtained.isEmpty)
     }
-}
-
-object MptUtils {
-  import io.iohk.ethereum.mpt._
-  import org.bouncycastle.util.encoders.Hex
-  def show(val1: Array[Byte]): String =
-    Hex.encode(val1).map(_.toChar).mkString
-  def showKV(key1: Array[Byte], trie: MerklePatriciaTrie[Array[Byte], Array[Byte]]): String =
-    show(key1) + " -> " + trie.get(key1).map(show)
-  def showMptNode(n: MptNode, showNull: Boolean = false, indent: String): Unit = {
-    n match {
-      case LeafNode(key, value, cachedHash, cachedRlpEncoded, parsedRlp) =>
-        if (showNull) println("\n")
-        println(s"$indent LeafNode(${show(key.toArray)} -> ${show(value.toArray)})")
-      case ExtensionNode(sharedKey, next, cachedHash, cachedRlpEncoded, parsedRlp) =>
-        if (showNull) println("\n")
-        println(s"$indent ExtensionNode(sharedKey = ${show(sharedKey.toArray)}")
-        println(s"$indent next = ")
-        showMptNode(next, false, indent + " ")
-        println(s"$indent )")
-      case BranchNode(children, terminator, cachedHash, cachedRlpEncoded, parsedRlp) =>
-        if (showNull) println("\n")
-        println(
-          s"$indent BranchNode(children = ${children.filterNot(n => n.isInstanceOf[NullNode.type]).size}, terminator = ${terminator
-            .map(e => show(e.toArray))}"
-        )
-        println(s"$indent children: ")
-        children.map(showMptNode(_, false, indent + " "))
-        println(s"$indent )")
-      case NullNode =>
-        if (showNull) println(s"$indent NullNode")
-      case other =>
-        if (showNull) println("\n")
-        println(s"$indent $other")
-    }
-  }
-  def showMptTrie[K, V](mpt: MerklePatriciaTrie[K, V]): Unit = {
-    println(s"MPT ROOT HASH ${mpt.getRootHash} rootNode: ")
-    mpt.rootNode.map(n => showMptNode(n, false, "  "))
-  }
 }

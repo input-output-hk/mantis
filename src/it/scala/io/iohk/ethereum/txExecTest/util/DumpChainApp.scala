@@ -150,7 +150,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       rootHash: NodeHash,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): (BigInt, Seq[MptNode]) = (1, Seq.empty)
+  ): (BigInt, Seq[MptNode]) = (BigInt(0), Seq.empty)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 

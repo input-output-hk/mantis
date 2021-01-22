@@ -84,10 +84,10 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   def get(key: K): Option[V] = {
     pathTraverse[Option[V]](None, mkKeyNibbles(key)) { case (_, node) =>
       node match {
-        case LeafNode(_, value, _, _, _) =>
+        case Some(LeafNode(_, value, _, _, _)) =>
           Some(vSerializer.fromBytes(value.toArray[Byte]))
 
-        case BranchNode(_, terminator, _, _, _) =>
+        case Some(BranchNode(_, terminator, _, _, _)) =>
           terminator.map(term => vSerializer.fromBytes(term.toArray[Byte]))
 
         case _ => None
@@ -103,9 +103,9 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def getProof(key: K): Option[Vector[MptNode]] = {
-    pathTraverseWithProof[Vector[MptNode]](Vector.empty, mkKeyNibbles(key)) { case (acc, node) =>
+    pathTraverse[Vector[MptNode]](Vector.empty, mkKeyNibbles(key)) { case (acc, node) =>
       node match {
-        case nextNodeOnExt @ (_: BranchNode | _: ExtensionNode | _: LeafNode) => acc :+ nextNodeOnExt
+        case Some(nextNodeOnExt @ (_: BranchNode | _: ExtensionNode | _: LeafNode)) => acc :+ nextNodeOnExt
         case _ => acc
       }
     }
@@ -121,25 +121,25 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     * @tparam T accumulator type
     * @return accumulated data or None if key doesn't exist
     */
-  private def pathTraverse[T](acc: T, searchKey: Array[Byte])(op: (T, MptNode) => T): Option[T] = {
+  private def pathTraverse[T](acc: T, searchKey: Array[Byte])(op: (T, Option[MptNode]) => T): Option[T] = {
 
     @tailrec
-    def pathTraverse(acc: T, node: MptNode, searchKey: Array[Byte], op: (T, MptNode) => T): Option[T] = {
+    def pathTraverse(acc: T, node: MptNode, searchKey: Array[Byte], op: (T, Option[MptNode]) => T): Option[T] = {
       node match {
         case LeafNode(key, _, _, _, _) =>
-          if (key.toArray[Byte] sameElements searchKey) Some(op(acc, node)) else None
+          if (key.toArray[Byte] sameElements searchKey) Some(op(acc, Some(node))) else Some(op(acc, None))
 
         case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
           val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
           if (searchKey.length >= sharedKey.length && (sharedKey.toArray[Byte] sameElements commonKey)) {
-            pathTraverse(op(acc, node), extNode.next, remainingKey, op)
-          } else None
+            pathTraverse(op(acc, Some(node)), extNode.next, remainingKey, op)
+          } else Some(op(acc, None))
 
         case branch: BranchNode =>
-          if (searchKey.isEmpty) Some(op(acc, node))
+          if (searchKey.isEmpty) Some(op(acc, Some(node)))
           else
             pathTraverse(
-              op(acc, node),
+              op(acc, Some(node)),
               branch.children(searchKey(0)),
               searchKey.slice(1, searchKey.length),
               op
@@ -149,53 +149,13 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
           pathTraverse(acc, getFromHash(bytes, nodeStorage), searchKey, op)
 
         case NullNode =>
-          None
+          Some(op(acc, None))
       }
     }
 
     rootNode match {
       case Some(root) =>
         pathTraverse(acc, root, searchKey, op)
-      case None =>
-        None
-    }
-  }
-
-  private def pathTraverseWithProof[T](acc: T, searchKey: Array[Byte])(op: (T, MptNode) => T): Option[T] = {
-
-    @tailrec
-    def pathTraverseWithProof(acc: T, node: MptNode, searchKey: Array[Byte], op: (T, MptNode) => T): Option[T] = {
-      node match {
-        case LeafNode(key, _, _, _, _) =>
-          if (key.toArray[Byte] sameElements searchKey) Some(op(acc, node)) else Some(acc)
-
-        case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
-          val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-          if (searchKey.length >= sharedKey.length && (sharedKey.toArray[Byte] sameElements commonKey)) {
-            pathTraverseWithProof(op(acc, node), extNode.next, remainingKey, op)
-          } else Some(acc)
-
-        case branch: BranchNode =>
-          if (searchKey.isEmpty) Some(op(acc, node))
-          else
-            pathTraverseWithProof(
-              op(acc, node),
-              branch.children(searchKey(0)),
-              searchKey.slice(1, searchKey.length),
-              op
-            )
-
-        case HashNode(bytes) =>
-          pathTraverseWithProof(acc, getFromHash(bytes, nodeStorage), searchKey, op)
-
-        case NullNode =>
-          Some(acc)
-      }
-    }
-
-    rootNode match {
-      case Some(root) =>
-        pathTraverseWithProof(acc, root, searchKey, op)
       case None =>
         None
     }
