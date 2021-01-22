@@ -165,6 +165,24 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     }
   }
 
+  it should "return proof for non-existent account" in new EphemBlockchainTestSetup {
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
+    val mptWithAcc = emptyMpt.put(Address(42), Account.empty(UInt256(7)))
+
+    val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
+
+    blockchain.storeBlockHeader(headerWithAcc).commit()
+
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
+    retrievedAccountProofWrong.isDefined shouldBe true
+    retrievedAccountProofWrong.size shouldBe 1
+    mptWithAcc.get(wrongAddress) shouldBe None
+  }
+
   it should "return correct best block number after applying and rollbacking blocks" in new TestSetup {
     forAll(intGen(min = 1: Int, max = maxNumberBlocksToImport)) { numberBlocksToImport =>
       val testSetup = newSetup()

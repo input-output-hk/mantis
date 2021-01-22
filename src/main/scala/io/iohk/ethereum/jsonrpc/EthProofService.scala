@@ -4,13 +4,7 @@ import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
-import io.iohk.ethereum.jsonrpc.ProofService.{
-  GetProofRequest,
-  GetProofResponse,
-  ProofAccount,
-  StorageProof,
-  StorageProofKey
-}
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey, StorageValueProof}
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
 
@@ -30,9 +24,11 @@ object ProofService {
 
   case class GetProofResponse(proofAccount: ProofAccount)
 
-  /** The key used to get the storage slot in its account tree */
-  case class StorageProofKey(v: BigInt) extends AnyVal
-
+  trait StorageProof {
+    val key: StorageProofKey
+    val value: BigInt
+    val proof: Seq[ByteString]
+  }
   /**
     * Object proving a relationship of a storage value to an account's storageHash
     *
@@ -40,11 +36,21 @@ object ProofService {
     * @param value the value of the storage slot in its account tree
     * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
     */
-  case class StorageProof(
+  case class StorageValueProof(
       key: StorageProofKey,
       value: BigInt,
-      proof: Seq[ByteString]
-  )
+      proof: Seq[ByteString]) extends StorageProof
+
+  object StorageValueProof {
+    def apply(key: BigInt, value: BigInt = BigInt(0), proof: => Seq[MptNode] = Seq.empty[MptNode]): StorageValueProof =
+      new StorageValueProof(StorageProofKey(key), value, proof.map(asRlpSerializedNode))
+
+    def asRlpSerializedNode(node: MptNode): ByteString =
+      ByteString(MptTraversals.encodeNode(node))
+  }
+
+  /** The key used to get the storage slot in its account tree */
+  case class StorageProofKey(v: BigInt) extends AnyVal
 
   /**
     * The merkle proofs of the specified account connecting them to the blockhash of the block specified.
@@ -143,7 +149,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
         blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
-      storageProof <- Either.right(getStorageProof(account, storageKeys))
+      storageProof = getStorageProof(account, storageKeys)
     } yield ProofAccount(account, accountProof, storageProof, address)
   }
 
@@ -158,9 +164,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
             rootHash = account.storageRoot,
             position = storageKey.v,
             ethCompatibleStorage = ethCompatibleStorage
-          ) match {
-        case (value, proof) => StorageProof(storageKey, value, proof.map(asRlpSerializedNode))
-        }
+          )
       }
   }
 

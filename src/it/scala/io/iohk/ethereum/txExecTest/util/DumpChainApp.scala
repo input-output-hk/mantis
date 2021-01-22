@@ -2,7 +2,6 @@ package io.iohk.ethereum.txExecTest.util
 
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -15,6 +14,7 @@ import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
+import io.iohk.ethereum.jsonrpc.ProofService.{StorageProof, StorageValueProof}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -150,7 +150,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       rootHash: NodeHash,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): (BigInt, Seq[MptNode]) = (BigInt(0), Seq.empty)
+  ): StorageProof = StorageValueProof(position)
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 

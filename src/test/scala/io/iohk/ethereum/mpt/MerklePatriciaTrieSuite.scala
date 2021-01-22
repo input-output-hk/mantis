@@ -573,6 +573,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val proof: Option[Vector[MptNode]] = trie.getProof(key4)
       // then
       assert(proof.isDefined)
+      assert(proof.get.nonEmpty)
   }
 
   test("getProof returns valid proof for existing key") {

@@ -18,7 +18,7 @@ import io.iohk.ethereum.jsonrpc.ProofService.{
   GetProofRequest,
   GetProofResponse,
   ProofAccount,
-  StorageProof,
+  StorageValueProof,
   StorageProofKey
 }
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
@@ -835,7 +835,7 @@ class JsonRpcControllerEthSpec
         nonce = 0,
         storageHash = ByteString(Hex.decode("1a2b3c")),
         storageProof = Seq(
-          StorageProof(
+          StorageValueProof(
             key = StorageProofKey(42),
             value = BigInt(2000),
             proof = Seq(

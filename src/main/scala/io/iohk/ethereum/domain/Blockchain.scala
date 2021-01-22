@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.util.ByteString
 import cats.syntax.flatMap._
 import cats.instances.option._
@@ -13,6 +12,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
+import io.iohk.ethereum.jsonrpc.ProofService.{StorageProof, StorageValueProof}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
@@ -105,7 +105,7 @@ trait Blockchain {
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): (BigInt, Seq[MptNode])
+  ): StorageProof
 
   /**
     * Returns the receipts based on a block hash
@@ -313,16 +313,21 @@ class BlockchainImpl(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): (BigInt, Seq[MptNode]) = {
-    val defaultValue = BigInt(0)
+  ): StorageProof = {
     val storage: MptStorage = stateStorage.getBackingStorage(0)
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     }
-    val value = mpt.get(position).getOrElse(defaultValue)
-    val proof = mpt.getProof(position).getOrElse(Seq.empty)
-    (value, proof)
+    val value = mpt.get(position)
+    val proof = mpt.getProof(position)
+
+    (value, proof) match {
+      case (Some(value), Some(proof)) => StorageValueProof(position, value, proof)
+      case (None, Some(proof)) => StorageValueProof(position, proof = proof)
+      case (Some(value), None) => StorageValueProof(position, value)
+      case (None, None) => StorageValueProof(position)
+    }
   }
 
   private def persistBestBlocksData(): Unit = {
