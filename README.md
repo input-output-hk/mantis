@@ -6,7 +6,7 @@ Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
 
 For continuous integration we're using:
 - [Buildkite](https://buildkite.com/input-output-hk/mantis) to run all the Scala build steps [![Build status](https://badge.buildkite.com/8a284e6f0af90afa544e06c8136b519f9f287f005ca581d8ed.svg?branch=master&theme=github)](https://buildkite.com/input-output-hk/mantis)
-- [Hydra](https://hydra.project42.iohkdev.io/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
+- [Hydra](https://hydra.mantis.ist/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
 
 You can check the latest build results of the current branch by clicking the status icon in the header of the Github file browser.
 
