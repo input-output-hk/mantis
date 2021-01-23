@@ -43,7 +43,7 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ```
  - generate genesis allocs (using private keys and/or addresses)
 ```
-`./bin/mantis cli generate-alloc --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
+`./bin/mantis cli generate-allocs --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
 ```
  - generate multiple key-pairs (following example generate 5 key-pairs)
  ```
