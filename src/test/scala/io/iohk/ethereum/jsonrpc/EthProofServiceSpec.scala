@@ -79,19 +79,14 @@ class EthProofServiceSpec
 
   "EthProofService" should "return an error when the proof is requested for non-existing account" in new TestSetup {
     val wrongAddress = Address(666)
-    val request = GetProofRequest(wrongAddress, storageKeys, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    val result = retrievedAccountProofWrong.runSyncUnsafe()
-
+    val result = fetchProof(wrongAddress, storageKeys, blockNumber).runSyncUnsafe()
     result.isLeft shouldBe true
     result.fold(l => l.message should include("No account found for Address"), r => r)
   }
 
   "EthProofService" should "return the proof with empty value for non-existing storage key" in new TestSetup {
     val wrongStorageKey = Seq(StorageProofKey(321))
-    val request = GetProofRequest(address, wrongStorageKey, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    val result = retrievedAccountProofWrong.runSyncUnsafe()
+    val result = fetchProof(address, wrongStorageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
     result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
       v.proof.nonEmpty shouldBe true
@@ -101,9 +96,7 @@ class EthProofServiceSpec
 
   "EthProofService" should "return the proof and value for existing storage key" in new TestSetup {
     val storageKey = Seq(StorageProofKey(key))
-    val request = GetProofRequest(address, storageKey, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    val result = retrievedAccountProofWrong.runSyncUnsafe()
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
     result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
       v.proof.nonEmpty shouldBe true
@@ -114,9 +107,7 @@ class EthProofServiceSpec
   "EthProofService" should "return the proof and value for multiple existing storage keys" in new TestSetup {
     val storageKey = Seq(StorageProofKey(key), StorageProofKey(key2))
     val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2))
-    val request = GetProofRequest(address, storageKey, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    val result = retrievedAccountProofWrong.runSyncUnsafe()
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
     result.fold(l => l, r => {
       r.proofAccount.storageProof.size shouldBe 2
@@ -131,9 +122,7 @@ class EthProofServiceSpec
     val wrongStorageKey = StorageProofKey(321)
     val storageKey = Seq(StorageProofKey(key), StorageProofKey(key2)) :+ wrongStorageKey
     val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2), BigInt(0))
-    val request = GetProofRequest(address, storageKey, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    val result = retrievedAccountProofWrong.runSyncUnsafe()
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
     result.fold(l => l, r => {
       r.proofAccount.storageProof.size shouldBe 3
@@ -187,6 +176,12 @@ class EthProofServiceSpec
     val blockNumber = BlockParam.Latest
 
     override lazy val ledger = mock[Ledger]
+
+    def fetchProof(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam): ServiceResponse[ProofService.GetProofResponse] = {
+      val request = GetProofRequest(address, storageKeys, blockNumber)
+      val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
+      retrievedAccountProofWrong
+    }
 
     val ethUserService = new EthUserService(
       blockchain,
