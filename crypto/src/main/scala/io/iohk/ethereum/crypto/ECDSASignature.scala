@@ -64,7 +64,7 @@ object ECDSASignature {
       case Some(id) if v == negativePointSign => (id * 2 + newNegativePointSign).toByte
       case Some(id) if v == positivePointSign => (id * 2 + newPositivePointSign).toByte
       case None => v
-      case _    => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
+      case _ => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
     }
 
     ECDSASignature(r, s, pointSign)
@@ -176,7 +176,6 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
     def bigInt2Bytes(b: BigInt) =
       ByteUtils.padLeft(ByteString(b.toByteArray).takeRight(RLength), RLength, 0)
-
 
     bigInt2Bytes(r) ++ bigInt2Bytes(s) ++ ByteString(v)
   }

@@ -5,5 +5,5 @@ object Hex {
     bytes.map("%02x".format(_)).mkString
 
   def decode(hex: String): Array[Byte] =
-    hex.toSeq.sliding(2, 2).toArray.map(s=> Integer.parseInt(s.unwrap, 16).toByte)
+    hex.toSeq.sliding(2, 2).toArray.map(s => Integer.parseInt(s.unwrap, 16).toByte)
 }
