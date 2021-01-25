@@ -554,7 +554,40 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(proof.isEmpty)
   }
 
-  test("getProof returns proof result for non-existing address") {
+  test("PatriciaTrie can get proof(at least the root node) for all inserted key-value pairs") {
+    forAll(keyValueListGen()) { keyValueList: Seq[(Int, Int)] =>
+      val trie = addEveryKeyValuePair(keyValueList)
+      assertCanGetProofForEveryKeyValue(trie, keyValueList)
+    }
+  }
+
+  test("PatriciaTrie return root as proof when no common nibbles are found between MPT root hash and search key") {
+    forAll(keyValueListGen(1, 10)) { keyValueList: Seq[(Int, Int)] =>
+      val trie = addEveryKeyValuePair(keyValueList)
+      val wrongKey = 22
+      val proof = trie.getProof(wrongKey)
+      assert(proof.getOrElse(Vector.empty).toList match {
+        case _ @ HashNode(_) :: Nil => true
+        case _ => false
+      })
+    }
+  }
+
+  test("PatriciaTrie return proof when having all nibbles in common except the last one between MPT root hash and search key") {
+
+    val key = 1111
+    val wrongKey = 1112
+    val emptyTrie = MerklePatriciaTrie[Int, Int](emptyEphemNodeStorage)
+      .put(key, 1)
+      .put(wrongKey, 2)
+    val proof = emptyTrie.getProof(key = wrongKey)
+    assert(proof.getOrElse(Vector.empty).toList match {
+      case _ @ HashNode(_) :: tail => tail.nonEmpty
+      case _ => false
+    })
+  }
+
+  test("getProof returns proof result for non-existing key") {
       // given
       val EmptyTrie = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
       val key1: Array[Byte] = Hex.decode("10000001")
@@ -609,6 +642,12 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val obtained = trie.get(key)
       assert(obtained.isDefined)
       assert(obtained.get == value)
+    }
+
+  private def assertCanGetProofForEveryKeyValue[K, V](trie: MerklePatriciaTrie[K, V], kvs: Seq[(K, V)]): Unit =
+    kvs.foreach { case (key, _) =>
+      val obtained = trie.getProof(key)
+      assert(obtained.getOrElse(Vector.empty).nonEmpty)
     }
 
   private def assertCanGetEveryKeyValues[K, V](trie: MerklePatriciaTrie[K, Array[V]], kvs: List[(K, Array[V])]): Unit =
