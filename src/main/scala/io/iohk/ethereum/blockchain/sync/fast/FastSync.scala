@@ -567,7 +567,7 @@ class FastSync(
             )
             syncState = syncState.enqueueBlockBodies(requestedHashes)
           case BlockBodyValidationResult.DbError =>
-            redownloadBlockchain()
+            reDownloadBlockchain()
         }
       }
 
@@ -605,7 +605,7 @@ class FastSync(
             syncState = syncState.enqueueReceipts(requestedHashes)
 
           case ReceiptsValidationResult.DbError =>
-            redownloadBlockchain()
+            reDownloadBlockchain()
         }
       }
 
@@ -631,7 +631,7 @@ class FastSync(
     /**
       * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
       */
-    private def redownloadBlockchain(): Unit = {
+    private def reDownloadBlockchain(): Unit = {
       syncState = syncState.copy(
         blockBodiesQueue = Seq.empty,
         receiptsQueue = Seq.empty,
@@ -888,9 +888,15 @@ class FastSync(
         reverse = false
       )
 
+      // Stick with the same peer (the best one) as the master peer as long as it is valid.
+      // See: branch resolution, where an invalid master peer is updated.
+      if (masterPeer.isEmpty) {
+        masterPeer = Some(peer)
+      }
+
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
-          peer,
+          masterPeer.get,
           peerResponseTimeout,
           etcPeerManager,
           peerEventBus,
@@ -902,7 +908,6 @@ class FastSync(
 
       context watch handler
       assignedHandlers += (handler -> peer)
-      masterPeer = Some(peer)
       currentSkeleton = Some(skeleton)
       peerRequestsTime += (peer -> Instant.now())
     }
