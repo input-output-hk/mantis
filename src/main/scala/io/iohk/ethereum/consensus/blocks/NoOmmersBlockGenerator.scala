@@ -5,6 +5,7 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.ConsensusMetrics
 
 abstract class NoOmmersBlockGenerator(
     blockchain: Blockchain,
@@ -44,8 +45,7 @@ abstract class NoOmmersBlockGenerator(
       beneficiary: Address,
       x: Nil.type,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = {
-
+  ): PendingBlockAndState = ConsensusMetrics.NoOmmersBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
 

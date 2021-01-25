@@ -17,6 +17,9 @@ import org.json4s.{DefaultFormats, native}
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import io.micrometer.core.instrument.Timer
+import io.micrometer.core.annotation.Timed
+import java.time.Duration
 
 trait ApisBase {
   def available: List[String]
@@ -67,9 +70,8 @@ trait JsonRpcBaseController {
           Task {
             JsonRpcControllerMetrics.MethodsSuccessCounter.increment()
 
-            val endTimeNanos = System.nanoTime()
-            val dtNanos = endTimeNanos - startTimeNanos
-            JsonRpcControllerMetrics.MethodsTimer.record(dtNanos, TimeUnit.NANOSECONDS)
+            val time = Duration.ofNanos(System.nanoTime() - startTimeNanos)
+            JsonRpcControllerMetrics.recordMethodTime(request.method, time)
           }
       }
       .onErrorRecoverWith { case t: Throwable =>

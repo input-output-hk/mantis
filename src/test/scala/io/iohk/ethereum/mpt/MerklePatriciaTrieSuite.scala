@@ -588,7 +588,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
         val keyToFind = x._1
         val proof = trie.getProof(keyToFind)
         assert(proof.isDefined)
-        proof.map{ p =>
+        proof.map { p =>
           assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == ValidProof)
         }
       })
