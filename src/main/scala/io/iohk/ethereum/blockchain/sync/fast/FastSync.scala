@@ -1,6 +1,5 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import java.time.Instant
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -30,6 +29,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
 import java.util.concurrent.TimeUnit
+import java.time.Instant
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
