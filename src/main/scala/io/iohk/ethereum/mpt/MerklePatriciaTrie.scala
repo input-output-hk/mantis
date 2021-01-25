@@ -82,16 +82,14 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   def get(key: K): Option[V] = {
-    pathTraverse[Option[V]](None, mkKeyNibbles(key)) { case (_, node) =>
-      node match {
-        case Some(LeafNode(_, value, _, _, _)) =>
-          Some(vSerializer.fromBytes(value.toArray[Byte]))
+    pathTraverse[Option[V]](None, mkKeyNibbles(key)) {
+      case (_, Some(LeafNode(_, value, _, _, _))) =>
+        Some(vSerializer.fromBytes(value.toArray[Byte]))
 
-        case Some(BranchNode(_, terminator, _, _, _)) =>
-          terminator.map(term => vSerializer.fromBytes(term.toArray[Byte]))
+      case (_, Some(BranchNode(_, terminator, _, _, _))) =>
+        terminator.map(term => vSerializer.fromBytes(term.toArray[Byte]))
 
-        case _ => None
-      }
+      case _ => None
     }.flatten
   }
 

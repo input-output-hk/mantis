@@ -4,6 +4,7 @@ import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
+import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof.asRlpSerializedNode
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey, StorageValueProof}
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
@@ -24,7 +25,7 @@ object ProofService {
 
   case class GetProofResponse(proofAccount: ProofAccount)
 
-  trait StorageProof {
+  sealed trait StorageProof {
     val key: StorageProofKey
     val value: BigInt
     val proof: Seq[ByteString]
@@ -38,12 +39,20 @@ object ProofService {
     */
   case class StorageValueProof(
       key: StorageProofKey,
-      value: BigInt,
-      proof: Seq[ByteString]) extends StorageProof
+      value: BigInt = BigInt(0),
+      proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)) extends StorageProof
 
   object StorageValueProof {
-    def apply(key: BigInt, value: BigInt = BigInt(0), proof: => Seq[MptNode] = Seq.empty[MptNode]): StorageValueProof =
-      new StorageValueProof(StorageProofKey(key), value, proof.map(asRlpSerializedNode))
+    def apply(position: BigInt, value: Option[BigInt], proof: Option[Vector[MptNode]]): StorageValueProof =
+      (value, proof) match {
+        case (Some(value), Some(proof)) => new StorageValueProof(key = StorageProofKey(position),  value = value, proof = proof.map(asRlpSerializedNode))
+        case (None, Some(proof)) => new StorageValueProof(key = StorageProofKey(position), proof = proof.map(asRlpSerializedNode))
+        case (Some(value), None) => new StorageValueProof(key = StorageProofKey(position), value = value)
+        case (None, None) => new StorageValueProof(key = StorageProofKey(position))
+      }
+
+    def apply(position: BigInt): StorageValueProof =
+      new StorageValueProof(key = StorageProofKey(position))
 
     def asRlpSerializedNode(node: MptNode): ByteString =
       ByteString(MptTraversals.encodeNode(node))

@@ -319,15 +319,9 @@ class BlockchainImpl(
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     }
-    val value = mpt.get(position)
-    val proof = mpt.getProof(position)
-
-    (value, proof) match {
-      case (Some(value), Some(proof)) => StorageValueProof(position, value, proof)
-      case (None, Some(proof)) => StorageValueProof(position, proof = proof)
-      case (Some(value), None) => StorageValueProof(position, value)
-      case (None, None) => StorageValueProof(position)
-    }
+    val value: Option[BigInt] = mpt.get(position)
+    val proof: Option[Vector[MptNode]] = mpt.getProof(position)
+    StorageValueProof(position, value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {
