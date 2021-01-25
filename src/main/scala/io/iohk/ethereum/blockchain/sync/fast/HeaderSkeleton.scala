@@ -41,8 +41,8 @@ case class HeaderSkeleton(
     to: BigInt,
     maxSkeletonHeaders: Int,
     private val skeletonHeaders: Seq[BlockHeader] = Seq.empty,
-    private val batches: Map[BigInt, Seq[BlockHeader]] = Map.empty) {
-
+    private val batches: Map[BigInt, Seq[BlockHeader]] = Map.empty
+) {
 
   private val remainingBlocks: BigInt = to - from + 1
 
@@ -153,6 +153,7 @@ case class HeaderSkeleton(
   }
 
   private val isFull: Boolean = batchStartingHeaderNumbers.forall(batches.contains)
+
   /**
     * The complete skeleton plus the filled in batches, or `None` if not everything was downloaded
     */
@@ -183,8 +184,10 @@ object HeaderSkeleton {
   case class EmptyDownloadedBatch(expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Downloaded empty headers batch. Expected $expected"
   }
-  case class InvalidPenultimateHeader(penultimateBatchHeader: BlockHeader, skeletonHeader: BlockHeader) extends HeaderBatchError {
-    override def msg: String = s"Invalid batch penultimate header. $penultimateBatchHeader isn't parent of $skeletonHeader"
+  case class InvalidPenultimateHeader(penultimateBatchHeader: BlockHeader, skeletonHeader: BlockHeader)
+      extends HeaderBatchError {
+    override def msg: String =
+      s"Invalid batch penultimate header. $penultimateBatchHeader isn't parent of $skeletonHeader"
   }
   case class InvalidBatchFirstNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Invalid batch first number. $downloaded wasn't found in $expected"
