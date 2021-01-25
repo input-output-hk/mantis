@@ -226,8 +226,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val fast = syncController.getSingleChild("fast-sync")
 
     // Send block that is way forward, we should ignore that block and blacklist that peer
-    // TODO: if these headers are obtained from the master peer, they are validated against the skeleton rules
-    // TODO: otherwise they are ignored. This test mocks headers from non-master peer. Is this behaviour expected..?
     val futureHeaders = Seq(defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20))
     val futureHeadersMessage = PeerRequestHandler.ResponseReceived(peer2, BlockHeaders(futureHeaders), 2L)
     implicit val ec = system.dispatcher
@@ -654,9 +652,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         .zipWithIndex
         .collect { case (header, index) if index % (underlyingMessage.skip + 1) == 0 => header }
     }
-
-    def blockMatchesStart(block: (BigInt, BlockHeader), startingBlock: Either[BigInt, ByteString]): Boolean =
-      startingBlock.fold(nr => block._1 == nr, hash => block._2.hash == hash)
 
     // scalastyle:off method.length parameter.number
     def setupAutoPilot(
