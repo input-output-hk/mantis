@@ -65,4 +65,6 @@ object ByteStringUtils {
     ByteString(builder.result())
   }
 
+  def concatByteStrings(elements: Array[ByteStringArrayElement]): ByteString = ???
+
 }
