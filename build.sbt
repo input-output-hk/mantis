@@ -194,6 +194,7 @@ lazy val node = {
       ThisBuild / jdkPackagerType := "image",
       mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
       mappings in Universal += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf",
+      mappings in Universal += (resourceDirectory in Compile).value / "metrics.conf" -> "conf/metrics.conf",
       mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
         f -> s"conf/$name"
       },
