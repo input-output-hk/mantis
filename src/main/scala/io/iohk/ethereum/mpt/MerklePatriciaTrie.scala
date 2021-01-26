@@ -9,7 +9,6 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.utils.ByteUtils.matchingLength
-
 import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
@@ -103,7 +102,8 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   def getProof(key: K): Option[Vector[MptNode]] = {
     pathTraverse[Vector[MptNode]](Vector.empty, mkKeyNibbles(key)) { case (acc, node) =>
       node match {
-        case Some(nextNodeOnExt @ (_: BranchNode | _: ExtensionNode | _: LeafNode | _: HashNode)) => acc :+ nextNodeOnExt
+        case Some(nextNodeOnExt @ (_: BranchNode | _: ExtensionNode | _: LeafNode | _: HashNode)) =>
+          acc :+ nextNodeOnExt
         case _ => acc
       }
     }

@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie}
 import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import io.iohk.ethereum.ObjectGenerators._
 import io.iohk.ethereum.proof.MptProofVerifier
@@ -177,9 +177,11 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val wrongAddress = Address(666)
     val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
-    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
-    retrievedAccountProofWrong.isDefined shouldBe true
-    retrievedAccountProofWrong.size shouldBe 1
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
+    (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
+      case _ @HashNode(_) :: Nil => true
+      case _ => false
+    }) shouldBe true
     mptWithAcc.get(wrongAddress) shouldBe None
   }
 

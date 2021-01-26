@@ -5,7 +5,14 @@ import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof.asRlpSerializedNode
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey, StorageValueProof}
+import io.iohk.ethereum.jsonrpc.ProofService.{
+  GetProofRequest,
+  GetProofResponse,
+  ProofAccount,
+  StorageProof,
+  StorageProofKey,
+  StorageValueProof
+}
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
 
@@ -30,6 +37,7 @@ object ProofService {
     val value: BigInt
     val proof: Seq[ByteString]
   }
+
   /**
     * Object proving a relationship of a storage value to an account's storageHash
     *
@@ -40,13 +48,16 @@ object ProofService {
   case class StorageValueProof(
       key: StorageProofKey,
       value: BigInt = BigInt(0),
-      proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)) extends StorageProof
+      proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
+  ) extends StorageProof
 
   object StorageValueProof {
     def apply(position: BigInt, value: Option[BigInt], proof: Option[Vector[MptNode]]): StorageValueProof =
       (value, proof) match {
-        case (Some(value), Some(proof)) => new StorageValueProof(key = StorageProofKey(position),  value = value, proof = proof.map(asRlpSerializedNode))
-        case (None, Some(proof)) => new StorageValueProof(key = StorageProofKey(position), proof = proof.map(asRlpSerializedNode))
+        case (Some(value), Some(proof)) =>
+          new StorageValueProof(key = StorageProofKey(position), value = value, proof = proof.map(asRlpSerializedNode))
+        case (None, Some(proof)) =>
+          new StorageValueProof(key = StorageProofKey(position), proof = proof.map(asRlpSerializedNode))
         case (Some(value), None) => new StorageValueProof(key = StorageProofKey(position), value = value)
         case (None, None) => new StorageValueProof(key = StorageProofKey(position))
       }
