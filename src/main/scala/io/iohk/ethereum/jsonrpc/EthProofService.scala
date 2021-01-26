@@ -4,7 +4,7 @@ import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
-import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof.asRlpSerializedNode
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof.asRlpSerializedNode
 import io.iohk.ethereum.jsonrpc.ProofService.{
   GetProofRequest,
   GetProofResponse,
@@ -33,9 +33,24 @@ object ProofService {
   case class GetProofResponse(proofAccount: ProofAccount)
 
   sealed trait StorageProof {
-    val key: StorageProofKey
-    val value: BigInt
-    val proof: Seq[ByteString]
+    def key: StorageProofKey
+    def value: BigInt
+    def proof: Seq[ByteString]
+  }
+
+  object StorageProof {
+    def apply(position: BigInt, value: Option[BigInt], proof: Option[Vector[MptNode]]): StorageProof =
+      (value, proof) match {
+        case (Some(value), Some(proof)) =>
+          StorageValueProof(StorageProofKey(position), value, proof.map(asRlpSerializedNode))
+        case (None, Some(proof)) =>
+          EmptyStorageValue(StorageProofKey(position), proof.map(asRlpSerializedNode))
+        case (Some(value), None) => EmptyStorageProof(StorageProofKey(position), value)
+        case (None, None) => EmptyStorageValueProof(StorageProofKey(position))
+      }
+
+    def asRlpSerializedNode(node: MptNode): ByteString =
+      ByteString(MptTraversals.encodeNode(node))
   }
 
   /**
@@ -45,29 +60,17 @@ object ProofService {
     * @param value the value of the storage slot in its account tree
     * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
     */
-  case class StorageValueProof(
-      key: StorageProofKey,
-      value: BigInt = BigInt(0),
-      proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
-  ) extends StorageProof
-
-  object StorageValueProof {
-    def apply(position: BigInt, value: Option[BigInt], proof: Option[Vector[MptNode]]): StorageValueProof =
-      (value, proof) match {
-        case (Some(value), Some(proof)) =>
-          new StorageValueProof(key = StorageProofKey(position), value = value, proof = proof.map(asRlpSerializedNode))
-        case (None, Some(proof)) =>
-          new StorageValueProof(key = StorageProofKey(position), proof = proof.map(asRlpSerializedNode))
-        case (Some(value), None) => new StorageValueProof(key = StorageProofKey(position), value = value)
-        case (None, None) => new StorageValueProof(key = StorageProofKey(position))
-      }
-
-    def apply(position: BigInt): StorageValueProof =
-      new StorageValueProof(key = StorageProofKey(position))
-
-    def asRlpSerializedNode(node: MptNode): ByteString =
-      ByteString(MptTraversals.encodeNode(node))
+  case class EmptyStorageValueProof(key: StorageProofKey) extends StorageProof {
+    val value: BigInt = BigInt(0)
+    val proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
   }
+  case class EmptyStorageValue(key: StorageProofKey, proof: Seq[ByteString]) extends StorageProof {
+    val value: BigInt = BigInt(0)
+  }
+  case class EmptyStorageProof(key: StorageProofKey, value: BigInt) extends StorageProof {
+    val proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
+  }
+  case class StorageValueProof(key: StorageProofKey, value: BigInt, proof: Seq[ByteString]) extends StorageProof
 
   /** The key used to get the storage slot in its account tree */
   case class StorageProofKey(v: BigInt) extends AnyVal

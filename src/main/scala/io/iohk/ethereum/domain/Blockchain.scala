@@ -12,7 +12,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
-import io.iohk.ethereum.jsonrpc.ProofService.{StorageProof, StorageValueProof}
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
@@ -321,7 +321,7 @@ class BlockchainImpl(
     }
     val value: Option[BigInt] = mpt.get(position)
     val proof: Option[Vector[MptNode]] = mpt.getProof(position)
-    StorageValueProof(position, value, proof)
+    StorageProof(position, value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {
