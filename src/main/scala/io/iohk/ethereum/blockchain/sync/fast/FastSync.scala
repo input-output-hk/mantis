@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import java.time.Instant
-
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -29,6 +28,7 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
+import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -150,6 +150,9 @@ class FastSync(
       scheduler.scheduleWithFixedDelay(printStatusInterval, printStatusInterval, self, PrintStatus)
     private val heartBeat =
       scheduler.scheduleWithFixedDelay(syncRetryInterval, syncRetryInterval * 2, self, ProcessSyncing)
+
+    private val startTime: Long = System.currentTimeMillis()
+    private def totalMinutesTaken(): Long = TimeUnit.MILLISECONDS.toMinutes(System.currentTimeMillis() - startTime)
 
     def handleStatus: Receive = {
       case SyncProtocol.GetStatus => sender() ! currentSyncingStatus
@@ -655,7 +658,11 @@ class FastSync(
     }
 
     def finish(): Unit = {
+      val totalTime = totalMinutesTaken()
+      SyncMetrics.setFastSyncTotalTimeGauge(totalTime.toDouble)
+      log.info("Total time taken for FastSync was {} minutes", totalTime)
       log.info("Block synchronization in fast mode finished, switching to regular mode")
+
       // We have downloaded to target + fastSyncBlockValidationX, se we must discard those last blocks
       discardLastBlocks(syncState.safeDownloadTarget, syncConfig.fastSyncBlockValidationX - 1)
       cleanup()
