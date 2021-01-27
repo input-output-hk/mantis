@@ -1,7 +1,7 @@
 steps:
   - label: ":nix::point_right::pipeline:"
     command: |
-      export NIX_PATH="nixpkgs=$(nix eval --raw '(import nix/sources.nix).nixpkgs')"
+      export NIX_PATH="nixpkgs=$(nix eval --impure --raw '(import ./nix/sources.nix).nixpkgs')"
       nix eval --json '(import ./.buildkite { pipeline = ./.buildkite/pipeline.nix; })' \
       | buildkite-agent pipeline upload --no-interpolation
     agents:
