@@ -50,9 +50,10 @@ trait ObjectGenerators {
     } yield (aByteList.toArray, t)
   }
 
-  def keyValueListGen(): Gen[List[(Int, Int)]] = {
+  def keyValueListGen(minValue: Int = Int.MinValue, maxValue: Int = Int.MaxValue): Gen[List[(Int, Int)]] = {
     for {
-      aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
+      values <- Gen.chooseNum(minValue, maxValue)
+      aKeyList <- Gen.nonEmptyListOf(values).map(_.distinct)
     } yield aKeyList.zip(aKeyList)
   }
 

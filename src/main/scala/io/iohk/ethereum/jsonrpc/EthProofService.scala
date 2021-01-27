@@ -4,12 +4,14 @@ import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof.asRlpSerializedNode
 import io.iohk.ethereum.jsonrpc.ProofService.{
   GetProofRequest,
   GetProofResponse,
   ProofAccount,
   StorageProof,
-  StorageProofKey
+  StorageProofKey,
+  StorageValueProof
 }
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
@@ -30,8 +32,26 @@ object ProofService {
 
   case class GetProofResponse(proofAccount: ProofAccount)
 
-  /** The key used to get the storage slot in its account tree */
-  case class StorageProofKey(v: BigInt) extends AnyVal
+  sealed trait StorageProof {
+    def key: StorageProofKey
+    def value: BigInt
+    def proof: Seq[ByteString]
+  }
+
+  object StorageProof {
+    def apply(position: BigInt, value: Option[BigInt], proof: Option[Vector[MptNode]]): StorageProof =
+      (value, proof) match {
+        case (Some(value), Some(proof)) =>
+          StorageValueProof(StorageProofKey(position), value, proof.map(asRlpSerializedNode))
+        case (None, Some(proof)) =>
+          EmptyStorageValue(StorageProofKey(position), proof.map(asRlpSerializedNode))
+        case (Some(value), None) => EmptyStorageProof(StorageProofKey(position), value)
+        case (None, None) => EmptyStorageValueProof(StorageProofKey(position))
+      }
+
+    def asRlpSerializedNode(node: MptNode): ByteString =
+      ByteString(MptTraversals.encodeNode(node))
+  }
 
   /**
     * Object proving a relationship of a storage value to an account's storageHash
@@ -40,11 +60,20 @@ object ProofService {
     * @param value the value of the storage slot in its account tree
     * @param proof the set of node values needed to traverse a patricia merkle tree (from root to leaf) to retrieve a value
     */
-  case class StorageProof(
-      key: StorageProofKey,
-      value: BigInt,
-      proof: Seq[ByteString]
-  )
+  case class EmptyStorageValueProof(key: StorageProofKey) extends StorageProof {
+    val value: BigInt = BigInt(0)
+    val proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
+  }
+  case class EmptyStorageValue(key: StorageProofKey, proof: Seq[ByteString]) extends StorageProof {
+    val value: BigInt = BigInt(0)
+  }
+  case class EmptyStorageProof(key: StorageProofKey, value: BigInt) extends StorageProof {
+    val proof: Seq[ByteString] = Seq.empty[MptNode].map(asRlpSerializedNode)
+  }
+  case class StorageValueProof(key: StorageProofKey, value: BigInt, proof: Seq[ByteString]) extends StorageProof
+
+  /** The key used to get the storage slot in its account tree */
+  case class StorageProofKey(v: BigInt) extends AnyVal
 
   /**
     * The merkle proofs of the specified account connecting them to the blockhash of the block specified.
@@ -143,14 +172,14 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
         blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
-      storageProof <- getStorageProof(account, storageKeys)
+      storageProof = getStorageProof(account, storageKeys)
     } yield ProofAccount(account, accountProof, storageProof, address)
   }
 
   def getStorageProof(
       account: Account,
       storageKeys: Seq[StorageProofKey]
-  ): Either[JsonRpcError, Seq[StorageProof]] = {
+  ): Seq[StorageProof] = {
     storageKeys.toList
       .map { storageKey =>
         blockchain
@@ -159,21 +188,14 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
             position = storageKey.v,
             ethCompatibleStorage = ethCompatibleStorage
           )
-          .map { case (value, proof) => StorageProof(storageKey, value, proof.map(asRlpSerializedNode)) }
-          .toRight(noStorageProof(account, storageKey))
       }
-      .sequence
-      .map(_.toSeq)
   }
 
-  private def noStorageProof(account: Account, storagekey: StorageProofKey): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for [${account.toString}] storage key [${storagekey.toString}]")
-
   private def noAccount(address: Address, blockNumber: BigInt): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+    JsonRpcError.LogicError(s"No account found for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
   private def noAccountProof(address: Address, blockNumber: BigInt): JsonRpcError =
-    JsonRpcError.LogicError(s"No storage proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
+    JsonRpcError.LogicError(s"No account proof for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
 
   private def asRlpSerializedNode(node: MptNode): ByteString =
     ByteString(MptTraversals.encodeNode(node))

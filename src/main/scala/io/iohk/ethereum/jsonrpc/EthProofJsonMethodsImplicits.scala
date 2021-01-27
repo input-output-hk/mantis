@@ -4,9 +4,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, StorageProofKey}
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
-import org.json4s.Extraction
 import org.json4s.JsonAST.{JArray, JString, JValue, _}
-import org.json4s.JsonDSL._
 
 object EthProofJsonMethodsImplicits extends JsonMethodsImplicits {
   def extractStorageKeys(input: JValue): Either[JsonRpcError, Seq[StorageProofKey]] = {

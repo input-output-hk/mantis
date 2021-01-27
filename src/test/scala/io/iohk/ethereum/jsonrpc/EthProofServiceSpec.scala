@@ -1,21 +1,18 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
 import akka.util.ByteString
 import com.softwaremill.diffx.scalatest.DiffMatcher
+import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.domain.{Account, Address, Block, EthereumUInt256Mpt, UInt256}
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{Ledger, StxLedger}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthUserService.{GetBalanceRequest, GetBalanceResponse, GetStorageAtRequest, GetTransactionCountRequest}
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.utils._
-import io.iohk.ethereum._
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -24,12 +21,7 @@ import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
-import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
-import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest
-import io.iohk.ethereum.jsonrpc.EthUserService.GetStorageAtRequest
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 
 class EthProofServiceSpec
     extends TestKit(ActorSystem("EthGetProofSpec_ActorSystem"))
@@ -44,49 +36,9 @@ class EthProofServiceSpec
     with DiffMatcher {
 
   "EthProofService" should "handle getStorageAt request" in new TestSetup {
-    // given
-    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
-
-    val key = 333
-    val value = 123
-
-    val storageMpt = EthereumUInt256Mpt
-      .storageMpt(
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        storagesInstance.storages.stateStorage.getBackingStorage(0)
-      )
-      .put(UInt256(key), UInt256(value))
-
-    val account = Account(
-      nonce = 0,
-      balance = UInt256(0),
-      storageRoot = ByteString(storageMpt.getRootHash),
-      codeHash = ByteString("")
-    )
-
-    import MerklePatriciaTrie.defaultByteArraySerializable
-    val mpt =
-      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
-        .put(
-          crypto.kec256(address.bytes.toArray[Byte]),
-          account
-        )
-
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
-    val newblock = blockToRequest.copy(header = newBlockHeader)
-    blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
-
-    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
-    val storageKeys = Seq(StorageProofKey(key))
-    val blockNumber = BlockParam.Latest
     val request = GetProofRequest(address, storageKeys, blockNumber)
-
-    // when
     val result = ethGetProof.getProof(request)
 
-    // then
     val balanceResponse: GetBalanceResponse = ethUserService
       .getBalance(GetBalanceRequest(address, BlockParam.Latest))
       .runSyncUnsafe()
@@ -126,20 +78,110 @@ class EthProofServiceSpec
   }
 
   "EthProofService" should "return an error when the proof is requested for non-existing account" in new TestSetup {
-    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
-    val key = 999
-    val storageKeys = Seq(StorageProofKey(key))
-    val blockNumber = BlockParam.Latest
     val wrongAddress = Address(666)
-    val request = GetProofRequest(wrongAddress, storageKeys, blockNumber)
-    val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-    retrievedAccountProofWrong.runSyncUnsafe().isLeft shouldBe true
+    val result = fetchProof(wrongAddress, storageKeys, blockNumber).runSyncUnsafe()
+    result.isLeft shouldBe true
+    result.fold(l => l.message should include("No account found for Address"), r => r)
+  }
+
+  "EthProofService" should "return the proof with empty value for non-existing storage key" in new TestSetup {
+    val wrongStorageKey = Seq(StorageProofKey(321))
+    val result = fetchProof(address, wrongStorageKey, blockNumber).runSyncUnsafe()
+    result.isRight shouldBe true
+    result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
+      v.proof.nonEmpty shouldBe true
+      v.value shouldBe BigInt(0)
+    }))
+  }
+
+  "EthProofService" should "return the proof and value for existing storage key" in new TestSetup {
+    val storageKey = Seq(StorageProofKey(key))
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
+    result.isRight shouldBe true
+    result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
+      v.proof.nonEmpty shouldBe true
+      v.value shouldBe BigInt(value)
+    }))
+  }
+
+  "EthProofService" should "return the proof and value for multiple existing storage keys" in new TestSetup {
+    val storageKey = Seq(StorageProofKey(key), StorageProofKey(key2))
+    val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2))
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
+    result.isRight shouldBe true
+    result.fold(l => l, r => {
+      r.proofAccount.storageProof.size shouldBe 2
+      r.proofAccount.storageProof.map(v => {
+        v.proof.nonEmpty shouldBe true
+        expectedValueStorageKey should contain(v.value)
+      })
+    })
+  }
+
+  "EthProofService" should "return the proof for all storage keys provided, but value should be returned only for the existing ones" in new TestSetup {
+    val wrongStorageKey = StorageProofKey(321)
+    val storageKey = Seq(StorageProofKey(key), StorageProofKey(key2)) :+ wrongStorageKey
+    val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2), BigInt(0))
+    val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
+    result.isRight shouldBe true
+    result.fold(l => l, r => {
+      r.proofAccount.storageProof.size shouldBe 3
+      expectedValueStorageKey.forall(r.proofAccount.storageProof.map(_.value).contains) shouldBe true
+    })
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+
     val blockGenerator = mock[EthashBlockGenerator]
+    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+
+    val key = 333
+    val value = 123
+    val key1 = 334
+    val value1 = 124
+    val key2 = 335
+    val value2 = 125
+
+    val storageMpt = EthereumUInt256Mpt
+      .storageMpt(
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        storagesInstance.storages.stateStorage.getBackingStorage(0)
+      )
+      .put(UInt256(key), UInt256(value))
+      .put(UInt256(key1), UInt256(value1))
+      .put(UInt256(key2), UInt256(value2))
+
+    val account = Account(
+      nonce = 0,
+      balance = UInt256(0),
+      storageRoot = ByteString(storageMpt.getRootHash)
+    )
+
+    val mpt =
+      MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
+        .put(
+          crypto.kec256(address.bytes.toArray[Byte]),
+          account
+        )
+
+    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock = blockToRequest.copy(header = newBlockHeader)
+    blockchain.storeBlock(newblock).commit()
+    blockchain.saveBestKnownBlocks(newblock.header.number)
+
+    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
+
+    val storageKeys = Seq(StorageProofKey(key))
+    val blockNumber = BlockParam.Latest
 
     override lazy val ledger = mock[Ledger]
+
+    def fetchProof(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam): ServiceResponse[ProofService.GetProofResponse] = {
+      val request = GetProofRequest(address, storageKeys, blockNumber)
+      val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
+      retrievedAccountProofWrong
+    }
 
     val ethUserService = new EthUserService(
       blockchain,

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.util.ByteString
 import cats.syntax.flatMap._
 import cats.instances.option._
@@ -13,6 +12,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
@@ -95,11 +95,17 @@ trait Blockchain {
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
+  /**
+    * Get a storage-value and its proof being the path from the root node until the last matching node.
+    *
+    * @param rootHash storage root hash
+    * @param position storage position
+    */
   def getStorageProofAt(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[MptNode])]
+  ): StorageProof
 
   /**
     * Returns the receipts based on a block hash
@@ -307,16 +313,15 @@ class BlockchainImpl(
       rootHash: ByteString,
       position: BigInt,
       ethCompatibleStorage: Boolean
-  ): Option[(BigInt, Seq[MptNode])] = {
+  ): StorageProof = {
     val storage: MptStorage = stateStorage.getBackingStorage(0)
     val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     }
-    for {
-      value <- mpt.get(position)
-      proof <- mpt.getProof(position)
-    } yield (value, proof)
+    val value: Option[BigInt] = mpt.get(position)
+    val proof: Option[Vector[MptNode]] = mpt.getProof(position)
+    StorageProof(position, value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {
