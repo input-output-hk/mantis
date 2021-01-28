@@ -144,7 +144,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     * @return Best leaf from the affected subtree
     */
   private def updateChainWeights(ancestor: ByteString): Option[Leaf] = {
-    blocks.get(ancestor).flatMap(_.weight).map { weight =>
+    blocks.get(ancestor).flatMap(_.weight).flatMap { weight =>
       parentToChildren.get(ancestor) match {
 
         case Some(children) if children.nonEmpty =>
@@ -152,10 +152,10 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
             .flatMap(blocks.get)
             .map(qb => qb.copy(weight = Some(weight.increase(qb.block.header))))
           updatedChildren.foreach(qb => blocks += qb.block.header.hash -> qb)
-          updatedChildren.flatMap(qb => updateChainWeights(qb.block.header.hash)).maxBy(_.weight)
+          updatedChildren.flatMap(qb => updateChainWeights(qb.block.header.hash)).maxByOption(_.weight)
 
         case _ =>
-          Leaf(ancestor, weight)
+          Some(Leaf(ancestor, weight))
       }
     }
   }
