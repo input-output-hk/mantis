@@ -15,9 +15,82 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1611593153168,
+  "iteration": 1611829944845,
   "links": [],
   "panels": [
+    {
+      "datasource": null,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 142,
+      "title": "Fast Synchronization",
+      "type": "row"
+    },
+    {
+      "datasource": null,
+      "description": "Total time taken for FastSync to complete",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 1
+      },
+      "id": 144,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.3.6",
+      "targets": [
+        {
+          "expr": "app_fastsync_totaltime_minutes_gauge",
+          "interval": "",
+          "legendFormat": "minutes",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "FastSync Total Time in Minutes",
+      "type": "stat"
+    },
     {
       "collapsed": false,
       "datasource": null,
@@ -25,7 +98,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 0
+        "y": 9
       },
       "id": 42,
       "panels": [],
@@ -51,7 +124,7 @@
         "h": 14,
         "w": 12,
         "x": 0,
-        "y": 1
+        "y": 10
       },
       "hiddenSeries": false,
       "id": 48,
@@ -150,7 +223,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 1
+        "y": 10
       },
       "hiddenSeries": false,
       "id": 66,
@@ -248,7 +321,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 8
+        "y": 17
       },
       "hiddenSeries": false,
       "id": 58,
@@ -344,7 +417,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 15
+        "y": 24
       },
       "hiddenSeries": false,
       "id": 117,
@@ -440,7 +513,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 15
+        "y": 24
       },
       "hiddenSeries": false,
       "id": 54,
@@ -538,7 +611,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 31
       },
       "hiddenSeries": false,
       "id": 64,
@@ -635,7 +708,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 29
+        "y": 38
       },
       "hiddenSeries": false,
       "id": 56,
@@ -719,7 +792,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 36
+        "y": 45
       },
       "id": 130,
       "panels": [],
@@ -745,7 +818,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 37
+        "y": 46
       },
       "hiddenSeries": false,
       "id": 132,
@@ -844,7 +917,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 37
+        "y": 46
       },
       "hiddenSeries": false,
       "id": 134,
@@ -928,7 +1001,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 54
       },
       "id": 136,
       "panels": [],
@@ -953,7 +1026,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 55
       },
       "hiddenSeries": false,
       "id": 138,
@@ -1048,7 +1121,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 55
       },
       "hiddenSeries": false,
       "id": 140,
@@ -1132,7 +1205,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 63
       },
       "id": 99,
       "panels": [],
@@ -1161,7 +1234,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 64
       },
       "id": 101,
       "options": {
@@ -1211,7 +1284,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 64
       },
       "hiddenSeries": false,
       "id": 103,
@@ -1308,7 +1381,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 71
       },
       "hiddenSeries": false,
       "id": 105,
@@ -1405,7 +1478,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 68
+        "y": 77
       },
       "hiddenSeries": false,
       "id": 107,
@@ -1501,7 +1574,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 74
+        "y": 83
       },
       "hiddenSeries": false,
       "id": 109,
@@ -1597,7 +1670,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 80
+        "y": 89
       },
       "hiddenSeries": false,
       "id": 111,
@@ -1681,7 +1754,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 86
+        "y": 95
       },
       "id": 77,
       "panels": [],
@@ -1717,7 +1790,7 @@
         "h": 2,
         "w": 12,
         "x": 0,
-        "y": 87
+        "y": 96
       },
       "id": 95,
       "interval": null,
@@ -1807,7 +1880,7 @@
         "h": 2,
         "w": 12,
         "x": 12,
-        "y": 87
+        "y": 96
       },
       "id": 85,
       "interval": null,
@@ -1888,7 +1961,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 89
+        "y": 98
       },
       "hiddenSeries": false,
       "id": 83,
@@ -1986,7 +2059,7 @@
         "h": 10,
         "w": 8,
         "x": 0,
-        "y": 97
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 87,
@@ -2082,7 +2155,7 @@
         "h": 10,
         "w": 8,
         "x": 8,
-        "y": 97
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 89,
@@ -2178,7 +2251,7 @@
         "h": 10,
         "w": 8,
         "x": 16,
-        "y": 97
+        "y": 106
       },
       "hiddenSeries": false,
       "id": 116,
@@ -2274,7 +2347,7 @@
         "h": 11,
         "w": 8,
         "x": 0,
-        "y": 107
+        "y": 116
       },
       "hiddenSeries": false,
       "id": 91,
@@ -2370,7 +2443,7 @@
         "h": 11,
         "w": 8,
         "x": 8,
-        "y": 107
+        "y": 116
       },
       "hiddenSeries": false,
       "id": 93,
@@ -2466,7 +2539,7 @@
         "h": 11,
         "w": 8,
         "x": 16,
-        "y": 107
+        "y": 116
       },
       "hiddenSeries": false,
       "id": 115,
@@ -2564,7 +2637,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 118
+        "y": 127
       },
       "hiddenSeries": false,
       "id": 79,
@@ -2664,7 +2737,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 127
+        "y": 136
       },
       "hiddenSeries": false,
       "id": 81,
@@ -2753,7 +2826,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 136
+        "y": 145
       },
       "id": 72,
       "panels": [],
@@ -2788,7 +2861,7 @@
         "h": 3,
         "w": 6,
         "x": 0,
-        "y": 137
+        "y": 146
       },
       "id": 74,
       "interval": null,
@@ -2869,7 +2942,7 @@
         "h": 6,
         "w": 18,
         "x": 6,
-        "y": 137
+        "y": 146
       },
       "hiddenSeries": false,
       "id": 97,
@@ -2981,7 +3054,7 @@
         "h": 3,
         "w": 6,
         "x": 0,
-        "y": 140
+        "y": 149
       },
       "id": 70,
       "interval": null,
@@ -3090,7 +3163,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 143
+        "y": 152
       },
       "id": 113,
       "options": {
@@ -3138,7 +3211,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 148
+        "y": 157
       },
       "hiddenSeries": false,
       "id": 114,
@@ -3227,7 +3300,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 155
+        "y": 164
       },
       "id": 34,
       "panels": [],
@@ -3265,7 +3338,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 156
+        "y": 165
       },
       "height": "",
       "id": 18,
@@ -3355,7 +3428,7 @@
         "h": 4,
         "w": 5,
         "x": 6,
-        "y": 156
+        "y": 165
       },
       "height": "",
       "id": 32,
@@ -3445,7 +3518,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 156
+        "y": 165
       },
       "id": 44,
       "interval": null,
@@ -3538,7 +3611,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 156
+        "y": 165
       },
       "id": 60,
       "interval": null,
@@ -3630,7 +3703,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 156
+        "y": 165
       },
       "id": 62,
       "interval": null,
@@ -3721,7 +3794,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 158
+        "y": 167
       },
       "id": 46,
       "interval": null,
@@ -3817,7 +3890,7 @@
         "h": 5,
         "w": 16,
         "x": 0,
-        "y": 160
+        "y": 169
       },
       "height": "",
       "hiddenSeries": false,
@@ -3948,7 +4021,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 160
+        "y": 169
       },
       "id": 30,
       "interval": null,
@@ -4041,7 +4114,7 @@
         "h": 2,
         "w": 4,
         "x": 20,
-        "y": 160
+        "y": 169
       },
       "id": 38,
       "interval": null,
@@ -4134,7 +4207,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 162
+        "y": 171
       },
       "id": 36,
       "interval": null,
@@ -4203,7 +4276,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 165
+        "y": 174
       },
       "id": 8,
       "panels": [],
@@ -4229,7 +4302,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 166
+        "y": 175
       },
       "hiddenSeries": false,
       "id": 20,
@@ -4334,7 +4407,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 166
+        "y": 175
       },
       "hiddenSeries": false,
       "id": 26,
@@ -4433,7 +4506,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 173
+        "y": 182
       },
       "hiddenSeries": false,
       "id": 12,
@@ -4536,7 +4609,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 173
+        "y": 182
       },
       "hiddenSeries": false,
       "id": 6,
@@ -4632,7 +4705,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 173
+        "y": 182
       },
       "hiddenSeries": false,
       "id": 128,
@@ -4728,7 +4801,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 180
+        "y": 189
       },
       "hiddenSeries": false,
       "id": 122,
@@ -4825,7 +4898,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 180
+        "y": 189
       },
       "hiddenSeries": false,
       "id": 14,
@@ -4935,7 +5008,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 180
+        "y": 189
       },
       "hiddenSeries": false,
       "id": 28,
@@ -5034,7 +5107,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 187
+        "y": 196
       },
       "id": 124,
       "panels": [],
@@ -5069,7 +5142,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 188
+        "y": 197
       },
       "height": "",
       "id": 7,
@@ -5161,7 +5234,7 @@
         "h": 5,
         "w": 4,
         "x": 4,
-        "y": 188
+        "y": 197
       },
       "height": "",
       "id": 4,
@@ -5243,7 +5316,7 @@
         "h": 5,
         "w": 6,
         "x": 8,
-        "y": 188
+        "y": 197
       },
       "id": 22,
       "links": [],
@@ -5320,7 +5393,7 @@
         "h": 5,
         "w": 10,
         "x": 14,
-        "y": 188
+        "y": 197
       },
       "hiddenSeries": false,
       "id": 126,
@@ -5407,7 +5480,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 193
+        "y": 202
       },
       "id": 119,
       "panels": [],
@@ -5433,7 +5506,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 194
+        "y": 203
       },
       "hiddenSeries": false,
       "id": 9,
@@ -5540,7 +5613,7 @@
         "h": 10,
         "w": 6,
         "x": 12,
-        "y": 194
+        "y": 203
       },
       "hiddenSeries": false,
       "id": 10,
@@ -5646,7 +5719,7 @@
         "h": 10,
         "w": 6,
         "x": 18,
-        "y": 194
+        "y": 203
       },
       "hiddenSeries": false,
       "id": 11,
@@ -5751,7 +5824,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 204
+        "y": 213
       },
       "id": 121,
       "panels": [],
@@ -5777,7 +5850,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 205
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 15,
@@ -5878,7 +5951,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 205
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 16,
@@ -5981,7 +6054,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 205
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 17,
@@ -6083,7 +6156,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 211
+        "y": 220
       },
       "hiddenSeries": false,
       "id": 50,
@@ -6183,7 +6256,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 211
+        "y": 220
       },
       "hiddenSeries": false,
       "id": 51,
@@ -6283,7 +6356,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 211
+        "y": 220
       },
       "hiddenSeries": false,
       "id": 52,

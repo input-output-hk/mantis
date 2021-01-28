@@ -8,7 +8,12 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService.{GetBalanceRequest, GetBalanceResponse, GetStorageAtRequest, GetTransactionCountRequest}
+import io.iohk.ethereum.jsonrpc.EthUserService.{
+  GetBalanceRequest,
+  GetBalanceResponse,
+  GetStorageAtRequest,
+  GetTransactionCountRequest
+}
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -88,20 +93,28 @@ class EthProofServiceSpec
     val wrongStorageKey = Seq(StorageProofKey(321))
     val result = fetchProof(address, wrongStorageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
-    result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
-      v.proof.nonEmpty shouldBe true
-      v.value shouldBe BigInt(0)
-    }))
+    result.fold(
+      l => l,
+      r =>
+        r.proofAccount.storageProof.map(v => {
+          v.proof.nonEmpty shouldBe true
+          v.value shouldBe BigInt(0)
+        })
+    )
   }
 
   "EthProofService" should "return the proof and value for existing storage key" in new TestSetup {
     val storageKey = Seq(StorageProofKey(key))
     val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
-    result.fold(l => l, r => r.proofAccount.storageProof.map(v => {
-      v.proof.nonEmpty shouldBe true
-      v.value shouldBe BigInt(value)
-    }))
+    result.fold(
+      l => l,
+      r =>
+        r.proofAccount.storageProof.map(v => {
+          v.proof.nonEmpty shouldBe true
+          v.value shouldBe BigInt(value)
+        })
+    )
   }
 
   "EthProofService" should "return the proof and value for multiple existing storage keys" in new TestSetup {
@@ -109,13 +122,16 @@ class EthProofServiceSpec
     val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2))
     val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
-    result.fold(l => l, r => {
-      r.proofAccount.storageProof.size shouldBe 2
-      r.proofAccount.storageProof.map(v => {
-        v.proof.nonEmpty shouldBe true
-        expectedValueStorageKey should contain(v.value)
-      })
-    })
+    result.fold(
+      l => l,
+      r => {
+        r.proofAccount.storageProof.size shouldBe 2
+        r.proofAccount.storageProof.map(v => {
+          v.proof.nonEmpty shouldBe true
+          expectedValueStorageKey should contain(v.value)
+        })
+      }
+    )
   }
 
   "EthProofService" should "return the proof for all storage keys provided, but value should be returned only for the existing ones" in new TestSetup {
@@ -124,10 +140,13 @@ class EthProofServiceSpec
     val expectedValueStorageKey = Seq(BigInt(value), BigInt(value2), BigInt(0))
     val result = fetchProof(address, storageKey, blockNumber).runSyncUnsafe()
     result.isRight shouldBe true
-    result.fold(l => l, r => {
-      r.proofAccount.storageProof.size shouldBe 3
-      expectedValueStorageKey.forall(r.proofAccount.storageProof.map(_.value).contains) shouldBe true
-    })
+    result.fold(
+      l => l,
+      r => {
+        r.proofAccount.storageProof.size shouldBe 3
+        expectedValueStorageKey.forall(r.proofAccount.storageProof.map(_.value).contains) shouldBe true
+      }
+    )
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
@@ -177,7 +196,11 @@ class EthProofServiceSpec
 
     override lazy val ledger = mock[Ledger]
 
-    def fetchProof(address: Address, storageKeys: Seq[StorageProofKey], blockNumber: BlockParam): ServiceResponse[ProofService.GetProofResponse] = {
+    def fetchProof(
+        address: Address,
+        storageKeys: Seq[StorageProofKey],
+        blockNumber: BlockParam
+    ): ServiceResponse[ProofService.GetProofResponse] = {
       val request = GetProofRequest(address, storageKeys, blockNumber)
       val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
       retrievedAccountProofWrong
