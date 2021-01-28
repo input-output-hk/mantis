@@ -9,6 +9,7 @@ import io.iohk.ethereum.domain.{Address, Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.consensus.ConsensusMetrics
 
 class RestrictedEthashBlockGeneratorImpl(
     validators: ValidatorsExecutor,
@@ -35,7 +36,7 @@ class RestrictedEthashBlockGeneratorImpl(
       beneficiary: Address,
       ommers: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = {
+  ): PendingBlockAndState = ConsensusMetrics.RestrictedEthashBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
