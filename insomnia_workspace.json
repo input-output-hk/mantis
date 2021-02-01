@@ -1356,7 +1356,7 @@
         "faucet_url": "http://127.0.0.1:8099"
       },
       "dataPropertyOrder": {
-        "\u0026": [
+        "&": [
           "node_url",
           "faucet_url"
         ]
