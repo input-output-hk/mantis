@@ -284,10 +284,24 @@ class FastSync(
       if (batchFailuresCount > fastSyncMaxBatchRetries) {
         log.info("Max skeleton batch failures reached. Master peer must be wrong.")
         handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+
+        // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
+        context become waitingForBranchResolution
         branchResolver ! FastSyncBranchResolver.StartBranchResolver
-        // TODO: Become waiting for a branch resolution
         currentSkeleton = None
       }
+    }
+
+    private def waitingForBranchResolution: Receive = handleCommonMessages orElse handleStatus orElse {
+      case FastSyncBranchResolver.BranchResolvedSuccessful(firstCommonBlockNumber, resolvedPeer) =>
+        // Reset the batch failures count
+        batchFailuresCount = 0
+
+        // Restart syncing from the valid block available in state.
+        syncState = syncState.copy(bestBlockHeaderNumber = firstCommonBlockNumber)
+        masterPeer = Some(resolvedPeer)
+        context become receive
+        processSyncing()
     }
 
     private def blockHeadersError(peer: Peer) = {
