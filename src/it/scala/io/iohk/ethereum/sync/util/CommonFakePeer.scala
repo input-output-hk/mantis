@@ -222,7 +222,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     startRetryInterval = 50.milliseconds,
     nodesPerRequest = 200,
     maxTargetDifference = 1,
-    syncRetryInterval = 50.milliseconds
+    syncRetryInterval = 50.milliseconds,
+    blacklistDuration = 100.seconds
   )
 
   lazy val broadcaster = new BlockBroadcast(etcPeerManager)
