@@ -23,7 +23,7 @@ object MptProofVerifier {
   )(implicit kSer: ByteArrayEncoder[K], vSer: ByteArraySerializable[V]): ProofVerifyResult = {
     val mptStore = mkStorage(proof)
     rebuildMpt(rootHash, mptStore)(kSer, vSer)
-      .flatMap( trie => getKey(key, trie) )
+      .flatMap(trie => getKey(key, trie))
       .fold(InvalidProof.apply, _ => ValidProof)
   }
 
@@ -39,12 +39,14 @@ object MptProofVerifier {
       kSer: ByteArrayEncoder[K],
       vSer: ByteArraySerializable[V]
   ): Either[MptProofError, MerklePatriciaTrie[K, V]] =
-    Either.catchNonFatal {
-      MerklePatriciaTrie[K, V](
-        rootHash = rootHash,
-        source = storage
-      )
-    }.leftMap(_ => MptProofError.UnableRebuildMpt)
+    Either
+      .catchNonFatal {
+        MerklePatriciaTrie[K, V](
+          rootHash = rootHash,
+          source = storage
+        )
+      }
+      .leftMap(_ => MptProofError.UnableRebuildMpt)
 
   private def getKey[V, K](key: K, trie: MerklePatriciaTrie[K, V]): Either[MptProofError, Option[V]] =
     Either

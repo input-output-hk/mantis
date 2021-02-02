@@ -1,8 +1,8 @@
 {
   "_type": "export",
   "__export_format": 4,
-  "__export_date": "2020-11-20T21:57:27.426Z",
-  "__export_source": "insomnia.desktop.app:v2020.4.2",
+  "__export_date": "2021-02-01T08:15:45.569Z",
+  "__export_source": "insomnia.desktop.app:v2020.5.2",
   "resources": [
     {
       "_id": "req_3a0f1537c235444ea8f4b9dac488e14c",
@@ -403,6 +403,41 @@
       "_type": "request"
     },
     {
+      "_id": "req_8300941ccdfe4b1eb80957d92f6f512a",
+      "parentId": "fld_f75b249a780c4b5e97a0a2980ad1d4b8",
+      "modified": 1612167261156,
+      "created": 1612167228745,
+      "url": "{{node_url}}/buildinfo",
+      "name": "buildinfo",
+      "description": "",
+      "method": "GET",
+      "body": {},
+      "parameters": [],
+      "headers": [],
+      "authentication": {},
+      "metaSortKey": -1612167228745,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
+      "_id": "fld_f75b249a780c4b5e97a0a2980ad1d4b8",
+      "parentId": "wrk_097d43914a4d4aea8b6f73f647921182",
+      "modified": 1580406808158,
+      "created": 1553869483792,
+      "name": "Debug",
+      "description": "",
+      "environment": {},
+      "environmentPropertyOrder": null,
+      "metaSortKey": -1553869483792,
+      "_type": "request_group"
+    },
+    {
       "_id": "req_105cb28c6f774eadbf099a28617a6d1f",
       "parentId": "fld_f75b249a780c4b5e97a0a2980ad1d4b8",
       "modified": 1566369370577,
@@ -438,18 +473,6 @@
       "settingRebuildPath": true,
       "settingFollowRedirects": "global",
       "_type": "request"
-    },
-    {
-      "_id": "fld_f75b249a780c4b5e97a0a2980ad1d4b8",
-      "parentId": "wrk_097d43914a4d4aea8b6f73f647921182",
-      "modified": 1580406808158,
-      "created": 1553869483792,
-      "name": "Debug",
-      "description": "",
-      "environment": {},
-      "environmentPropertyOrder": null,
-      "metaSortKey": -1553869483792,
-      "_type": "request_group"
     },
     {
       "_id": "req_8c4ccaa3552544a4b61bc33cc9fa547c",

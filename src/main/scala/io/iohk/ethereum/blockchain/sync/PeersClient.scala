@@ -55,6 +55,7 @@ class PeersClient(
       case PeerRequestHandler.ResponseReceived(peer, message, _) =>
         handleResponse(requesters, Response(peer, message.asInstanceOf[Message]))
       case PeerRequestHandler.RequestFailed(peer, reason) =>
+        log.warning(s"Request to peer ${peer.remoteAddress} failed - reason: $reason")
         handleResponse(requesters, RequestFailed(peer, reason))
     }
 

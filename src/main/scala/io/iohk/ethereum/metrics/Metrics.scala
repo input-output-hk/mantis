@@ -54,9 +54,10 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
   /**
     * Returns a [[io.micrometer.core.instrument.Timer Timer]].
     */
-  def timer(name: String): Timer =
+  def timer(name: String, tags: String*): Timer =
     Timer
       .builder(mkName(name))
+      .tags(tags: _*)
       .register(registry)
 
   /**
