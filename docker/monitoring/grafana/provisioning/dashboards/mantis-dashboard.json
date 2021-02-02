@@ -15,7 +15,7 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1611829944845,
+  "iteration": 1611838822810,
   "links": [],
   "panels": [
     {
@@ -92,13 +92,773 @@
       "type": "stat"
     },
     {
+      "datasource": null,
+      "description": "Current Pivot Block",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "green",
+            "mode": "fixed"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 1
+      },
+      "id": 146,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.3.6",
+      "targets": [
+        {
+          "expr": "app_fastsync_block_pivotBlock_number_gauge",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Pivot Block",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "description": "Current Best Header",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 9
+      },
+      "id": 150,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.3.6",
+      "targets": [
+        {
+          "expr": "app_fastsync_block_bestFullBlock_number_gauge",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Best Header",
+      "type": "stat"
+    },
+    {
+      "datasource": null,
+      "description": "Current Best Full Block",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "purple",
+            "mode": "fixed"
+          },
+          "custom": {},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 9
+      },
+      "id": 148,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "last"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "7.3.6",
+      "targets": [
+        {
+          "expr": "app_fastsync_block_bestFullBlock_number_gauge",
+          "interval": "",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": null,
+      "timeShift": null,
+      "title": "Best Full Block",
+      "type": "stat"
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Time is takes to download each batch of MPT Nodes",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 17
+      },
+      "hiddenSeries": false,
+      "id": 152,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(app_fastsync_state_downloadState_timer_seconds_sum[$__interval]) / rate(app_fastsync_state_downloadState_timer_seconds_count[$__interval])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "MPT Nodes Download time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:164",
+          "format": "short",
+          "label": "ms",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:165",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Number of MPT Nodes",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 17
+      },
+      "hiddenSeries": false,
+      "id": 154,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_fastsync_state_totalNodes_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "MPT Total Nodes",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:217",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:218",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": false,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Number of MPT Downloaded Nodes",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 25
+      },
+      "hiddenSeries": false,
+      "id": 156,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": true,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "app_fastsync_state_downloadedNodes_gauge",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "MPT Downloaded Nodes",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Time is takes to download each batch of Block Headers",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 25
+      },
+      "hiddenSeries": false,
+      "id": 158,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(app_fastsync_block_downloadBlockHeaders_timer_seconds_sum[$__interval]) / rate(app_fastsync_block_downloadBlockHeaders_timer_seconds_count[$__interval])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Block Headers Download time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:438",
+          "format": "short",
+          "label": "ms",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:439",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Time is takes to download each batch of Block Bodies",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 33
+      },
+      "hiddenSeries": false,
+      "id": 160,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(app_fastsync_block_downloadBlockBodies_timer_seconds_sum[$__interval]) / rate(app_fastsync_block_downloadBlockBodies_timer_seconds_count[$__interval])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Block Bodies Download time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:515",
+          "format": "short",
+          "label": "ms",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:516",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
+      "aliasColors": {},
+      "bars": true,
+      "dashLength": 10,
+      "dashes": false,
+      "datasource": null,
+      "description": "Time is takes to download each batch of Block Receipts",
+      "fieldConfig": {
+        "defaults": {
+          "custom": {}
+        },
+        "overrides": []
+      },
+      "fill": 1,
+      "fillGradient": 0,
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 33
+      },
+      "hiddenSeries": false,
+      "id": 162,
+      "legend": {
+        "avg": false,
+        "current": false,
+        "max": false,
+        "min": false,
+        "show": true,
+        "total": false,
+        "values": false
+      },
+      "lines": false,
+      "linewidth": 1,
+      "nullPointMode": "null",
+      "options": {
+        "alertThreshold": true
+      },
+      "percentage": false,
+      "pluginVersion": "7.3.6",
+      "pointradius": 2,
+      "points": false,
+      "renderer": "flot",
+      "seriesOverrides": [],
+      "spaceLength": 10,
+      "stack": false,
+      "steppedLine": false,
+      "targets": [
+        {
+          "expr": "rate(app_fastsync_block_downloadBlockReceipts_timer_seconds_sum[$__interval]) / rate(app_fastsync_block_downloadBlockReceipts_timer_seconds_count[$__interval])",
+          "interval": "",
+          "legendFormat": "{{instance}}",
+          "refId": "A"
+        }
+      ],
+      "thresholds": [],
+      "timeFrom": null,
+      "timeRegions": [],
+      "timeShift": null,
+      "title": "Block Receipts Download time",
+      "tooltip": {
+        "shared": true,
+        "sort": 0,
+        "value_type": "individual"
+      },
+      "type": "graph",
+      "xaxis": {
+        "buckets": null,
+        "mode": "time",
+        "name": null,
+        "show": true,
+        "values": []
+      },
+      "yaxes": [
+        {
+          "$$hashKey": "object:680",
+          "format": "short",
+          "label": "ms",
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        },
+        {
+          "$$hashKey": "object:681",
+          "format": "short",
+          "label": null,
+          "logBase": 1,
+          "max": null,
+          "min": null,
+          "show": true
+        }
+      ],
+      "yaxis": {
+        "align": false,
+        "alignLevel": null
+      }
+    },
+    {
       "collapsed": false,
       "datasource": null,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 41
       },
       "id": 42,
       "panels": [],
@@ -124,7 +884,7 @@
         "h": 14,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 42
       },
       "hiddenSeries": false,
       "id": 48,
@@ -223,7 +983,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 42
       },
       "hiddenSeries": false,
       "id": 66,
@@ -321,7 +1081,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 17
+        "y": 49
       },
       "hiddenSeries": false,
       "id": 58,
@@ -417,7 +1177,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 24
+        "y": 56
       },
       "hiddenSeries": false,
       "id": 117,
@@ -513,7 +1273,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 24
+        "y": 56
       },
       "hiddenSeries": false,
       "id": 54,
@@ -611,7 +1371,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 31
+        "y": 63
       },
       "hiddenSeries": false,
       "id": 64,
@@ -708,7 +1468,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 38
+        "y": 70
       },
       "hiddenSeries": false,
       "id": 56,
@@ -792,7 +1552,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 45
+        "y": 77
       },
       "id": 130,
       "panels": [],
@@ -818,7 +1578,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 46
+        "y": 78
       },
       "hiddenSeries": false,
       "id": 132,
@@ -917,7 +1677,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 46
+        "y": 78
       },
       "hiddenSeries": false,
       "id": 134,
@@ -1001,7 +1761,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 54
+        "y": 86
       },
       "id": 136,
       "panels": [],
@@ -1026,7 +1786,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 55
+        "y": 87
       },
       "hiddenSeries": false,
       "id": 138,
@@ -1121,7 +1881,7 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 55
+        "y": 87
       },
       "hiddenSeries": false,
       "id": 140,
@@ -1205,7 +1965,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 95
       },
       "id": 99,
       "panels": [],
@@ -1234,7 +1994,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 64
+        "y": 96
       },
       "id": 101,
       "options": {
@@ -1284,7 +2044,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 64
+        "y": 96
       },
       "hiddenSeries": false,
       "id": 103,
@@ -1381,7 +2141,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 71
+        "y": 103
       },
       "hiddenSeries": false,
       "id": 105,
@@ -1478,7 +2238,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 77
+        "y": 109
       },
       "hiddenSeries": false,
       "id": 107,
@@ -1574,7 +2334,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 83
+        "y": 115
       },
       "hiddenSeries": false,
       "id": 109,
@@ -1670,7 +2430,7 @@
         "h": 6,
         "w": 24,
         "x": 0,
-        "y": 89
+        "y": 121
       },
       "hiddenSeries": false,
       "id": 111,
@@ -1754,7 +2514,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 95
+        "y": 127
       },
       "id": 77,
       "panels": [],
@@ -1790,7 +2550,7 @@
         "h": 2,
         "w": 12,
         "x": 0,
-        "y": 96
+        "y": 128
       },
       "id": 95,
       "interval": null,
@@ -1880,7 +2640,7 @@
         "h": 2,
         "w": 12,
         "x": 12,
-        "y": 96
+        "y": 128
       },
       "id": 85,
       "interval": null,
@@ -1961,7 +2721,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 98
+        "y": 130
       },
       "hiddenSeries": false,
       "id": 83,
@@ -2059,7 +2819,7 @@
         "h": 10,
         "w": 8,
         "x": 0,
-        "y": 106
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 87,
@@ -2155,7 +2915,7 @@
         "h": 10,
         "w": 8,
         "x": 8,
-        "y": 106
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 89,
@@ -2251,7 +3011,7 @@
         "h": 10,
         "w": 8,
         "x": 16,
-        "y": 106
+        "y": 138
       },
       "hiddenSeries": false,
       "id": 116,
@@ -2347,7 +3107,7 @@
         "h": 11,
         "w": 8,
         "x": 0,
-        "y": 116
+        "y": 148
       },
       "hiddenSeries": false,
       "id": 91,
@@ -2443,7 +3203,7 @@
         "h": 11,
         "w": 8,
         "x": 8,
-        "y": 116
+        "y": 148
       },
       "hiddenSeries": false,
       "id": 93,
@@ -2539,7 +3299,7 @@
         "h": 11,
         "w": 8,
         "x": 16,
-        "y": 116
+        "y": 148
       },
       "hiddenSeries": false,
       "id": 115,
@@ -2637,7 +3397,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 127
+        "y": 159
       },
       "hiddenSeries": false,
       "id": 79,
@@ -2737,7 +3497,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 136
+        "y": 168
       },
       "hiddenSeries": false,
       "id": 81,
@@ -2826,7 +3586,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 145
+        "y": 177
       },
       "id": 72,
       "panels": [],
@@ -2861,7 +3621,7 @@
         "h": 3,
         "w": 6,
         "x": 0,
-        "y": 146
+        "y": 178
       },
       "id": 74,
       "interval": null,
@@ -2942,7 +3702,7 @@
         "h": 6,
         "w": 18,
         "x": 6,
-        "y": 146
+        "y": 178
       },
       "hiddenSeries": false,
       "id": 97,
@@ -3054,7 +3814,7 @@
         "h": 3,
         "w": 6,
         "x": 0,
-        "y": 149
+        "y": 181
       },
       "id": 70,
       "interval": null,
@@ -3163,7 +3923,7 @@
         "h": 5,
         "w": 24,
         "x": 0,
-        "y": 152
+        "y": 184
       },
       "id": 113,
       "options": {
@@ -3211,7 +3971,7 @@
         "h": 7,
         "w": 24,
         "x": 0,
-        "y": 157
+        "y": 189
       },
       "hiddenSeries": false,
       "id": 114,
@@ -3300,7 +4060,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 164
+        "y": 196
       },
       "id": 34,
       "panels": [],
@@ -3338,7 +4098,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 165
+        "y": 197
       },
       "height": "",
       "id": 18,
@@ -3428,7 +4188,7 @@
         "h": 4,
         "w": 5,
         "x": 6,
-        "y": 165
+        "y": 197
       },
       "height": "",
       "id": 32,
@@ -3518,7 +4278,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 165
+        "y": 197
       },
       "id": 44,
       "interval": null,
@@ -3611,7 +4371,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 165
+        "y": 197
       },
       "id": 60,
       "interval": null,
@@ -3703,7 +4463,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 165
+        "y": 197
       },
       "id": 62,
       "interval": null,
@@ -3794,7 +4554,7 @@
         "h": 2,
         "w": 5,
         "x": 11,
-        "y": 167
+        "y": 199
       },
       "id": 46,
       "interval": null,
@@ -3890,7 +4650,7 @@
         "h": 5,
         "w": 16,
         "x": 0,
-        "y": 169
+        "y": 201
       },
       "height": "",
       "hiddenSeries": false,
@@ -4021,7 +4781,7 @@
         "h": 5,
         "w": 4,
         "x": 16,
-        "y": 169
+        "y": 201
       },
       "id": 30,
       "interval": null,
@@ -4114,7 +4874,7 @@
         "h": 2,
         "w": 4,
         "x": 20,
-        "y": 169
+        "y": 201
       },
       "id": 38,
       "interval": null,
@@ -4207,7 +4967,7 @@
         "h": 3,
         "w": 4,
         "x": 20,
-        "y": 171
+        "y": 203
       },
       "id": 36,
       "interval": null,
@@ -4276,7 +5036,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 174
+        "y": 206
       },
       "id": 8,
       "panels": [],
@@ -4302,7 +5062,7 @@
         "h": 7,
         "w": 12,
         "x": 0,
-        "y": 175
+        "y": 207
       },
       "hiddenSeries": false,
       "id": 20,
@@ -4407,7 +5167,7 @@
         "h": 7,
         "w": 12,
         "x": 12,
-        "y": 175
+        "y": 207
       },
       "hiddenSeries": false,
       "id": 26,
@@ -4506,7 +5266,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 182
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 12,
@@ -4609,7 +5369,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 182
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 6,
@@ -4705,7 +5465,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 182
+        "y": 214
       },
       "hiddenSeries": false,
       "id": 128,
@@ -4801,7 +5561,7 @@
         "h": 7,
         "w": 8,
         "x": 0,
-        "y": 189
+        "y": 221
       },
       "hiddenSeries": false,
       "id": 122,
@@ -4898,7 +5658,7 @@
         "h": 7,
         "w": 8,
         "x": 8,
-        "y": 189
+        "y": 221
       },
       "hiddenSeries": false,
       "id": 14,
@@ -5008,7 +5768,7 @@
         "h": 7,
         "w": 8,
         "x": 16,
-        "y": 189
+        "y": 221
       },
       "hiddenSeries": false,
       "id": 28,
@@ -5107,7 +5867,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 196
+        "y": 228
       },
       "id": 124,
       "panels": [],
@@ -5142,7 +5902,7 @@
         "h": 5,
         "w": 4,
         "x": 0,
-        "y": 197
+        "y": 229
       },
       "height": "",
       "id": 7,
@@ -5234,7 +5994,7 @@
         "h": 5,
         "w": 4,
         "x": 4,
-        "y": 197
+        "y": 229
       },
       "height": "",
       "id": 4,
@@ -5316,7 +6076,7 @@
         "h": 5,
         "w": 6,
         "x": 8,
-        "y": 197
+        "y": 229
       },
       "id": 22,
       "links": [],
@@ -5393,7 +6153,7 @@
         "h": 5,
         "w": 10,
         "x": 14,
-        "y": 197
+        "y": 229
       },
       "hiddenSeries": false,
       "id": 126,
@@ -5480,7 +6240,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 202
+        "y": 234
       },
       "id": 119,
       "panels": [],
@@ -5506,7 +6266,7 @@
         "h": 10,
         "w": 12,
         "x": 0,
-        "y": 203
+        "y": 235
       },
       "hiddenSeries": false,
       "id": 9,
@@ -5613,7 +6373,7 @@
         "h": 10,
         "w": 6,
         "x": 12,
-        "y": 203
+        "y": 235
       },
       "hiddenSeries": false,
       "id": 10,
@@ -5719,7 +6479,7 @@
         "h": 10,
         "w": 6,
         "x": 18,
-        "y": 203
+        "y": 235
       },
       "hiddenSeries": false,
       "id": 11,
@@ -5824,7 +6584,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 213
+        "y": 245
       },
       "id": 121,
       "panels": [],
@@ -5850,7 +6610,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 214
+        "y": 246
       },
       "hiddenSeries": false,
       "id": 15,
@@ -5951,7 +6711,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 214
+        "y": 246
       },
       "hiddenSeries": false,
       "id": 16,
@@ -6054,7 +6814,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 214
+        "y": 246
       },
       "hiddenSeries": false,
       "id": 17,
@@ -6156,7 +6916,7 @@
         "h": 6,
         "w": 8,
         "x": 0,
-        "y": 220
+        "y": 252
       },
       "hiddenSeries": false,
       "id": 50,
@@ -6256,7 +7016,7 @@
         "h": 6,
         "w": 8,
         "x": 8,
-        "y": 220
+        "y": 252
       },
       "hiddenSeries": false,
       "id": 51,
@@ -6356,7 +7116,7 @@
         "h": 6,
         "w": 8,
         "x": 16,
-        "y": 220
+        "y": 252
       },
       "hiddenSeries": false,
       "id": 52,
@@ -6667,5 +7427,5 @@
   "timezone": "utc",
   "title": "Mantis",
   "uid": "L3y-GTyWk",
-  "version": 1
+  "version": 2
 }
