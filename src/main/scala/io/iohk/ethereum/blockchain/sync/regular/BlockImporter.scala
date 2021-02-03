@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
+import akka.actor.{Actor, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.implicits._
@@ -17,11 +17,12 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
-import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 
 // scalastyle:off cyclomatic.complexity parameter.number
@@ -36,7 +37,7 @@ class BlockImporter(
     checkpointBlockGenerator: CheckpointBlockGenerator,
     supervisor: ActorRef
 ) extends Actor
-    with ActorLogging {
+    with Logger {
   import BlockImporter._
 
   implicit val ec: Scheduler = Scheduler(context.dispatcher)
@@ -240,7 +241,7 @@ class BlockImporter(
       informFetcherOnFail: Boolean,
       internally: Boolean
   ): ImportFn = {
-    def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
+    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2)//log.log(entry._1, entry._2)
 
     importWith {
       Task(doLog(importMessages.preImport()))
@@ -298,7 +299,7 @@ class BlockImporter(
     context become running(state.importingBlocks())
     importTask
       .map(self ! ImportDone(_))
-      .onErrorHandle(ex => log.error(ex, ex.getMessage))
+      .onErrorHandle(ex => log.error(ex.getMessage, ex))
       .runAsyncAndForget
   }
 
