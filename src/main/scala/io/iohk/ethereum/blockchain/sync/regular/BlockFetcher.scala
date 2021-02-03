@@ -1,13 +1,12 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.{ask, pipe}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
 import cats.syntax.either._
-import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
@@ -15,18 +14,19 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
 }
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import mouse.all._
@@ -40,7 +40,7 @@ class BlockFetcher(
     val syncConfig: SyncConfig,
     val blockValidator: BlockValidator
 ) extends Actor
-    with ActorLogging {
+    with Logger {
 
   import BlockFetcher._
 
@@ -383,7 +383,7 @@ class BlockFetcher(
       .tap(blacklistPeerOnFailedRequest)
       .flatMap(handleRequestResult(responseFallback))
       .onErrorHandle { error =>
-        log.error(error, "Unexpected error while doing a request")
+        log.error("Unexpected error while doing a request", error)
         responseFallback
       }
 
@@ -399,7 +399,7 @@ class BlockFetcher(
     case NoSuitablePeer =>
       Task.now(fallback).delayExecution(syncConfig.syncRetryInterval)
     case Failure(cause) =>
-      log.error(cause, "Unexpected error on the request result")
+      log.error("Unexpected error on the request result", cause)
       Task.now(fallback)
     case m =>
       Task.now(m)
