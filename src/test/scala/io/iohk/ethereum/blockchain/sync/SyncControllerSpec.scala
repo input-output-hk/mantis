@@ -35,14 +35,23 @@ import org.scalatest.time.{Seconds, Span}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import com.typesafe.config.ConfigFactory
+import akka.testkit.ExplicitlyTriggeredScheduler
+import io.iohk.ethereum.NormalPatience
 
 // scalastyle:off file.size.limit
-class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory with Eventually {
+class SyncControllerSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfter
+    with MockFactory
+    with Eventually
+    with NormalPatience {
 
   implicit var system: ActorSystem = _
 
   before {
-    system = ActorSystem("SyncControllerSpec_System")
+    system = ActorSystem("SyncControllerSpec_System", ConfigFactory.load("explicit-scheduler"))
   }
 
   after {
@@ -56,7 +65,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(Seq()))
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe 0
       syncState.pivotBlock == defaultPivotBlockHeader
@@ -78,7 +88,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       //switch to regular download
       val children = syncController.children
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
@@ -107,7 +118,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       failedReceiptsTries = 1
     )
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -141,7 +153,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
       syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
@@ -169,7 +182,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
       syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
@@ -200,12 +214,14 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     implicit val ec = system.dispatcher
     system.scheduler.scheduleAtFixedRate(0.seconds, 0.1.second, fast, futureHeadersMessage)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
     // even though we receive this future headers fast sync should finish
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
     }
   }
@@ -238,7 +254,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val autopilot = setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      littleTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
@@ -247,7 +264,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.pivotBlock shouldBe newPivot
       syncState.safeDownloadTarget shouldEqual newPivot.number + syncConfig.fastSyncBlockValidationX
@@ -278,13 +296,15 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val pilot =
       setupAutoPilot(etcPeerManager, staleHandshakedPeers, staleHeader, BlockchainData(newBlocks), onlyPivot = true)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlockUpdateFailures shouldBe 1
     }
 
     pilot.updateAutoPilot(freshHandshakedPeers, freshHeader, BlockchainData(newBlocks), onlyPivot = true)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
   }
@@ -303,7 +323,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newBlocks = getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 50)
 
     val pilot = setupAutoPilot(etcPeerManager, freshHandshakedPeers, freshHeader, BlockchainData(newBlocks))
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage
         .getSyncState()
         .get
@@ -317,14 +338,16 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     // set up new received header previously received header will need update
     pilot.updateAutoPilot(freshHandshakedPeers1, freshHeader1, BlockchainData(newBlocks))
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage
         .getSyncState()
         .get
         .bestBlockHeaderNumber shouldBe freshHeader1.number + syncConfig.fastSyncBlockValidationX
     }
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -354,7 +377,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       failedBodiesTries = 1
     )
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -382,7 +406,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
 
     // choose first pivot and as it is fresh enough start state sync
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.isBlockchainWorkFinished shouldBe true
       syncState.updatingPivotBlock shouldBe false
@@ -400,7 +425,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
 
     // sync to new pivot
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.pivotBlock shouldBe newPivot
     }
@@ -411,7 +437,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       //switch to regular download
       val children = syncController.children
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
@@ -430,8 +457,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     @volatile
     var stateDownloadStarted = false
 
-    val eventuallyTimeOut: Timeout = Timeout(Span(10, Seconds))
-    val longeventuallyTimeOut = Timeout(Span(30, Seconds))
     //+ cake overrides
     override implicit lazy val system: ActorSystem = SyncControllerSpec.this.system
 
@@ -492,8 +517,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
     blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
-
-    val startDelayMillis = 200
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],
@@ -703,10 +726,13 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
     }
 
-    def persistState(): Unit = {
-      Thread.sleep(300)
-      syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
-      Thread.sleep(300)
-    }
+    private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
+
+    def littleTimePasses() =
+      testScheduler.timePasses(100.millis)
+
+    def someTimePasses() =
+      testScheduler.timePasses(3000.millis)
+
   }
 }
