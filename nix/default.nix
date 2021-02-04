@@ -5,7 +5,11 @@ let
   # affect the fixed derivation calculation from sbt-derivation
   overlay = final: prev: let
     inherit (import sources.gitignore { inherit (prev) lib; }) gitignoreSource;
-    cleanedSrc = prev.lib.cleanSource (gitignoreSource src);
+    # If src isn't a path, it's likely a prefiltered store path, so use it directly
+    # This also makes Nix flakes work by passing the flake source as the `src` arg
+    cleanedSrc = if builtins.isPath src
+      then prev.lib.cleanSource (gitignoreSource src)
+      else src;
   in {
     inherit sources;
 

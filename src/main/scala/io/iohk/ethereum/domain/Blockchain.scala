@@ -1,8 +1,9 @@
 package io.iohk.ethereum.domain
 
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.util.ByteString
+import cats.syntax.flatMap._
+import cats.instances.option._
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
@@ -11,6 +12,7 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
@@ -83,6 +85,8 @@ trait Blockchain {
     */
   def getAccount(address: Address, blockNumber: BigInt): Option[Account]
 
+  def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
+
   /**
     * Get account storage at given position
     *
@@ -90,6 +94,18 @@ trait Blockchain {
     * @param position storage position
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
+
+  /**
+    * Get a storage-value and its proof being the path from the root node until the last matching node.
+    *
+    * @param rootHash storage root hash
+    * @param position storage position
+    */
+  def getStorageProofAt(
+      rootHash: ByteString,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): StorageProof
 
   /**
     * Returns the receipts based on a block hash
@@ -267,13 +283,18 @@ class BlockchainImpl(
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
-    getBlockHeaderByNumber(blockNumber).flatMap { bh =>
+    getAccountMpt(blockNumber) >>= (_.get(address))
+
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
+    getAccountMpt(blockNumber) >>= (_.getProof(address))
+
+  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
+    getBlockHeaderByNumber(blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
-      val mpt = MerklePatriciaTrie[Address, Account](
-        bh.stateRoot.toArray,
-        storage
+      MerklePatriciaTrie[Address, Account](
+        rootHash = bh.stateRoot.toArray,
+        source = storage
       )
-      mpt.get(address)
     }
 
   override def getAccountStorageAt(
@@ -286,6 +307,21 @@ class BlockchainImpl(
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
     ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
+  }
+
+  override def getStorageProofAt(
+      rootHash: ByteString,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): StorageProof = {
+    val storage: MptStorage = stateStorage.getBackingStorage(0)
+    val mpt: MerklePatriciaTrie[BigInt, BigInt] = {
+      if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
+      else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
+    }
+    val value: Option[BigInt] = mpt.get(position)
+    val proof: Option[Vector[MptNode]] = mpt.getProof(position)
+    StorageProof(position, value, proof)
   }
 
   private def persistBestBlocksData(): Unit = {

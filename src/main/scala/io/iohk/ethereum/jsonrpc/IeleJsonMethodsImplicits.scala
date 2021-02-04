@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{InvalidAddress, SendIeleTransactionRequest}
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}

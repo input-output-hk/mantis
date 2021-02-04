@@ -6,9 +6,11 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie}
 import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import io.iohk.ethereum.ObjectGenerators._
+import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -130,6 +132,57 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
+  }
+
+  it should "return correct account proof" in new EphemBlockchainTestSetup {
+    val address = Address(42)
+    val account = Account.empty(UInt256(7))
+
+    val validHeader = Fixtures.Blocks.ValidBlock.header
+
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
+    val mptWithAcc = emptyMpt.put(address, account)
+
+    val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
+
+    blockchain.storeBlockHeader(headerWithAcc).commit()
+
+    //unhappy path
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
+    retrievedAccountProofWrong.isDefined shouldBe true
+    retrievedAccountProofWrong.size shouldBe 1
+    mptWithAcc.get(wrongAddress) shouldBe None
+
+    //happy path
+    val retrievedAccountProof = blockchain.getAccountProof(address, headerWithAcc.number)
+    retrievedAccountProof.isDefined shouldBe true
+    retrievedAccountProof.map { proof =>
+      MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe ValidProof
+    }
+  }
+
+  it should "return proof for non-existent account" in new EphemBlockchainTestSetup {
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
+    val mptWithAcc = emptyMpt.put(Address(42), Account.empty(UInt256(7)))
+
+    val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
+
+    blockchain.storeBlockHeader(headerWithAcc).commit()
+
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
+    (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
+      case _ @HashNode(_) :: Nil => true
+      case _ => false
+    }) shouldBe true
+    mptWithAcc.get(wrongAddress) shouldBe None
   }
 
   it should "return correct best block number after applying and rollbacking blocks" in new TestSetup {

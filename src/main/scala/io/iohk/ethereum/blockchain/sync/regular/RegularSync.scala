@@ -97,9 +97,11 @@ class RegularSync(
       val newState = progressState.copy(initialBlock = blockNumber, currentBlock = blockNumber)
       context become running(newState)
     case ProgressProtocol.GotNewBlock(blockNumber) =>
+      log.info(s"Got information about new block [number = $blockNumber]")
       val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
       context become running(newState)
     case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
+      log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
       val newState = progressState.copy(currentBlock = blockNumber)
       if (internally) {
         fetcher ! InternalLastBlockImport(blockNumber)

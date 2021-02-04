@@ -6,7 +6,7 @@ Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
 
 For continuous integration we're using:
 - [Buildkite](https://buildkite.com/input-output-hk/mantis) to run all the Scala build steps [![Build status](https://badge.buildkite.com/8a284e6f0af90afa544e06c8136b519f9f287f005ca581d8ed.svg?branch=master&theme=github)](https://buildkite.com/input-output-hk/mantis)
-- [Hydra](https://hydra.project42.iohkdev.io/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
+- [Hydra](https://hydra.mantis.ist/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
 
 You can check the latest build results of the current branch by clicking the status icon in the header of the Github file browser.
 
@@ -43,7 +43,7 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ```
  - generate genesis allocs (using private keys and/or addresses)
 ```
-`./bin/mantis cli generate-alloc --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
+`./bin/mantis cli generate-allocs --balance=42 --address=8b196738d90cf3d9fc299e0ec28e15ebdcbb0bdcb281d9d5084182c9c66d5d12 --key=00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d1`
 ```
  - generate multiple key-pairs (following example generate 5 key-pairs)
  ```
