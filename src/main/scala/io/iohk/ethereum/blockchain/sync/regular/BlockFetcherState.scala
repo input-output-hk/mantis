@@ -190,17 +190,20 @@ case class BlockFetcherState(
   def enqueueRequestedBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     waitingHeaders.dequeueOption
       .map { case (waitingHeader, waitingHeadersTail) =>
-        if (waitingHeader.hash == block.hash)
-          withPeerForBlocks(fromPeer, Seq(block.number))
+        if (waitingHeader.hash == block.hash) {
+          enqueueReadyBlock(block, fromPeer)
             .withPossibleNewTopAt(block.number)
             .copy(
-              readyBlocks = readyBlocks.enqueue(block),
               waitingHeaders = waitingHeadersTail
             )
-        else
+        } else
           this
       }
       .getOrElse(this)
+
+  def enqueueReadyBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
+    withPeerForBlocks(fromPeer, Seq(block.number))
+      .copy(readyBlocks = readyBlocks.enqueue(block))
 
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
     if (readyBlocks.nonEmpty) {
