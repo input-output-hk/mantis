@@ -91,8 +91,6 @@ class BlockImporter(
         }
       }
 
-    case NewCheckpointBlock(block, peerId) => importNewBlock(block, peerId, state)
-
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
 
     case ImportDone(newBehavior) =>
@@ -241,7 +239,7 @@ class BlockImporter(
       informFetcherOnFail: Boolean,
       internally: Boolean
   ): ImportFn = {
-    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2)//log.log(entry._1, entry._2)
+    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2) //log.log(entry._1, entry._2)
 
     importWith {
       Task(doLog(importMessages.preImport()))
@@ -379,7 +377,6 @@ object BlockImporter {
   case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
   case class NewCheckpoint(parentHash: ByteString, signatures: Seq[ECDSASignature]) extends ImporterMsg
-  case class NewCheckpointBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
