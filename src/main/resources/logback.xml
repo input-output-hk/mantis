@@ -62,6 +62,7 @@
     <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
     <logger name="io.iohk.ethereum.blockchain.sync.regular.BlockFetcher" level="DEBUG" />
     <logger name="io.iohk.ethereum.blockchain.sync.regular.BlockImporter" level="DEBUG" />
+    <logger name="io.iohk.ethereum.domain.BlockchainImpl" level="DEBUG" />
     <logger name="io.iohk.ethereum.ledger.BlockImport" level="DEBUG" />
     <logger name="io.iohk.ethereum.network.PeerActor" level="${LOGSLEVEL}" />
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="${LOGSLEVEL}" />
