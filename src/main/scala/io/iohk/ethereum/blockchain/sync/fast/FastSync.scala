@@ -175,7 +175,7 @@ class FastSync(
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
         log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
-        SyncMetrics.setBlockHeadersDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockHeadersDownloadTime(timeTaken)
 
         requestedHeaders.get(peer).foreach { requestedNum =>
           removeRequestHandler(sender())
@@ -190,7 +190,7 @@ class FastSync(
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
         log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
-        SyncMetrics.setBlockBodiesDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockBodiesDownloadTime(timeTaken)
 
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
         requestedBlockBodies -= sender()
@@ -199,7 +199,7 @@ class FastSync(
 
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
         log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
-        SyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
 
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
         requestedReceipts -= sender()
@@ -656,7 +656,7 @@ class FastSync(
     }
 
     def processSyncing(): Unit = {
-      SyncMetrics.measure(syncState)
+      FastSyncMetrics.measure(syncState)
       if (fullySynced) {
         finish()
       } else {
@@ -676,7 +676,7 @@ class FastSync(
 
     def finish(): Unit = {
       val totalTime = totalMinutesTaken()
-      SyncMetrics.setFastSyncTotalTimeGauge(totalTime.toDouble)
+      FastSyncMetrics.setFastSyncTotalTimeGauge(totalTime.toDouble)
       log.info("Total time taken for FastSync was {} minutes", totalTime)
       log.info("Block synchronization in fast mode finished, switching to regular mode")
 

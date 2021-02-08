@@ -21,6 +21,7 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 
 class SyncStateSchedulerActor(
@@ -64,7 +65,7 @@ class SyncStateSchedulerActor(
   def handleRequestResults: Receive = {
     case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
       log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
-      SyncMetrics.setMptStateDownloadTime(timeTaken)
+      FastSyncMetrics.setMptStateDownloadTime(timeTaken)
 
       context unwatch (sender())
       self ! RequestData(nodeData, peer)
