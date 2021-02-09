@@ -113,7 +113,7 @@ case class BlockFetcherState(
   }
 
   /**
-    * Validates received headers consistency and their compatibilty with the state
+    * Validates received headers consistency and their compatibility with the state
     * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
     */
   private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
@@ -123,10 +123,17 @@ case class BlockFetcherState(
       headers
         .asRight[String]
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
+        .ensure("Given headers should form a sequence with ready blocks")(checkConsistencyWithReadyBlocks)
         .ensure("Given headers do not form a chain with already stored ones")(headers =>
           (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
         )
     }
+
+  private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
+    if (waitingHeaders.isEmpty) {
+      (readyBlocks.lastOption.map(_.header), headers.headOption).mapN(_ isParentOf _).getOrElse(true)
+    } else true
+  }
 
   def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
     hashes
