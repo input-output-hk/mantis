@@ -19,8 +19,14 @@ import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.SuperSlow
 
-class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with ScalaCheckPropertyChecks {
+class SyncSchedulerSpec
+    extends AnyFlatSpec
+    with Matchers
+    with EitherValues
+    with ScalaCheckPropertyChecks
+    with SuperSlow {
   "SyncScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
@@ -229,7 +235,7 @@ class SyncSchedulerSpec extends AnyFlatSpec with Matchers with EitherValues with
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them
   it should "sync whole trie when receiving all nodes from remote side" in new TestSetup {
-    forAll(genMultipleNodeData(2000)) { nodeData =>
+    forAll(genMultipleNodeData(superSlow(2000).getOrElse(20))) { nodeData =>
       val prov = getTrieProvider
       val worldHash = prov.buildWorld(nodeData)
       val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()

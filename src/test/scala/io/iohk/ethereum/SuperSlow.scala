@@ -10,6 +10,6 @@ trait SuperSlow {
     *
     * @param f slow tests
     */
-  def superSlow(f: => Any): Unit =
-    if (!skip) f
+  def superSlow[T](f: => T): Option[T] =
+    if (!skip) Some(f) else None
 }
