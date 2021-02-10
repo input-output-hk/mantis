@@ -137,7 +137,7 @@ object Dependencies {
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
       provider % "micrometer-core" % version,
       provider % "micrometer-registry-jmx" % version,
-      provider % "micrometer-registry-prometheus" % version,
+      provider % "micrometer-registry-prometheus" % version
     )
   }
 
@@ -153,4 +153,9 @@ object Dependencies {
   val shapeless: Seq[ModuleID] = Seq(
     "com.chuusai" %% "shapeless" % "2.3.3"
   )
+
+  val scaffeine: Seq[ModuleID] = Seq(
+    "com.github.blemale" %% "scaffeine" % "4.0.2" % "compile"
+  )
+
 }

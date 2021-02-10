@@ -42,12 +42,12 @@ class FastSync(
     val validators: Validators,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
+    val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport
+    with PeerListSupportNg
     with ReceiptsValidator
     with SyncBlocksValidator {
 
@@ -58,7 +58,7 @@ class FastSync(
 
   override def receive: Receive = idle
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
+  def handleCommonMessages: Receive = handlePeerListMessages
 
   def idle: Receive = handleCommonMessages orElse {
     case SyncProtocol.Start => start()
@@ -184,7 +184,7 @@ class FastSync(
           )
             handleBlockHeaders(peer, blockHeaders)
           else
-            blacklist(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
+            blacklist.add(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
         }
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
@@ -424,7 +424,7 @@ class FastSync(
     }
 
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
-      blacklist(peer.id, duration, "block header validation failed")
+      blacklist.add(peer.id, duration, "block header validation failed")
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -438,7 +438,7 @@ class FastSync(
       }
     }
 
-    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
+    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]): Unit = {
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
           case ParentChainWeightNotFound(header) =>
@@ -462,23 +462,23 @@ class FastSync(
             )
         }
       } else {
-        blacklist(peer.id, blacklistDuration, "error in block headers response")
+        blacklist.add(peer.id, blacklistDuration, "error in block headers response")
         processSyncing()
       }
     }
 
-    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
+    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       if (blockBodies.isEmpty) {
         val reason =
           s"got empty block bodies response for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist(peer.id, blacklistDuration, reason)
+        blacklist.add(peer.id, blacklistDuration, reason)
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
         validateBlocks(requestedHashes, blockBodies) match {
           case BlockBodyValidationResult.Valid =>
             insertBlocks(requestedHashes, blockBodies)
           case BlockBodyValidationResult.Invalid =>
-            blacklist(
+            blacklist.add(
               peer.id,
               blacklistDuration,
               s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration"
@@ -492,10 +492,10 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]) = {
+    private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): Unit = {
       if (receipts.isEmpty) {
         val reason = s"got empty receipts for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist(peer.id, blacklistDuration, reason)
+        blacklist.add(peer.id, blacklistDuration, reason)
         syncState = syncState.enqueueReceipts(requestedHashes)
       } else {
         validateReceipts(requestedHashes, receipts) match {
@@ -519,7 +519,7 @@ class FastSync(
             val reason =
               s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
                 s" due to: $error"
-            blacklist(peer.id, blacklistDuration, reason)
+            blacklist.add(peer.id, blacklistDuration, reason)
             syncState = syncState.enqueueReceipts(requestedHashes)
 
           case ReceiptsValidationResult.DbError =>
@@ -530,7 +530,7 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String) = {
+    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String): Unit = {
       removeRequestHandler(handler)
 
       syncState = syncState
@@ -542,7 +542,7 @@ class FastSync(
 
       requestedHeaders -= peer
       if (handshakedPeers.contains(peer)) {
-        blacklist(peer.id, blacklistDuration, reason)
+        blacklist.add(peer.id, blacklistDuration, reason)
       }
     }
 
@@ -566,17 +566,18 @@ class FastSync(
       )
     }
 
-    private def printStatus() = {
+    private def printStatus(): Unit = {
       val formatPeer: (Peer) => String = peer =>
         s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
+      val blacklistedIds = blacklist.keys
       log.info(s"""|Block: ${appStateStorage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
-            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedIds.size} blacklisted).
             |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
             |""".stripMargin.replace("\n", " "))
       log.debug(
         s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
             |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
+            | blacklisted(${blacklistedIds.map(_.value)mkString(", ")})
             |""".stripMargin.replace("\n", " ")
       )
     }
@@ -841,6 +842,7 @@ object FastSync {
       validators: Validators,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
+      blacklist: Blacklist,
       syncConfig: SyncConfig,
       scheduler: Scheduler
   ): Props =
@@ -852,6 +854,7 @@ object FastSync {
         validators,
         peerEventBus,
         etcPeerManager,
+        blacklist,
         syncConfig,
         scheduler
       )

@@ -128,6 +128,7 @@ lazy val node = {
       Dependencies.kamon,
       Dependencies.prometheus,
       Dependencies.cli,
+      Dependencies.scaffeine,
       Dependencies.dependencies
     ).flatten ++ malletDeps
   }
