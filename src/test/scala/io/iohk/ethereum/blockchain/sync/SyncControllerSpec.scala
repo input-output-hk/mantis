@@ -35,59 +35,64 @@ import org.scalatest.time.{Seconds, Span}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
+import com.typesafe.config.ConfigFactory
+import akka.testkit.ExplicitlyTriggeredScheduler
+import io.iohk.ethereum.NormalPatience
 
 // scalastyle:off file.size.limit
-class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with MockFactory with Eventually {
+class SyncControllerSpec
+    extends AnyFlatSpec
+    with Matchers
+    with BeforeAndAfter
+    with MockFactory
+    with Eventually
+    with NormalPatience {
 
-  implicit var system: ActorSystem = _
-
-  before {
-    system = ActorSystem("SyncControllerSpec_System")
-  }
-
-  after {
-    Await.result(system.terminate(), 10.seconds)
-  }
-
-  "SyncController" should "download pivot block and request block headers" in new TestSetup() {
+  "SyncController" should "download pivot block and request block headers" in withTestSetup() { testSetup =>
+    import testSetup._
     syncController ! SyncProtocol.Start
 
     val handshakedPeers = HandshakedPeers(twoAcceptedPeers)
 
     setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(Seq()))
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe 0
       syncState.pivotBlock == defaultPivotBlockHeader
     }
   }
 
-  it should "download better pivot block, request state, blocks and finish when downloaded" in new TestSetup() {
-    startWithState(defaultStateBeforeNodeRestart)
+  it should "download better pivot block, request state, blocks and finish when downloaded" in withTestSetup() {
+    testSetup =>
+      import testSetup._
+      startWithState(defaultStateBeforeNodeRestart)
 
-    syncController ! SyncProtocol.Start
+      syncController ! SyncProtocol.Start
 
-    val handshakedPeers = HandshakedPeers(singlePeer)
+      val handshakedPeers = HandshakedPeers(singlePeer)
 
-    val newBlocks =
-      getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
+      val newBlocks =
+        getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, syncConfig.blockHeadersPerRequest)
 
-    setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
+      setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
 
-    val watcher = TestProbe()
-    watcher.watch(syncController)
+      val watcher = TestProbe()
+      watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
-      //switch to regular download
-      val children = syncController.children
-      assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
-      assert(children.exists(ref => ref.path.name == "regular-sync"))
-      assert(blockchain.getBestBlockNumber() == defaultPivotBlockHeader.number)
-    }
+      eventually {
+        someTimePasses()
+        //switch to regular download
+        val children = syncController.children
+        assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
+        assert(children.exists(ref => ref.path.name == "regular-sync"))
+        assert(blockchain.getBestBlockNumber() == defaultPivotBlockHeader.number)
+      }
   }
 
-  it should "gracefully handle receiving empty receipts while syncing" in new TestSetup() {
+  it should "gracefully handle receiving empty receipts while syncing" in withTestSetup() { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
 
     syncController ! SyncProtocol.Start
@@ -107,7 +112,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       failedReceiptsTries = 1
     )
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -116,13 +122,14 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "handle blocks that fail validation" in new TestSetup(
-    _validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "handle blocks that fail validation" in withTestSetup(
+    new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
         Left(HeaderPoWError)
       }
     }
-  ) {
+  ) { testSetup =>
+    import testSetup._
     startWithState(
       defaultStateBeforeNodeRestart.copy(nextBlockToFullyValidate =
         defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1
@@ -141,7 +148,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
       syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
@@ -150,7 +158,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "rewind fast-sync state if received header have no known parent" in new TestSetup() {
+  it should "rewind fast-sync state if received header have no known parent" in withTestSetup() { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
 
     syncController ! SyncProtocol.Start
@@ -169,7 +178,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
       syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
@@ -178,7 +188,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "not change best block after receiving faraway block" in new TestSetup {
+  it should "not change best block after receiving faraway block" in withTestSetup() { testSetup =>
+    import testSetup._
 
     startWithState(defaultStateBeforeNodeRestart)
 
@@ -200,17 +211,19 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     implicit val ec = system.dispatcher
     system.scheduler.scheduleAtFixedRate(0.seconds, 0.1.second, fast, futureHeadersMessage)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
     // even though we receive this future headers fast sync should finish
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
     }
   }
 
-  it should "update pivot block if pivot fail" in new TestSetup(_validators = new Mocks.MockValidatorsAlwaysSucceed {
+  it should "update pivot block if pivot fail" in withTestSetup(new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
       {
         if (blockHeader.number != 399500 + 10) {
@@ -220,7 +233,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
         }
       }
     }
-  }) {
+  }) { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
 
     syncController ! SyncProtocol.Start
@@ -238,7 +252,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
 
     val autopilot = setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      littleTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
@@ -247,7 +262,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.pivotBlock shouldBe newPivot
       syncState.safeDownloadTarget shouldEqual newPivot.number + syncConfig.fastSyncBlockValidationX
@@ -257,7 +273,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "not process, out of date new pivot block" in new TestSetup() {
+  it should "not process, out of date new pivot block" in withTestSetup() { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
     syncController ! SyncProtocol.Start
 
@@ -278,18 +295,21 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val pilot =
       setupAutoPilot(etcPeerManager, staleHandshakedPeers, staleHeader, BlockchainData(newBlocks), onlyPivot = true)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlockUpdateFailures shouldBe 1
     }
 
     pilot.updateAutoPilot(freshHandshakedPeers, freshHeader, BlockchainData(newBlocks), onlyPivot = true)
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
   }
 
-  it should "start state download only when pivot block is fresh enough" in new TestSetup() {
+  it should "start state download only when pivot block is fresh enough" in withTestSetup() { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
     syncController ! SyncProtocol.Start
 
@@ -303,7 +323,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val newBlocks = getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 50)
 
     val pilot = setupAutoPilot(etcPeerManager, freshHandshakedPeers, freshHeader, BlockchainData(newBlocks))
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage
         .getSyncState()
         .get
@@ -317,14 +338,16 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     // set up new received header previously received header will need update
     pilot.updateAutoPilot(freshHandshakedPeers1, freshHeader1, BlockchainData(newBlocks))
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       storagesInstance.storages.fastSyncStateStorage
         .getSyncState()
         .get
         .bestBlockHeaderNumber shouldBe freshHeader1.number + syncConfig.fastSyncBlockValidationX
     }
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -333,7 +356,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "re-enqueue block bodies when empty response is received" in new TestSetup {
+  it should "re-enqueue block bodies when empty response is received" in withTestSetup() { testSetup =>
+    import testSetup._
 
     startWithState(defaultStateBeforeNodeRestart)
 
@@ -354,7 +378,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       failedBodiesTries = 1
     )
 
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       //switch to regular download
       val children = syncController.children
@@ -363,7 +388,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     }
   }
 
-  it should "update pivot block during state sync if it goes stale" in new TestSetup() {
+  it should "update pivot block during state sync if it goes stale" in withTestSetup() { testSetup =>
+    import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
 
     syncController ! SyncProtocol.Start
@@ -382,7 +408,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
 
     // choose first pivot and as it is fresh enough start state sync
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.isBlockchainWorkFinished shouldBe true
       syncState.updatingPivotBlock shouldBe false
@@ -400,7 +427,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     )
 
     // sync to new pivot
-    eventually(timeout = eventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
       syncState.pivotBlock shouldBe newPivot
     }
@@ -411,7 +439,8 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val watcher = TestProbe()
     watcher.watch(syncController)
 
-    eventually(timeout = longeventuallyTimeOut) {
+    eventually {
+      someTimePasses()
       //switch to regular download
       val children = syncController.children
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
@@ -421,7 +450,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
   }
 
   class TestSetup(
-      blocksForWhichLedgerFails: Seq[BigInt] = Nil,
       _validators: Validators = new Mocks.MockValidatorsAlwaysSucceed
   ) extends EphemBlockchainTestSetup
       with TestSyncPeers
@@ -430,10 +458,9 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     @volatile
     var stateDownloadStarted = false
 
-    val eventuallyTimeOut: Timeout = Timeout(Span(10, Seconds))
-    val longeventuallyTimeOut = Timeout(Span(30, Seconds))
     //+ cake overrides
-    override implicit lazy val system: ActorSystem = SyncControllerSpec.this.system
+    override implicit lazy val system: ActorSystem =
+      ActorSystem("SyncControllerSpec_System", ConfigFactory.load("explicit-scheduler"))
 
     override lazy val vm: VMImpl = new VMImpl
 
@@ -492,8 +519,6 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
     blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
-
-    val startDelayMillis = 200
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],
@@ -703,10 +728,24 @@ class SyncControllerSpec extends AnyFlatSpec with Matchers with BeforeAndAfter w
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
     }
 
-    def persistState(): Unit = {
-      Thread.sleep(300)
-      syncController.getSingleChild("fast-sync") ! FastSync.PersistSyncState
-      Thread.sleep(300)
+    private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
+
+    def littleTimePasses() =
+      testScheduler.timePasses(100.millis)
+
+    def someTimePasses() =
+      testScheduler.timePasses(3000.millis)
+
+    def cleanup(): Unit =
+      Await.result(system.terminate(), 10.seconds)
+  }
+
+  def withTestSetup(validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)(test: TestSetup => Any): Unit = {
+    val testSetup = new TestSetup(validators)
+    try {
+      test(testSetup)
+    } finally {
+      testSetup.cleanup()
     }
   }
 }
