@@ -10,6 +10,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 
+import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
 
 class BlockImport(
@@ -152,7 +153,7 @@ class BlockImport(
         bestNumber,
         ByteStringUtils.hash2string(parentHash)
       )
-      val oldBlocksData = removeBlocksUntil(parentHash, bestNumber).reverse
+      val oldBlocksData = removeBlocksUntil(parentHash, bestNumber)
       oldBlocksData.foreach(block => blockQueue.enqueueBlock(block.block))
       handleBlockExecResult(newBranch, parentWeight, oldBlocksData)
     }
@@ -226,26 +227,31 @@ class BlockImport(
     * @return the list of removed blocks along with receipts and total difficulties
     */
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
-    blockchain.getBlockByNumber(fromNumber) match {
-      case Some(block) if block.header.hash == parent || fromNumber == 0 =>
-        Nil
+    @tailrec
+    def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] = {
+      blockchain.getBlockByNumber(fromNumber) match {
+        case Some(block) if block.header.hash == parent || fromNumber == 0 =>
+          acc
 
-      case Some(block) =>
-        val hash = block.header.hash
+        case Some(block) =>
+          val hash = block.header.hash
 
-        val blockList = for {
-          receipts <- blockchain.getReceiptsByHash(hash)
-          weight <- blockchain.getChainWeightByHash(hash)
-        } yield BlockData(block, receipts, weight) :: removeBlocksUntil(parent, fromNumber - 1)
+          val blockDataOpt = for {
+            receipts <- blockchain.getReceiptsByHash(hash)
+            weight <- blockchain.getChainWeightByHash(hash)
+          } yield BlockData(block, receipts, weight)
 
-        blockchain.removeBlock(hash, withState = true)
+          blockchain.removeBlock(hash, withState = true)
 
-        blockList.getOrElse(Nil)
+          removeBlocksUntil(parent, fromNumber - 1, blockDataOpt.map(_ :: acc).getOrElse(acc))
 
-      case None =>
-        log.error(s"Unexpected missing block number: $fromNumber")
-        Nil
+        case None =>
+          log.error(s"Unexpected missing block number: $fromNumber")
+          acc
+      }
     }
+
+    removeBlocksUntil(parent, fromNumber, Nil)
   }
 }
 
