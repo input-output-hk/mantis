@@ -157,7 +157,7 @@ class FastSync(
     def handleStatus: Receive = {
       case SyncProtocol.GetStatus => sender() ! currentSyncingStatus
       case SyncStateSchedulerActor.StateSyncStats(saved, missing) =>
-        syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = (saved + missing))
+        syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = saved + missing)
     }
 
     def receive: Receive = handleCommonMessages orElse handleStatus orElse {
@@ -507,7 +507,7 @@ class FastSync(
               .reduce(_.and(_))
               .commit()
 
-            val receivedHashes = blockHashesWithReceipts.unzip._1
+            val receivedHashes = blockHashesWithReceipts.map(_._1)
             updateBestBlockIfNeeded(receivedHashes)
 
             val remainingReceipts = requestedHashes.drop(receipts.size)
@@ -567,7 +567,7 @@ class FastSync(
     }
 
     private def printStatus(): Unit = {
-      val formatPeer: (Peer) => String = peer =>
+      val formatPeer: Peer => String = peer =>
         s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
       val blacklistedIds = blacklist.keys
       log.info(s"""|Block: ${appStateStorage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
@@ -577,7 +577,7 @@ class FastSync(
       log.debug(
         s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
             |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedIds.map(_.value)mkString(", ")})
+            | blacklisted(${blacklistedIds.map(_.value).mkString(", ")})
             |""".stripMargin.replace("\n", " ")
       )
     }
