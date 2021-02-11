@@ -1,6 +1,6 @@
 # Mantis
 
-Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
+ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
 
 ### Status - Release
 
