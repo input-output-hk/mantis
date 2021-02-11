@@ -570,15 +570,21 @@ class FastSync(
       val formatPeer: Peer => String = peer =>
         s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
       val blacklistedIds = blacklist.keys
-      log.info(s"""|Block: ${appStateStorage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
+      log.info(
+        s"""|Block: {}/${syncState.pivotBlock.number}.
             |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedIds.size} blacklisted).
             |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
-            |""".stripMargin.replace("\n", " "))
+            |""".stripMargin.replace("\n", " "),
+        appStateStorage.getBestBlockNumber()
+      )
       log.debug(
-        s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
-            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedIds.map(_.value).mkString(", ")})
-            |""".stripMargin.replace("\n", " ")
+        s"""|Connection status: connected({})/
+            |handshaked({})
+            | blacklisted({})
+            |""".stripMargin.replace("\n", " "),
+        assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", "),
+        handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", "),
+        blacklistedIds.map(_.value).mkString(", ")
       )
     }
 

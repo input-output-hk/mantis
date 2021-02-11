@@ -26,7 +26,7 @@ class SyncController(
 ) extends Actor
     with ActorLogging {
 
-  private val blacklistSize: Int = 100 // TODO move to config
+  private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
   private val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
