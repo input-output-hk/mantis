@@ -1,10 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.duration.{Duration, FiniteDuration}
 import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
+
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
+// will be removed once regular sync is switched to new blacklist implementation
 trait BlacklistSupport {
   selfActor: Actor with ActorLogging =>
 
@@ -14,9 +17,9 @@ trait BlacklistSupport {
 
   protected val maxBlacklistedNodes = 1000
 
-  val blacklistedPeers = mutable.LinkedHashMap.empty[BlackListId, Cancellable]
+  val blacklistedPeers = mutable.LinkedHashMap.empty[BlacklistId, Cancellable]
 
-  def blacklist(blacklistId: BlackListId, duration: FiniteDuration, reason: String): Unit = {
+  def blacklist(blacklistId: BlacklistId, duration: FiniteDuration, reason: String): Unit = {
     if (duration > Duration.Zero) {
       if (blacklistedPeers.size >= maxBlacklistedNodes) {
         removeOldestPeer()
@@ -30,13 +33,13 @@ trait BlacklistSupport {
     }
   }
 
-  def undoBlacklist(blacklistId: BlackListId): Unit = {
+  def undoBlacklist(blacklistId: BlacklistId): Unit = {
     val peer = blacklistedPeers.get(blacklistId)
     peer.foreach(_.cancel())
     blacklistedPeers.remove(blacklistId)
   }
 
-  def isBlacklisted(blacklistId: BlackListId): Boolean =
+  def isBlacklisted(blacklistId: BlacklistId): Boolean =
     blacklistedPeers.exists(_._1 == blacklistId)
 
   def handleBlacklistMessages: Receive = { case UnblacklistPeer(ref) =>
@@ -52,9 +55,6 @@ trait BlacklistSupport {
 
 object BlacklistSupport {
 
-  abstract class BlackListId {
-    def value: String
-  }
+  private case class UnblacklistPeer(blacklistId: BlacklistId)
 
-  private case class UnblacklistPeer(blacklistId: BlackListId)
 }

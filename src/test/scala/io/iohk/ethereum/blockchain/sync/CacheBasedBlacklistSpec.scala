@@ -10,7 +10,8 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.concurrent.duration._
 import com.google.common.testing.FakeTicker
 import com.github.blemale.scaffeine.Scaffeine
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
+
 import java.util.concurrent.TimeUnit
 
 class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
@@ -40,7 +41,7 @@ class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
       val maxSize = 10
       val ticker = new FakeTicker()
       val cache = Scaffeine()
-        .expireAfter[BlackListId, String](
+        .expireAfter[BlacklistId, String](
           create = (_, _) => 60.minutes,
           update = (_, _, _) => 60.minutes,
           read = (_, _, _) => 60.minutes
@@ -49,7 +50,7 @@ class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
           maxSize
         )
         .ticker(ticker.read _)
-        .build[BlackListId, String]()
+        .build[BlacklistId, String]()
       val blacklist = CacheBasedBlacklist(cache)
       blacklist.add(peer1, 1.minute, "just because")
       blacklist.add(peer2, 10.minutes, "just because")
