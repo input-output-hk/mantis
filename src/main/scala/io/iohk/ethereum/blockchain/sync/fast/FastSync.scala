@@ -59,9 +59,7 @@ class FastSync(
 
   override def receive: Receive = idle
 
-  def handleCommonMessages: Receive = handlePeerListMessages
-
-  def idle: Receive = handleCommonMessages orElse {
+  def idle: Receive = handlePeerListMessages orElse {
     case SyncProtocol.Start => start()
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
   }
@@ -90,7 +88,7 @@ class FastSync(
     context become waitingForPivotBlock
   }
 
-  def waitingForPivotBlock: Receive = handleCommonMessages orElse {
+  def waitingForPivotBlock: Receive = handlePeerListMessages orElse {
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
     case PivotBlockSelector.Result(pivotBlockHeader) =>
       if (pivotBlockHeader.number < 1) {
@@ -161,7 +159,7 @@ class FastSync(
         syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = saved + missing)
     }
 
-    def receive: Receive = handleCommonMessages orElse handleStatus orElse {
+    def receive: Receive = handlePeerListMessages orElse handleStatus orElse {
       case UpdatePivotBlock(reason) => updatePivotBlock(reason)
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
@@ -248,7 +246,7 @@ class FastSync(
     }
 
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
-      handleCommonMessages orElse handleStatus orElse {
+      handlePeerListMessages orElse handleStatus orElse {
         case PivotBlockSelector.Result(pivotBlockHeader)
             if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
           log.info("New pivot block with number {} received", pivotBlockHeader.number)
