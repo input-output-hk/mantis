@@ -4,6 +4,7 @@ import java.time.Instant
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
@@ -20,7 +21,7 @@ import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -541,7 +542,7 @@ class FastSync(
       requestedReceipts = requestedReceipts - handler
 
       requestedHeaders -= peer
-      if (handshakedPeers.contains(peer)) {
+      if (handshakedPeers.contains(peer.id)) {
         blacklist.add(peer.id, blacklistDuration, reason)
       }
     }
@@ -567,7 +568,8 @@ class FastSync(
     }
 
     private def printStatus(): Unit = {
-      val formatPeer: Peer => String = peer =>
+      def formatPeerEntry(entry: PeerWithInfo): String = formatPeer(entry.peer)
+      def formatPeer(peer: Peer): String =
         s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
       val blacklistedIds = blacklist.keys
       log.info(
@@ -583,7 +585,7 @@ class FastSync(
             | blacklisted({})
             |""".stripMargin.replace("\n", " "),
         assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", "),
-        handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", "),
+        handshakedPeers.values.toList.map(e => formatPeerEntry(e)).sorted.mkString(", "),
         blacklistedIds.map(_.value).mkString(", ")
       )
     }
@@ -609,12 +611,12 @@ class FastSync(
     }
 
     private def getPeersWithFreshEnoughPivot(
-        peers: NonEmptyList[(Peer, PeerInfo)],
+        peers: NonEmptyList[PeerWithInfo],
         state: SyncState,
         syncConfig: SyncConfig
     ): List[(Peer, BigInt)] = {
       peers.collect {
-        case (peer, info) if hasBestBlockFreshEnoughToUpdatePivotBlock(info, state, syncConfig) =>
+        case PeerWithInfo(peer, info) if hasBestBlockFreshEnoughToUpdatePivotBlock(info, state, syncConfig) =>
           (peer, info.maxBlockNumber)
       }
     }
@@ -626,17 +628,17 @@ class FastSync(
       !(syncState.updatingPivotBlock || stateSyncRestartRequested)
 
     def pivotBlockIsStale(): Boolean = {
-      val currentPeers = peersToDownloadFrom.toList
-      if (currentPeers.isEmpty) {
+      val peersWithInfo = peersToDownloadFrom.values.toList
+      if (peersWithInfo.isEmpty) {
         false
       } else {
-        val peerWithBestBlockInNetwork = currentPeers.maxBy(peerWithNum => peerWithNum._2.maxBlockNumber)
+        val peerWithBestBlockInNetwork = peersWithInfo.maxBy(_.peerInfo.maxBlockNumber)
 
         val bestPossibleTargetDifferenceInNetwork =
-          (peerWithBestBlockInNetwork._2.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
+          (peerWithBestBlockInNetwork.peerInfo.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
 
         val peersWithTooFreshPossiblePivotBlock =
-          getPeersWithFreshEnoughPivot(NonEmptyList.fromListUnsafe(currentPeers), syncState, syncConfig)
+          getPeersWithFreshEnoughPivot(NonEmptyList.fromListUnsafe(peersWithInfo), syncState, syncConfig)
 
         if (peersWithTooFreshPossiblePivotBlock.isEmpty) {
           log.info(
@@ -652,7 +654,7 @@ class FastSync(
             "There are {} peers with possible new pivot block, " +
               "best known pivot in current peer list has number {}",
             peersWithTooFreshPossiblePivotBlock.size,
-            peerWithBestBlockInNetwork._2.maxBlockNumber
+            peerWithBestBlockInNetwork.peerInfo.maxBlockNumber
           )
 
           pivotBlockIsStale
@@ -715,7 +717,7 @@ class FastSync(
           .filter(p => peerRequestsTime.get(p.peer).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         peers
           .take(maxConcurrentRequests - assignedHandlers.size)
-          .sortBy(_.info.maxBlockNumber)(Ordering[BigInt].reverse)
+          .sortBy(_.peerInfo.maxBlockNumber)(Ordering[BigInt].reverse)
           .foreach(assignBlockchainWork)
       }
     }
@@ -803,8 +805,10 @@ class FastSync(
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def unassignedPeers: List[PeerWithInfo] =
-      (peersToDownloadFrom -- assignedHandlers.values).map(PeerWithInfo.tupled).toList
+    def unassignedPeers: List[PeerWithInfo] = {
+      val assignedPeers = assignedHandlers.values.map(_.id).toList
+      peersToDownloadFrom.removedAll(assignedPeers).values.toList
+    }
 
     def blockchainDataToDownload: Boolean =
       syncState.blockChainWorkQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
@@ -837,8 +841,6 @@ class FastSync(
 }
 
 object FastSync {
-
-  case class PeerWithInfo(peer: Peer, info: PeerInfo)
 
   // scalastyle:off parameter.number
   def props(

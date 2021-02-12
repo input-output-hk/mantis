@@ -8,12 +8,13 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsu
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
+import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global // FIXME copied from current impl but not sure global EC is a good choice
 
-trait PeerListSupportNg {
-  self: Actor with ActorLogging =>
+trait PeerListSupportNg { self: Actor with ActorLogging =>
   import PeerListSupportNg._
+
+  private implicit val ec: ExecutionContext = context.dispatcher
 
   def etcPeerManager: ActorRef
   def peerEventBus: ActorRef
@@ -21,43 +22,50 @@ trait PeerListSupportNg {
   def syncConfig: SyncConfig
   def scheduler: Scheduler
 
-  var handshakedPeers: PeersMap = Map.empty
+  protected var handshakedPeers: Map[PeerId, PeerWithInfo] = Map.empty
 
   scheduler.scheduleWithFixedDelay(
     0.seconds,
     syncConfig.peersScanInterval,
     etcPeerManager,
     EtcPeerManagerActor.GetHandshakedPeers
-  )(global, context.self)
-
-  def removePeer(peerId: PeerId): Unit = {
-    peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
-    handshakedPeers.find(_._1.id == peerId).foreach { case (peer, _) => blacklist.remove(peer.id) }
-    handshakedPeers = handshakedPeers.filterNot(_._1.id == peerId)
-  }
-
-  def peersToDownloadFrom: PeersMap =
-    handshakedPeers.filterNot { case (p, _) => blacklist.isBlacklisted(p.id) }
+  )
 
   def handlePeerListMessages: Receive = {
-    case EtcPeerManagerActor.HandshakedPeers(peers) =>
-      peers.keys.filterNot(handshakedPeers.contains).foreach { peer =>
-        peerEventBus ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
-      }
-      handshakedPeers = peers
-
-    case PeerDisconnected(peerId) if handshakedPeers.exists(_._1.id == peerId) =>
-      removePeer(peerId)
+    case EtcPeerManagerActor.HandshakedPeers(peers) => updatePeers(peers)
+    case PeerDisconnected(peerId) => removePeer(peerId)
   }
 
-  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers collectFirst {
-    case (peer, _) if peer.id == peerId => peer
+  def peersToDownloadFrom: Map[PeerId, PeerWithInfo] =
+    handshakedPeers.filterNot { case (peerId, _) =>
+      blacklist.isBlacklisted(peerId)
+    }
+
+  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers.get(peerId).map(_.peer)
+
+  def blacklistIfHandshaked(peerId: PeerId, duration: FiniteDuration, reason: String): Unit =
+    handshakedPeers.get(peerId).foreach(_ => blacklist.add(peerId, duration, reason))
+
+  private def updatePeers(peers: Map[Peer, PeerInfo]): Unit = {
+    val updated = peers.map { case (peer, peerInfo) =>
+      (peer.id, PeerWithInfo(peer, peerInfo))
+    }
+    updated.filterNot(p => handshakedPeers.keySet.contains(p._1)).foreach { case (peerId, _) =>
+      peerEventBus ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
+    }
+    handshakedPeers = updated
   }
 
-  def blacklistIfHandshaked(peer: Peer, duration: FiniteDuration, reason: String): Unit =
-    handshakedPeers.get(peer).foreach(_ => blacklist.add(peer.id, duration, reason))
+  private def removePeer(peerId: PeerId): Unit = {
+    if (handshakedPeers.keySet.contains(peerId)) {
+      peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
+      blacklist.remove(peerId)
+      handshakedPeers = handshakedPeers - peerId
+    }
+  }
+
 }
 
 object PeerListSupportNg {
-  type PeersMap = Map[Peer, PeerInfo]
+  final case class PeerWithInfo(peer: Peer, peerInfo: PeerInfo)
 }

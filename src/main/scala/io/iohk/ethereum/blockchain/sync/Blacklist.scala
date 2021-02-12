@@ -13,7 +13,6 @@ import scala.jdk.DurationConverters._
 import Blacklist.BlacklistId
 
 trait Blacklist {
-
   def isBlacklisted(id: BlacklistId): Boolean
   def add(id: BlacklistId, duration: FiniteDuration, reason: String): Unit
   def remove(id: BlacklistId): Unit
@@ -21,11 +20,9 @@ trait Blacklist {
 }
 
 object Blacklist {
-
   trait BlacklistId {
     def value: String
   }
-
 }
 
 final case class CacheBasedBlacklist(cache: Cache[BlacklistId, String])
