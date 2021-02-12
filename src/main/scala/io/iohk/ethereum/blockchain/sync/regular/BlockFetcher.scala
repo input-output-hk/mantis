@@ -278,8 +278,7 @@ class BlockFetcher(
     //keep fetcher state updated in case new checkpoint block or mined block was imported
     case InternalLastBlockImport(blockNr) =>
       log.debug(s"New last block $blockNr imported from the inside")
-      val newLastBlock = blockNr.max(state.lastBlock)
-      val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+      val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
 
       fetchBlocks(newState)
   }
