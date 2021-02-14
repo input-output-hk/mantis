@@ -8,6 +8,8 @@ import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
+import io.iohk.ethereum.blockchain.sync.Blacklist._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
@@ -183,7 +185,7 @@ class FastSync(
           )
             handleBlockHeaders(peer, blockHeaders)
           else
-            blacklist.add(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
+            blacklist.add(peer.id, blacklistDuration, WrongBlockHeaders)
         }
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
@@ -205,10 +207,10 @@ class FastSync(
         handleReceipts(peer, requestedHashes, receipts)
 
       case PeerRequestHandler.RequestFailed(peer, reason) =>
-        handleRequestFailure(peer, sender(), reason)
+        handleRequestFailure(peer, sender(), RequestFailed(reason))
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
-        handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
+        handleRequestFailure(assignedHandlers(ref), ref, PeerActorTerminated)
     }
 
     def askForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Unit = {
@@ -423,7 +425,7 @@ class FastSync(
     }
 
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
-      blacklist.add(peer.id, duration, "block header validation failed")
+      blacklist.add(peer.id, duration, BlockHeaderValidationFailed)
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -461,27 +463,22 @@ class FastSync(
             )
         }
       } else {
-        blacklist.add(peer.id, blacklistDuration, "error in block headers response")
+        blacklist.add(peer.id, blacklistDuration, ErrorInBlockHeaders)
         processSyncing()
       }
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       if (blockBodies.isEmpty) {
-        val reason =
-          s"got empty block bodies response for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist.add(peer.id, blacklistDuration, reason)
+        val knownHashes = requestedHashes.map(ByteStringUtils.hash2string)
+        blacklist.add(peer.id, blacklistDuration, EmptyBlockBodies(knownHashes))
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
         validateBlocks(requestedHashes, blockBodies) match {
           case BlockBodyValidationResult.Valid =>
             insertBlocks(requestedHashes, blockBodies)
           case BlockBodyValidationResult.Invalid =>
-            blacklist.add(
-              peer.id,
-              blacklistDuration,
-              s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration"
-            )
+            blacklist.add(peer.id, blacklistDuration, BlockBodiesNotMatchingHeaders)
             syncState = syncState.enqueueBlockBodies(requestedHashes)
           case BlockBodyValidationResult.DbError =>
             redownloadBlockchain()
@@ -493,8 +490,8 @@ class FastSync(
 
     private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): Unit = {
       if (receipts.isEmpty) {
-        val reason = s"got empty receipts for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist.add(peer.id, blacklistDuration, reason)
+        val knownHashes = requestedHashes.map(ByteStringUtils.hash2string)
+        blacklist.add(peer.id, blacklistDuration, EmptyReceipts(knownHashes))
         syncState = syncState.enqueueReceipts(requestedHashes)
       } else {
         validateReceipts(requestedHashes, receipts) match {
@@ -515,10 +512,8 @@ class FastSync(
             }
 
           case ReceiptsValidationResult.Invalid(error) =>
-            val reason =
-              s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
-                s" due to: $error"
-            blacklist.add(peer.id, blacklistDuration, reason)
+            val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
+            blacklist.add(peer.id, blacklistDuration, InvalidReceipts(knownHashes, error))
             syncState = syncState.enqueueReceipts(requestedHashes)
 
           case ReceiptsValidationResult.DbError =>
@@ -529,7 +524,7 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String): Unit = {
+    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: BlacklistReason): Unit = {
       removeRequestHandler(handler)
 
       syncState = syncState

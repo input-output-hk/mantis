@@ -10,38 +10,129 @@ import scala.jdk.CollectionConverters._
 import scala.jdk.OptionConverters._
 import scala.jdk.DurationConverters._
 
-import Blacklist.BlacklistId
+import Blacklist._
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType.WrongBlockHeadersType
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
 
 trait Blacklist {
   def isBlacklisted(id: BlacklistId): Boolean
-  def add(id: BlacklistId, duration: FiniteDuration, reason: String): Unit
+  def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit
   def remove(id: BlacklistId): Unit
   def keys: Set[BlacklistId]
 }
 
 object Blacklist {
+  import BlacklistReason._
+  import BlacklistReasonType._
+
   trait BlacklistId {
     def value: String
   }
+
+  sealed trait BlacklistReason {
+    def reasonType: BlacklistReasonType
+    def description: String
+  }
+  object BlacklistReason {
+    trait BlacklistReasonType {
+      def code: Int
+      def name: String
+    }
+    object BlacklistReasonType {
+      case object WrongBlockHeadersType extends BlacklistReasonType {
+        val code: Int = 1
+        val name: String = "WrongBlockHeadersType"
+      }
+      case object BlockHeaderValidationFailedType extends BlacklistReasonType {
+        val code: Int = 2
+        val name: String = "BlockHeaderValidationFailed"
+      }
+      case object ErrorInBlockHeadersType extends BlacklistReasonType {
+        val code: Int = 3
+        val name: String = "ErrorInBlockHeaders"
+      }
+      case object EmptyBlockBodiesType extends BlacklistReasonType {
+        val code: Int = 4
+        val name: String = "EmptyBlockBodies"
+      }
+      case object BlockBodiesNotMatchingHeadersType extends BlacklistReasonType {
+        val code: Int = 5
+        val name: String = "BlockBodiesNotMatchingHeaders"
+      }
+      case object EmptyReceiptsType extends BlacklistReasonType {
+        val code: Int = 6
+        val name: String = "EmptyReceipts"
+      }
+      case object InvalidReceiptsType extends BlacklistReasonType {
+        val code: Int = 7
+        val name: String = "InvalidReceipts"
+      }
+      case object RequestFailedType extends BlacklistReasonType {
+        val code: Int = 8
+        val name: String = "RequestFailed"
+      }
+      case object PeerActorTerminatedType extends BlacklistReasonType {
+        val code: Int = 9
+        val name: String = "PeerActorTerminated"
+      }
+    }
+
+    case object WrongBlockHeaders extends BlacklistReason {
+      val reasonType: BlacklistReasonType = WrongBlockHeadersType
+      val description: String = "Wrong blockheaders response (empty or not chain forming)"
+    }
+    case object BlockHeaderValidationFailed extends BlacklistReason {
+      val reasonType: BlacklistReasonType = BlockHeaderValidationFailedType
+      val description: String = "Block header validation failed"
+    }
+    case object ErrorInBlockHeaders extends BlacklistReason {
+      val reasonType: BlacklistReasonType = ErrorInBlockHeadersType
+      val description: String = "Error in block headers response"
+    }
+    final case class EmptyBlockBodies(knownHashes: Seq[String]) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = EmptyBlockBodiesType
+      val description: String = s"Got empty block bodies response for known hashes: $knownHashes"
+    }
+    case object BlockBodiesNotMatchingHeaders extends BlacklistReason {
+      val reasonType: BlacklistReasonType = BlockBodiesNotMatchingHeadersType
+      val description = "Block bodies not matching block headers"
+    }
+    final case class EmptyReceipts(knownHashes: Seq[String]) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = EmptyReceiptsType
+      val description: String = s"Got empty receipts for known hashes: $knownHashes"
+    }
+    final case class InvalidReceipts(knownHashes: Seq[String], error: BlockError) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = InvalidReceiptsType
+      val description: String = s"Got invalid receipts for known hashes: $knownHashes due to: $error"
+    }
+    final case class RequestFailed(error: String) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = RequestFailedType
+      val description: String = s"Request failed with error: $error"
+    }
+    case object PeerActorTerminated extends BlacklistReason {
+      val reasonType: BlacklistReasonType = PeerActorTerminatedType
+      val description: String = "Peer actor terminated"
+    }
+  }
 }
 
-final case class CacheBasedBlacklist(cache: Cache[BlacklistId, String]) extends Blacklist with Logger {
+final case class CacheBasedBlacklist(cache: Cache[BlacklistId, BlacklistReasonType]) extends Blacklist with Logger {
+
+  import CacheBasedBlacklist._
 
   override def isBlacklisted(id: BlacklistId): Boolean = cache.getIfPresent(id).isDefined
 
-  override def add(id: BlacklistId, duration: FiniteDuration, reason: String): Unit =
-    cache
-      .policy()
-      .expireVariably()
-      .toScala
-      .fold {
-        log.warn(
-          s"Unexpected error while adding peer [${id.value}] to blacklist using custom expiration time. Falling back to default expiration."
-        )
-        cache.put(id, reason)
-      } { varExpirationPolicy =>
-        varExpirationPolicy.put(id, reason, duration.toJava)
-      }
+  override def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit = {
+    log.debug("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason)
+    cache.policy().expireVariably().toScala match {
+      case Some(varExpiration) => varExpiration.put(id, reason.reasonType, duration.toJava)
+      case None =>
+        log.warn(customExpirationError(id))
+        cache.put(id, reason.reasonType)
+    }
+  }
   override def remove(id: BlacklistId): Unit = cache.invalidate(id)
 
   override def keys: Set[BlacklistId] = cache.underlying.asMap().keySet().asScala.toSet
@@ -49,10 +140,13 @@ final case class CacheBasedBlacklist(cache: Cache[BlacklistId, String]) extends 
 
 object CacheBasedBlacklist {
 
+  def customExpirationError(id: BlacklistId): String =
+    s"Unexpected error while adding peer [${id.value}] to blacklist using custom expiration time. Falling back to default expiration."
+
   def empty(maxSize: Int): CacheBasedBlacklist = {
     val cache =
       Scaffeine()
-        .expireAfter[BlacklistId, String](
+        .expireAfter[BlacklistId, BlacklistReasonType](
           create = (_, _) => 60.minutes,
           update = (_, _, _) => 60.minutes,
           read = (_, _, _) => 60.minutes
@@ -60,7 +154,7 @@ object CacheBasedBlacklist {
         .maximumSize(
           maxSize
         ) // uses Window TinyLfu eviction policy, see https://github.com/ben-manes/caffeine/wiki/Efficiency
-        .build[BlacklistId, String]()
+        .build[BlacklistId, BlacklistReasonType]()
     CacheBasedBlacklist(cache)
   }
 

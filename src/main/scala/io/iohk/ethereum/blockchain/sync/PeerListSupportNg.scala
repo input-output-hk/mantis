@@ -13,6 +13,7 @@ import scala.concurrent.duration._
 
 trait PeerListSupportNg { self: Actor with ActorLogging =>
   import PeerListSupportNg._
+  import Blacklist._
 
   private implicit val ec: ExecutionContext = context.dispatcher
 
@@ -33,7 +34,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) => updatePeers(peers)
-    case PeerDisconnected(peerId) => removePeer(peerId)
+    case PeerDisconnected(peerId) => removePeerById(peerId)
   }
 
   def peersToDownloadFrom: Map[PeerId, PeerWithInfo] =
@@ -41,9 +42,9 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
       blacklist.isBlacklisted(peerId)
     }
 
-  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers.get(peerId).map(_.peer)
+  def getPeerById(peerId: PeerId): Option[Peer] = handshakedPeers.get(peerId).map(_.peer)
 
-  def blacklistIfHandshaked(peerId: PeerId, duration: FiniteDuration, reason: String): Unit =
+  def blacklistIfHandshaked(peerId: PeerId, duration: FiniteDuration, reason: BlacklistReason): Unit =
     handshakedPeers.get(peerId).foreach(_ => blacklist.add(peerId, duration, reason))
 
   private def updatePeers(peers: Map[Peer, PeerInfo]): Unit = {
@@ -56,7 +57,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
     handshakedPeers = updated
   }
 
-  private def removePeer(peerId: PeerId): Unit = {
+  private def removePeerById(peerId: PeerId): Unit = {
     if (handshakedPeers.keySet.contains(peerId)) {
       peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
       blacklist.remove(peerId)
