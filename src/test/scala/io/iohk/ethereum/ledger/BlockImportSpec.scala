@@ -146,6 +146,57 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
 
+  it should "fail to get bestblock after reorganisation of the longer chain to a shorter one if desync state happened between cache and db" in new EphemBlockchain {
+    val block1: Block = getBlock(bestNum - 2)
+    // new chain is shorter but has a higher weight
+    val newBlock2: Block = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
+    val newBlock3: Block = getBlock(bestNum, difficulty = 333, parent = newBlock2.header.hash)
+    val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
+    val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash)
+    val oldBlock4: Block = getBlock(bestNum + 1, difficulty = 104, parent = oldBlock3.header.hash)
+
+    val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
+    val newWeight2 = weight1.increase(newBlock2.header)
+    val newWeight3 = newWeight2.increase(newBlock3.header)
+    val oldWeight2 = weight1.increase(oldBlock2.header)
+    val oldWeight3 = oldWeight2.increase(oldBlock3.header)
+    val oldWeight4 = oldWeight3.increase(oldBlock4.header)
+
+    blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
+    blockchain.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
+    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+
+    val ancestorForValidation: Block = getBlock(0, difficulty = 1)
+    blockchain.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
+
+    val oldBranch = List(oldBlock2, oldBlock3, oldBlock4)
+    val newBranch = List(newBlock2, newBlock3)
+    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
+    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
+
+    (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
+      .expects(newBranch, *)
+      .returning((List(blockData2, blockData3), None))
+
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock3).runToFuture) { _ shouldEqual BlockEnqueued }
+    whenReady(ledgerWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { result =>
+      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
+    }
+
+    // Saving new blocks, because it's part of executeBlocks method mechanism
+    blockchain.save(blockData2.block, blockData2.receipts, blockData2.weight, saveAsBestBlock = true)
+    blockchain.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
+
+    //saving to cache the value of the best block from the initial chain. This recreates the bug ETCM-626, where (possiby) because of the thread of execution
+    // dying before updating the storage but after updating the cache, inconsistency is created
+    blockchain.saveBestKnownBlocks(oldBlock4.number)
+
+    assertThrows[NoSuchElementException] {
+      blockchain.getBestBlock()
+    }
+  }
+
   it should "handle error when trying to reorganise chain" in new EphemBlockchain {
     val block1: Block = getBlock(bestNum - 2)
     val newBlock2: Block = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -166,11 +217,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
     blockchain.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
 
-    //FIXME: unused vals???
-    val oldBranch = List(oldBlock2, oldBlock3)
     val newBranch = List(newBlock2, newBlock3)
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
-    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
 
     (ledgerWithMockedBlockExecution.blockExecution.executeAndValidateBlocks _)
       .expects(newBranch, *)

@@ -59,7 +59,7 @@ object Dependencies {
 
   val testing: Seq[ModuleID] = Seq(
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
-    "org.scalamock" %% "scalamock" % "5.0.0" % "test",
+    "org.scalamock" %% "scalamock" % "5.0.0" % "it,test",
     "org.scalatestplus" %% "scalacheck-1-15" % "3.2.3.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.15.1" % "it,test",
     "com.softwaremill.diffx" %% "diffx-core" % "0.3.30" % "test",
