@@ -27,6 +27,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.rlp.RLPValue
 
 class EthProofServiceSpec
     extends TestKit(ActorSystem("EthGetProofSpec_ActorSystem"))
@@ -101,6 +102,7 @@ class EthProofServiceSpec
         accountProof.accountProof.foreach { p =>
           p should not be empty
         }
+        accountProof.accountProof.head shouldBe rlp.encode(RLPValue(mpt.getRootHash))
         accountProof.balance shouldBe balance.toBigInt
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
@@ -125,6 +127,7 @@ class EthProofServiceSpec
         accountProof.accountProof.foreach { p =>
           p should not be empty
         }
+        accountProof.accountProof.head shouldBe rlp.encode(RLPValue(mpt.getRootHash))
         accountProof.balance shouldBe balance.toBigInt
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
@@ -150,6 +153,7 @@ class EthProofServiceSpec
         accountProof.accountProof.foreach { p =>
           p should not be empty
         }
+        accountProof.accountProof.head shouldBe rlp.encode(RLPValue(mpt.getRootHash))
         accountProof.balance shouldBe balance.toBigInt
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
@@ -177,6 +181,7 @@ class EthProofServiceSpec
         accountProof.accountProof.foreach { p =>
           p should not be empty
         }
+        accountProof.accountProof.head shouldBe rlp.encode(RLPValue(mpt.getRootHash))
         accountProof.balance shouldBe balance.toBigInt
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
