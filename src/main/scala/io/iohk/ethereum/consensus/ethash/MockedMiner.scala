@@ -67,7 +67,7 @@ class MockedMiner(
     case MineBlock =>
       if (numBlocks > 0) {
         blockCreator
-          .getBlockForMining(Some(parentBlock), withTransactions, initialWorldStateBeforeExecution)
+          .getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution)
           .runToFuture pipeTo self
       } else {
         log.info(s"Mining all mocked blocks successful")

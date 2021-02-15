@@ -56,40 +56,46 @@ class EthashMiner(
   }
 
   def processMining(): Unit = {
-    val parentBlock = blockchain.getBestBlock()
-    blockCreator
-      .getBlockForMining(parentBlock)
-      .map {
-        case PendingBlockAndState(PendingBlock(block, _), _) => {
-          val blockNumber = block.header.number.toLong + 1
-          val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
-          val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
-          val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
-          val startTime = System.nanoTime()
-          val mineResult =
-            mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
-          val time = System.nanoTime() - startTime
-          //FIXME: consider not reporting hash rate when time delta is zero
-          val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
-          ethMiningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
-          mineResult match {
-            case MiningSuccessful(_, pow, nonce) =>
-              log.info(
-                s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
-              )
-              syncController ! SyncProtocol.MinedBlock(
-                block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
-              )
-            case _ => log.info("Mining unsuccessful")
+    blockchain.getBestBlock() match {
+      case Some(blockValue) =>
+        blockCreator
+          .getBlockForMining(blockValue)
+          .map {
+            case PendingBlockAndState(PendingBlock(block, _), _) => {
+              val blockNumber = block.header.number.toLong + 1
+              val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
+              val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
+              val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
+              val startTime = System.nanoTime()
+              val mineResult =
+                mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
+              val time = System.nanoTime() - startTime
+              //FIXME: consider not reporting hash rate when time delta is zero
+              val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
+              ethMiningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
+              mineResult match {
+                case MiningSuccessful(_, pow, nonce) =>
+                  log.info(
+                    s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
+                  )
+                  syncController ! SyncProtocol.MinedBlock(
+                    block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
+                  )
+                case _ => log.info("Mining unsuccessful")
+              }
+              self ! ProcessMining
+            }
           }
-          self ! ProcessMining
-        }
-      }
-      .onErrorHandle { ex =>
-        log.error(ex, "Unable to get block for mining")
+          .onErrorHandle { ex =>
+            log.error(ex, "Unable to get block for mining")
+            context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
+          }
+          .runAsyncAndForget
+      case None => {
+        log.error("Unable to get block for mining")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
       }
-      .runAsyncAndForget
+    }
   }
 
   private def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {

@@ -98,8 +98,8 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
     (blockCreator
-      .getBlockForMining(_: Option[Block], _: Boolean, _: Option[InMemoryWorldStateProxy]))
-      .expects(Some(parentBlock), withTransactions, *)
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
+      .expects(parentBlock, withTransactions, *)
       .returning(
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
@@ -108,9 +108,9 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
     (blockCreator
-      .getBlockForMining(_: Option[Block], _: Boolean, _: Option[InMemoryWorldStateProxy]))
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(where { (parent, withTxs, _) =>
-        parent.get == parentBlock && withTxs == withTransactions
+        parent == parentBlock && withTxs == withTransactions
       })
       .returning(
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))

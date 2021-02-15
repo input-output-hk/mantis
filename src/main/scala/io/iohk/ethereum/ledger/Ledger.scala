@@ -137,10 +137,13 @@ class LedgerImpl(
               importResult.foreach(measureBlockMetrics)
               importResult
             case None =>
+              log.error(s"Getting total difficulty for current best block with hash: $hash failed")
               Task.now(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
           }
         }
-      case _ => Task.now(BlockImportFailed(s"Couldn't find the current best block"))
+      case None =>
+        log.error("Getting current best block failed")
+        Task.now(BlockImportFailed(s"Couldn't find the current best block"))
     }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {

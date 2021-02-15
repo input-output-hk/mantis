@@ -45,8 +45,8 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, false, bfm1)
 
         (blockCreator
-          .getBlockForMining(_: Option[Block], _: Boolean, _: Option[InMemoryWorldStateProxy]))
-          .expects(Some(bfm1), false, *)
+          .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
+          .expects(bfm1, false, *)
           .returning(
             Task.raiseError(new RuntimeException("error"))
           )

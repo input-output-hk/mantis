@@ -97,7 +97,9 @@ class EthMiningService(
               )
             )
           }
-        case _ => Task.now(Left(JsonRpcError.BlockNotFound))
+        case None =>
+          log.error("Getting current best block failed")
+          Task.now(Left(JsonRpcError.InternalError))
       }
     })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 

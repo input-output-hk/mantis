@@ -28,24 +28,19 @@ class EthashBlockCreator(
   lazy val blockchainConfig = consensus.blockchainConfig
 
   def getBlockForMining(
-      parentBlock: Option[Block],
+      parentBlock: Block,
       withTransactions: Boolean = true,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
   ): Task[PendingBlockAndState] = {
     val transactions = if (withTransactions) getTransactionsFromPool else Task.now(PendingTransactionsResponse(Nil))
-    parentBlock match {
-      case Some(parent) =>
-        Task.parZip2(getOmmersFromPool(parent.hash), transactions).map { case (ommers, pendingTxs) =>
-          blockGenerator.generateBlock(
-            parent,
-            pendingTxs.pendingTransactions.map(_.stx.tx),
-            coinbase,
-            ommers.headers,
-            initialWorldStateBeforeExecution
-          )
-        }
-      case None =>
-        Task.raiseError(new RuntimeException("error reading block"))
+    Task.parZip2(getOmmersFromPool(parentBlock.hash), transactions).map { case (ommers, pendingTxs) =>
+      blockGenerator.generateBlock(
+        parentBlock,
+        pendingTxs.pendingTransactions.map(_.stx.tx),
+        coinbase,
+        ommers.headers,
+        initialWorldStateBeforeExecution
+      )
     }
   }
 
