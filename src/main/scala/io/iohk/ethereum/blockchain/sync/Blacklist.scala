@@ -36,7 +36,7 @@ object Blacklist {
     def description: String
   }
   object BlacklistReason {
-    trait BlacklistReasonType {
+    sealed trait BlacklistReasonType {
       def code: Int
       def name: String
     }
