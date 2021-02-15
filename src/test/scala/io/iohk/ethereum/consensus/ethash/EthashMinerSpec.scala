@@ -35,7 +35,7 @@ class EthashMinerSpec
     val parent = origin
     val bfm = blockForMining(parent.header)
 
-    (blockchain.getBestBlock _).expects().returns(parent).anyNumberOfTimes()
+    (blockchain.getBestBlock _).expects().returns(Some(parent)).anyNumberOfTimes()
     (ethMiningService.submitHashRate _)
       .expects(*)
       .returns(Task.now(Right(SubmitHashRateResponse(true))))

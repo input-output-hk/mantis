@@ -43,6 +43,7 @@ object JsonRpcError extends JsonMethodsImplicits {
 
   def executionError(reasons: List[EthCustomError]): JsonRpcError = JsonRpcError(3, "Execution error", reasons)
   val NodeNotFound = executionError(List(EthCustomError.DoesntExist("State node")))
+  val BlockNotFound = executionError(List(EthCustomError.DoesntExist("Block")))
 
   // Custom errors based on proposal https://eth.wiki/json-rpc/json-rpc-error-codes-improvement-proposal
   sealed abstract class EthCustomError private (val code: Int, val message: String)

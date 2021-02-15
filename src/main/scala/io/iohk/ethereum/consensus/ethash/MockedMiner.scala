@@ -45,7 +45,7 @@ class MockedMiner(
           }
         case None =>
           val parentBlock = blockchain.getBestBlock()
-          startMiningBlocks(mineBlocks, parentBlock)
+          startMiningBlocks(mineBlocks, parentBlock.get)
       }
   }
 
@@ -67,7 +67,7 @@ class MockedMiner(
     case MineBlock =>
       if (numBlocks > 0) {
         blockCreator
-          .getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution)
+          .getBlockForMining(Some(parentBlock), withTransactions, initialWorldStateBeforeExecution)
           .runToFuture pipeTo self
       } else {
         log.info(s"Mining all mocked blocks successful")
