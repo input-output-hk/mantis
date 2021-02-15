@@ -235,7 +235,10 @@ class SyncSchedulerSpec
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them
   it should "sync whole trie when receiving all nodes from remote side" in new TestSetup {
-    forAll(genMultipleNodeData(superSlow(2000).getOrElse(20))) { nodeData =>
+    val nodeDataGen = genMultipleNodeData(
+      superSlow(2000).getOrElse(20) // use smaller test set for CI as it is super slow there
+    )
+    forAll(nodeDataGen) { nodeData =>
       val prov = getTrieProvider
       val worldHash = prov.buildWorld(nodeData)
       val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()

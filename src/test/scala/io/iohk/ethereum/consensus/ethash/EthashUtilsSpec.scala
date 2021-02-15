@@ -62,7 +62,7 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     proofOfWork.mixHash shouldBe ByteString(mixHash)
     proofOfWork.difficultyBoundary shouldBe ByteString(boundary)
 
-    superSlow {
+    superSlow { // skip extra test cases on CI as it is super slow there
       val table = Table(
         ("blockNumber", "hashWithoutNonce", "nonce", "mixHash"),
         (

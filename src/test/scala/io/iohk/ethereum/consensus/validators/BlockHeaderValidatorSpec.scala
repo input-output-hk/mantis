@@ -54,7 +54,7 @@ class BlockHeaderValidatorSpec
     val cases: TableFor4[BlockHeader, Block, Boolean, Boolean] = Table(
       ("Block", "Parent Block", "Supports Dao Fork", "Valid"),
       (DaoForkBlock.header, DaoParentBlock.block, false, true)
-    ) ++ superSlow {
+    ) ++ superSlow { // skip extra test cases on CI as it is super slow there
       Seq(
         (DaoForkBlock.header, DaoParentBlock.block, true, false),
         (ProDaoForkBlock.header, DaoParentBlock.block, true, true),
