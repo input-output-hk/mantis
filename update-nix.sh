@@ -25,7 +25,13 @@ fi
 
 echo "Determining new sha for sbt build, this can take several minutes to do a 'sbt compile'"
 
-NEW_SHA=$(nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>&1 | grep "  got: " | head -n 1 | sed -r 's/\s+got:\s+//' | xargs nix-hash --to-base32 --type sha256 )
+tmpfile=$(mktemp)
+
+nix-build -E 'with import ./. {}; deps.overrideAttrs( _: { outputHash = "0000000000000000000000000000000000000000000000000000"; })' 2>& 1 | tee $tmpfile
+
+NEW_SHA=$(grep "  got: " $tmpfile | head -n 1 | sed -r 's/\s+got:\s+//' | xargs nix-hash --to-base32 --type sha256 )
+
+rm $tmpfile
 
 echo "Calculated sha: $NEW_SHA"
 
