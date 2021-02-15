@@ -125,7 +125,7 @@ final case class CacheBasedBlacklist(cache: Cache[BlacklistId, BlacklistReasonTy
   override def isBlacklisted(id: BlacklistId): Boolean = cache.getIfPresent(id).isDefined
 
   override def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit = {
-    log.debug("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason)
+    log.debug("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason.description)
     cache.policy().expireVariably().toScala match {
       case Some(varExpiration) => varExpiration.put(id, reason.reasonType, duration.toJava)
       case None =>
