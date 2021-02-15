@@ -95,11 +95,21 @@ class EthProofServiceSpec
     result.isRight shouldBe true
     result.fold(
       l => l,
-      r =>
-        r.proofAccount.storageProof.map(v => {
+      r => {
+        val accountProof = r.proofAccount
+        accountProof.address should matchTo(address)
+        accountProof.accountProof.foreach { p =>
+          p should not be empty
+        }
+        accountProof.balance shouldBe balance.toBigInt
+        accountProof.codeHash shouldBe account.codeHash
+        accountProof.nonce shouldBe nonce
+        accountProof.storageHash shouldBe account.storageRoot
+        accountProof.storageProof.map(v => {
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(0)
         })
+      }
     )
   }
 
@@ -109,11 +119,21 @@ class EthProofServiceSpec
     result.isRight shouldBe true
     result.fold(
       l => l,
-      r =>
+      r => {
+        val accountProof = r.proofAccount
+        accountProof.address should matchTo(address)
+        accountProof.accountProof.foreach { p =>
+          p should not be empty
+        }
+        accountProof.balance shouldBe balance.toBigInt
+        accountProof.codeHash shouldBe account.codeHash
+        accountProof.nonce shouldBe nonce
+        accountProof.storageHash shouldBe account.storageRoot
         r.proofAccount.storageProof.map(v => {
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(value)
         })
+      }
     )
   }
 
@@ -125,8 +145,17 @@ class EthProofServiceSpec
     result.fold(
       l => l,
       r => {
-        r.proofAccount.storageProof.size shouldBe 2
-        r.proofAccount.storageProof.map(v => {
+        val accountProof = r.proofAccount
+        accountProof.address should matchTo(address)
+        accountProof.accountProof.foreach { p =>
+          p should not be empty
+        }
+        accountProof.balance shouldBe balance.toBigInt
+        accountProof.codeHash shouldBe account.codeHash
+        accountProof.nonce shouldBe nonce
+        accountProof.storageHash shouldBe account.storageRoot
+        accountProof.storageProof.size shouldBe 2
+        accountProof.storageProof.map(v => {
           v.proof.nonEmpty shouldBe true
           expectedValueStorageKey should contain(v.value)
         })
@@ -143,8 +172,17 @@ class EthProofServiceSpec
     result.fold(
       l => l,
       r => {
-        r.proofAccount.storageProof.size shouldBe 3
-        expectedValueStorageKey.forall(r.proofAccount.storageProof.map(_.value).contains) shouldBe true
+        val accountProof = r.proofAccount
+        accountProof.address should matchTo(address)
+        accountProof.accountProof.foreach { p =>
+          p should not be empty
+        }
+        accountProof.balance shouldBe balance.toBigInt
+        accountProof.codeHash shouldBe account.codeHash
+        accountProof.nonce shouldBe nonce
+        accountProof.storageHash shouldBe account.storageRoot
+        accountProof.storageProof.size shouldBe 3
+        expectedValueStorageKey.forall(accountProof.storageProof.map(_.value).contains) shouldBe true
       }
     )
   }
@@ -153,6 +191,8 @@ class EthProofServiceSpec
 
     val blockGenerator = mock[EthashBlockGenerator]
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+    val balance = UInt256(0)
+    val nonce = 0
 
     val key = 333
     val value = 123
@@ -171,8 +211,8 @@ class EthProofServiceSpec
       .put(UInt256(key2), UInt256(value2))
 
     val account = Account(
-      nonce = 0,
-      balance = UInt256(0),
+      nonce = nonce,
+      balance = balance,
       storageRoot = ByteString(storageMpt.getRootHash)
     )
 
@@ -202,8 +242,8 @@ class EthProofServiceSpec
         blockNumber: BlockParam
     ): ServiceResponse[ProofService.GetProofResponse] = {
       val request = GetProofRequest(address, storageKeys, blockNumber)
-      val retrievedAccountProofWrong: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
-      retrievedAccountProofWrong
+      val retrievedAccountProof: ServiceResponse[ProofService.GetProofResponse] = ethGetProof.getProof(request)
+      retrievedAccountProof
     }
 
     val ethUserService = new EthUserService(
