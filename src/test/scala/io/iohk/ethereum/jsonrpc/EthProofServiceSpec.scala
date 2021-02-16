@@ -192,6 +192,27 @@ class EthProofServiceSpec
     )
   }
 
+  "EthProofService" should "return account proof and account details, with empty storage proof" in new TestSetup {
+    val result = fetchProof(address, Seq.empty, blockNumber).runSyncUnsafe()
+    result.isRight shouldBe true
+    result.fold(
+      l => l,
+      r => {
+        val accountProof = r.proofAccount
+        accountProof.address should matchTo(address)
+        accountProof.accountProof.foreach { p =>
+          p should not be empty
+        }
+        accountProof.accountProof.head shouldBe rlp.encode(RLPValue(mpt.getRootHash))
+        accountProof.balance shouldBe balance.toBigInt
+        accountProof.codeHash shouldBe account.codeHash
+        accountProof.nonce shouldBe nonce
+        accountProof.storageHash shouldBe account.storageRoot
+        accountProof.storageProof.size shouldBe 0
+      }
+    )
+  }
+
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
 
     val blockGenerator = mock[EthashBlockGenerator]
