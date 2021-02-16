@@ -112,11 +112,18 @@ object Dependencies {
     jline,
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
-    "com.google.guava" % "guava" % "29.0-jre",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
     "org.web3j" % "core" % "5.0.0" % Test,
     "io.vavr" % "vavr" % "1.0.0-alpha-3"
   )
+
+  val guava: Seq[ModuleID] = {
+    val version = "30.1-jre"
+    Seq(
+      "com.google.guava" % "guava" % version,
+      "com.google.guava" % "guava-testlib" % version % "test"
+    )
+  }
 
   val prometheus: Seq[ModuleID] = {
     val provider = "io.prometheus"
@@ -137,7 +144,7 @@ object Dependencies {
       "com.google.code.findbugs" % "jsr305" % "3.0.2" % Optional,
       provider % "micrometer-core" % version,
       provider % "micrometer-registry-jmx" % version,
-      provider % "micrometer-registry-prometheus" % version,
+      provider % "micrometer-registry-prometheus" % version
     )
   }
 
@@ -153,4 +160,9 @@ object Dependencies {
   val shapeless: Seq[ModuleID] = Seq(
     "com.chuusai" %% "shapeless" % "2.3.3"
   )
+
+  val scaffeine: Seq[ModuleID] = Seq(
+    "com.github.blemale" %% "scaffeine" % "4.0.2" % "compile"
+  )
+
 }

@@ -14,6 +14,7 @@ import monix.reactive.Observable
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.domain.ChainWeight
+import monix.execution.Scheduler
 
 import scala.concurrent.duration.DurationInt
 
@@ -25,8 +26,11 @@ class FastSyncSpec
   implicit val timeout: Timeout = Timeout(30.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
-    override implicit lazy val system = self.system
-    override implicit val scheduler = self.scheduler
+    override implicit lazy val system: ActorSystem = self.system
+    override implicit val scheduler: Scheduler = self.scheduler
+
+    val blacklistMaxElems: Int = 100
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(blacklistMaxElems)
 
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(pivotBlockOffset = 5, fastSyncBlockValidationX = 5, fastSyncThrottle = 1.millis)
@@ -70,6 +74,7 @@ class FastSyncSpec
         validators = validators,
         peerEventBus = peerEventBus.ref,
         etcPeerManager = etcPeerManager.ref,
+        blacklist = blacklist,
         syncConfig = syncConfig,
         scheduler = system.scheduler
       )
