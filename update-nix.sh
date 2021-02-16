@@ -1,10 +1,6 @@
-#!/usr/bin/env nix-shell
-#!nix-shell -p nixUnstable -i bash
+#!/usr/bin/env bash
 
 set -e
-
-# need to overwrite buildkite's version
-NIX_UNSTABLE=$(nix-build '<nixpkgs>' -A nixUnstable)/bin/nix
 
 name=$(basename $0)
 
