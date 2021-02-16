@@ -19,8 +19,13 @@ class CheckpointingService(
     lazy val bestBlockNum = blockchain.getBestBlockNumber()
     lazy val blockToReturnNum = bestBlockNum - bestBlockNum % req.checkpointingInterval
 
-    Task {
-      blockchain.getBlockByNumber(blockToReturnNum)
+    lazy val lastCheckpoint = blockchain.getLatestCheckpointBlockNumber()
+    lazy val possibleLastCheckpoint = blockToReturnNum - req.checkpointingInterval + 1
+    lazy val isLastCheckpointImported = if(possibleLastCheckpoint > 1) lastCheckpoint == possibleLastCheckpoint else true
+
+    Task(isLastCheckpointImported).flatMap { isLastChckImported =>
+      if(isLastChckImported) Task(blockchain.getBlockByNumber(blockToReturnNum))
+      else Task.now(None)
     }.flatMap {
       case Some(b) =>
         val resp = GetLatestBlockResponse(b.hash, b.number)

@@ -41,6 +41,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(block.hash, block.number)
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getLatestCheckpointBlockNumber _).expects().returning(checkpointedBlockNum - k + 1)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
