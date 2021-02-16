@@ -92,7 +92,7 @@ class EthashMiner(
           }
           .runAsyncAndForget
       case None => {
-        log.error("Unable to get block for mining")
+        log.error("Unable to get block for mining, getBestBlock() returned None")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
       }
     }
