@@ -30,7 +30,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
     syncConfig.peersScanInterval,
     etcPeerManager,
     EtcPeerManagerActor.GetHandshakedPeers
-  )
+  )(ec, context.self)
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) => updatePeers(peers)

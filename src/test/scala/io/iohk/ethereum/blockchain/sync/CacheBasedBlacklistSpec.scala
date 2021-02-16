@@ -37,7 +37,8 @@ class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
       blacklist.add(peer4, 1.minute, anotherReason)
       blacklist.add(peer5, 1.minute, reason)
       blacklist.cache.cleanUp()
-      assert(blacklist.keys.size <= 3)
+      val size = blacklist.keys.size
+      assert(size <= 3 && size > 0)
     }
     "should expire elements" in {
       val maxSize = 10
@@ -46,7 +47,7 @@ class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
         .expireAfter[BlacklistId, BlacklistReason.BlacklistReasonType](
           create = (_, _) => 60.minutes,
           update = (_, _, _) => 60.minutes,
-          read = (_, _, _) => 60.minutes
+          read = (_, _, duration) => duration
         )
         .maximumSize(
           maxSize
@@ -59,6 +60,8 @@ class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
       blacklist.add(peer3, 3.minutes, anotherReason)
       blacklist.add(peer4, 2.minutes, reason)
       blacklist.add(peer5, 7.minutes, reason)
+      blacklist.isBlacklisted(peer2) // just to simulate a read
+      blacklist.keys // just to simulate a read
       ticker.advance(5, TimeUnit.MINUTES)
       val expected = Set(peer2, peer5)
       blacklist.cache.cleanUp()

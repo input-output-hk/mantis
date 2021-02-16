@@ -125,7 +125,7 @@ final case class CacheBasedBlacklist(cache: Cache[BlacklistId, BlacklistReasonTy
   override def isBlacklisted(id: BlacklistId): Boolean = cache.getIfPresent(id).isDefined
 
   override def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit = {
-    log.debug("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason.description)
+    log.info("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason.description)
     cache.policy().expireVariably().toScala match {
       case Some(varExpiration) => varExpiration.put(id, reason.reasonType, duration.toJava)
       case None =>
@@ -149,7 +149,7 @@ object CacheBasedBlacklist {
         .expireAfter[BlacklistId, BlacklistReasonType](
           create = (_, _) => 60.minutes,
           update = (_, _, _) => 60.minutes,
-          read = (_, _, _) => 60.minutes
+          read = (_, _, duration) => duration // read access should not change the expiration time
         ) // required to enable VarExpiration policy (i.e. set custom expiration time per element)
         .maximumSize(
           maxSize
