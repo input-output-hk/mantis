@@ -11,6 +11,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
+// will be removed once regular sync is switched to new blacklist/peerlist implementation
 trait PeerListSupport {
   self: Actor with ActorLogging with BlacklistSupport =>
   import PeerListSupport._

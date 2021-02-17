@@ -4,9 +4,12 @@ import java.time.Instant
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
+import io.iohk.ethereum.blockchain.sync.Blacklist._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
@@ -20,7 +23,7 @@ import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -42,12 +45,12 @@ class FastSync(
     val validators: Validators,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
+    val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport
+    with PeerListSupportNg
     with ReceiptsValidator
     with SyncBlocksValidator {
 
@@ -58,9 +61,7 @@ class FastSync(
 
   override def receive: Receive = idle
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
-
-  def idle: Receive = handleCommonMessages orElse {
+  def idle: Receive = handlePeerListMessages orElse {
     case SyncProtocol.Start => start()
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
   }
@@ -89,7 +90,7 @@ class FastSync(
     context become waitingForPivotBlock
   }
 
-  def waitingForPivotBlock: Receive = handleCommonMessages orElse {
+  def waitingForPivotBlock: Receive = handlePeerListMessages orElse {
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
     case PivotBlockSelector.Result(pivotBlockHeader) =>
       if (pivotBlockHeader.number < 1) {
@@ -157,10 +158,10 @@ class FastSync(
     def handleStatus: Receive = {
       case SyncProtocol.GetStatus => sender() ! currentSyncingStatus
       case SyncStateSchedulerActor.StateSyncStats(saved, missing) =>
-        syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = (saved + missing))
+        syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = saved + missing)
     }
 
-    def receive: Receive = handleCommonMessages orElse handleStatus orElse {
+    def receive: Receive = handlePeerListMessages orElse handleStatus orElse {
       case UpdatePivotBlock(reason) => updatePivotBlock(reason)
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
@@ -174,7 +175,7 @@ class FastSync(
 
       case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
         log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
-        SyncMetrics.setBlockHeadersDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockHeadersDownloadTime(timeTaken)
 
         requestedHeaders.get(peer).foreach { requestedNum =>
           removeRequestHandler(sender())
@@ -184,12 +185,12 @@ class FastSync(
           )
             handleBlockHeaders(peer, blockHeaders)
           else
-            blacklist(peer.id, blacklistDuration, "wrong blockheaders response (empty or not chain forming)")
+            blacklist.add(peer.id, blacklistDuration, WrongBlockHeaders)
         }
 
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
         log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
-        SyncMetrics.setBlockBodiesDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockBodiesDownloadTime(timeTaken)
 
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
         requestedBlockBodies -= sender()
@@ -198,7 +199,7 @@ class FastSync(
 
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
         log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
-        SyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
+        FastSyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
 
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
         requestedReceipts -= sender()
@@ -206,10 +207,10 @@ class FastSync(
         handleReceipts(peer, requestedHashes, receipts)
 
       case PeerRequestHandler.RequestFailed(peer, reason) =>
-        handleRequestFailure(peer, sender(), reason)
+        handleRequestFailure(peer, sender(), RequestFailed(reason))
 
       case Terminated(ref) if assignedHandlers.contains(ref) =>
-        handleRequestFailure(assignedHandlers(ref), ref, "Unexpected error")
+        handleRequestFailure(assignedHandlers(ref), ref, PeerActorTerminated)
     }
 
     def askForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Unit = {
@@ -247,7 +248,7 @@ class FastSync(
     }
 
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
-      handleCommonMessages orElse handleStatus orElse {
+      handlePeerListMessages orElse handleStatus orElse {
         case PivotBlockSelector.Result(pivotBlockHeader)
             if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
           log.info("New pivot block with number {} received", pivotBlockHeader.number)
@@ -424,7 +425,7 @@ class FastSync(
     }
 
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
-      blacklist(peer.id, duration, "block header validation failed")
+      blacklist.add(peer.id, duration, BlockHeaderValidationFailed)
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
@@ -438,7 +439,7 @@ class FastSync(
       }
     }
 
-    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]) = {
+    private def handleBlockHeaders(peer: Peer, headers: Seq[BlockHeader]): Unit = {
       if (checkHeadersChain(headers)) {
         processHeaders(peer, headers) match {
           case ParentChainWeightNotFound(header) =>
@@ -462,27 +463,22 @@ class FastSync(
             )
         }
       } else {
-        blacklist(peer.id, blacklistDuration, "error in block headers response")
+        blacklist.add(peer.id, blacklistDuration, ErrorInBlockHeaders)
         processSyncing()
       }
     }
 
-    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]) = {
+    private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
       if (blockBodies.isEmpty) {
-        val reason =
-          s"got empty block bodies response for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist(peer.id, blacklistDuration, reason)
+        val knownHashes = requestedHashes.map(ByteStringUtils.hash2string)
+        blacklist.add(peer.id, blacklistDuration, EmptyBlockBodies(knownHashes))
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
         validateBlocks(requestedHashes, blockBodies) match {
           case BlockBodyValidationResult.Valid =>
             insertBlocks(requestedHashes, blockBodies)
           case BlockBodyValidationResult.Invalid =>
-            blacklist(
-              peer.id,
-              blacklistDuration,
-              s"responded with block bodies not matching block headers, blacklisting for $blacklistDuration"
-            )
+            blacklist.add(peer.id, blacklistDuration, BlockBodiesNotMatchingHeaders)
             syncState = syncState.enqueueBlockBodies(requestedHashes)
           case BlockBodyValidationResult.DbError =>
             redownloadBlockchain()
@@ -492,10 +488,10 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]) = {
+    private def handleReceipts(peer: Peer, requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): Unit = {
       if (receipts.isEmpty) {
-        val reason = s"got empty receipts for known hashes: ${requestedHashes.map(ByteStringUtils.hash2string)}"
-        blacklist(peer.id, blacklistDuration, reason)
+        val knownHashes = requestedHashes.map(ByteStringUtils.hash2string)
+        blacklist.add(peer.id, blacklistDuration, EmptyReceipts(knownHashes))
         syncState = syncState.enqueueReceipts(requestedHashes)
       } else {
         validateReceipts(requestedHashes, receipts) match {
@@ -507,7 +503,7 @@ class FastSync(
               .reduce(_.and(_))
               .commit()
 
-            val receivedHashes = blockHashesWithReceipts.unzip._1
+            val receivedHashes = blockHashesWithReceipts.map(_._1)
             updateBestBlockIfNeeded(receivedHashes)
 
             val remainingReceipts = requestedHashes.drop(receipts.size)
@@ -516,10 +512,8 @@ class FastSync(
             }
 
           case ReceiptsValidationResult.Invalid(error) =>
-            val reason =
-              s"got invalid receipts for known hashes: ${requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))}" +
-                s" due to: $error"
-            blacklist(peer.id, blacklistDuration, reason)
+            val knownHashes = requestedHashes.map(h => Hex.toHexString(h.toArray[Byte]))
+            blacklist.add(peer.id, blacklistDuration, InvalidReceipts(knownHashes, error))
             syncState = syncState.enqueueReceipts(requestedHashes)
 
           case ReceiptsValidationResult.DbError =>
@@ -530,7 +524,7 @@ class FastSync(
       processSyncing()
     }
 
-    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: String) = {
+    private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: BlacklistReason): Unit = {
       removeRequestHandler(handler)
 
       syncState = syncState
@@ -541,8 +535,8 @@ class FastSync(
       requestedReceipts = requestedReceipts - handler
 
       requestedHeaders -= peer
-      if (handshakedPeers.contains(peer)) {
-        blacklist(peer.id, blacklistDuration, reason)
+      if (handshakedPeers.contains(peer.id)) {
+        blacklist.add(peer.id, blacklistDuration, reason)
       }
     }
 
@@ -566,18 +560,26 @@ class FastSync(
       )
     }
 
-    private def printStatus() = {
-      val formatPeer: (Peer) => String = peer =>
+    private def printStatus(): Unit = {
+      def formatPeerEntry(entry: PeerWithInfo): String = formatPeer(entry.peer)
+      def formatPeer(peer: Peer): String =
         s"${peer.remoteAddress.getAddress.getHostAddress}:${peer.remoteAddress.getPort}"
-      log.info(s"""|Block: ${appStateStorage.getBestBlockNumber()}/${syncState.pivotBlock.number}.
-            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedPeers.size} blacklisted).
+      val blacklistedIds = blacklist.keys
+      log.info(
+        s"""|Block: {}/${syncState.pivotBlock.number}.
+            |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedIds.size} blacklisted).
             |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
-            |""".stripMargin.replace("\n", " "))
+            |""".stripMargin.replace("\n", " "),
+        appStateStorage.getBestBlockNumber()
+      )
       log.debug(
-        s"""|Connection status: connected(${assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", ")})/
-            |handshaked(${handshakedPeers.keys.map(formatPeer).toSeq.sorted.mkString(", ")})
-            | blacklisted(${blacklistedPeers.map { case (id, _) => id.value }.mkString(", ")})
-            |""".stripMargin.replace("\n", " ")
+        s"""|Connection status: connected({})/
+            |handshaked({})
+            | blacklisted({})
+            |""".stripMargin.replace("\n", " "),
+        assignedHandlers.values.map(formatPeer).toSeq.sorted.mkString(", "),
+        handshakedPeers.values.toList.map(e => formatPeerEntry(e)).sorted.mkString(", "),
+        blacklistedIds.map(_.value).mkString(", ")
       )
     }
 
@@ -602,12 +604,12 @@ class FastSync(
     }
 
     private def getPeersWithFreshEnoughPivot(
-        peers: NonEmptyList[(Peer, PeerInfo)],
+        peers: NonEmptyList[PeerWithInfo],
         state: SyncState,
         syncConfig: SyncConfig
     ): List[(Peer, BigInt)] = {
       peers.collect {
-        case (peer, info) if hasBestBlockFreshEnoughToUpdatePivotBlock(info, state, syncConfig) =>
+        case PeerWithInfo(peer, info) if hasBestBlockFreshEnoughToUpdatePivotBlock(info, state, syncConfig) =>
           (peer, info.maxBlockNumber)
       }
     }
@@ -619,17 +621,17 @@ class FastSync(
       !(syncState.updatingPivotBlock || stateSyncRestartRequested)
 
     def pivotBlockIsStale(): Boolean = {
-      val currentPeers = peersToDownloadFrom.toList
-      if (currentPeers.isEmpty) {
+      val peersWithInfo = peersToDownloadFrom.values.toList
+      if (peersWithInfo.isEmpty) {
         false
       } else {
-        val peerWithBestBlockInNetwork = currentPeers.maxBy(peerWithNum => peerWithNum._2.maxBlockNumber)
+        val peerWithBestBlockInNetwork = peersWithInfo.maxBy(_.peerInfo.maxBlockNumber)
 
         val bestPossibleTargetDifferenceInNetwork =
-          (peerWithBestBlockInNetwork._2.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
+          (peerWithBestBlockInNetwork.peerInfo.maxBlockNumber - syncConfig.pivotBlockOffset) - syncState.pivotBlock.number
 
         val peersWithTooFreshPossiblePivotBlock =
-          getPeersWithFreshEnoughPivot(NonEmptyList.fromListUnsafe(currentPeers), syncState, syncConfig)
+          getPeersWithFreshEnoughPivot(NonEmptyList.fromListUnsafe(peersWithInfo), syncState, syncConfig)
 
         if (peersWithTooFreshPossiblePivotBlock.isEmpty) {
           log.info(
@@ -645,7 +647,7 @@ class FastSync(
             "There are {} peers with possible new pivot block, " +
               "best known pivot in current peer list has number {}",
             peersWithTooFreshPossiblePivotBlock.size,
-            peerWithBestBlockInNetwork._2.maxBlockNumber
+            peerWithBestBlockInNetwork.peerInfo.maxBlockNumber
           )
 
           pivotBlockIsStale
@@ -654,7 +656,7 @@ class FastSync(
     }
 
     def processSyncing(): Unit = {
-      SyncMetrics.measure(syncState)
+      FastSyncMetrics.measure(syncState)
       if (fullySynced) {
         finish()
       } else {
@@ -674,7 +676,7 @@ class FastSync(
 
     def finish(): Unit = {
       val totalTime = totalMinutesTaken()
-      SyncMetrics.setFastSyncTotalTimeGauge(totalTime.toDouble)
+      FastSyncMetrics.setFastSyncTotalTimeGauge(totalTime.toDouble)
       log.info("Total time taken for FastSync was {} minutes", totalTime)
       log.info("Block synchronization in fast mode finished, switching to regular mode")
 
@@ -708,7 +710,7 @@ class FastSync(
           .filter(p => peerRequestsTime.get(p.peer).forall(d => d.plusMillis(fastSyncThrottle.toMillis).isBefore(now)))
         peers
           .take(maxConcurrentRequests - assignedHandlers.size)
-          .sortBy(_.info.maxBlockNumber)(Ordering[BigInt].reverse)
+          .sortBy(_.peerInfo.maxBlockNumber)(Ordering[BigInt].reverse)
           .foreach(assignBlockchainWork)
       }
     }
@@ -796,8 +798,10 @@ class FastSync(
       peerRequestsTime += (peer -> Instant.now())
     }
 
-    def unassignedPeers: List[PeerWithInfo] =
-      (peersToDownloadFrom -- assignedHandlers.values).map(PeerWithInfo.tupled).toList
+    def unassignedPeers: List[PeerWithInfo] = {
+      val assignedPeers = assignedHandlers.values.map(_.id).toList
+      peersToDownloadFrom.removedAll(assignedPeers).values.toList
+    }
 
     def blockchainDataToDownload: Boolean =
       syncState.blockChainWorkQueued || syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
@@ -831,8 +835,6 @@ class FastSync(
 
 object FastSync {
 
-  case class PeerWithInfo(peer: Peer, info: PeerInfo)
-
   // scalastyle:off parameter.number
   def props(
       fastSyncStateStorage: FastSyncStateStorage,
@@ -841,6 +843,7 @@ object FastSync {
       validators: Validators,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
+      blacklist: Blacklist,
       syncConfig: SyncConfig,
       scheduler: Scheduler
   ): Props =
@@ -852,6 +855,7 @@ object FastSync {
         validators,
         peerEventBus,
         etcPeerManager,
+        blacklist,
         syncConfig,
         scheduler
       )

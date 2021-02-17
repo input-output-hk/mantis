@@ -63,7 +63,7 @@ class QAServiceSpec
     val reqWithoutBlockHash = req.copy(blockHash = None)
     (blockchain.getBestBlock _)
       .expects()
-      .returning(block)
+      .returning(Some(block))
       .once()
 
     val result: ServiceResponse[GenerateCheckpointResponse] =

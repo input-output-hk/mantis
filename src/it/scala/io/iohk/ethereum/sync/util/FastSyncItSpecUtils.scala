@@ -17,12 +17,16 @@ import monix.eval.Task
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 object FastSyncItSpecUtils {
 
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
     lazy val validators = new MockValidatorsAlwaysSucceed
+
+    val maxSize = 1000
+    val blacklist = CacheBasedBlacklist.empty(maxSize)
 
     lazy val fastSync = system.actorOf(
       FastSync.props(
@@ -32,6 +36,7 @@ object FastSyncItSpecUtils {
         validators,
         peerEventBus,
         etcPeerManager,
+        blacklist,
         testSyncConfig,
         system.scheduler
       )
@@ -50,7 +55,7 @@ object FastSyncItSpecUtils {
     // Reads whole trie into memory, if the trie lacks nodes in storage it will be None
     def getBestBlockTrie(): Option[MptNode] = {
       Try {
-        val bestBlock = bl.getBestBlock()
+        val bestBlock = bl.getBestBlock().get
         val bestStateRoot = bestBlock.header.stateRoot
         MptTraversals.parseTrieIntoMemory(
           HashNode(bestStateRoot.toArray),
@@ -94,7 +99,7 @@ object FastSyncItSpecUtils {
 
     def startWithState(): Task[Unit] = {
       Task {
-        val currentBest = bl.getBestBlock().header
+        val currentBest = bl.getBestBlock().get.header
         val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
         val nextToValidate = currentBest.number + 1
         val syncState =
