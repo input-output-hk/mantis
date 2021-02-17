@@ -105,8 +105,8 @@ object RegularSyncItSpecUtils {
       }
     }
 
-    def waitForRegularSyncLoadLastBlock(blockNumer: BigInt): Task[Boolean] = {
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumer), 1.second, 90) { isDone => isDone }
+    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] = {
+      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90) { isDone => isDone }
     }
 
     def mineNewBlock(
@@ -116,9 +116,9 @@ object RegularSyncItSpecUtils {
       val currentWeight = bl
         .getChainWeightByHash(block.hash)
         .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
-      val currentWolrd = getMptForBlock(block)
+      val currentWorld = getMptForBlock(block)
       val (newBlock, _, _) =
-        createChildBlock(block, currentWeight, currentWolrd, plusDifficulty)(updateWorldForBlock)
+        createChildBlock(block, currentWeight, currentWorld, plusDifficulty)(updateWorldForBlock)
       regularSync ! SyncProtocol.MinedBlock(newBlock)
     }
 
