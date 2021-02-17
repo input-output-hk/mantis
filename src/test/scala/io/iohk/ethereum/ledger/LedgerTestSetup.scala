@@ -368,7 +368,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   }
 
   def setBestBlock(block: Block): CallHandler0[BigInt] = {
-    (blockchain.getBestBlock _).expects().returning(block)
+    (blockchain.getBestBlock _).expects().returning(Some(block))
     (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
   }
 

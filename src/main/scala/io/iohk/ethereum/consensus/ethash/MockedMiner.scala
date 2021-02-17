@@ -45,7 +45,7 @@ class MockedMiner(
           }
         case None =>
           val parentBlock = blockchain.getBestBlock()
-          startMiningBlocks(mineBlocks, parentBlock)
+          startMiningBlocks(mineBlocks, parentBlock.get)
       }
   }
 

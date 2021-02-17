@@ -37,7 +37,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
         } yield {
-          assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
+          assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
         }
     }
 
@@ -52,7 +52,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
         } yield {
-          assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
+          assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
         }
     }
   }
@@ -72,7 +72,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
     } yield {
-      assert(peer1.bl.getBestBlock().hash == peer2.bl.getBestBlock().hash)
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
     }
   }
 
@@ -94,8 +94,8 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
     } yield {
       assert(
-        peer1.bl.getChainWeightByHash(peer1.bl.getBestBlock().hash) == peer2.bl.getChainWeightByHash(
-          peer2.bl.getBestBlock().hash
+        peer1.bl.getChainWeightByHash(peer1.bl.getBestBlock().get.hash) == peer2.bl.getChainWeightByHash(
+          peer2.bl.getBestBlock().get.hash
         )
       )
       (peer1.bl.getBlockByNumber(blockNumer + 1), peer2.bl.getBlockByNumber(blockNumer + 1)) match {

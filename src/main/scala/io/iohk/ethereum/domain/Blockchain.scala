@@ -142,7 +142,7 @@ trait Blockchain {
 
   def getBestBlockNumber(): BigInt
 
-  def getBestBlock(): Block
+  def getBestBlock(): Option[Block]
 
   def getLatestCheckpointBlockNumber(): BigInt
 
@@ -276,10 +276,10 @@ class BlockchainImpl(
   override def getLatestCheckpointBlockNumber(): BigInt =
     bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
 
-  override def getBestBlock(): Block = {
+  override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber).get
+    getBlockByNumber(bestBlockNumber)
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
