@@ -41,25 +41,28 @@ class FastSyncBranchResolver(
     }
   }
 
-  private def waitingBatchBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Receive = handleCommonMessages orElse {
-    case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) if peer == masterPeer =>
-      log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
-      getFirstCommonBlock(blockHeaders, bestBlockNumber) match {
-        case Some(firstCommonBlockNumber) =>
-          finalizeBranchResolver(bestBlockNumber, firstCommonBlockNumber, masterPeer)
-        case None =>
-          log.info("validation continue with binary searching")
-          requestBlockHeader(SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer = masterPeer))
-      }
-    case ResponseReceived(peer, BlockHeaders(blockHeaders), _) =>
-      log.warning(
-        "*** Invalid validation - Received {} block headers from a non-master peer {} ***",
-        blockHeaders.size,
-        peer
-      )
-    case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
-    case Terminated(ref) => log.debug(s"TODO:... $ref") //TODO
-  }
+  private def waitingBatchBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Receive =
+    handleCommonMessages orElse {
+      case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) if peer == masterPeer =>
+        log.info("*** Received {} block headers in {} ms ***", blockHeaders.size, timeTaken)
+        getFirstCommonBlock(blockHeaders, bestBlockNumber) match {
+          case Some(firstCommonBlockNumber) =>
+            finalizeBranchResolver(bestBlockNumber, firstCommonBlockNumber, masterPeer)
+          case None =>
+            log.info("validation continue with binary searching")
+            requestBlockHeader(
+              SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer = masterPeer)
+            )
+        }
+      case ResponseReceived(peer, BlockHeaders(blockHeaders), _) =>
+        log.warning(
+          "*** Invalid validation - Received {} block headers from a non-master peer {} ***",
+          blockHeaders.size,
+          peer
+        )
+      case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
+      case Terminated(ref) => log.debug(s"TODO:... $ref") //TODO
+    }
 
   private def binarySearchingLastValidBlock(searchState: SearchState, blockHeaderNumberToSearch: BigInt): Receive =
     handleCommonMessages orElse {
