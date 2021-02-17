@@ -36,13 +36,17 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
     newBlock.block.header.number > peerInfo.maxBlockNumber ||
       newBlock.chainWeight > peerInfo.chainWeight
 
-  private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[Peer, PeerInfo]): Unit =
-    obtainRandomPeerSubset(peers.keySet).foreach { peer =>
+  private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[Peer, PeerInfo]): Unit = {
+    val peerSubset: Set[Peer] = if (blockToBroadcast.block.hasCheckpoint) {
+      peers.keySet
+    } else obtainRandomPeerSubset(peers.keySet)
+    peerSubset.foreach { peer =>
       val message: MessageSerializable =
         if (peers(peer).remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
         else blockToBroadcast.as63
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
+  }
 
   private def broadcastNewBlockHash(blockToBroadcast: BlockToBroadcast, peers: Set[Peer]): Unit = peers.foreach {
     peer =>

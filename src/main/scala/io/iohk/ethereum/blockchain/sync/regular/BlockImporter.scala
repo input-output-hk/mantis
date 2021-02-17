@@ -247,7 +247,7 @@ class BlockImporter(
       informFetcherOnFail: Boolean,
       internally: Boolean
   ): ImportFn = {
-    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2)//log.log(entry._1, entry._2)
+    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2) //log.log(entry._1, entry._2)
     importWith(
       {
         Task(doLog(importMessages.preImport()))
