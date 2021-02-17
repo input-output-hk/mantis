@@ -1,13 +1,13 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import java.util.concurrent.atomic.AtomicLong
 import com.google.common.util.concurrent.AtomicDouble
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.metrics.MetricsContainer
 
+import java.util.concurrent.atomic.AtomicLong
 import scala.concurrent.duration.MILLISECONDS
 
-object SyncMetrics extends MetricsContainer {
+object FastSyncMetrics extends MetricsContainer {
 
   private final val PivotBlockNumberGauge =
     metrics.registry.gauge("fastsync.block.pivotBlock.number.gauge", new AtomicDouble(0d))

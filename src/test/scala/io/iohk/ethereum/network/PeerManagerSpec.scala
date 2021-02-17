@@ -310,8 +310,11 @@ class PeerManagerSpec
 
     time.advance(360000) // wait till the peer is out of the blacklist
 
-    val newRoundDiscoveredNodes = discoveredNodes + Node.fromUri(new java.net.URI(
-      "enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:38556?discport=38556"))
+    val newRoundDiscoveredNodes = discoveredNodes + Node.fromUri(
+      new java.net.URI(
+        "enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:38556?discport=38556"
+      )
+    )
 
     peerManager ! PeerDiscoveryManager.DiscoveredNodesInfo(newRoundDiscoveredNodes)
 

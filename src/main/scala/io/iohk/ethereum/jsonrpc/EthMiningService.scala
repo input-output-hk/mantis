@@ -78,26 +78,29 @@ class EthMiningService(
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     consensus.ifEthash(ethash => {
       reportActive()
-      val bestBlock = blockchain.getBestBlock()
-      val response: ServiceResponse[GetWorkResponse] =
-        Task.parZip2(getOmmersFromPool(bestBlock.hash), getTransactionsFromPool).map { case (ommers, pendingTxs) =>
-          val blockGenerator = ethash.blockGenerator
-          val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
-            bestBlock,
-            pendingTxs.pendingTransactions.map(_.stx.tx),
-            consensusConfig.coinbase,
-            ommers.headers,
-            None
-          )
-          Right(
-            GetWorkResponse(
-              powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-              dagSeed = EthashUtils.seed(pb.block.header.number.toLong),
-              target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
+      blockchain.getBestBlock() match {
+        case Some(block) =>
+          Task.parZip2(getOmmersFromPool(block.hash), getTransactionsFromPool).map { case (ommers, pendingTxs) =>
+            val blockGenerator = ethash.blockGenerator
+            val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
+              block,
+              pendingTxs.pendingTransactions.map(_.stx.tx),
+              consensusConfig.coinbase,
+              ommers.headers,
+              None
             )
-          )
-        }
-      response
+            Right(
+              GetWorkResponse(
+                powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
+                dagSeed = EthashUtils.seed(pb.block.header.number.toLong),
+                target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
+              )
+            )
+          }
+        case None =>
+          log.error("Getting current best block failed")
+          Task.now(Left(JsonRpcError.InternalError))
+      }
     })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
