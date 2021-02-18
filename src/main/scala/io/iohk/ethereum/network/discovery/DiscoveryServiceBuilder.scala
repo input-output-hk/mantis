@@ -17,6 +17,8 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import scodec.bits.BitVector
 import scodec.Codec
+import io.iohk.ethereum.network.PortForwarder
+import monix.eval.instances.CatsConcurrentForTask
 
 trait DiscoveryServiceBuilder {
 
@@ -54,6 +56,7 @@ trait DiscoveryServiceBuilder {
       udpConfig = makeUdpConfig(discoveryConfig, host)
       network <- makeDiscoveryNetwork(privateKey, localNode, v4Config, udpConfig)
       service <- makeDiscoveryService(privateKey, localNode, v4Config, network)
+      _ <- openPorts(discoveryConfig, tcpPort)
       _ <- Resource.liftF {
         setDiscoveryStatus(nodeStatusHolder, ServerStatus.Listening(udpConfig.bindAddress))
       }
@@ -177,4 +180,10 @@ trait DiscoveryServiceBuilder {
       // from that perspective it doesn't care whether enrollment is over or not.
       enrollInBackground = true
     )
+
+  private def openPorts(config: DiscoveryConfig, tcpPort: Int): Resource[Task, Unit] =
+    if (config.automaticPortForwarding)
+      PortForwarder.openPorts(Seq(tcpPort), Seq(config.port))
+    else
+      Resource.pure(())(CatsConcurrentForTask)
 }

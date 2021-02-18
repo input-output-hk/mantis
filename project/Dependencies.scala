@@ -114,7 +114,11 @@ object Dependencies {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
     "org.web3j" % "core" % "5.0.0" % Test,
-    "io.vavr" % "vavr" % "1.0.0-alpha-3"
+    "io.vavr" % "vavr" % "1.0.0-alpha-3",
+    "org.jupnp" % "org.jupnp" % "2.5.2",
+    "org.jupnp" % "org.jupnp.support" % "2.5.2",
+    "org.jupnp" % "org.jupnp.tool" % "2.5.2",
+    "javax.servlet" % "javax.servlet-api" % "4.0.1"
   )
 
   val guava: Seq[ModuleID] = {
