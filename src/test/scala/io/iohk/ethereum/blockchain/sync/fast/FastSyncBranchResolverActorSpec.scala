@@ -11,7 +11,7 @@ import cats.effect.concurrent.Deferred
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.{BranchResolvedSuccessful, StartBranchResolver}
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.{BranchResolvedSuccessful, StartBranchResolver}
 import io.iohk.ethereum.domain.{Block, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -31,7 +31,7 @@ import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Random
 
-class FastSyncBranchResolverSpec
+class FastSyncBranchResolverActorSpec
     extends TestKit(ActorSystem("FastSyncBranchResolver_testing"))
     with AnyFreeSpecLike
     with ScalaFutures
@@ -39,7 +39,7 @@ class FastSyncBranchResolverSpec
     with WithActorSystemShutDown { self =>
   implicit val timeout: Timeout = Timeout(30.seconds)
 
-  import FastSyncBranchResolverSpec._
+  import FastSyncBranchResolverActorSpec._
 
   "FastSyncBranchResolver" - {
     "fetch headers from the new master peer" - {
@@ -70,11 +70,12 @@ class FastSyncBranchResolverSpec
         val firstBatchBlockHeaders: List[Block] =
           blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
 
-        val blocksSentFromPee: Map[Int, List[Block]] = Map(1 -> firstBatchBlockHeaders)
+        val blocksSentFromPeer: Map[Int, List[Block]] = Map(1 -> firstBatchBlockHeaders)
 
         saveBlocks(blocksSaved)
-        val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPee)
-        val fastSyncBranchResolver = creatFastSyncBranchResolver(sender.ref, etcPeerManager)
+        val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
+        val fastSyncBranchResolver =
+          creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
         val (peer, peerInfo) = getBestPeer
         (for {
@@ -124,7 +125,8 @@ class FastSyncBranchResolverSpec
 
         saveBlocks(blocksSaved)
         val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPee)
-        val fastSyncBranchResolver = creatFastSyncBranchResolver(sender.ref, etcPeerManager)
+        val fastSyncBranchResolver =
+          creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
         val (peer, peerInfo) = getBestPeer
         (for {
@@ -181,17 +183,19 @@ class FastSyncBranchResolverSpec
       etcPeerManager.ref
     }
 
-    def creatFastSyncBranchResolver(fastSync: ActorRef, etcPeerManager: ActorRef): ActorRef = system.actorOf(
-      FastSyncBranchResolver.prop(
-        fastSync = fastSync,
-        peerEventBus = TestProbe("peer_event_bus").ref,
-        etcPeerManager = etcPeerManager,
-        blockchain = blockchain,
-        syncConfig = syncConfig,
-        appStateStorage = storagesInstance.storages.appStateStorage,
-        scheduler = system.scheduler
+    def creatFastSyncBranchResolver(fastSync: ActorRef, etcPeerManager: ActorRef, blacklist: Blacklist): ActorRef =
+      system.actorOf(
+        FastSyncBranchResolverActor.prop(
+          fastSync = fastSync,
+          peerEventBus = TestProbe("peer_event_bus").ref,
+          etcPeerManager = etcPeerManager,
+          blockchain = blockchain,
+          blacklist = blacklist,
+          syncConfig = syncConfig,
+          appStateStorage = storagesInstance.storages.appStateStorage,
+          scheduler = system.scheduler
+        )
       )
-    )
 
     def stopController(actorRef: ActorRef): Unit = {
       awaitCond(gracefulStop(actorRef, actorAskTimeout.duration).futureValue)
@@ -203,7 +207,9 @@ class FastSyncBranchResolverSpec
   }
 }
 
-object FastSyncBranchResolverSpec extends Logger {
+object FastSyncBranchResolverActorSpec extends Logger {
+
+  private val BlacklistMaxElements: Int = 100
 
   private val responsesSubject: Subject[MessageFromPeer, MessageFromPeer] = ReplaySubject()
   private val peersConnectedDeferred = Deferred.unsafe[Task, Unit]
