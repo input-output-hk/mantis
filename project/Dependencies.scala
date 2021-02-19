@@ -48,7 +48,7 @@ object Dependencies {
 
   val rocksDb = Seq(
     // use "5.18.3" for older macOS
-    "org.rocksdb" % "rocksdbjni" % "6.11.4"
+    "org.rocksdb" % "rocksdbjni" % "6.15.2"
   )
 
   val enumeratum: Seq[ModuleID] = Seq(
