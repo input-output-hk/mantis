@@ -4,8 +4,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-
-import scala.collection.{Seq, mutable}
+import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 
 //TODO EC-492 Investigate more carefully possibility of having read cache in front of db
@@ -34,7 +33,7 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
     }
   }
 
-  override def clear: Unit = {
+  override def clear(): Unit = {
     lastClear.getAndSet(System.nanoTime())
     cache.clear()
   }

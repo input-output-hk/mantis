@@ -191,6 +191,8 @@ object CommonMessages {
             signature,
             chainId
           )
+        case _ =>
+          throw new RuntimeException("Cannot decode SignedTransaction")
       }
     }
 

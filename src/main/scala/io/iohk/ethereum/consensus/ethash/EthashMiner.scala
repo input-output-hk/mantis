@@ -10,13 +10,14 @@ import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
 import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.jsonrpc.EthService
-import io.iohk.ethereum.jsonrpc.EthService.SubmitHashRateRequest
+import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 
@@ -28,7 +29,7 @@ class EthashMiner(
     blockchain: Blockchain,
     blockCreator: EthashBlockCreator,
     syncController: ActorRef,
-    ethService: EthService
+    ethMiningService: EthMiningService
 ) extends Actor
     with ActorLogging {
 
@@ -55,39 +56,46 @@ class EthashMiner(
   }
 
   def processMining(): Unit = {
-    val parentBlock = blockchain.getBestBlock()
-    val blockNumber = parentBlock.header.number.toLong + 1
-    val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
-    val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
-
-    blockCreator
-      .getBlockForMining(parentBlock)
-      .map { case PendingBlockAndState(PendingBlock(block, _), _) =>
-        val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
-        val startTime = System.nanoTime()
-        val mineResult =
-          mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
-        val time = System.nanoTime() - startTime
-        //FIXME: consider not reporting hash rate when time delta is zero
-        val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
-        ethService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
-        mineResult match {
-          case MiningSuccessful(_, pow, nonce) =>
-            log.info(
-              s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
-            )
-            syncController ! SyncProtocol.MinedBlock(
-              block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
-            )
-          case _ => log.info("Mining unsuccessful")
-        }
-        self ! ProcessMining
-      }
-      .onErrorHandle { ex =>
-        log.error(ex, "Unable to get block for mining")
+    blockchain.getBestBlock() match {
+      case Some(blockValue) =>
+        blockCreator
+          .getBlockForMining(blockValue)
+          .map {
+            case PendingBlockAndState(PendingBlock(block, _), _) => {
+              val blockNumber = block.header.number.toLong + 1
+              val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
+              val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
+              val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
+              val startTime = System.nanoTime()
+              val mineResult =
+                mine(headerHash, block.header.difficulty.toLong, dagSize, dag, blockCreator.miningConfig.mineRounds)
+              val time = System.nanoTime() - startTime
+              //FIXME: consider not reporting hash rate when time delta is zero
+              val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
+              ethMiningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
+              mineResult match {
+                case MiningSuccessful(_, pow, nonce) =>
+                  log.info(
+                    s"Mining successful with ${ByteStringUtils.hash2string(pow.mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
+                  )
+                  syncController ! SyncProtocol.MinedBlock(
+                    block.copy(header = block.header.copy(nonce = nonce, mixHash = pow.mixHash))
+                  )
+                case _ => log.info("Mining unsuccessful")
+              }
+              self ! ProcessMining
+            }
+          }
+          .onErrorHandle { ex =>
+            log.error(ex, "Unable to get block for mining")
+            context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
+          }
+          .runAsyncAndForget
+      case None => {
+        log.error("Unable to get block for mining, getBestBlock() returned None")
         context.system.scheduler.scheduleOnce(10.seconds, self, ProcessMining)
       }
-      .runAsyncAndForget
+    }
   }
 
   private def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
@@ -179,7 +187,7 @@ class EthashMiner(
     // scalastyle:off magic.number
     val initNonce = BigInt(64, new Random())
 
-    (0 to numRounds).toStream
+    (0 to numRounds).iterator
       .map { n =>
         val nonce = (initNonce + n) % MaxNonce
         val nonceBytes = ByteUtils.padLeft(ByteString(nonce.toUnsignedByteArray), 8)
@@ -199,10 +207,11 @@ object EthashMiner {
       blockchain: Blockchain,
       blockCreator: EthashBlockCreator,
       syncController: ActorRef,
-      ethService: EthService
+      ethInfoService: EthInfoService,
+      ethMiningService: EthMiningService
   ): Props =
     Props(
-      new EthashMiner(blockchain, blockCreator, syncController, ethService)
+      new EthashMiner(blockchain, blockCreator, syncController, ethMiningService)
     ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef = {
@@ -218,7 +227,8 @@ object EthashMiner {
           blockchain = node.blockchain,
           blockCreator = blockCreator,
           syncController = node.syncController,
-          ethService = node.ethService
+          ethInfoService = node.ethInfoService,
+          ethMiningService = node.ethMiningService
         )
         node.system.actorOf(minerProps)
       case consensus =>

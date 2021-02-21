@@ -1,7 +1,7 @@
 package io.iohk.ethereum.txExecTest.util
 
+import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -14,6 +14,7 @@ import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
+import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey, StorageValueProof}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -97,7 +98,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
-  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30))
+  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30)(Clock.systemUTC()))
 
   val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(
@@ -142,6 +143,14 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ) {
     override lazy val hash: ByteString = genesisHash
   }
+
+  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = None
+
+  override def getStorageProofAt(
+      rootHash: NodeHash,
+      position: BigInt,
+      ethCompatibleStorage: Boolean
+  ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 
@@ -203,7 +212,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = ???
 
-  def getBestBlock(): Block = ???
+  def getBestBlock(): Option[Block] = ???
 
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 

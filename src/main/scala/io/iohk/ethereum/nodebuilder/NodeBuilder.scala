@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.time.Clock
+
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
@@ -32,8 +34,10 @@ import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHis
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
 import java.util.concurrent.atomic.AtomicReference
+
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -187,6 +191,9 @@ trait PeerEventBusBuilder {
 
 trait PeerStatisticsBuilder {
   self: ActorSystemBuilder with PeerEventBusBuilder =>
+
+  // TODO: a candidate to move upwards in trait hierarchy?
+  implicit val clock = Clock.systemUTC()
 
   lazy val peerStatistics: ActorRef = system.actorOf(
     PeerStatisticsActor.props(
@@ -353,38 +360,89 @@ trait TestServiceBuilder {
     new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
 }
 
-trait EthServiceBuilder {
+trait EthProofServiceBuilder {
+  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
+
+  lazy val ethProofService: ProofService = new EthProofService(
+    blockchain,
+    consensus.blockGenerator,
+    blockchainConfig.ethCompatibleStorage
+  )
+}
+
+trait EthInfoServiceBuilder {
   self: StorageBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
-    with PendingTransactionsManagerBuilder
     with LedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
-    with OmmersPoolBuilder
-    with ConsensusBuilder
-    with ConsensusConfigBuilder
-    with FilterManagerBuilder
-    with FilterConfigBuilder
-    with TxPoolConfigBuilder
-    with JSONRpcConfigBuilder
     with AsyncConfigBuilder =>
 
-  lazy val ethService = new EthService(
+  lazy val ethInfoService = new EthInfoService(
     blockchain,
+    blockchainConfig,
     ledger,
     stxLedger,
     keyStore,
-    pendingTransactionsManager,
     syncController,
-    ommersPool,
-    filterManager,
-    filterConfig,
-    blockchainConfig,
     Config.Network.protocolVersion,
-    jsonRpcConfig,
-    txPoolConfig.getTransactionFromPoolTimeout,
     asyncConfig.askTimeout
+  )
+}
+
+trait EthMiningServiceBuilder {
+  self: BlockchainBuilder
+    with LedgerBuilder
+    with JSONRpcConfigBuilder
+    with OmmersPoolBuilder
+    with SyncControllerBuilder
+    with PendingTransactionsManagerBuilder
+    with TxPoolConfigBuilder =>
+
+  lazy val ethMiningService = new EthMiningService(
+    blockchain,
+    ledger,
+    jsonRpcConfig,
+    ommersPool,
+    syncController,
+    pendingTransactionsManager,
+    txPoolConfig.getTransactionFromPoolTimeout
+  )
+}
+trait EthTxServiceBuilder {
+  self: BlockchainBuilder with PendingTransactionsManagerBuilder with LedgerBuilder with TxPoolConfigBuilder =>
+
+  lazy val ethTxService = new EthTxService(
+    blockchain,
+    ledger,
+    pendingTransactionsManager,
+    txPoolConfig.getTransactionFromPoolTimeout
+  )
+}
+
+trait EthBlocksServiceBuilder {
+  self: BlockchainBuilder with LedgerBuilder =>
+
+  lazy val ethBlocksService = new EthBlocksService(blockchain, ledger)
+}
+
+trait EthUserServiceBuilder {
+  self: BlockchainBuilder with BlockchainConfigBuilder with LedgerBuilder =>
+
+  lazy val ethUserService = new EthUserService(
+    blockchain,
+    ledger,
+    blockchainConfig
+  )
+}
+
+trait EthFilterServiceBuilder {
+  self: FilterManagerBuilder with FilterConfigBuilder =>
+
+  lazy val ethFilterService = new EthFilterService(
+    filterManager,
+    filterConfig
   )
 }
 
@@ -467,7 +525,13 @@ trait JSONRpcConfigBuilder {
 
 trait JSONRpcControllerBuilder {
   this: Web3ServiceBuilder
-    with EthServiceBuilder
+    with EthInfoServiceBuilder
+    with EthProofServiceBuilder
+    with EthMiningServiceBuilder
+    with EthBlocksServiceBuilder
+    with EthTxServiceBuilder
+    with EthUserServiceBuilder
+    with EthFilterServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder
@@ -484,20 +548,26 @@ trait JSONRpcControllerBuilder {
     new JsonRpcController(
       web3Service,
       netService,
-      ethService,
+      ethInfoService,
+      ethMiningService,
+      ethBlocksService,
+      ethTxService,
+      ethUserService,
+      ethFilterService,
       personalService,
       testService,
       debugService,
       qaService,
       checkpointingService,
       mantisService,
+      ethProofService,
       jsonRpcConfig
     )
 }
 
 trait JSONRpcHealthcheckerBuilder {
-  this: NetServiceBuilder with EthServiceBuilder =>
-  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker = new NodeJsonRpcHealthChecker(netService, ethService)
+  this: NetServiceBuilder with EthBlocksServiceBuilder =>
+  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker = new NodeJsonRpcHealthChecker(netService, ethBlocksService)
 }
 
 trait JSONRpcHttpServerBuilder {
@@ -659,7 +729,13 @@ trait Node
     with ServerActorBuilder
     with SyncControllerBuilder
     with Web3ServiceBuilder
-    with EthServiceBuilder
+    with EthInfoServiceBuilder
+    with EthProofServiceBuilder
+    with EthMiningServiceBuilder
+    with EthBlocksServiceBuilder
+    with EthTxServiceBuilder
+    with EthUserServiceBuilder
+    with EthFilterServiceBuilder
     with NetServiceBuilder
     with PersonalServiceBuilder
     with DebugServiceBuilder

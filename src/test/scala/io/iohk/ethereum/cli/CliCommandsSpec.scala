@@ -82,7 +82,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
   it should "generate one key pair when passed no args" in {
     val result = api.parse(Seq(generateKeyPairsCommand))
     result shouldBe a[Right[_, _]]
-    val stringSplit = result.right.get.split("\\n\\n")
+    val stringSplit = result.toOption.get.split("\\n\\n")
     stringSplit.length shouldEqual 1
   }
 
@@ -91,7 +91,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
     val numOfKeysAsInt = numOfKeys.toInt
     val result = api.parse(Seq(generateKeyPairsCommand, numOfKeys))
     result shouldBe a[Right[_, _]]
-    val stringSplit = result.right.get.split("\\n\\n")
+    val stringSplit = result.toOption.get.split("\\n\\n")
     stringSplit.length shouldEqual numOfKeysAsInt
   }
 

@@ -3,11 +3,12 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd $DIR/..
 
-chain="$1"
-if [ -z "$chain" ]
-then
-  echo "You need to choose chain"
-else
+CONFIG_FILE="./conf/$1.conf"
+if [ -f "$CONFIG_FILE" ]; then
   shift
-  ./bin/mantis -Dconfig.file=./conf/"$chain".conf "$@"
+  CHAIN_PARAM="-Dconfig.file=$CONFIG_FILE"
+elif [ -z "$1" ]; then
+  CHAIN_PARAM="-Dconfig.file=./conf/etc.conf"
 fi
+
+./bin/mantis ${CHAIN_PARAM:+"$CHAIN_PARAM"} "$@"

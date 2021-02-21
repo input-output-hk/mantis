@@ -10,6 +10,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.ConsensusMetrics
 
 /** Internal API, used for testing (especially mocks) */
 trait EthashBlockGenerator extends TestBlockGenerator {
@@ -73,7 +74,7 @@ class EthashBlockGeneratorImpl(
       beneficiary: Address,
       x: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = {
+  ): PendingBlockAndState = ConsensusMetrics.EthashBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash

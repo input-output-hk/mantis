@@ -5,15 +5,19 @@ import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import com.trueaccord.scalapb.GeneratedMessage
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 import io.iohk.ethereum.vm.Generators
 import java.math.BigInteger
+
+import com.google.protobuf.CodedOutputStream
 import org.bouncycastle.util.BigIntegers
 import org.scalamock.scalatest.MockFactory
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.descriptors.{FieldDescriptor, PValue}
 
 class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
 
@@ -33,9 +37,16 @@ class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with
       val (out, fut) = Source.queue[ByteString](1024, OverflowStrategy.dropTail).toMat(Sink.seq)(Keep.both).run()
       fut.pipeTo(probe.ref)
 
-      val gm = mock[GeneratedMessage]
-      (gm.toByteArray _).expects().returning(bytes.toArray[Byte])
-
+      // mock of final fields is no longer possible
+      // had to create a GeneratedMessage stub
+      val gm = new GeneratedMessage {
+        override def writeTo(output: CodedOutputStream): Unit = output.writeRawBytes(bytes)
+        override def getFieldByNumber(fieldNumber: Int): Any = ???
+        override def getField(field: FieldDescriptor): PValue = ???
+        override def companion: GeneratedMessageCompanion[_] = ???
+        override def serializedSize: Int = bytes.size
+        override def toProtoString: String = ???
+      }
       val messageHandler = new MessageHandler(in, out)
       messageHandler.sendMessage(gm)
       messageHandler.close()

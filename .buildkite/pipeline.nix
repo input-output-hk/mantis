@@ -1,37 +1,18 @@
 { cfg, pkgs, ... }:
 
 with cfg.steps.commands;
-
 let
   commonAttrs = {
     retry.automatic = true;
     agents.queue = "project42";
   };
 in
-
 {
   steps.commands = {
     nixExpr = commonAttrs // {
       label = "ensure Nix expressions are up-to-date";
       command = ''
-        echo "Checking if Nix expressions are up-to-date..."
-
-        nix-shell --run 'sbtix-gen-all2'
-
-        set +e
-        git diff --exit-code > nix-expr.patch
-        if [ "$?" -eq "1" ]; then
-          set -e
-          echo "Nix expressions not up-to-date."
-          echo "Download and apply the patch available in the artifact paths of this step:"
-          echo "  patch -p1 < nix-expr.patch"
-          echo "Aborting."
-          exit 1
-        else
-          set -e
-          echo "Nix expressions up-to-date!"
-          exit 0
-        fi
+        ./update-nix.sh --check
       '';
       retry.automatic = false;
       artifactPaths = [
@@ -70,8 +51,8 @@ in
       '';
       artifactPaths = [
         "bytes/target/test-reports/**/*"
-        "bytes/target/scala-2.12/scoverage-report/**/*"
-        "bytes/target/scala-2.12/coverage-report/**/*"
+        "bytes/target/scala-2.13/scoverage-report/**/*"
+        "bytes/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -83,8 +64,8 @@ in
       '';
       artifactPaths = [
         "crypto/target/test-reports/**/*"
-        "crypto/target/scala-2.12/scoverage-report/**/*"
-        "crypto/target/scala-2.12/coverage-report/**/*"
+        "crypto/target/scala-2.13/scoverage-report/**/*"
+        "crypto/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -96,8 +77,8 @@ in
       '';
       artifactPaths = [
         "rlp/target/test-reports/**/*"
-        "rlp/target/scala-2.12/scoverage-report/**/*"
-        "rlp/target/scala-2.12/coverage-report/**/*"
+        "rlp/target/scala-2.13/scoverage-report/**/*"
+        "rlp/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -109,9 +90,22 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.12/scoverage-report/**/*"
-        "target/scala-2.12/coverage-report/**/*"
+        "target/scala-2.13/scoverage-report/**/*"
+        "target/scala-2.13/coverage-report/**/*"
       ];
+    };
+
+    annotate-test-reports = commonAttrs // {
+      dependsOn = [ test-unit ];
+      label = "annotate test reports";
+      command = "junit-annotate";
+      allowDependencyFailure = true;
+      plugins = [{
+        "junit-annotate#1.9.0" = {
+          artifacts = "target/test-reports/*.xml";
+          report-slowest = 50;
+        };
+      }];
     };
 
     test-evm = commonAttrs // {
@@ -122,8 +116,8 @@ in
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.12/scoverage-report/**/*"
-        "target/scala-2.12/coverage-report/**/*"
+        "target/scala-2.13/scoverage-report/**/*"
+        "target/scala-2.13/coverage-report/**/*"
       ];
     };
 

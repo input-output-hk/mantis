@@ -1,11 +1,10 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -22,7 +21,12 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
+
+import java.net.{InetSocketAddress, URI}
+import java.util.Collections.newSetFromMap
+import scala.collection.mutable
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 
 class PeerManagerActor(
     peerEventBus: ActorRef,
@@ -50,6 +54,8 @@ class PeerManagerActor(
 
   import PeerManagerActor._
   import akka.pattern.pipe
+
+  val triedNodes: mutable.Set[ByteString] = lruSet[ByteString](maxBlacklistedNodes)
 
   implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
 
@@ -126,6 +132,7 @@ class PeerManagerActor(
   private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
     if (connectedPeers.outgoingConnectionDemand > 0) {
       if (connectedPeers.canConnectTo(node)) {
+        triedNodes.add(node.id)
         self ! ConnectToPeer(node.toUri)
       } else {
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
@@ -134,9 +141,15 @@ class PeerManagerActor(
   }
 
   private def maybeConnectToDiscoveredNodes(connectedPeers: ConnectedPeers, nodes: Set[Node]): Unit = {
-    val nodesToConnect = nodes
+    val discoveredNodes = nodes
       .filter(connectedPeers.canConnectTo)
-      .take(connectedPeers.outgoingConnectionDemand)
+
+    val nodesToConnect = discoveredNodes
+      .filterNot(n => triedNodes.contains(n.id)) match {
+      case seq if seq.size >= connectedPeers.outgoingConnectionDemand =>
+        seq.take(connectedPeers.outgoingConnectionDemand)
+      case _ => discoveredNodes.take(connectedPeers.outgoingConnectionDemand)
+    }
 
     NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
     NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
@@ -152,14 +165,17 @@ class PeerManagerActor(
 
     if (nodesToConnect.nonEmpty) {
       log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-      nodesToConnect.foreach(n => self ! ConnectToPeer(n.toUri))
+      nodesToConnect.foreach(n => {
+        triedNodes.add(n.id)
+        self ! ConnectToPeer(n.toUri)
+      })
     } else {
       log.debug("The nodes list is empty, no new nodes to connect to")
     }
 
     // Make sure the background lookups keep going and we don't get stuck with 0
     // nodes to connect to until the next discovery scan loop. Only sending 1
-    // request so we don't rack up too many pending futures, just trigger a a
+    // request so we don't rack up too many pending futures, just trigger a
     // search if needed.
     if (connectedPeers.outgoingConnectionDemand > nodesToConnect.size) {
       peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
@@ -184,7 +200,7 @@ class PeerManagerActor(
   private def getBlacklistDuration(reason: Long): FiniteDuration = {
     import Disconnect.Reasons._
     reason match {
-      case TooManyPeers => peerConfiguration.shortBlacklistDuration
+      case TooManyPeers | AlreadyConnected | ClientQuitting => peerConfiguration.shortBlacklistDuration
       case _ => peerConfiguration.longBlacklistDuration
     }
   }
@@ -505,7 +521,7 @@ object PeerManagerActor {
 
   case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
 
-  case class PeerAddress(value: String) extends BlackListId
+  case class PeerAddress(value: String) extends BlacklistId
 
   case object SchedulePruneIncomingPeers
   case class PruneIncomingPeers(stats: PeerStatisticsActor.StatsForAll)
@@ -552,4 +568,9 @@ object PeerManagerActor {
       }
       .getOrElse(0.0)
   }
+
+  def lruSet[A](maxEntries: Int): mutable.Set[A] =
+    newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {
+      override def removeEldestEntry(eldest: java.util.Map.Entry[A, java.lang.Boolean]): Boolean = size > maxEntries
+    }).asScala
 }

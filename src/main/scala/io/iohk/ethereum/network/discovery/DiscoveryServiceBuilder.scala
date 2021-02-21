@@ -72,7 +72,7 @@ trait DiscoveryServiceBuilder {
     for {
       reusedKnownNodes <-
         if (discoveryConfig.reuseKnownNodes)
-          Task(knownNodesStorage.getKnownNodes.map(Node.fromUri))
+          Task(knownNodesStorage.getKnownNodes().map(Node.fromUri))
         else
           Task.pure(Set.empty[Node])
       // Discovery is going to enroll with all the bootstrap nodes passed to it.

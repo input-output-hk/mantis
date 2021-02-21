@@ -48,7 +48,7 @@ object Dependencies {
 
   val rocksDb = Seq(
     // use "5.18.3" for older macOS
-    "org.rocksdb" % "rocksdbjni" % "6.11.4"
+    "org.rocksdb" % "rocksdbjni" % "6.15.2"
   )
 
   val enumeratum: Seq[ModuleID] = Seq(
@@ -60,8 +60,8 @@ object Dependencies {
   val testing: Seq[ModuleID] = Seq(
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
     "org.scalamock" %% "scalamock" % "5.0.0" % "test",
-    "org.scalatestplus" %% "scalacheck-1-14" % "3.2.2.0" % "test",
-    "org.scalacheck" %% "scalacheck" % "1.14.3" % "it,test",
+    "org.scalatestplus" %% "scalacheck-1-15" % "3.2.3.0" % "test",
+    "org.scalacheck" %% "scalacheck" % "1.15.1" % "it,test",
     "com.softwaremill.diffx" %% "diffx-core" % "0.3.30" % "test",
     "com.softwaremill.diffx" %% "diffx-scalatest" % "0.3.30" % "test"
   )
@@ -80,7 +80,7 @@ object Dependencies {
   )
 
   val network: Seq[ModuleID] = {
-    val scalanetVersion = "0.4.4-SNAPSHOT"
+    val scalanetVersion = "0.6.0"
     Seq(
       "io.iohk" %% "scalanet" % scalanetVersion,
       "io.iohk" %% "scalanet-discovery" % scalanetVersion
@@ -94,11 +94,9 @@ object Dependencies {
     "org.codehaus.janino" % "janino" % "3.1.2"
   )
 
-  val twitterUtilCollection = Seq("com.twitter" %% "util-collection" % "19.1.0")
-
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
 
-  val scopt = Seq("com.github.scopt" % "scopt_2.12" % "3.7.1")
+  val scopt = Seq("com.github.scopt" %% "scopt" % "4.0.0")
 
   val cli = Seq("com.monovore" %% "decline" % "1.3.0")
 
@@ -114,11 +112,18 @@ object Dependencies {
     jline,
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
-    "com.google.guava" % "guava" % "29.0-jre",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
     "org.web3j" % "core" % "5.0.0" % Test,
     "io.vavr" % "vavr" % "1.0.0-alpha-3"
   )
+
+  val guava: Seq[ModuleID] = {
+    val version = "30.1-jre"
+    Seq(
+      "com.google.guava" % "guava" % version,
+      "com.google.guava" % "guava-testlib" % version % "test"
+    )
+  }
 
   val prometheus: Seq[ModuleID] = {
     val provider = "io.prometheus"
@@ -143,7 +148,21 @@ object Dependencies {
     )
   }
 
+  val kamon: Seq[ModuleID] = {
+    val provider = "io.kamon"
+    val version = "2.1.9"
+    Seq(
+      provider %% "kamon-prometheus" % version,
+      provider %% "kamon-akka" % version
+    )
+  }
+
   val shapeless: Seq[ModuleID] = Seq(
     "com.chuusai" %% "shapeless" % "2.3.3"
   )
+
+  val scaffeine: Seq[ModuleID] = Seq(
+    "com.github.blemale" %% "scaffeine" % "4.0.2" % "compile"
+  )
+
 }

@@ -368,7 +368,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   }
 
   def setBestBlock(block: Block): CallHandler0[BigInt] = {
-    (blockchain.getBestBlock _).expects().returning(block)
+    (blockchain.getBestBlock _).expects().returning(Some(block))
     (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
   }
 
@@ -400,7 +400,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit = {
-    (blockchain.genesisHeader _).expects().returning(header)
+    (() => blockchain.genesisHeader).expects().returning(header)
     setHeaderByHash(header.parentHash, None)
   }
 }

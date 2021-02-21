@@ -12,8 +12,7 @@ import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
 import scala.concurrent.duration._
 import org.scalatest.compatible.Assertion
-import java.time.ZoneId
-import java.time.Instant
+import io.iohk.ethereum.utils.MockClock
 
 class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
   import TimeSlotStatsSpec._
@@ -154,7 +153,8 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
   it should "handle 0 in configuration" in {
     // This might happen if we base the values on something which can be 0.
-    implicit val clock = Clock.systemUTC()
+    implicit val clock: Clock = Clock.systemUTC()
+
     val zeros = List(
       TimeSlotStats[String, Int](slotDuration = 1.minutes, slotCount = 0),
       TimeSlotStats[String, Int](slotDuration = 0.minutes, slotCount = 1)
@@ -217,18 +217,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
 object TimeSlotStatsSpec {
 
-  class MockClock(
-      private var currentTimeMillis: Long = System.currentTimeMillis,
-      zoneId: ZoneId = ZoneId.of("UTC")
-  ) extends Clock {
-    def windByMillis(by: Long): Unit =
-      currentTimeMillis = currentTimeMillis + by
-
-    override def instant(): Instant = Instant.ofEpochMilli(currentTimeMillis)
-    // The following are implemented for completness' sake but not used:
-    override def getZone(): ZoneId = zoneId
-    override def withZone(x: ZoneId): Clock = new MockClock(currentTimeMillis, zoneId)
-  }
+  implicit val clock = new MockClock()
 
   type TestState[K, V, A] = State[(TimeSlotStats[K, V], MockClock), A]
 
@@ -256,13 +245,9 @@ object TimeSlotStatsSpec {
     }
 
   def test[K, V: Monoid](s: TestState[K, V, Assertion]): Unit = {
-    implicit val clock = new MockClock()
     val stats = TimeSlotStats[K, V](defaultSlotDuration, defaultSlotCount).get
     s.run(stats -> clock).value
   }
-
-  implicit def noShrink[T]: Shrink[T] =
-    Shrink[T](_ => Stream.empty)
 
   def genTimeSlotStats[K: Arbitrary, V: Arbitrary: Monoid]: Gen[(TimeSlotStats[K, V], MockClock, FiniteDuration)] =
     for {
@@ -271,14 +256,12 @@ object TimeSlotStatsSpec {
       keyCount <- Gen.choose(1, 5)
       keys <- Gen.listOfN(keyCount, arbitrary[K])
       eventCount <- Gen.choose(0, 100)
-      timestamp = System.currentTimeMillis
       event = for {
         d <- Gen.choose(0, 10 * 60).map(_.seconds)
         k <- Gen.oneOf(keys)
         v <- arbitrary[V]
       } yield (d, k, v)
       events <- Gen.listOfN(eventCount, event)
-      clock = new MockClock()
       empty = TimeSlotStats[K, V](slotDuration, slotCount)(Monoid[V], clock).get
       stats = events.foldLeft(empty) { case (stats, (duration, key, stat)) =>
         clock.windByMillis(duration.toMillis)

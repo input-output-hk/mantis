@@ -9,6 +9,7 @@ import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
 import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.utils.ByteStringUtils._
 
 trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
 
@@ -91,7 +92,7 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
           val db = createDataSource(path)
           db.update(prepareUpdate(toUpsert = keyList.zip(keyList)))
 
-          val keyListWithExtraByte = keyList.map(1.toByte +: _)
+          val keyListWithExtraByte = keyList.map(key => concatByteStrings(1.toByte, key))
           updateInSeparateCalls(db, keyList.zip(keyListWithExtraByte))
 
           keyList.zip(keyListWithExtraByte).foreach { case (key, value) =>

@@ -1,4 +1,6 @@
-enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin)
+enablePlugins(JDKPackagerPlugin, JavaAppPackaging, SolidityPlugin, JavaAgent)
+
+javaAgents += "io.kamon" % "kanela-agent" % "1.0.6"
 
 import scala.sys.process.Process
 import NativePackagerHelper._
@@ -14,7 +16,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
   organization := "io.iohk",
   version := "3.2.1",
-  scalaVersion := "2.12.12",
+  scalaVersion := "2.13.4",
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
@@ -24,10 +26,6 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-deprecation",
     "-feature",
     "-Xfatal-warnings",
-    "-Xlint:unsound-match",
-    "-Ywarn-inaccessible",
-    "-Ywarn-unused-import",
-    "-Ypartial-unification",
     "-encoding",
     "utf-8"
   ),
@@ -113,24 +111,26 @@ lazy val node = {
     Seq(
       Dependencies.akka,
       Dependencies.akkaHttp,
-      Dependencies.json4s,
-      Dependencies.circe,
+      Dependencies.apacheCommons,
       Dependencies.boopickle,
-      Dependencies.rocksDb,
-      Dependencies.enumeratum,
-      Dependencies.testing,
       Dependencies.cats,
+      Dependencies.circe,
+      Dependencies.cli,
+      Dependencies.crypto,
+      Dependencies.dependencies,
+      Dependencies.enumeratum,
+      Dependencies.guava,
+      Dependencies.json4s,
+      Dependencies.kamon,
+      Dependencies.logging,
+      Dependencies.micrometer,
       Dependencies.monix,
       Dependencies.network,
-      Dependencies.twitterUtilCollection,
-      Dependencies.crypto,
-      Dependencies.scopt,
-      Dependencies.logging,
-      Dependencies.apacheCommons,
-      Dependencies.micrometer,
       Dependencies.prometheus,
-      Dependencies.cli,
-      Dependencies.dependencies
+      Dependencies.rocksDb,
+      Dependencies.scaffeine,
+      Dependencies.scopt,
+      Dependencies.testing
     ).flatten ++ malletDeps
   }
 
@@ -196,20 +196,22 @@ lazy val node = {
       ThisBuild / jdkPackagerType := "image",
       mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
       mappings in Universal += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf",
+      mappings in Universal += (resourceDirectory in Compile).value / "metrics.conf" -> "conf/metrics.conf",
       mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
         f -> s"conf/$name"
       },
-      jdkPackagerJVMArgs := Seq(
-        "-Dconfig.file=." + sep + "conf" + sep + "app.conf",
-        "-Dlogback.configurationFile=." + sep + "conf" + sep + "logback.xml",
-        "-Xss10M"
-      )
+      bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/app.conf"""",
+      bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
+      batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\conf\app.conf"""",
+      batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\conf\logback.xml""""
     )
 
   if (!nixBuild)
     node
   else
+    //node.settings(PB.protocExecutable := file("protoc"))
     node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+
 }
 
 coverageExcludedPackages := "io\\.iohk\\.ethereum\\.extvm\\.msg.*"
@@ -254,5 +256,5 @@ addCommandAlias(
     |""".stripMargin
 )
 
-scapegoatVersion in ThisBuild := "1.3.9"
+scapegoatVersion in ThisBuild := "1.4.7"
 scapegoatReports := Seq("xml")

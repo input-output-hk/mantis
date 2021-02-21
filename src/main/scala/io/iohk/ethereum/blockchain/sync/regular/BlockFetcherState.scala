@@ -3,16 +3,16 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.consensus.validators.BlockValidator
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
+import io.iohk.ethereum.utils.ByteStringUtils
 
-import scala.collection.immutable.Queue
 import scala.annotation.tailrec
-import io.iohk.ethereum.consensus.validators.BlockValidator
+import scala.collection.immutable.Queue
 
 // scalastyle:off number.of.methods
 /**
@@ -53,7 +53,7 @@ case class BlockFetcherState(
 
   private def hasEmptyBuffer: Boolean = readyBlocks.isEmpty && waitingHeaders.isEmpty
 
-  def hasFetchedTopHeader: Boolean = lastBlock == knownTop
+  def hasFetchedTopHeader: Boolean = nextBlockToFetch == knownTop + 1
 
   def isOnTop: Boolean = hasFetchedTopHeader && hasEmptyBuffer
 
@@ -83,10 +83,34 @@ case class BlockFetcherState(
       val lastNumber = HeadersSeq.lastNumber(validHeaders)
       withPossibleNewTopAt(lastNumber)
         .copy(
-          waitingHeaders = waitingHeaders ++ validHeaders,
-          lastBlock = lastNumber.getOrElse(lastBlock)
+          waitingHeaders = waitingHeaders ++ validHeaders
         )
     })
+
+  def tryInsertBlock(block: Block, peerId: PeerId): Either[String, BlockFetcherState] = {
+    val blockHash = block.hash
+    if (isExist(blockHash)) {
+      Right(this)
+    } else if (isExistInReadyBlocks(block.header.parentHash)) {
+      val newState = clearQueues()
+        .copy(
+          readyBlocks = readyBlocks.takeWhile(_.number < block.number).enqueue(block)
+        )
+        .withPeerForBlocks(peerId, Seq(block.number))
+        .withKnownTopAt(block.number)
+      Right(newState)
+    } else if (isExistInWaitingHeaders(block.header.parentHash)) {
+      // ignore already requested bodies
+      val newFetchingBodiesState =
+        if (fetchingBodiesState == AwaitingBodies) AwaitingBodiesToBeIgnored else fetchingBodiesState
+      val newState = copy(
+        waitingHeaders = waitingHeaders.takeWhile(_.number < block.number).enqueue(block.header),
+        fetchingBodiesState = newFetchingBodiesState
+      )
+        .withKnownTopAt(block.number)
+      Right(newState)
+    } else Left(s"Cannot insert block [${ByteStringUtils.hash2string(blockHash)}] into the queues")
+  }
 
   /**
     * Validates received headers consistency and their compatibilty with the state
@@ -169,7 +193,6 @@ case class BlockFetcherState(
         if (waitingHeader.hash == block.hash)
           withPeerForBlocks(fromPeer, Seq(block.number))
             .withPossibleNewTopAt(block.number)
-            .withLastBlock(block.number)
             .copy(
               readyBlocks = readyBlocks.enqueue(block),
               waitingHeaders = waitingHeadersTail
@@ -182,7 +205,7 @@ case class BlockFetcherState(
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
     if (readyBlocks.nonEmpty) {
       val (picked, rest) = readyBlocks.splitAt(amount)
-      Some((NonEmptyList(picked.head, picked.tail.toList), copy(readyBlocks = rest)))
+      Some((NonEmptyList(picked.head, picked.tail.toList), copy(readyBlocks = rest, lastBlock = picked.last.number)))
     } else {
       None
     }
@@ -203,27 +226,40 @@ case class BlockFetcherState(
       .map(blocks => (NonEmptyList(blocks.head, blocks.tail.toList), copy(readyBlocks = Queue())))
   }
 
-  def invalidateBlocksFrom(nr: BigInt): (Option[PeerId], BlockFetcherState) = invalidateBlocksFrom(nr, Some(nr))
-
-  def invalidateBlocksFrom(nr: BigInt, toBlacklist: Option[BigInt]): (Option[PeerId], BlockFetcherState) = {
+  def clearQueues(): BlockFetcherState = {
     // We can't start completely from scratch as requests could be in progress, we have to keep special track of them
     val newFetchingHeadersState =
       if (fetchingHeadersState == AwaitingHeaders) AwaitingHeadersToBeIgnored else fetchingHeadersState
     val newFetchingBodiesState =
       if (fetchingBodiesState == AwaitingBodies) AwaitingBodiesToBeIgnored else fetchingBodiesState
 
-    (
-      toBlacklist.flatMap(blockProviders.get),
-      copy(
-        readyBlocks = Queue(),
-        waitingHeaders = Queue(),
-        lastBlock = (nr - 2).max(0),
-        fetchingHeadersState = newFetchingHeadersState,
-        fetchingBodiesState = newFetchingBodiesState,
-        blockProviders = blockProviders - nr
-      )
+    copy(
+      readyBlocks = Queue(),
+      waitingHeaders = Queue(),
+      fetchingHeadersState = newFetchingHeadersState,
+      fetchingBodiesState = newFetchingBodiesState
     )
   }
+
+  def invalidateBlocksFrom(nr: BigInt): (Option[PeerId], BlockFetcherState) = invalidateBlocksFrom(nr, Some(nr))
+
+  def invalidateBlocksFrom(nr: BigInt, toBlacklist: Option[BigInt]): (Option[PeerId], BlockFetcherState) = {
+    (
+      toBlacklist.flatMap(blockProviders.get),
+      this
+        .clearQueues()
+        .copy(
+          lastBlock = (nr - 2).max(0),
+          blockProviders = blockProviders - nr
+        )
+    )
+  }
+
+  def isExist(hash: ByteString): Boolean = isExistInReadyBlocks(hash) || isExistInWaitingHeaders(hash)
+
+  def isExistInWaitingHeaders(hash: ByteString): Boolean = waitingHeaders.exists(_.hash == hash)
+
+  def isExistInReadyBlocks(hash: ByteString): Boolean = readyBlocks.exists(_.hash == hash)
 
   def withLastBlock(nr: BigInt): BlockFetcherState = copy(lastBlock = nr)
 

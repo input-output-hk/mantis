@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.EthService._
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.PersonalService.{InvalidAddress, SendIeleTransactionRequest}
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
@@ -11,7 +11,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 
   def extractIeleCall(obj: JObject): Either[JsonRpcError, IeleCallTx] = {
     def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
-      opt.map(_.right.map(Some.apply)).getOrElse(Right(None))
+      opt.map(_.map(Some.apply)).getOrElse(Right(None))
 
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))

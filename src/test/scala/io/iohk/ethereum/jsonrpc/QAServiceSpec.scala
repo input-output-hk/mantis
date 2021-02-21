@@ -25,7 +25,7 @@ class QAServiceSpec
 
   "QAService" should "send msg to miner and return miner's response" in testCaseM { fixture =>
     import fixture._
-    (testConsensus.sendMiner _)
+    (testConsensus.askMiner _)
       .expects(mineBlocksMsg)
       .returning(Task.now(MiningOrdered))
       .atLeastOnce()
@@ -35,7 +35,7 @@ class QAServiceSpec
 
   it should "send msg to miner and return InternalError in case of problems" in testCaseM { fixture =>
     import fixture._
-    (testConsensus.sendMiner _)
+    (testConsensus.askMiner _)
       .expects(mineBlocksMsg)
       .returning(Task.raiseError(new ClassCastException("error")))
       .atLeastOnce()
@@ -63,7 +63,7 @@ class QAServiceSpec
     val reqWithoutBlockHash = req.copy(blockHash = None)
     (blockchain.getBestBlock _)
       .expects()
-      .returning(block)
+      .returning(Some(block))
       .once()
 
     val result: ServiceResponse[GenerateCheckpointResponse] =

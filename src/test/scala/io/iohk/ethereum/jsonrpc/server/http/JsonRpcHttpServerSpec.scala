@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import java.net.InetAddress
-import java.time.{Clock, Instant, ZoneId}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.ActorSystem
@@ -215,7 +214,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       status shouldEqual StatusCodes.TooManyRequests
     }
 
-    fakeClock.advanceTime(2 * serverConfigWithRateLimit.rateLimit.minRequestInterval.toMillis)
+    mockJsonRpcHttpServerWithRateLimit.mockedTime = 50000000L
 
     postRequest ~> Route.seal(mockJsonRpcHttpServerWithRateLimit.route) ~> check {
       status shouldEqual StatusCodes.OK
@@ -382,7 +381,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     val rateLimitConfig = new RateLimitConfig {
       override val enabled: Boolean = false
-      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
+      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(20, TimeUnit.MILLISECONDS)
       override val latestTimestampCacheSize: Int = 1024
     }
 
@@ -397,7 +396,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     val rateLimitEnabledConfig = new RateLimitConfig {
       override val enabled: Boolean = true
-      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(5, TimeUnit.SECONDS)
+      override val minRequestInterval: FiniteDuration = FiniteDuration.apply(20, TimeUnit.MILLISECONDS)
       override val latestTimestampCacheSize: Int = 1024
     }
 
@@ -412,14 +411,12 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
 
     val mockJsonRpcController = mock[JsonRpcController]
     val mockJsonRpcHealthChecker = mock[JsonRpcHealthChecker]
-    val fakeClock = new FakeClock
 
     val mockJsonRpcHttpServer = new FakeJsonRpcHttpServer(
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
-      cors = serverConfig.corsAllowedOrigins,
-      testClock = fakeClock
+      cors = serverConfig.corsAllowedOrigins
     )
 
     val corsAllowedOrigin = HttpOrigin("http://localhost:3333")
@@ -427,16 +424,14 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfig,
-      cors = HttpOriginMatcher(corsAllowedOrigin),
-      testClock = fakeClock
+      cors = HttpOriginMatcher(corsAllowedOrigin)
     )
 
     val mockJsonRpcHttpServerWithRateLimit = new FakeJsonRpcHttpServer(
       jsonRpcController = mockJsonRpcController,
       jsonRpcHealthChecker = mockJsonRpcHealthChecker,
       config = serverConfigWithRateLimit,
-      cors = serverConfigWithRateLimit.corsAllowedOrigins,
-      testClock = fakeClock
+      cors = serverConfigWithRateLimit.corsAllowedOrigins
     )
   }
 }
@@ -467,27 +462,17 @@ class FakeJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
     val jsonRpcHealthChecker: JsonRpcHealthChecker,
     val config: JsonRpcHttpServerConfig,
-    val cors: HttpOriginMatcher,
-    val testClock: Clock
+    val cors: HttpOriginMatcher
 )(implicit val actorSystem: ActorSystem)
     extends JsonRpcHttpServer
     with Logger {
   def run(): Unit = ()
   override def corsAllowedOrigins: HttpOriginMatcher = cors
-  override val clock = testClock
-}
 
-class FakeClock extends Clock {
+  var mockedTime: Long = 0L
 
-  var time: Instant = Instant.now()
-
-  def advanceTime(seconds: Long): Unit = {
-    time = time.plusSeconds(seconds)
+  override protected val rateLimit: RateLimit = new RateLimit(config.rateLimit) {
+    override protected def getCurrentTimeNanos: Long = FakeJsonRpcHttpServer.this.mockedTime
   }
 
-  override def getZone: ZoneId = ZoneId.systemDefault()
-
-  override def withZone(zone: ZoneId): Clock = Clock.fixed(time, getZone)
-
-  override def instant(): Instant = time
 }

@@ -21,21 +21,21 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   before(clearKeyStore())
 
   "KeyStoreImpl" should "import and list accounts" in new TestSetup {
-    val listBeforeImport = keyStore.listAccounts().right.get
+    val listBeforeImport = keyStore.listAccounts().toOption.get
     listBeforeImport shouldEqual Nil
 
     // We sleep between imports so that dates of keyfiles' names are different
-    val res1 = keyStore.importPrivateKey(key1, "aaaaaaaa").right.get
+    val res1 = keyStore.importPrivateKey(key1, "aaaaaaaa").toOption.get
     Thread.sleep(1005)
-    val res2 = keyStore.importPrivateKey(key2, "bbbbbbbb").right.get
+    val res2 = keyStore.importPrivateKey(key2, "bbbbbbbb").toOption.get
     Thread.sleep(1005)
-    val res3 = keyStore.importPrivateKey(key3, "cccccccc").right.get
+    val res3 = keyStore.importPrivateKey(key3, "cccccccc").toOption.get
 
     res1 shouldEqual addr1
     res2 shouldEqual addr2
     res3 shouldEqual addr3
 
-    val listAfterImport = keyStore.listAccounts().right.get
+    val listAfterImport = keyStore.listAccounts().toOption.get
     // result should be ordered by creation date
     listAfterImport shouldEqual List(addr1, addr2, addr3)
   }
@@ -48,16 +48,16 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     resAfterDupImport shouldBe Left(KeyStore.DuplicateKeySaved)
 
     //Only the first import succeeded
-    val listAfterImport = keyStore.listAccounts().right.get
+    val listAfterImport = keyStore.listAccounts().toOption.get
     listAfterImport.toSet shouldEqual Set(addr1)
     listAfterImport.length shouldEqual 1
   }
 
   it should "create new accounts" in new TestSetup {
-    val newAddr1 = keyStore.newAccount("aaaaaaaa").right.get
-    val newAddr2 = keyStore.newAccount("bbbbbbbb").right.get
+    val newAddr1 = keyStore.newAccount("aaaaaaaa").toOption.get
+    val newAddr2 = keyStore.newAccount("bbbbbbbb").toOption.get
 
-    val listOfNewAccounts = keyStore.listAccounts().right.get
+    val listOfNewAccounts = keyStore.listAccounts().toOption.get
     listOfNewAccounts.toSet shouldEqual Set(newAddr1, newAddr2)
     listOfNewAccounts.length shouldEqual 2
   }
@@ -69,7 +69,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
 
   it should "allow 0 length passphrase when configured" in new TestSetup {
     val res1 = keyStore.newAccount("")
-    res1 shouldBe 'right
+    assert(res1.isRight)
   }
 
   it should "not allow 0 length passphrase when configured" in new TestSetup {
@@ -87,7 +87,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   it should "allow to create account with proper length passphrase, when empty is allowed" in new TestSetup {
     val newKeyStore = getKeyStore(noEmptyAllowedConfig)
     val res1 = newKeyStore.newAccount("aaaaaaaa")
-    res1 shouldBe 'right
+    assert(res1.isRight)
   }
 
   it should "return an error when the keystore dir cannot be initialized" in new TestSetup {
@@ -113,7 +113,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   it should "unlock an account provided a correct passphrase" in new TestSetup {
     val passphrase = "aaaaaaaa"
     keyStore.importPrivateKey(key1, passphrase)
-    val wallet = keyStore.unlockAccount(addr1, passphrase).right.get
+    val wallet = keyStore.unlockAccount(addr1, passphrase).toOption.get
     wallet shouldEqual Wallet(addr1, key1)
   }
 

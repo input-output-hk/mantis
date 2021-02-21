@@ -35,7 +35,7 @@ object App extends Logger {
       case Some(`cli`) => CliLauncher.main(args.tail)
       case Some(unknown) =>
         log.error(
-          s"Unrecognised launcher option, " +
+          s"Unrecognised launcher option $unknown, " +
             s"first parameter must be $launchKeytool, $downloadBootstrap, $launchMantis, " +
             s"$faucet, $vmServer, $ecKeyGen, $sigValidator or $cli"
         )

@@ -13,7 +13,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
   AwaitingHeadersToBeIgnored
 }
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NewCheckpointBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
@@ -215,16 +215,50 @@ class BlockFetcher(
 
     if (state.isOnTop && newBlockNr == nextExpectedBlock) {
       log.debug("Passing block directly to importer")
-      val newState = state.withPeerForBlocks(peerId, Seq(newBlockNr)).withKnownTopAt(newBlockNr)
+      val newState = state
+        .withPeerForBlocks(peerId, Seq(newBlockNr))
+        .withLastBlock(newBlockNr)
+        .withKnownTopAt(newBlockNr)
       state.importer ! OnTop
       state.importer ! ImportNewBlock(block, peerId)
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       context become started(newState)
-    } else {
-      log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
-      val newState = state.withPossibleNewTopAt(block.number)
-      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-      fetchBlocks(newState)
+    } else if (block.hasCheckpoint) {
+      handleNewCheckpointBlockNotOnTop(block, peerId, state)
+    } else handleFutureBlock(block, state)
+  }
+
+  private def handleFutureBlock(block: Block, state: BlockFetcherState): Unit = {
+    log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
+    val newState = state.withPossibleNewTopAt(block.number)
+    supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+    fetchBlocks(newState)
+  }
+
+  private def handleNewCheckpointBlockNotOnTop(block: Block, peerId: PeerId, state: BlockFetcherState): Unit = {
+    log.debug("Got checkpoint block")
+    val blockHash = block.hash
+    state.tryInsertBlock(block, peerId) match {
+      case Left(_) if block.number <= state.lastBlock =>
+        log.debug(
+          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} is older than current last block ${state.lastBlock}"
+        )
+        state.importer ! NewCheckpointBlock(block, peerId)
+      case Left(_) if block.number <= state.knownTop =>
+        log.debug(
+          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} not fit into queues - clearing the queues and setting new top"
+        )
+        val newState = state
+          .clearQueues()
+          .withPeerForBlocks(peerId, Seq(block.number))
+          .withKnownTopAt(block.number)
+        fetchBlocks(newState)
+      case Left(error) =>
+        log.debug(error)
+        handleFutureBlock(block, state)
+      case Right(state) =>
+        log.debug(s"Checkpoint block [${ByteStringUtils.hash2string(blockHash)}] fit into queues")
+        fetchBlocks(state)
     }
   }
 

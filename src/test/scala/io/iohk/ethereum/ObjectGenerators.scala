@@ -19,8 +19,6 @@ import org.scalacheck.{Arbitrary, Gen, Shrink}
 // scalastyle:off number.of.methods
 trait ObjectGenerators {
 
-  def noShrink[T]: Shrink[T] = Shrink[T](_ => Stream.empty)
-
   def byteGen: Gen[Byte] = Gen.choose(Byte.MinValue, Byte.MaxValue)
 
   def shortGen: Gen[Short] = Gen.choose(Short.MinValue, Short.MaxValue)
@@ -52,9 +50,10 @@ trait ObjectGenerators {
     } yield (aByteList.toArray, t)
   }
 
-  def keyValueListGen(): Gen[List[(Int, Int)]] = {
+  def keyValueListGen(minValue: Int = Int.MinValue, maxValue: Int = Int.MaxValue): Gen[List[(Int, Int)]] = {
     for {
-      aKeyList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Int]).map(_.distinct)
+      values <- Gen.chooseNum(minValue, maxValue)
+      aKeyList <- Gen.nonEmptyListOf(values).map(_.distinct)
     } yield aKeyList.zip(aKeyList)
   }
 

@@ -1,55 +1,46 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
+import cats.data.NonEmptyList
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
-import io.iohk.ethereum.{BlockHelpers, Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
+import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.{Block, HeadersSeq}
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.domain.{Block, ChainWeight, Checkpoint, HeadersSeq}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.{Codes, PV64}
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.{BlockHelpers, Timeouts, WithActorSystemShutDown, crypto}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.net.InetSocketAddress
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
 class BlockFetcherSpec
     extends TestKit(ActorSystem("BlockFetcherSpec_System"))
     with AnyFreeSpecLike
     with WithActorSystemShutDown
-    with Matchers {
+    with Matchers
+    with SecureRandomBuilder {
 
   "BlockFetcher" - {
 
     "should not requests headers upon invalidation while a request is already in progress, should resume after response" in new TestSetup {
       startFetcher()
 
-      // First headers request
-      val firstGetBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
-
-      val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
-      val firstGetBlockHeadersResponse = BlockHeaders(firstBlocksBatch.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockHeadersResponse))
-
-      // First bodies request
-      val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => () }
-
-      val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
-      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
+      handleFirstBlockBatch()
 
       triggerFetching()
 
@@ -82,21 +73,7 @@ class BlockFetcherSpec
     "should not requests headers upon invalidation while a request is already in progress, should resume after failure in response" in new TestSetup {
       startFetcher()
 
-      // First headers request
-      val firstGetBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
-
-      val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
-      val firstGetBlockHeadersResponse = BlockHeaders(firstBlocksBatch.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockHeadersResponse))
-
-      // First bodies request
-      val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => () }
-
-      val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
-      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
+      handleFirstBlockBatch()
 
       triggerFetching()
 
@@ -132,24 +109,11 @@ class BlockFetcherSpec
 
       startFetcher()
 
-      val getBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
-
-      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
-      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
-
-      val getBlockBodiesRequest = GetBlockBodies(chain.map(_.hash))
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
-
-      // This response will be invalid given we are using a special validator!
-      val getBlockBodiesResponse = BlockBodies(chain.map(_.body))
-      peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse))
+      handleFirstBlockBatch()
 
       // Fetcher should blacklist the peer and retry asking for the same bodies
       peersClient.expectMsgClass(classOf[BlacklistPeer])
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest => () }
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => () }
 
       // Fetcher should not enqueue any new block
       importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
@@ -161,27 +125,16 @@ class BlockFetcherSpec
 
       startFetcher()
 
-      val getBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+      handleFirstBlockBatchHeaders()
 
-      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
-
-      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
-
-      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      val getBlockBodiesRequest1 = GetBlockBodies(firstBlocksBatch.map(_.hash))
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
 
       // It will receive all the requested bodies, but splitted in 2 parts.
-      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
+      val (subChain1, subChain2) = firstBlocksBatch.splitAt(syncConfig.blockBodiesPerRequest / 2)
 
       val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
-
-      val getBlockHeadersRequest2 =
-        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
 
       val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
@@ -190,13 +143,14 @@ class BlockFetcherSpec
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
 
       // We need to wait a while in order to allow fetcher to process all the blocks
-      Thread.sleep(Timeouts.shortTimeout.toMillis)
+      system.scheduler.scheduleOnce(Timeouts.shortTimeout) {
+        // Fetcher should enqueue all the received blocks
+        importer.send(blockFetcher, PickBlocks(firstBlocksBatch.size))
+      }
 
-      // Fetcher should enqueue all the received blocks
-      importer.send(blockFetcher, PickBlocks(chain.size))
       importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
-        blocks.map(_.hash).toList shouldEqual chain.map(_.hash)
+        blocks.map(_.hash).toList shouldEqual firstBlocksBatch.map(_.hash)
       }
     }
 
@@ -204,27 +158,16 @@ class BlockFetcherSpec
 
       startFetcher()
 
-      val getBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest => () }
+      handleFirstBlockBatchHeaders()
 
-      val chain = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
-
-      val getBlockHeadersResponse = BlockHeaders(chain.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, getBlockHeadersResponse))
-
-      val getBlockBodiesRequest1 = GetBlockBodies(chain.map(_.hash))
+      val getBlockBodiesRequest1 = GetBlockBodies(firstBlocksBatch.map(_.hash))
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest1 => () }
 
       // It will receive part of the requested bodies.
-      val (subChain1, subChain2) = chain.splitAt(syncConfig.blockBodiesPerRequest / 2)
+      val (subChain1, subChain2) = firstBlocksBatch.splitAt(syncConfig.blockBodiesPerRequest / 2)
 
       val getBlockBodiesResponse1 = BlockBodies(subChain1.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
-
-      val getBlockHeadersRequest2 =
-        GetBlockHeaders(Left(chain.last.number + 1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockHeadersRequest2 => () }
 
       val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == getBlockBodiesRequest2 => () }
@@ -234,7 +177,7 @@ class BlockFetcherSpec
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
 
       // If we try to pick the whole chain we should only receive the first part
-      importer.send(blockFetcher, PickBlocks(chain.size))
+      importer.send(blockFetcher, PickBlocks(firstBlocksBatch.size))
       importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
         blocks.map(_.hash).toList shouldEqual subChain1.map(_.hash)
@@ -246,19 +189,11 @@ class BlockFetcherSpec
 
       triggerFetching()
 
-      val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
       val secondBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
       val alternativeSecondBlocksBatch =
         BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
 
-      // Fetcher requests for headers
-      val firstGetBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
-      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
-
-      // Respond first headers request
-      val firstGetBlockHeadersResponse = BlockHeaders(firstBlocksBatch.map(_.header))
-      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockHeadersResponse))
+      handleFirstBlockBatchHeaders()
 
       // Second headers request with response pending
       val secondGetBlockHeadersRequest = GetBlockHeaders(
@@ -273,7 +208,6 @@ class BlockFetcherSpec
       }
 
       // First bodies request
-      val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
       val refForAnswerFirstBodiesReq = peersClient.expectMsgPF() {
         case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => peersClient.lastSender
       }
@@ -313,6 +247,231 @@ class BlockFetcherSpec
       }
     }
 
+    "should process checkpoint blocks when checkpoint can fit into ready blocks queue" in new TestSetup {
+      startFetcher()
+
+      triggerFetching(20)
+
+      val secondBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
+      val checkpointBlock = (new CheckpointBlockGenerator)
+        .generate(
+          firstBlocksBatch.last,
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              firstBlocksBatch.last.hash
+            )
+          )
+        )
+
+      handleFirstBlockBatchHeaders()
+
+      // Fetcher second request for headers
+      val secondGetBlockHeadersRequest =
+        GetBlockHeaders(
+          Left(secondBlocksBatch.head.number),
+          syncConfig.blockHeadersPerRequest,
+          skip = 0,
+          reverse = false
+        )
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockHeadersRequest => () }
+
+      // Respond second headers request
+      val secondGetBlockHeadersResponse = BlockHeaders(secondBlocksBatch.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockHeadersResponse))
+
+      handleFirstBlockBatchBodies()
+
+      // Second bodies request
+      val secondGetBlockBodiesRequest = GetBlockBodies(secondBlocksBatch.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockBodiesRequest => () }
+
+      // Second bodies response
+      val secondGetBlockBodiesResponse = BlockBodies(secondBlocksBatch.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockBodiesResponse))
+
+      // send old checkpoint block
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
+
+      importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize * 2))
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        val headers = blocks.map(_.header).toList
+
+        assert(HeadersSeq.areChain(headers))
+        assert(headers.lastOption.contains(checkpointBlock.header))
+      }
+    }
+
+    "should process checkpoint blocks when checkpoint can fit into waiting headers queue" in new TestSetup {
+      startFetcher()
+
+      triggerFetching(20)
+
+      val secondBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, firstBlocksBatch.last)
+      val secondBlocksBatchFirstPart = secondBlocksBatch.splitAt(5)._1
+      val checkpointBlock = (new CheckpointBlockGenerator)
+        .generate(
+          secondBlocksBatchFirstPart.last,
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              secondBlocksBatchFirstPart.last.hash
+            )
+          )
+        )
+
+      val alternativeSecondBlocksBatch = secondBlocksBatchFirstPart :+ checkpointBlock
+
+      handleFirstBlockBatchHeaders()
+
+      // Fetcher second request for headers
+      val secondGetBlockHeadersRequest =
+        GetBlockHeaders(
+          Left(secondBlocksBatch.head.number),
+          syncConfig.blockHeadersPerRequest,
+          skip = 0,
+          reverse = false
+        )
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockHeadersRequest => () }
+
+      // Respond second headers request
+      val secondGetBlockHeadersResponse = BlockHeaders(secondBlocksBatch.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockHeadersResponse))
+
+      handleFirstBlockBatchBodies()
+
+      // second bodies request
+      val secondGetBlockBodiesRequest = GetBlockBodies(secondBlocksBatch.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == secondGetBlockBodiesRequest => () }
+
+      // send old checkpoint block
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
+
+      // second bodies response
+      val secondGetBlockBodiesResponse = BlockBodies(secondBlocksBatch.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, secondGetBlockBodiesResponse))
+
+      // third bodies request after adding checkpoint into the waiting headers queue
+      val thirdGetBlockBodiesRequest = GetBlockBodies(alternativeSecondBlocksBatch.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == thirdGetBlockBodiesRequest => () }
+
+      // third bodies response
+      val thirdGetBlockBodiesResponse = BlockBodies(alternativeSecondBlocksBatch.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, thirdGetBlockBodiesResponse))
+
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      system.scheduler.scheduleOnce(Timeouts.shortTimeout) {
+        importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize * 2))
+      }
+
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        val headers = blocks.map(_.header).toList
+
+        assert(HeadersSeq.areChain(headers))
+        assert(headers.contains(checkpointBlock.header))
+      }
+    }
+
+    "should process checkpoint blocks when checkpoint not fit into queues" in new TestSetup {
+      startFetcher()
+
+      triggerFetching(10)
+
+      val alternativeBlocksBatch =
+        BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
+      val checkpointBlock = (new CheckpointBlockGenerator)
+        .generate(
+          alternativeBlocksBatch.last,
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              alternativeBlocksBatch.last.hash
+            )
+          )
+        )
+
+      val alternativeBlocksBatchWithCheckpoint = alternativeBlocksBatch :+ checkpointBlock
+
+      handleFirstBlockBatch()
+
+      // send checkpoint block
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
+
+      // Fetcher new request for headers
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+
+      // Respond first headers request
+      val newGetBlockHeadersResponse = BlockHeaders(alternativeBlocksBatchWithCheckpoint.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, newGetBlockHeadersResponse))
+
+      // new bodies request
+      val newGetBlockBodiesRequest = GetBlockBodies(alternativeBlocksBatchWithCheckpoint.map(_.hash))
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == newGetBlockBodiesRequest => () }
+
+      // First bodies response
+      val newGetBlockBodiesResponse = BlockBodies(alternativeBlocksBatchWithCheckpoint.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, newGetBlockBodiesResponse))
+
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      system.scheduler.scheduleOnce(Timeouts.shortTimeout) {
+        importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
+      }
+
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        val headers = blocks.map(_.header).toList
+
+        assert(HeadersSeq.areChain(headers))
+        assert(headers.contains(checkpointBlock.header))
+      }
+    }
+
+    "should inform importer when checkpoint block is older than last block" in new TestSetup {
+      startFetcher()
+
+      triggerFetching(10)
+
+      val alternativeBlocksBatch =
+        BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest / 2, FixtureBlocks.Genesis.block)
+      val checkpointBlock = (new CheckpointBlockGenerator)
+        .generate(
+          alternativeBlocksBatch.last,
+          Checkpoint(
+            CheckpointingTestHelpers.createCheckpointSignatures(
+              Seq(crypto.generateKeyPair(secureRandom)),
+              alternativeBlocksBatch.last.hash
+            )
+          )
+        )
+
+      handleFirstBlockBatch()
+
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      system.scheduler.scheduleOnce(Timeouts.shortTimeout) {
+        importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
+      }
+
+      importer.expectMsg(BlockFetcher.PickedBlocks(NonEmptyList(firstBlocksBatch.head, firstBlocksBatch.tail)))
+
+      // send old checkpoint block
+      blockFetcher ! MessageFromPeer(
+        PV64.NewBlock(checkpointBlock, ChainWeight(checkpointBlock.number, checkpointBlock.header.difficulty)),
+        fakePeer.id
+      )
+
+      importer.expectMsg(BlockImporter.OnTop)
+
+      importer.expectMsg(BlockImporter.NewCheckpointBlock(checkpointBlock, fakePeer.id))
+    }
+
     "should properly handle a request timeout" in new TestSetup {
       override lazy val syncConfig = defaultSyncConfig.copy(
         // Small timeout on ask pattern for testing it here
@@ -321,8 +480,6 @@ class BlockFetcherSpec
 
       startFetcher()
 
-      val firstGetBlockHeadersRequest =
-        GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
 
       // Request should timeout without any response from the peer
@@ -346,6 +503,7 @@ class BlockFetcherSpec
       // Same request size was selected for simplification purposes of the flow
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
+      blocksBatchSize = 10,
       // Huge timeout on ask pattern
       peerResponseTimeout = 5.minutes
     )
@@ -379,11 +537,41 @@ class BlockFetcherSpec
 
     // Sending a far away block as a NewBlock message
     // Currently BlockFetcher only downloads first block-headers-per-request blocks without this
-    def triggerFetching(): Unit = {
+    def triggerFetching(startingNumber: BigInt = 1000): Unit = {
       val farAwayBlockTotalDifficulty = 100000
-      val farAwayBlock = Block(FixtureBlocks.ValidBlock.header.copy(number = 1000), FixtureBlocks.ValidBlock.body)
+      val farAwayBlock =
+        Block(FixtureBlocks.ValidBlock.header.copy(number = startingNumber), FixtureBlocks.ValidBlock.body)
 
       blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
+    }
+
+    val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+
+    // Fetcher request for headers
+    val firstGetBlockHeadersRequest =
+      GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
+
+    def handleFirstBlockBatchHeaders() = {
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
+
+      // Respond first headers request
+      val firstGetBlockHeadersResponse = BlockHeaders(firstBlocksBatch.map(_.header))
+      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockHeadersResponse))
+    }
+
+    // First bodies request
+    val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
+    def handleFirstBlockBatchBodies() = {
+      peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => () }
+
+      // First bodies response
+      val firstGetBlockBodiesResponse = BlockBodies(firstBlocksBatch.map(_.body))
+      peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
+    }
+
+    def handleFirstBlockBatch() = {
+      handleFirstBlockBatchHeaders()
+      handleFirstBlockBatchBodies()
     }
   }
 }

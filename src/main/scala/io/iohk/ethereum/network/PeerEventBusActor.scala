@@ -82,7 +82,9 @@ object PeerEventBusActor {
       * @param subscriber
       */
     override def unsubscribe(subscriber: ActorRef): Unit = {
-      messageSubscriptions = messageSubscriptions.filterKeys(_._1 != subscriber)
+      messageSubscriptions = messageSubscriptions.filter { case ((sub, _), _) =>
+        sub != subscriber
+      }
       connectionSubscriptions = connectionSubscriptions.filterNot(_.subscriber == subscriber)
     }
 

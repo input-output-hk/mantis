@@ -5,7 +5,7 @@ import java.io.File
 import io.iohk.ethereum.utils.Logger
 import org.apache.commons.io.FileUtils
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters._
 import scala.io.Source
 
 
@@ -22,7 +22,7 @@ trait ScenarioLoader[T] extends ScenarioParser[T] with Logger {
         None
       else {
         log.info(s"Loading test scenarios from: $file")
-        val text = Source.fromFile(file).getLines.mkString
+        val text = Source.fromFile(file).getLines().mkString
         val scenarios = parse(text)
         Some(ScenarioGroup(name, scenarios))
       }

@@ -25,7 +25,7 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
 import scala.concurrent.duration._
 
 // scalastyle:off magic.number
@@ -274,7 +274,7 @@ class PeerManagerSpec
 
   behavior of "outgoingConnectionDemand"
 
-  it should "try to connect to at least min-outgoing-peers but no longer than max-outgoing-peers" in new ConnectedPeersFixture {
+  it should "try to connect to at least min-outgoing-peers but no more than max-outgoing-peers" in new ConnectedPeersFixture {
     forAll { (connectedPeers: ConnectedPeers) =>
       val demand = PeerManagerActor.outgoingConnectionDemand(connectedPeers, peerConfiguration)
       demand shouldBe >=(0)
@@ -284,6 +284,48 @@ class PeerManagerSpec
         connectedPeers.outgoingPeersCount + demand shouldBe peerConfiguration.maxOutgoingPeers
       }
     }
+  }
+
+  it should "try to connect to discovered nodes if there's an outgoing demand: new nodes first, retried last" in new TestSetup {
+    start()
+    val discoveredNodes: Set[Node] = Set(
+      "enode://111bd28d5b2c1378d748383fd83ff59572967c317c3063a9f475a26ad3f1517642a164338fb5268d4e32ea1cc48e663bd627dec572f1d201c7198518e5a506b1@88.99.216.30:45834?discport=45834",
+      "enode://2b69a3926f36a7748c9021c34050be5e0b64346225e477fe7377070f6289bd363b2be73a06010fd516e6ea3ee90778dd0399bc007bb1281923a79374f842675a@51.15.116.226:30303?discport=30303"
+    ).map(new java.net.URI(_)).map(Node.fromUri)
+
+    peerManager ! PeerDiscoveryManager.DiscoveredNodesInfo(discoveredNodes)
+
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetRandomNodeInfo)
+
+    val probe: TestProbe = createdPeers(0).probe
+    probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    val probe2: TestProbe = createdPeers(1).probe
+    probe2.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    peerManager ! PeerClosedConnection(discoveredNodes.head.addr.getHostAddress, Disconnect.Reasons.TooManyPeers)
+
+    peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
+    peerManager.underlyingActor.triedNodes.size shouldEqual 2
+
+    time.advance(360000) // wait till the peer is out of the blacklist
+
+    val newRoundDiscoveredNodes = discoveredNodes + Node.fromUri(
+      new java.net.URI(
+        "enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:38556?discport=38556"
+      )
+    )
+
+    peerManager ! PeerDiscoveryManager.DiscoveredNodesInfo(newRoundDiscoveredNodes)
+
+    probe.expectNoMessage()
+    probe2.expectNoMessage()
+
+    val probe3: TestProbe = createdPeers(2).probe
+    probe3.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    peerManager.underlyingActor.blacklistedPeers.size shouldEqual 0
+    peerManager.underlyingActor.triedNodes.size shouldEqual 3
   }
 
   behavior of "numberOfIncomingConnectionsToPrune"
@@ -471,8 +513,6 @@ class PeerManagerSpec
       genConnectedPeers(peerConfiguration.maxIncomingPeers, peerConfiguration.maxOutgoingPeers)
     }
 
-    implicit val noShrinkConnectedPeers: Shrink[ConnectedPeers] =
-      Shrink[ConnectedPeers](_ => Stream.empty)
   }
 
   trait TestSetup {

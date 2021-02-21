@@ -16,6 +16,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
+import io.iohk.ethereum.SuperSlow
+import org.scalatest.prop.TableFor4
 
 // scalastyle:off magic.number
 class BlockHeaderValidatorSpec
@@ -23,7 +25,8 @@ class BlockHeaderValidatorSpec
     with Matchers
     with ScalaCheckPropertyChecks
     with ObjectGenerators
-    with MockFactory {
+    with MockFactory
+    with SuperSlow {
 
   val ExtraDataSizeLimit = 20
 
@@ -35,7 +38,7 @@ class BlockHeaderValidatorSpec
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validParent.header) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
@@ -48,23 +51,26 @@ class BlockHeaderValidatorSpec
 
   it should "validate DAO block (extra data)" in {
     import Fixtures.Blocks._
-    val cases = Table(
+    val cases: TableFor4[BlockHeader, Block, Boolean, Boolean] = Table(
       ("Block", "Parent Block", "Supports Dao Fork", "Valid"),
-      (DaoForkBlock.header, DaoParentBlock.block, false, true),
-      (DaoForkBlock.header, DaoParentBlock.block, true, false),
-      (ProDaoForkBlock.header, DaoParentBlock.block, true, true),
-      (ProDaoForkBlock.header, DaoParentBlock.block, false, true), // We don't care for extra data if no pro dao
-      (ProDaoForkBlock.header.copy(extraData = ByteString("Wrond DAO Extra")), DaoParentBlock.block, true, false),
-      // We need to check extradata up to 10 blocks after
-      (ProDaoBlock1920009Header, Block(ProDaoBlock1920008Header, validParentBlockBody), true, true),
-      (
-        ProDaoBlock1920009Header.copy(extraData = ByteString("Wrond DAO Extra")),
-        Block(ProDaoBlock1920008Header, validParentBlockBody),
-        true,
-        false
-      ),
-      (ProDaoBlock1920010Header, Block(ProDaoBlock1920009Header, validParentBlockBody), true, true)
-    )
+      (DaoForkBlock.header, DaoParentBlock.block, false, true)
+    ) ++ superSlow { // skip extra test cases on CI as it is super slow there
+      Seq(
+        (DaoForkBlock.header, DaoParentBlock.block, true, false),
+        (ProDaoForkBlock.header, DaoParentBlock.block, true, true),
+        (ProDaoForkBlock.header, DaoParentBlock.block, false, true), // We don't care for extra data if no pro dao
+        (ProDaoForkBlock.header.copy(extraData = ByteString("Wrond DAO Extra")), DaoParentBlock.block, true, false),
+        // We need to check extradata up to 10 blocks after
+        (ProDaoBlock1920009Header, Block(ProDaoBlock1920008Header, validParentBlockBody), true, true),
+        (
+          ProDaoBlock1920009Header.copy(extraData = ByteString("Wrond DAO Extra")),
+          Block(ProDaoBlock1920008Header, validParentBlockBody),
+          true,
+          false
+        ),
+        (ProDaoBlock1920010Header, Block(ProDaoBlock1920009Header, validParentBlockBody), true, true)
+      )
+    }.toSeq.flatten
 
     forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
       val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
@@ -165,14 +171,14 @@ class BlockHeaderValidatorSpec
       .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
-      case _ => fail
+      case _ => fail()
     }
   }
 

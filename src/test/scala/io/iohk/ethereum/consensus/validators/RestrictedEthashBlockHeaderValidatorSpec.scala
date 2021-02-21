@@ -133,7 +133,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
     val validHeader = BlockHeader(
       parentHash = ByteStringUtils.string2hash("28aad5edd02d139bf4fcf15d04ec04c93f12e382c64983fa271a9084189b3b23"),
       ommersHash = ByteStringUtils.string2hash("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
-      beneficiary = ByteStringUtils.string2hash(" 0011223344556677889900112233445566778899"),
+      beneficiary = ByteStringUtils.string2hash("0011223344556677889900112233445566778899"),
       stateRoot = ByteStringUtils.string2hash("a485afd5bfcef9da8df9c0fe4315e1f4bc2c96eb34920eeaddf534b807cd71e6"),
       transactionsRoot =
         ByteStringUtils.string2hash("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"),

@@ -6,9 +6,11 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie}
 import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import io.iohk.ethereum.ObjectGenerators._
+import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -67,8 +69,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     assert(retrievedBlock.isDefined)
     assert(validBlock == retrievedBlock.get)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(validBlock.number)
-    blockchain.getBestBlockNumber should ===(validBlock.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
+    blockchain.getBestBlockNumber() should ===(validBlock.number)
   }
 
   it should "be able to rollback block with checkpoint and store the previous existed checkpoint" in new EphemBlockchainTestSetup {
@@ -95,8 +97,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(firstBlock.number)
-    blockchain.getBestBlockNumber should ===(secondBlock.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
+    blockchain.getBestBlockNumber() should ===(secondBlock.number)
   }
 
   it should "be able to rollback block with last checkpoint in the chain" in new EphemBlockchainTestSetup {
@@ -109,8 +111,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(validBlock.hash, withState = true)
 
-    blockchain.getLatestCheckpointBlockNumber should ===(genesis.number)
-    blockchain.getBestBlockNumber should ===(genesis.number)
+    blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
+    blockchain.getBestBlockNumber() should ===(genesis.number)
   }
 
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {
@@ -130,6 +132,57 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
+  }
+
+  it should "return correct account proof" in new EphemBlockchainTestSetup {
+    val address = Address(42)
+    val account = Account.empty(UInt256(7))
+
+    val validHeader = Fixtures.Blocks.ValidBlock.header
+
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
+    val mptWithAcc = emptyMpt.put(address, account)
+
+    val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
+
+    blockchain.storeBlockHeader(headerWithAcc).commit()
+
+    //unhappy path
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
+    retrievedAccountProofWrong.isDefined shouldBe true
+    retrievedAccountProofWrong.size shouldBe 1
+    mptWithAcc.get(wrongAddress) shouldBe None
+
+    //happy path
+    val retrievedAccountProof = blockchain.getAccountProof(address, headerWithAcc.number)
+    retrievedAccountProof.isDefined shouldBe true
+    retrievedAccountProof.map { proof =>
+      MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe ValidProof
+    }
+  }
+
+  it should "return proof for non-existent account" in new EphemBlockchainTestSetup {
+    val emptyMpt = MerklePatriciaTrie[Address, Account](
+      storagesInstance.storages.stateStorage.getBackingStorage(0)
+    )
+    val mptWithAcc = emptyMpt.put(Address(42), Account.empty(UInt256(7)))
+
+    val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
+
+    blockchain.storeBlockHeader(headerWithAcc).commit()
+
+    val wrongAddress = Address(666)
+    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
+    (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
+      case _ @HashNode(_) :: Nil => true
+      case _ => false
+    }) shouldBe true
+    mptWithAcc.get(wrongAddress) shouldBe None
   }
 
   it should "return correct best block number after applying and rollbacking blocks" in new TestSetup {

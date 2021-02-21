@@ -14,6 +14,7 @@ import monix.reactive.Observable
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.domain.ChainWeight
+import monix.execution.Scheduler
 
 import scala.concurrent.duration.DurationInt
 
@@ -22,11 +23,14 @@ class FastSyncSpec
     with FreeSpecBase
     with SpecFixtures
     with WithActorSystemShutDown { self =>
-  implicit val timeout: Timeout = Timeout(10.seconds)
+  implicit val timeout: Timeout = Timeout(30.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
-    override implicit lazy val system = self.system
-    override implicit val scheduler = self.scheduler
+    override implicit lazy val system: ActorSystem = self.system
+    override implicit val scheduler: Scheduler = self.scheduler
+
+    val blacklistMaxElems: Int = 100
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(blacklistMaxElems)
 
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(pivotBlockOffset = 5, fastSyncBlockValidationX = 5, fastSyncThrottle = 1.millis)
@@ -48,9 +52,9 @@ class FastSyncSpec
     lazy val bestBlockAtStart = testBlocks(10)
     lazy val expectedPivotBlockNumber = bestBlockAtStart.number - syncConfig.pivotBlockOffset
     lazy val expectedTargetBlockNumber = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers = twoAcceptedPeers.mapValues { peerInfo =>
+    lazy val testPeers = twoAcceptedPeers.map { case (k, peerInfo) =>
       val lastBlock = bestBlockAtStart
-      peerInfo
+      k -> peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)
         .copy(remoteStatus = peerInfo.remoteStatus.copy(bestHash = lastBlock.hash))
     }
@@ -70,6 +74,7 @@ class FastSyncSpec
         validators = validators,
         peerEventBus = peerEventBus.ref,
         etcPeerManager = etcPeerManager.ref,
+        blacklist = blacklist,
         syncConfig = syncConfig,
         scheduler = system.scheduler
       )
@@ -89,7 +94,7 @@ class FastSyncSpec
 
   "FastSync" - {
     "for reporting progress" - {
-      "returns NotSyncing until pivot block is selected and first data being fetched" in testCaseM { fixture =>
+      "returns NotSyncing until pivot block is selected and first data being fetched" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {
@@ -98,7 +103,7 @@ class FastSyncSpec
         } yield assert(status === Status.NotSyncing)).timeout(timeout.duration)
       }
 
-      "returns Syncing when pivot block is selected and started fetching data" in testCaseM { fixture =>
+      "returns Syncing when pivot block is selected and started fetching data" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {
@@ -120,7 +125,7 @@ class FastSyncSpec
           .timeout(timeout.duration)
       }
 
-      "returns Syncing with block progress once both header and body is fetched" in testCaseM { fixture =>
+      "returns Syncing with block progress once both header and body is fetched" in testCaseM { fixture: Fixture =>
         import fixture._
 
         (for {

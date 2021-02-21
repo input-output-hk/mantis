@@ -5,7 +5,6 @@ import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthService.BlockParam
 import io.iohk.ethereum.keystore.KeyStore
 import org.scalamock.scalatest.MockFactory
 import org.bouncycastle.util.encoders.Hex
@@ -290,7 +289,7 @@ class FilterManagerSpec
       )
     )
     val block2 = Block(bh2, BlockBody(blockTransactions2, Nil))
-    (blockGenerator.getPendingBlock _)
+    (() => blockGenerator.getPendingBlock)
       .expects()
       .returning(
         Some(

@@ -11,7 +11,7 @@ import org.bouncycastle.crypto.Digest
 class MGF1BytesGeneratorExt(digest: Digest) {
   val digestSize: Int = digest.getDigestSize
 
-  private def itoOSP(i: Int, sp: Array[Byte]) {
+  private def itoOSP(i: Int, sp: Array[Byte]): Unit = {
     sp(0) = (i >>> 24).toByte
     sp(1) = (i >>> 16).toByte
     sp(2) = (i >>> 8).toByte

@@ -97,8 +97,8 @@ object ByteUtils {
 
   def padLeft(bytes: ByteString, length: Int, byte: Byte = 0): ByteString = {
     val l = math.max(0, length - bytes.length)
-    val fill = Seq.fill[Byte](l)(byte)
-    fill ++: bytes
+    val fill = Array.fill[Byte](l)(byte)
+    ByteString.apply(fill) ++ bytes
   }
 
   def compactPickledBytesToArray(buffer: ByteBuffer): Array[Byte] = {
@@ -141,7 +141,7 @@ object ByteUtils {
     * @param bigEndian - param specifying which int representation should be used.
     * @return Unit
     */
-  def intsToBytesMut(arr: Array[Int], b: Array[Byte], bigEndian: Boolean) {
+  def intsToBytesMut(arr: Array[Int], b: Array[Byte], bigEndian: Boolean): Unit = {
     if (!bigEndian) {
       var off = 0
       var i = 0
@@ -187,7 +187,7 @@ object ByteUtils {
     * @param bigEndian - param specifying which int representation should be used.
     * @return Unit
     */
-  def bytesToIntsMut(b: Array[Byte], arr: Array[Int], bigEndian: Boolean) {
+  def bytesToIntsMut(b: Array[Byte], arr: Array[Int], bigEndian: Boolean): Unit = {
     if (!bigEndian) {
       var off = 0
       var i = 0

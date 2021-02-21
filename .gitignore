@@ -6,6 +6,7 @@ project/plugins/project/
 .ensime_cache/
 .bloop
 out/
+.bsp/
 
 # IDE folders
 .idea/
@@ -22,6 +23,7 @@ metals.sbt
 
 # Nix
 result
+.nix/
 
 # sonarScan
 .scannerwork/

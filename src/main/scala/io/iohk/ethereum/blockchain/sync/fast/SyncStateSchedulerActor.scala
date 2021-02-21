@@ -21,6 +21,7 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 
 class SyncStateSchedulerActor(
@@ -46,7 +47,7 @@ class SyncStateSchedulerActor(
   }
 
   private def requestNodes(request: PeerRequest): ActorRef = {
-    log.info(s"Requesting ${request.nodes.size} from peer ${request.peer}")
+    log.info("Requesting {} from peer {}", request.nodes.size, request.peer)
     implicit val s = scheduler
     val handler = context.actorOf(
       PeerRequestHandler.props[GetNodeData, NodeData](
@@ -64,15 +65,17 @@ class SyncStateSchedulerActor(
   def handleRequestResults: Receive = {
     case ResponseReceived(peer, nodeData: NodeData, timeTaken) =>
       log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
+      FastSyncMetrics.setMptStateDownloadTime(timeTaken)
+
       context unwatch (sender())
       self ! RequestData(nodeData, peer)
 
     case PeerRequestHandler.RequestFailed(peer, reason) =>
       context unwatch (sender())
-      log.debug(s"Request to peer {} failed due to {}", peer.id, reason)
+      log.debug("Request to peer {} failed due to {}", peer.id, reason)
       self ! RequestFailed(peer, reason)
     case RequestTerminated(peer) =>
-      log.debug(s"Request to {} terminated", peer.id)
+      log.debug("Request to {} terminated", peer.id)
       self ! RequestFailed(peer, "Peer disconnected in the middle of request")
   }
 
@@ -93,8 +96,9 @@ class SyncStateSchedulerActor(
     handleCommonMessages orElse {
       case BloomFilterResult(result) =>
         log.debug(
-          s"Loaded ${result.writtenElements} already known elements from storage to bloom filter the error while loading " +
-            s"was ${result.error}"
+          "Loaded {} already known elements from storage to bloom filter the error while loading was {}",
+          result.writtenElements,
+          result.error
         )
         lastReceivedCommand match {
           case Some((startSignal: StartSyncingTo, sender)) =>
@@ -119,7 +123,7 @@ class SyncStateSchedulerActor(
       initiator: ActorRef
   ): Unit = {
     timers.startTimerAtFixedRate(PrintInfoKey, PrintInfo, 30.seconds)
-    log.info(s"Starting state sync to root ${ByteStringUtils.hash2string(root)} on block ${bn}")
+    log.info("Starting state sync to root {} on block {}", ByteStringUtils.hash2string(root), bn)
     //TODO handle case when we already have root i.e state is synced up to this point
     val initState = sync.initState(root).get
     context become syncing(
@@ -132,20 +136,20 @@ class SyncStateSchedulerActor(
     case StartSyncingTo(root, bn) =>
       startSyncing(root, bn, processingStatistics, sender())
     case PrintInfo =>
-      log.info(s"Waiting for target block to start the state sync")
+      log.info("Waiting for target block to start the state sync")
   }
 
   private def finalizeSync(
       state: SyncSchedulerActorState
   ): Unit = {
     if (state.memBatch.nonEmpty) {
-      log.debug(s"Persisting ${state.memBatch.size} elements to blockchain and finalizing the state sync")
+      log.debug("Persisting {} elements to blockchain and finalizing the state sync", state.memBatch.size)
       val finalState = sync.persistBatch(state.currentSchedulerState, state.targetBlock)
       reportStats(state.syncInitiator, state.currentStats.addSaved(state.memBatch.size), finalState)
       state.syncInitiator ! StateSyncFinished
       context.become(idle(ProcessingStatistics()))
     } else {
-      log.info(s"Finalizing the state sync")
+      log.info("Finalizing the state sync")
       state.syncInitiator ! StateSyncFinished
       context.become(idle(ProcessingStatistics()))
     }
@@ -303,7 +307,7 @@ class SyncStateSchedulerActor(
         log.debug("Received error result")
         err match {
           case Critical(er) =>
-            log.error(s"Critical error while state syncing ${er}, stopping state sync")
+            log.error("Critical error while state syncing {}, stopping state sync", er)
             // TODO we should probably start sync again from new target block, as current trie is malformed or declare
             // fast sync as failure and start normal sync from scratch
             context.stop(self)
@@ -317,7 +321,7 @@ class SyncStateSchedulerActor(
         }
 
       case PrintInfo =>
-        log.info(s"$currentState")
+        log.info("{}", currentState)
     }
 
   override def receive: Receive = waitingForBloomFilterToLoad(None)

@@ -5,6 +5,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.vm.MockWorldState._
+import io.iohk.ethereum.utils.ByteStringUtils._
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   import config.feeSchedule._
@@ -119,7 +120,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   val initialOwnerAccount = Account(balance = initialBalance)
 
   val extProgram = extCode.program
-  val invalidProgram = Program(extProgram.code.init :+ INVALID.code)
+  val invalidProgram = Program(concatByteStrings(extProgram.code.init, INVALID.code))
   val selfDestructProgram = selfDestructCode.program
   val sstoreWithClearProgram = sstoreWithClearCode.program
   val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))

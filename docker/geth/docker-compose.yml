@@ -1,0 +1,57 @@
+version: '3.1'
+
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
+networks:
+  geth-net:
+
+services:
+
+  prometheus:
+    image: prom/prometheus:v2.23.0
+    volumes:
+      - ./prometheus/:/etc/prometheus/
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - 9090:9090
+    links:
+      - geth:geth
+    depends_on:
+      - geth
+    networks:
+      - geth-net
+    restart: always
+
+  grafana:
+    image: grafana/grafana:7.3.6
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning/:/etc/grafana/provisioning/
+    networks:
+      - geth-net
+    restart: always
+
+  geth:
+    image: ethereum/client-go:stable
+    ports:
+      - 8545:8545
+      - 30303:30303
+      - 6060:6060
+    networks:
+      - geth-net
+    volumes:
+      - $HOME/.mantis/development/geth:/root/.ethereum
+    command: --http --http.addr 0.0.0.0 --metrics --metrics.addr 0.0.0.0
+    restart: always
+
