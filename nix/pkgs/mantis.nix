@@ -50,7 +50,7 @@ in sbt.mkDerivation {
 
   # This sha represents the change dependencies of mantis.
   # Update this sha whenever you change the dependencies
-  depsSha256 = "0bdpmkgz2m7fxrhlq7bfm9nyhzj1kzsnh9j6dwrc218rp2sm9bxz";
+  depsSha256 = "1058ryh7nj7y59iwk60ap0kgky4j0awpfvq76p9l4picz9qgg9i8";
 
   # this is the command used to to create the fixed-output-derivation
   depsWarmupCommand = "sbt compile --debug -Dnix=true";
