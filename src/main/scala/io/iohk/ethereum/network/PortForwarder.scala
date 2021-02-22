@@ -30,7 +30,7 @@ private class ClientOnlyUpnpServiceConfiguration extends DefaultUpnpServiceConfi
   override def createStreamClient(): StreamClient[_ <: StreamClientConfiguration] =
     JDKTransportConfiguration.INSTANCE.createStreamClient(getSyncProtocolExecutorService())
 
-  override def createStreamServer(networkAddressFactory: NetworkAddressFactory) =
+  override def createStreamServer(networkAddressFactory: NetworkAddressFactory): NoStreamServer.type =
     NoStreamServer // prevent a StreamServer from running needlessly
 }
 
@@ -45,7 +45,7 @@ private object NoStreamServer extends StreamServer[StreamServerConfiguration] {
 }
 
 object PortForwarder {
-  final val description = "Mantis"
+  private final val description = "Mantis"
 
   def openPorts(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Resource[Task, Unit] =
     Resource
