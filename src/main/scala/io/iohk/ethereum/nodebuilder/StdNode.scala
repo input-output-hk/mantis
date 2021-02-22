@@ -94,7 +94,7 @@ abstract class BaseNode extends Node {
         shutdownTimeoutDuration
       )
     )
-    tryAndLogFailure(() => stopPortForwarding())
+    tryAndLogFailure(() => Await.ready(stopPortForwarding(), shutdownTimeoutDuration))
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }

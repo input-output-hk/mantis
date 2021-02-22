@@ -38,6 +38,7 @@ import java.util.concurrent.atomic.AtomicReference
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
@@ -695,9 +696,9 @@ trait PortForwardingBuilder {
       .allocated
       .runToFuture
 
-  def stopPortForwarding(): Unit =
-    startPortForwarding.foreach { case (_, release) =>
-      release.runAsyncAndForget
+  def stopPortForwarding(): Future[Unit] =
+    startPortForwarding.flatMap { case (_, release) =>
+      release.runToFuture
     }
 }
 
