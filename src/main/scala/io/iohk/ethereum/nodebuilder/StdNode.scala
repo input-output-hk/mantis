@@ -62,6 +62,7 @@ abstract class BaseNode extends Node {
 
     startPeerManager()
 
+    startPortForwarding
     startServer()
 
     startSyncController()
@@ -93,6 +94,7 @@ abstract class BaseNode extends Node {
         shutdownTimeoutDuration
       )
     )
+    tryAndLogFailure(() => stopPortForwarding())
     if (jsonRpcConfig.ipcServerConfig.enabled) {
       tryAndLogFailure(() => jsonRpcIpcServer.close())
     }

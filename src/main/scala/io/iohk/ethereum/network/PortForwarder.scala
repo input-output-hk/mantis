@@ -20,6 +20,7 @@ import scala.util.chaining._
 import org.jupnp.QueueingThreadPoolExecutor
 import cats.effect.Resource
 import org.jupnp.UpnpService
+import cats.implicits._
 
 private class ClientOnlyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration() {
   private final val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping
@@ -48,9 +49,7 @@ object PortForwarder {
   private final val description = "Mantis"
 
   def openPorts(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Resource[Task, Unit] =
-    Resource
-      .make(startForwarding(tcpPorts, udpPorts))(stopForwarding)
-      .map(_ => ())
+    Resource.make(startForwarding(tcpPorts, udpPorts))(stopForwarding).void
 
   private def startForwarding(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Task[UpnpService] = Task {
     new UpnpServiceImpl(new ClientOnlyUpnpServiceConfiguration()).tap { service =>

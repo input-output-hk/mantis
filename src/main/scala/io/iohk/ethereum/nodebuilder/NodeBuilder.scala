@@ -42,6 +42,10 @@ import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import monix.execution.Scheduler
+import cats.implicits._
+import cats.effect.Resource
+import monix.eval.Task
+import monix.execution.CancelableFuture
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -676,6 +680,27 @@ trait SyncControllerBuilder {
 
 }
 
+trait PortForwardingBuilder {
+  self: DiscoveryConfigBuilder =>
+
+  import monix.execution.Scheduler.Implicits.global
+
+  lazy val startPortForwarding: CancelableFuture[(Unit, Task[Unit])] =
+    PortForwarder
+      .openPorts(
+        Seq(Config.Network.Server.port),
+        Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
+      )
+      .whenA(Config.Network.automaticPortForwarding)
+      .allocated
+      .runToFuture
+
+  def stopPortForwarding(): Unit =
+    startPortForwarding.foreach { case (_, release) =>
+      release.runAsyncAndForget
+    }
+}
+
 trait ShutdownHookBuilder {
   self: Logger =>
   def shutdown(): Unit = {
@@ -778,3 +803,4 @@ trait Node
     with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder
     with TransactionHistoryServiceBuilder.Default
+    with PortForwardingBuilder
