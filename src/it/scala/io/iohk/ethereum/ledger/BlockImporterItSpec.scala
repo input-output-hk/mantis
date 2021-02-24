@@ -104,10 +104,7 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
 
   blockImporter ! BlockImporter.Start
 
-  /** TODO: this should not behave like that, but instead return a proper error and revert reorganisation to the initial chain. Currently if we had a chain, and then
-    reorganisation started and error occurred in BlockExecution.executeAndValidateBlock() we end up with a discarded main chain to the point of the common parent**/
-
-  "BlockImporter" should "(not) discard blocks of the main chain if the reorganisation failed" in {
+  "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
     //ledger with not mocked blockExecution
     val ledger = new TestLedgerImpl(successValidators)
@@ -129,7 +126,7 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
 
     Thread.sleep(1000)
     //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
-    blockchain.getBestBlock().get shouldEqual block1
+    blockchain.getBestBlock().get shouldEqual oldBlock4
   }
 
   it should "return a correct new best block after reorganising longer chain to a shorter one" in {
