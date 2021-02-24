@@ -686,19 +686,27 @@ trait PortForwardingBuilder {
 
   import monix.execution.Scheduler.Implicits.global
 
-  lazy val startPortForwarding: CancelableFuture[(Unit, Task[Unit])] =
-    PortForwarder
-      .openPorts(
-        Seq(Config.Network.Server.port),
-        Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
-      )
-      .whenA(Config.Network.automaticPortForwarding)
-      .allocated
-      .runToFuture
+  private val portForwardingRelease = new AtomicReference(Option.empty[Future[Task[Unit]]])
+
+  def startPortForwarding(): Unit =
+    portForwardingRelease.compareAndSet(
+      None,
+      Some {
+        PortForwarder
+          .openPorts(
+            Seq(Config.Network.Server.port),
+            Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
+          )
+          .whenA(Config.Network.automaticPortForwarding)
+          .allocated
+          .runToFuture
+          .map(_._2)
+      }
+    )
 
   def stopPortForwarding(): Future[Unit] =
-    startPortForwarding.flatMap { case (_, release) =>
-      release.runToFuture
+    portForwardingRelease.get().fold(Future.unit) {
+      _.flatMap(_.runToFuture)
     }
 }
 

@@ -62,7 +62,7 @@ abstract class BaseNode extends Node {
 
     startPeerManager()
 
-    startPortForwarding
+    startPortForwarding()
     startServer()
 
     startSyncController()

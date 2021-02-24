@@ -17,7 +17,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import scodec.bits.BitVector
 import scodec.Codec
-import monix.eval.instances.CatsConcurrentForTask
 
 trait DiscoveryServiceBuilder {
 
