@@ -77,11 +77,19 @@ object Blacklist {
         val code: Int = 9
         val name: String = "PeerActorTerminated"
       }
+      case object InvalidNumberOfHeadersType extends BlacklistReasonType {
+        val code: Int = 10
+        val name: String = "InvalidNumberOfHeadersType"
+      }
+      case object WrongBlockHeader extends BlacklistReasonType {
+        val code: Int = 11
+        val name: String = "WrongBlockHeader"
+      }
     }
 
     case object WrongBlockHeaders extends BlacklistReason {
       val reasonType: BlacklistReasonType = WrongBlockHeadersType
-      val description: String = "Wrong blockheaders response (empty or not chain forming)"
+      val description: String = "Wrong blockheaders response: Peer didn't respond with requested block headers."
     }
     case object BlockHeaderValidationFailed extends BlacklistReason {
       val reasonType: BlacklistReasonType = BlockHeaderValidationFailedType
@@ -114,6 +122,14 @@ object Blacklist {
     case object PeerActorTerminated extends BlacklistReason {
       val reasonType: BlacklistReasonType = PeerActorTerminatedType
       val description: String = "Peer actor terminated"
+    }
+    final case class InvalidNumberOfHeaders(requested: BigInt, received: BigInt) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = PeerActorTerminatedType
+      val description: String = s"Requested [$requested] number of headers but received [$received]"
+    }
+    final case class WrongBlockHeader(requested: BigInt, received: BigInt) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = PeerActorTerminatedType
+      val description: String = s"Requested block header number [$requested] but received [$received]"
     }
   }
 }

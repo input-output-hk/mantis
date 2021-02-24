@@ -45,9 +45,9 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
   def getPeerById(peerId: PeerId): Option[Peer] = handshakedPeers.get(peerId).map(_.peer)
 
   def getPeerWithHighestBlock: Option[PeerWithInfo] =
-      handshakedPeers.values.toList.sortBy {
-        case PeerWithInfo(_, peerInfo) => peerInfo.maxBlockNumber
-      }(Ordering[BigInt].reverse).headOption
+    peersToDownloadFrom.values.toList.sortBy { case PeerWithInfo(_, peerInfo) =>
+      peerInfo.maxBlockNumber
+    }(Ordering[BigInt].reverse).headOption
 
   def blacklistIfHandshaked(peerId: PeerId, duration: FiniteDuration, reason: BlacklistReason): Unit =
     handshakedPeers.get(peerId).foreach(_ => blacklist.add(peerId, duration, reason))
