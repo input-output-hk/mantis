@@ -54,19 +54,20 @@ class EthashBlockGeneratorImpl(
   /** An empty `X` */
   def emptyX: Ommers = Nil
 
-  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
-    cache
-      .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
-        override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
-          t.filterNot(pbs =>
-            ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
-          )
-      })
-      .find { pbs =>
-        ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
-      }
-      .map(_.pendingBlock)
-  }
+  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] =
+    ConsensusMetrics.MinedBlockEvaluationTimer.record { () =>
+      cache
+        .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
+          override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
+            t.filterNot(pbs =>
+              ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+            )
+        })
+        .find { pbs =>
+          ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
+        }
+        .map(_.pendingBlock)
+    }
 
   def generateBlock(
       parent: Block,
