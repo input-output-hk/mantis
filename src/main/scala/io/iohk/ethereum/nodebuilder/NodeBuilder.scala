@@ -45,9 +45,6 @@ import akka.util.ByteString
 import monix.execution.Scheduler
 import cats.implicits._
 import monix.eval.Task
-import monix.execution.atomic.Atomic
-import org.codehaus.janino.Java.Atom
-import scala.concurrent.Promise
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -687,28 +684,26 @@ trait PortForwardingBuilder {
 
   import Scheduler.Implicits.global
 
-  private val portForwardingRelease = new AtomicReference(Option.empty[Promise[Task[Unit]]])
+  private val portForwarding = PortForwarder
+    .openPorts(
+      Seq(Config.Network.Server.port),
+      Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
+    )
+    .whenA(Config.Network.automaticPortForwarding)
+    .allocated
+    .map(_._2)
 
-  def startPortForwarding(): Unit = {
-    val promise = Promise[Task[Unit]]()
-    if (portForwardingRelease.compareAndSet(None, Some(promise))) {
-      PortForwarder
-        .openPorts(
-          Seq(Config.Network.Server.port),
-          Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
-        )
-        .whenA(Config.Network.automaticPortForwarding)
-        .allocated
-        .runToFuture
-        .foreach { case ((), release) =>
-          promise.success(release)
-        }
-    }
+  // reference to a task that produces the release task,
+  // memoized to prevent running multiple port forwarders at once
+  private val portForwardingRelease = new AtomicReference(Option.empty[Task[Task[Unit]]])
+
+  def startPortForwarding(): Future[Unit] = {
+    portForwardingRelease.compareAndSet(None, Some(portForwarding.memoize))
+    portForwardingRelease.get().fold(Future.unit)(_.runToFuture.void)
   }
+
   def stopPortForwarding(): Future[Unit] =
-    portForwardingRelease.getAndSet(None).fold(Future.unit) {
-      _.future.flatMap(_.runToFuture)
-    }
+    portForwardingRelease.getAndSet(None).fold(Future.unit)(_.flatten.runToFuture)
 }
 
 trait ShutdownHookBuilder {
