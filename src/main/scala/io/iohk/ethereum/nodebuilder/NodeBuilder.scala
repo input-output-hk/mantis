@@ -44,9 +44,10 @@ import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import monix.execution.Scheduler
 import cats.implicits._
-import cats.effect.Resource
 import monix.eval.Task
-import monix.execution.CancelableFuture
+import monix.execution.atomic.Atomic
+import org.codehaus.janino.Java.Atom
+import scala.concurrent.Promise
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -119,7 +120,7 @@ trait PeerDiscoveryManagerBuilder {
     with DiscoveryServiceBuilder
     with StorageBuilder =>
 
-  import monix.execution.Scheduler.Implicits.global
+  import Scheduler.Implicits.global
 
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
@@ -684,29 +685,29 @@ trait SyncControllerBuilder {
 trait PortForwardingBuilder {
   self: DiscoveryConfigBuilder =>
 
-  import monix.execution.Scheduler.Implicits.global
+  import Scheduler.Implicits.global
 
-  private val portForwardingRelease = new AtomicReference(Option.empty[Future[Task[Unit]]])
+  private val portForwardingRelease = new AtomicReference(Option.empty[Promise[Task[Unit]]])
 
-  def startPortForwarding(): Unit =
-    portForwardingRelease.compareAndSet(
-      None,
-      Some {
-        PortForwarder
-          .openPorts(
-            Seq(Config.Network.Server.port),
-            Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
-          )
-          .whenA(Config.Network.automaticPortForwarding)
-          .allocated
-          .runToFuture
-          .map(_._2)
-      }
-    )
-
+  def startPortForwarding(): Unit = {
+    val promise = Promise[Task[Unit]]()
+    if (portForwardingRelease.compareAndSet(None, Some(promise))) {
+      PortForwarder
+        .openPorts(
+          Seq(Config.Network.Server.port),
+          Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
+        )
+        .whenA(Config.Network.automaticPortForwarding)
+        .allocated
+        .runToFuture
+        .foreach { case ((), release) =>
+          promise.success(release)
+        }
+    }
+  }
   def stopPortForwarding(): Future[Unit] =
-    portForwardingRelease.get().fold(Future.unit) {
-      _.flatMap(_.runToFuture)
+    portForwardingRelease.getAndSet(None).fold(Future.unit) {
+      _.future.flatMap(_.runToFuture)
     }
 }
 
