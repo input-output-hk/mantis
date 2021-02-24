@@ -113,7 +113,7 @@ class FastSyncBranchResolverActorSpec
         val firstBatchBlockHeaders =
           blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
 
-        val blocksSentFromPee: Map[Int, List[Block]] = Map(
+        val blocksSentFromPeer: Map[Int, List[Block]] = Map(
           1 -> firstBatchBlockHeaders,
           2 -> List(blocksSavedInPeer.get(5).get),
           3 -> List(blocksSavedInPeer.get(8).get),
@@ -124,7 +124,7 @@ class FastSyncBranchResolverActorSpec
         //the binary search asks the master peer for blocks in the following order: 6, 9, 8, 7
 
         saveBlocks(blocksSaved)
-        val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPee)
+        val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
         val fastSyncBranchResolver =
           creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 

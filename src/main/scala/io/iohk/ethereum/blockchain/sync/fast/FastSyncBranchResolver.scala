@@ -9,6 +9,9 @@ import io.iohk.ethereum.domain.BlockHeader
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.SearchState
 
+import com.typesafe.scalalogging
+import org.slf4j.LoggerFactory
+
 trait FastSyncBranchResolver {
 
   protected def blockchain: Blockchain
@@ -65,20 +68,22 @@ trait BinarySearchSupport {
 
   import BinarySearchSupport._
 
-  // TODO simplify this O_o
+  private val logger: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
+
   protected def validateBlockHeaders(
       parentBlockHeader: BlockHeader,
       childBlockHeader: BlockHeader,
       searchState: SearchState
   ): BinarySearchResult = {
+    logger.debug(s"$searchState")
     if (parentBlockHeader.isParentOf(childBlockHeader)) {
       if (parentBlockHeader.number == searchState.minBlockNumber)
         BinarySearchCompleted(parentBlockHeader.number)
       else ContinueBinarySearch(searchState.copy(minBlockNumber = childOf(parentBlockHeader.number)))
     } else if (parentBlockHeader.number == searchState.minBlockNumber)
-      BinarySearchCompleted(parentOf(parentBlockHeader.number)) // TODO not really
+      BinarySearchCompleted(parentOf(parentBlockHeader.number))
     else
-      ContinueBinarySearch(searchState.copy(maxBlockNumber = childOf(parentBlockHeader.number)))
+      ContinueBinarySearch(searchState.copy(maxBlockNumber = parentBlockHeader.number))
   }
 
 }

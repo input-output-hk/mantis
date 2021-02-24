@@ -18,6 +18,7 @@ import scala.concurrent.duration._
 import monix.eval.Coeval
 import monix.catnap.cancelables.AssignableCancelableF.Bool
 import akka.actor.Timers
+import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport.ContinueBinarySearch
 
 class FastSyncBranchResolverActor(
     val fastSync: ActorRef,
@@ -73,19 +74,35 @@ class FastSyncBranchResolverActor(
       blockHeaderNumberToSearch: BigInt,
       requestHandler: ActorRef
   ): Receive = {
+    import BinarySearchSupport._
     handlePeerListMessages orElse {
       case ResponseReceived(peer, BlockHeaders(headers), durationMs) if peer == searchState.masterPeer =>
+        context.unwatch(requestHandler)
         headers match {
           case childHeader :: Nil if childHeader.number == blockHeaderNumberToSearch =>
-            log.debug(s"Received requested block header from peer [${peer.id}] in $durationMs ms")
+            log.debug(
+              s"Received requested block header [$blockHeaderNumberToSearch] from peer [${peer.id}] in $durationMs ms"
+            )
             blockchain.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
-              case Some(parentHeader) => validateBlockHeaders(parentHeader, childHeader, searchState)
+              case Some(parentHeader) =>
+                validateBlockHeaders(parentHeader, childHeader, searchState) match {
+                  case BinarySearchCompleted(firstCommonBlockNumber) =>
+                    finalizeBranchResolver(firstCommonBlockNumber, searchState.masterPeer)
+                  case ContinueBinarySearch(newSearchState) =>
+                    log.debug(s"Continuing binary search with new search state: $newSearchState")
+                    requestBlockHeader(newSearchState)
+                }
               case None => stopWithFailure(BranchResolutionFailed.blockHeaderNotFound(blockHeaderNumberToSearch))
             }
-          case _ => handleInvalidResponse(peer, requestHandler)
+          case _ =>
+            log.warning(
+              s"Received invalid block header response when searching block header [$blockHeaderNumberToSearch]: $headers"
+            )
+            handleInvalidResponse(peer, requestHandler)
         }
       case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
       case Terminated(ref) if ref == requestHandler => handlePeerTermination(searchState.masterPeer, ref)
+      case Terminated(_) => () // ignore
     }
   }
 
@@ -119,8 +136,7 @@ class FastSyncBranchResolverActor(
   }
 
   private def requestBlockHeader(searchState: SearchState): Unit = {
-    val middleBlockHeaderNumber: BigInt =
-      searchState.minBlockNumber + (searchState.maxBlockNumber - searchState.minBlockNumber) / 2
+    val middleBlockHeaderNumber: BigInt = (searchState.minBlockNumber + searchState.maxBlockNumber) / 2
     val blockHeaderNumberToRequest: BigInt = childOf(middleBlockHeaderNumber)
     val handler = sendGetBlockHeadersRequest(searchState.masterPeer, blockHeaderNumberToRequest, 1)
     context.become(waitingForBinarySearchBlock(searchState, blockHeaderNumberToRequest, handler))
@@ -128,7 +144,7 @@ class FastSyncBranchResolverActor(
 
   private def finalizeBranchResolver(firstCommonBlockNumber: BigInt, masterPeer: Peer): Unit = {
     discardBlocksAfter(firstCommonBlockNumber)
-    log.info(s"Branch resolution completed - firstCommonBlockNumber [$firstCommonBlockNumber]")
+    log.info(s"Branch resolution completed with first common block number [$firstCommonBlockNumber]")
     fastSync ! BranchResolvedSuccessful(firstCommonBlockNumber = firstCommonBlockNumber, masterPeer = masterPeer)
     context.stop(self)
   }
@@ -199,7 +215,7 @@ object FastSyncBranchResolverActor {
   protected val RestartTimerKey: String = "Restart"
 
   protected val InvalidResponseLog: String =
-    "*** Invalid response - Received {} block headers from peer {}. Requested {} headers. Current master peer {}. ***"
+    "Invalid response - Received {} block headers from peer {}. Requested {} headers. Current master peer {}"
 
   protected val SwitchToBinarySearchLog: String =
     "Branch diverged earlier than {} blocks ago. Switching to binary search to determine first common block."
