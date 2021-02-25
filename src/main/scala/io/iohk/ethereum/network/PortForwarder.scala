@@ -1,5 +1,6 @@
 package io.iohk.ethereum.network
 
+import io.iohk.ethereum.utils.Logger
 import java.net.InetAddress
 import java.util.concurrent.ExecutorService
 import monix.eval.Task
@@ -45,13 +46,14 @@ private object NoStreamServer extends StreamServer[StreamServerConfiguration] {
   }
 }
 
-object PortForwarder {
+object PortForwarder extends Logger {
   private final val description = "Mantis"
 
   def openPorts(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Resource[Task, Unit] =
     Resource.make(startForwarding(tcpPorts, udpPorts))(stopForwarding).void
 
   private def startForwarding(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Task[UpnpService] = Task {
+    log.info("Attempting port forwarding for TCP ports {} and UDP ports {}", tcpPorts, udpPorts)
     new UpnpServiceImpl(new ClientOnlyUpnpServiceConfiguration()).tap { service =>
       service.startup()
 
