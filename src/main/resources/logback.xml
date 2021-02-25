@@ -63,5 +63,7 @@
     <logger name="io.iohk.ethereum.network.PeerActor" level="${LOGSLEVEL}" />
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="${LOGSLEVEL}" />
     <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
-
+    <logger name="org.jupnp.QueueingThreadPoolExecutor" level="WARN" />
+    <logger name="org.jupnp.util.SpecificationViolationReporter" level="ERROR" />
+    <logger name="org.jupnp.protocol.RetrieveRemoteDescriptors" level="ERROR" />
 </configuration>
