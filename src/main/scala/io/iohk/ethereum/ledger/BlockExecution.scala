@@ -60,8 +60,9 @@ class BlockExecution(
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
       execResult <- executeBlockTransactions(block, parent)
-      worldToPersist <- Either.catchOnly[Throwable](blockPreparator.payBlockReward(block, execResult.worldState))
-      .leftMap(BlockExecutionError.MPTError.apply)
+      worldToPersist <- Either
+        .catchOnly[Throwable](blockPreparator.payBlockReward(block, execResult.worldState))
+        .leftMap(BlockExecutionError.MPTError.apply)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
