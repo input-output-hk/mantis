@@ -129,7 +129,7 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
     blockchain.getBestBlock().get shouldEqual oldBlock4
   }
 
-  it should "return a correct new best block after reorganising longer chain to a shorter one" in {
+  it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
 
     //returning discarded initial chain
     blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
@@ -145,8 +145,8 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
 
   it should "switch to a branch with a checkpoint" in {
 
-    val chackpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
-    val oldBlock5WithCheckpoint: Block = checkpointBlockGenerator.generate(oldBlock4, chackpoint)
+    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+    val oldBlock5WithCheckpoint: Block = checkpointBlockGenerator.generate(oldBlock4, checkpoint)
     blockchain.save(oldBlock5WithCheckpoint, Nil, oldWeight4, saveAsBestBlock = true)
 
     val newBranch = List(newBlock2, newBlock3)
@@ -158,10 +158,10 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
     blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number
   }
 
-  it should "return a correct checkpointed block after reorganising longer chain to a shorter one and back" in {
+  it should "switch to a branch with a newer checkpoint" in {
 
-    val chackpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
-    val newBlock4WithCheckpoint: Block = checkpointBlockGenerator.generate(newBlock3, chackpoint)
+    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+    val newBlock4WithCheckpoint: Block = checkpointBlockGenerator.generate(newBlock3, checkpoint)
     blockchain.save(newBlock4WithCheckpoint, Nil, newWeight3, saveAsBestBlock = true)
 
     val newBranch = List(newBlock4WithCheckpoint)
@@ -173,7 +173,7 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
     blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number
   }
 
-  it should "return a correct checkpointed block after receiving a new chackpoint from morpho" in {
+  it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in {
 
     val parent = blockchain.getBestBlock().get
     val newBlock5: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
