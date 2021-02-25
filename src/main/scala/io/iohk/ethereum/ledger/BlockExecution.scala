@@ -5,7 +5,10 @@ import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm.EvmConfig
+
 import scala.annotation.tailrec
+import cats.implicits._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,
@@ -59,7 +62,9 @@ class BlockExecution(
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
       execResult <- executeBlockTransactions(block, parent)
-      worldToPersist = blockPreparator.payBlockReward(block, execResult.worldState)
+      worldToPersist <- Either
+        .catchOnly[MPTException](blockPreparator.payBlockReward(block, execResult.worldState))
+        .leftMap(BlockExecutionError.MPTError.apply)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
@@ -169,19 +174,21 @@ sealed trait BlockExecutionError {
 
 sealed trait BlockExecutionSuccess
 
-case object BlockExecutionSuccess extends BlockExecutionSuccess
+final case object BlockExecutionSuccess extends BlockExecutionSuccess
 
 object BlockExecutionError {
-  case class ValidationBeforeExecError(reason: Any) extends BlockExecutionError
+  final case class ValidationBeforeExecError(reason: Any) extends BlockExecutionError
 
-  case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
+  final case class StateBeforeFailure(worldState: InMemoryWorldStateProxy, acumGas: BigInt, acumReceipts: Seq[Receipt])
 
-  case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String)
+  final case class TxsExecutionError(stx: SignedTransaction, stateBeforeError: StateBeforeFailure, reason: String)
       extends BlockExecutionError
 
-  case class ValidationAfterExecError(reason: String) extends BlockExecutionError
+  final case class ValidationAfterExecError(reason: String) extends BlockExecutionError
 
-  case object MissingParentError extends BlockExecutionError {
+  final case object MissingParentError extends BlockExecutionError {
     override val reason: Any = "Cannot find parent"
   }
+
+  final case class MPTError(reason: MPTException) extends BlockExecutionError
 }
