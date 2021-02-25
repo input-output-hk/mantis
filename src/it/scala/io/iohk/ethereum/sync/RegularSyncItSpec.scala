@@ -3,6 +3,7 @@ package io.iohk.ethereum.sync
 import com.typesafe.config.ConfigValueFactory
 import io.iohk.ethereum.FreeSpecBase
 import io.iohk.ethereum.metrics.{Metrics, MetricsConfig}
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.utils.Config
@@ -73,6 +74,108 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
     } yield {
       assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+    }
+  }
+
+  "peers should keep being synced on checkpoints" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    val blockNumber: Int = 2000
+    for {
+      _ <- peer1.importBlocksUntil(blockNumber)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
+      _ <- peer2.connectToPeers(Set(peer1.node))
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
+      _ <- peer2.addCheckpointedBlock(peer2.bl.getBestBlock().get)
+      _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumber + 1)
+    } yield {
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+    }
+  }
+
+  "peers should keep being synced on checkpoints even if 2 checkpoints are issued to different forks at the same time" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    val blockNumber: Int = 2000
+    for {
+      _ <- peer1.importBlocksUntil(blockNumber)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
+      _ <- peer2.connectToPeers(Set(peer1.node))
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
+      _ <- peer2.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 2)
+      _ <- peer2.addCheckpointedBlock(peer2.bl.getBestBlock().get)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 3)
+      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 4)
+      _ <- peer1.mineNewBlocks(100.milliseconds, 1)(IdentityUpdate)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 5)
+    } yield {
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+    }
+  }
+
+  "peers should chose the branch with a checkpoint discarding blocks that come after the checkpoint" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    val lenght = 26
+    for {
+      _ <- peer1.importBlocksUntil(20)(IdentityUpdate)
+      _ <- peer2.importBlocksUntil(30)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
+      _ <- peer2.addCheckpointedBlock(peer2.bl.getBlockByNumber(25).get)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(lenght)
+      _ <- peer1.connectToPeers(Set(peer2.node))
+      _ <- peer1.waitForRegularSyncLoadLastBlock(lenght)
+    } yield {
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl.getBestBlock().get.number  == lenght)
+      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+    }
+  }
+
+  "peers should choose the branch with a checkpoint even if it's shorter" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    for {
+      _ <- peer1.importBlocksUntil(4)(IdentityUpdate)
+      _ <- peer2.importBlocksUntil(8)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
+      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
+      _ = Thread.sleep(5000)
+      _ <- peer1.waitForRegularSyncLoadLastBlock(5)
+      _ <- peer1.connectToPeers(Set(peer2.node))
+      //TODO: remove the following line and the test should still work. Currently reorganisation is only triggered when the checkpoint is explicitly propagated,
+      // but it should also work when 2 new peers with conflicting branches connect
+      _ <- peer2.getCheckpointFromPeer(peer1.bl.getBestBlock().get, PeerId("Peer1"))
+      _ <- peer2.waitForRegularSyncLoadLastBlock(5)
+    } yield {
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+    }
+  }
+
+  "a peer should reorganise when receives a checkpoint older than the current best from a peer" in customTestCaseResourceM(
+    FakePeer.start2FakePeersRes()
+  ) { case (peer1, peer2) =>
+    for {
+      _ <- peer1.importBlocksUntil(20)(IdentityUpdate)
+      _ <- peer2.importBlocksUntil(30)(IdentityUpdate)
+      _ <- peer1.startRegularSync()
+      _ <- peer2.startRegularSync()
+      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
+      _ <- peer1.waitForRegularSyncLoadLastBlock(21)
+      _ <- peer2.getCheckpointFromPeer(peer1.bl.getBestBlock().get, PeerId("Peer1"))
+      _ <- peer2.waitForRegularSyncLoadLastBlock(21)
+    } yield {
+      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }
 

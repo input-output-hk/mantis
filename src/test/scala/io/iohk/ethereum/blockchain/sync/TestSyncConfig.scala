@@ -10,7 +10,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     printStatusInterval = 1.second,
     persistStateSnapshotInterval = 2.seconds,
     pivotBlockOffset = 500,
-    branchResolutionRequestSize = 2,
+    branchResolutionRequestSize = 30,
     blacklistDuration = 5.seconds,
     criticalBlacklistDuration = 10.seconds,
     syncRetryInterval = 1.second,

@@ -6,14 +6,19 @@ import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{NewCheckpointBlock, Start}
+import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
@@ -23,6 +28,7 @@ import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
 import monix.eval.Task
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
 
@@ -65,6 +71,31 @@ object RegularSyncItSpecUtils {
     )
 
     lazy val validators = buildEthashConsensus().validators
+
+    val broadcasterRef: ActorRef = system.actorOf(
+      BlockBroadcasterActor
+        .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, system.scheduler),
+      "block-broadcaster"
+    )
+
+    val fetcher: ActorRef =
+      system.actorOf(
+        BlockFetcher.props(peersClient, peerEventBus, regularSync, syncConfig, validators.blockValidator),
+        "block-fetcher"
+      )
+
+    lazy val blockImporter = system.actorOf(
+      BlockImporter.props(
+        fetcher,
+        ledger,
+        bl,
+        syncConfig,
+        ommersPool,
+        broadcasterRef,
+        pendingTransactionsManager,
+        checkpointBlockGenerator,
+        regularSync
+      ))
 
     lazy val regularSync = system.actorOf(
       RegularSync.props(
@@ -130,6 +161,19 @@ object RegularSyncItSpecUtils {
           .delayExecution(delay)
           .flatMap(_ => mineNewBlocks(delay, nBlocks - 1)(updateWorldForBlock))
       } else Task(())
+    }
+
+    def addCheckpointedBlock(parent: Block): Task[Unit] = Task {
+      val signatures = CheckpointingTestHelpers.createCheckpointSignatures(
+        Seq(crypto.generateKeyPair(secureRandom)),
+        parent.hash
+      )
+      regularSync ! NewCheckpoint(parent.header.hash, signatures)
+    }
+
+    def getCheckpointFromPeer(checkpoint: Block, peerId: PeerId): Task[Unit] = Task {
+      blockImporter ! Start
+      blockImporter ! NewCheckpointBlock(checkpoint, peerId)
     }
 
     private def getMptForBlock(block: Block) = {
