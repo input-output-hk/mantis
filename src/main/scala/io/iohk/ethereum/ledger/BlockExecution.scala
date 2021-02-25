@@ -5,8 +5,10 @@ import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm.EvmConfig
+
 import scala.annotation.tailrec
 import cats.implicits._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,
@@ -61,7 +63,7 @@ class BlockExecution(
         .toRight(MissingParentError) // Should not never occur because validated earlier
       execResult <- executeBlockTransactions(block, parent)
       worldToPersist <- Either
-        .catchOnly[Throwable](blockPreparator.payBlockReward(block, execResult.worldState))
+        .catchOnly[MPTException](blockPreparator.payBlockReward(block, execResult.worldState))
         .leftMap(BlockExecutionError.MPTError.apply)
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
@@ -188,5 +190,5 @@ object BlockExecutionError {
     override val reason: Any = "Cannot find parent"
   }
 
-  final case class MPTError(reason: Throwable) extends BlockExecutionError
+  final case class MPTError(reason: MPTException) extends BlockExecutionError
 }
