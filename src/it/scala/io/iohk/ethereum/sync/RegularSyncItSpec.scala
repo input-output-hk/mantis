@@ -122,19 +122,19 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
   "peers should chose the branch with a checkpoint discarding blocks that come after the checkpoint" in customTestCaseResourceM(
     FakePeer.start2FakePeersRes()
   ) { case (peer1, peer2) =>
-    val lenght = 26
+    val length = 26
     for {
       _ <- peer1.importBlocksUntil(20)(IdentityUpdate)
       _ <- peer2.importBlocksUntil(30)(IdentityUpdate)
       _ <- peer1.startRegularSync()
       _ <- peer2.startRegularSync()
       _ <- peer2.addCheckpointedBlock(peer2.bl.getBlockByNumber(25).get)
-      _ <- peer2.waitForRegularSyncLoadLastBlock(lenght)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(length)
       _ <- peer1.connectToPeers(Set(peer2.node))
-      _ <- peer1.waitForRegularSyncLoadLastBlock(lenght)
+      _ <- peer1.waitForRegularSyncLoadLastBlock(length)
     } yield {
       assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-      assert(peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl.getBestBlock().get.number  == lenght)
+      assert(peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl.getBestBlock().get.number  == length)
       assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }
