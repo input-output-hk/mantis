@@ -4,11 +4,11 @@ import com.typesafe.scalalogging
 import org.slf4j.{LoggerFactory, MDC}
 
 trait Logger {
-  val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
+  protected val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
 }
 
 trait LazyLogger {
-  lazy val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
+  protected lazy val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))
 }
 
 trait LoggingContext {

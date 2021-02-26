@@ -30,6 +30,8 @@ import org.scalatest.freespec.AnyFreeSpecLike
 import scala.concurrent.duration.DurationInt
 import scala.language.postfixOps
 import scala.util.Random
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.BranchResolutionFailed
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.BranchResolutionFailed.NoCommonBlockFound
 
 class FastSyncBranchResolverActorSpec
     extends TestKit(ActorSystem("FastSyncBranchResolver_testing"))
@@ -80,48 +82,149 @@ class FastSyncBranchResolverActorSpec
         val (peer, peerInfo) = getBestPeer
         (for {
           _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
-          _ <- fetchedHeaders.lastL.map(m => assert(m.last.number === 7))
           response <- Task(sender.expectMsg(BranchResolvedSuccessful(5, peer)))
           _ <- Task(stopController(fastSyncBranchResolver))
         } yield response).runSyncUnsafe()
       }
 
-      "The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" in new TestSetup {
+      "The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" - {
+        "highest common block is in the middle" in new TestSetup {
+          override implicit lazy val system = self.system
+          override implicit val scheduler = Scheduler(system.dispatcher)
+
+          val sender = TestProbe("sender")
+
+          val commonBlocks: List[Block] = BlockHelpers.generateChain(5, BlockHelpers.genesis)
+          val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(5, commonBlocks.last)
+          val blocksSavedInPeer: List[Block] = commonBlocks :++ BlockHelpers.generateChain(6, commonBlocks.last)
+
+          val firstBatchBlockHeaders =
+            blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
+
+          val blocksSentFromPeer: Map[Int, List[Block]] = Map(
+            1 -> firstBatchBlockHeaders,
+            2 -> List(blocksSavedInPeer.get(5).get), // block 6
+            3 -> List(blocksSavedInPeer.get(7).get), // block 8
+            4 -> List(blocksSavedInPeer.get(5).get), // block 6
+            5 -> List(blocksSavedInPeer.get(6).get) // block 7
+          )
+
+          saveBlocks(blocksSaved)
+          val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
+          val fastSyncBranchResolver =
+            creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+
+          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+            case r @ BranchResolvedSuccessful(num, _) if num == BigInt(5) => r
+          }
+
+          val (peer, peerInfo) = getBestPeer
+          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
+          (for {
+            _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
+            response <- Task(sender.expectMsgPF()(expectation))
+            _ <- Task(stopController(fastSyncBranchResolver))
+          } yield response).runSyncUnsafe()
+        }
+        "highest common block is in the first half" in new TestSetup {
+          override implicit lazy val system = self.system
+          override implicit val scheduler = Scheduler(system.dispatcher)
+
+          val sender = TestProbe("sender")
+
+          val commonBlocks: List[Block] = BlockHelpers.generateChain(3, BlockHelpers.genesis)
+          val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(7, commonBlocks.last)
+          val blocksSavedInPeer: List[Block] = commonBlocks :++ BlockHelpers.generateChain(8, commonBlocks.last)
+
+          val firstBatchBlockHeaders =
+            blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
+
+          val blocksSentFromPeer: Map[Int, List[Block]] = Map(
+            1 -> firstBatchBlockHeaders,
+            2 -> List(blocksSavedInPeer.get(5).get), // block 6
+            3 -> List(blocksSavedInPeer.get(2).get), // block 3
+            4 -> List(blocksSavedInPeer.get(3).get), // block 4
+            5 -> List(blocksSavedInPeer.get(3).get), // block 4
+            6 -> List(blocksSavedInPeer.get(4).get) // block 4
+          )
+
+          saveBlocks(blocksSaved)
+          val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
+          val fastSyncBranchResolver =
+            creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+
+          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+            case r @ BranchResolvedSuccessful(num, _) if num == BigInt(3) => r
+          }
+
+          val (peer, peerInfo) = getBestPeer
+          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
+          (for {
+            _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
+            response <- Task(sender.expectMsgPF()(expectation))
+            _ <- Task(stopController(fastSyncBranchResolver))
+          } yield response).runSyncUnsafe()
+        }
+
+        "highest common block is in the second half" in new TestSetup {
+          override implicit lazy val system = self.system
+          override implicit val scheduler = Scheduler(system.dispatcher)
+
+          val sender = TestProbe("sender")
+
+          val commonBlocks: List[Block] = BlockHelpers.generateChain(6, BlockHelpers.genesis)
+          val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(4, commonBlocks.last)
+          val blocksSavedInPeer: List[Block] = commonBlocks :++ BlockHelpers.generateChain(5, commonBlocks.last)
+
+          val firstBatchBlockHeaders =
+            blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
+
+          val blocksSentFromPeer: Map[Int, List[Block]] = Map(
+            1 -> firstBatchBlockHeaders,
+            2 -> List(blocksSavedInPeer.get(5).get), // block 6
+            3 -> List(blocksSavedInPeer.get(7).get), // block 8
+            4 -> List(blocksSavedInPeer.get(5).get), // block 6
+            5 -> List(blocksSavedInPeer.get(6).get) // block 7
+          )
+
+          saveBlocks(blocksSaved)
+          val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
+          val fastSyncBranchResolver =
+            creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
+
+          val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+            case r @ BranchResolvedSuccessful(num, _) if num == BigInt(6) => r
+          }
+
+          val (peer, peerInfo) = getBestPeer
+          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
+          (for {
+            _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
+            response <- Task(sender.expectMsgPF()(expectation))
+            _ <- Task(stopController(fastSyncBranchResolver))
+          } yield response).runSyncUnsafe()
+        }
+      }
+
+      "No common block is found" in new TestSetup {
         override implicit lazy val system = self.system
         override implicit val scheduler = Scheduler(system.dispatcher)
 
         val sender = TestProbe("sender")
 
-        val commonBlocks: List[Block] = BlockHelpers.generateChain(
-          5,
-          BlockHelpers.genesis,
-          block => block
-        )
-
-        val blocksSaved: List[Block] = commonBlocks :++ BlockHelpers.generateChain(
-          5,
-          commonBlocks.last,
-          block => block
-        )
-
-        val blocksSavedInPeer: List[Block] = commonBlocks :++ BlockHelpers.generateChain(
-          6,
-          commonBlocks.last,
-          block => block
-        )
+        // same genesis block but no common blocks
+        val blocksSaved: List[Block] = BlockHelpers.generateChain(5, BlockHelpers.genesis)
+        val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(6, BlockHelpers.genesis)
 
         val firstBatchBlockHeaders =
           blocksSavedInPeer.slice(blocksSavedInPeer.size - syncConfig.blockHeadersPerRequest, blocksSavedInPeer.size)
 
         val blocksSentFromPeer: Map[Int, List[Block]] = Map(
           1 -> firstBatchBlockHeaders,
-          2 -> List(blocksSavedInPeer.get(5).get),
-          3 -> List(blocksSavedInPeer.get(8).get),
-          4 -> List(blocksSavedInPeer.get(7).get),
-          5 -> List(blocksSavedInPeer.get(6).get)
+          2 -> List(blocksSavedInPeer.get(3).get), // block 4
+          3 -> List(blocksSavedInPeer.get(1).get), // block 2
+          4 -> List(blocksSavedInPeer.get(0).get) // block 1
         )
-        //blocks: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10
-        //the binary search asks the master peer for blocks in the following order: 6, 9, 8, 7
 
         saveBlocks(blocksSaved)
         val etcPeerManager = createEtcPeerManager(handshakedPeers, blocksSentFromPeer)
@@ -129,10 +232,10 @@ class FastSyncBranchResolverActorSpec
           creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
         val (peer, peerInfo) = getBestPeer
+        log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
         (for {
           _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
-          _ <- fetchedHeaders.lastL.map(m => assert(m.last.number === 7))
-          response <- Task(sender.expectMsg(BranchResolvedSuccessful(5, peer)))
+          response <- Task(sender.expectMsg(BranchResolutionFailed(NoCommonBlockFound)))
           _ <- Task(stopController(fastSyncBranchResolver))
         } yield response).runSyncUnsafe()
       }

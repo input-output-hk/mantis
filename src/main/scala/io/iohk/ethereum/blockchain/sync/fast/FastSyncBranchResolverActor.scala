@@ -32,14 +32,16 @@ class FastSyncBranchResolverActor(
 ) extends Actor
     with ActorLogging
     with FastSyncBranchResolver
-    with RecentBlocksSearchSupport
-    with BinarySearchSupport
     with PeerListSupportNg
     with Timers {
 
   import FastSyncBranchResolverActor._
+  import FastSyncBranchResolver._
+  import BinarySearchSupport._
 
-  override protected val recentHeadersSize: Int = syncConfig.blockHeadersPerRequest
+  private val recentHeadersSize: Int = syncConfig.blockHeadersPerRequest
+
+  private val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(blockchain)
 
   override def receive: Receive = waitingForPeerWithHighestBlock
 
@@ -61,7 +63,7 @@ class FastSyncBranchResolverActor(
       case ResponseReceived(peer, BlockHeaders(headers), timeTaken) if peer == masterPeer =>
         if (headers.size == recentHeadersSize) {
           log.debug("Received {} block headers from peer {} in {} ms", headers.size, masterPeer.id, timeTaken)
-          verifyRecentBlockHeadersResponse(headers, masterPeer, bestBlockNumber)
+          handleRecentBlockHeadersResponse(headers, masterPeer, bestBlockNumber)
         } else {
           handleInvalidResponse(peer, requestHandler)
         }
@@ -74,7 +76,6 @@ class FastSyncBranchResolverActor(
       blockHeaderNumberToSearch: BigInt,
       requestHandler: ActorRef
   ): Receive = {
-    import BinarySearchSupport._
     handlePeerListMessages orElse {
       case ResponseReceived(peer, BlockHeaders(headers), durationMs) if peer == searchState.masterPeer =>
         context.unwatch(requestHandler)
@@ -83,20 +84,10 @@ class FastSyncBranchResolverActor(
             log.debug(
               s"Received requested block header [$blockHeaderNumberToSearch] from peer [${peer.id}] in $durationMs ms"
             )
-            blockchain.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
-              case Some(parentHeader) =>
-                validateBlockHeaders(parentHeader, childHeader, searchState) match {
-                  case BinarySearchCompleted(firstCommonBlockNumber) =>
-                    finalizeBranchResolver(firstCommonBlockNumber, searchState.masterPeer)
-                  case ContinueBinarySearch(newSearchState) =>
-                    log.debug(s"Continuing binary search with new search state: $newSearchState")
-                    requestBlockHeader(newSearchState)
-                }
-              case None => stopWithFailure(BranchResolutionFailed.blockHeaderNotFound(blockHeaderNumberToSearch))
-            }
+            handleBinarySearchBlockHeaderResponse(searchState, childHeader)
           case _ =>
             log.warning(
-              s"Received invalid block header response when searching block header [$blockHeaderNumberToSearch]: $headers"
+              s"Received invalid response when requesting block header [$blockHeaderNumberToSearch]: $headers"
             )
             handleInvalidResponse(peer, requestHandler)
         }
@@ -119,33 +110,48 @@ class FastSyncBranchResolverActor(
     * Searches recent blocks for a valid parent/child relationship.
     * If we dont't find one, we switch to binary search.
     */
-  private def verifyRecentBlockHeadersResponse(
+  private def handleRecentBlockHeadersResponse(
       blockHeaders: Seq[BlockHeader],
       masterPeer: Peer,
       bestBlockNumber: BigInt
   ): Unit = {
-    getFirstCommonBlock(blockHeaders, bestBlockNumber) match {
-      case Some(firstCommonBlockNumber) =>
-        finalizeBranchResolver(firstCommonBlockNumber, masterPeer)
+    recentBlocksSearch.getHighestCommonBlock(blockHeaders, bestBlockNumber) match {
+      case Some(highestCommonBlockNumber) =>
+        finalizeBranchResolver(highestCommonBlockNumber, masterPeer)
       case None =>
         log.info(SwitchToBinarySearchLog, recentHeadersSize)
-        requestBlockHeader(
-          SearchState(minBlockNumber = 0, maxBlockNumber = bestBlockNumber, masterPeer)
+        requestBlockHeaderForBinarySearch(
+          SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer)
         )
     }
   }
 
-  private def requestBlockHeader(searchState: SearchState): Unit = {
-    val middleBlockHeaderNumber: BigInt = (searchState.minBlockNumber + searchState.maxBlockNumber) / 2
-    val blockHeaderNumberToRequest: BigInt = childOf(middleBlockHeaderNumber)
-    val handler = sendGetBlockHeadersRequest(searchState.masterPeer, blockHeaderNumberToRequest, 1)
-    context.become(waitingForBinarySearchBlock(searchState, blockHeaderNumberToRequest, handler))
+  private def requestBlockHeaderForBinarySearch(searchState: SearchState): Unit = {
+    val headerNumberToRequest = blockHeaderNumberToRequest(searchState.minBlockNumber, searchState.maxBlockNumber)
+    val handler = sendGetBlockHeadersRequest(searchState.masterPeer, headerNumberToRequest, 1)
+    context.become(waitingForBinarySearchBlock(searchState, headerNumberToRequest, handler))
+  }
+
+  private def handleBinarySearchBlockHeaderResponse(searchState: SearchState, childHeader: BlockHeader): Unit = {
+    import BinarySearchSupport._
+    blockchain.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
+      case Some(parentHeader) =>
+        validateBlockHeaders(parentHeader, childHeader, searchState) match {
+          case NoCommonBlock => stopWithFailure(BranchResolutionFailed.noCommonBlock)
+          case BinarySearchCompleted(highestCommonBlockNumber) =>
+            finalizeBranchResolver(highestCommonBlockNumber, searchState.masterPeer)
+          case ContinueBinarySearch(newSearchState) =>
+            log.debug(s"Continuing binary search with new search state: $newSearchState")
+            requestBlockHeaderForBinarySearch(newSearchState)
+        }
+      case None => stopWithFailure(BranchResolutionFailed.blockHeaderNotFound(childHeader.number))
+    }
   }
 
   private def finalizeBranchResolver(firstCommonBlockNumber: BigInt, masterPeer: Peer): Unit = {
     discardBlocksAfter(firstCommonBlockNumber)
     log.info(s"Branch resolution completed with first common block number [$firstCommonBlockNumber]")
-    fastSync ! BranchResolvedSuccessful(firstCommonBlockNumber = firstCommonBlockNumber, masterPeer = masterPeer)
+    fastSync ! BranchResolvedSuccessful(highestCommonBlockNumber = firstCommonBlockNumber, masterPeer = masterPeer)
     context.stop(self)
   }
 
@@ -243,17 +249,11 @@ object FastSyncBranchResolverActor {
       )
     )
 
-  /**
-    * Stores the current search state for binary search.
-    * Meaning we know the first common block lies between minBlockNumber and maxBlockNumber.
-    */
-  final case class SearchState(minBlockNumber: BigInt, maxBlockNumber: BigInt, masterPeer: Peer)
-
   sealed trait BranchResolverRequest
   case object StartBranchResolver extends BranchResolverRequest
 
   sealed trait BranchResolverResponse
-  final case class BranchResolvedSuccessful(firstCommonBlockNumber: BigInt, masterPeer: Peer)
+  final case class BranchResolvedSuccessful(highestCommonBlockNumber: BigInt, masterPeer: Peer)
       extends BranchResolverResponse
   import BranchResolutionFailed._
   final case class BranchResolutionFailed(failure: BranchResolutionFailure)
