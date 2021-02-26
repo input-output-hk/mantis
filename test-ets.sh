@@ -1,6 +1,6 @@
-# this script is meant to run the Ethereum Test Suite (https://github.com/ethereum/tests) on CircleCI
-# to skip these tests, set SKIP_ETS_TEST variable CircleCI UI
-# to differentiate by branch, use CIRCLE_BRANCH variable in the conditional below
+# this script is meant to run the Ethereum Test Suite (https://github.com/ethereum/tests) on Buildkite
+# to skip these tests, set SKIP_ETS_TEST variable
+# to differentiate by branch, use BUILDKITE_BRANCH variable in the conditional below
 
 echo "current branch: $BUILDKITE_BRANCH"
 
@@ -18,7 +18,7 @@ export SBT = "sbt -v -mem 2048 $SBT_NIX";
 if [ -z $SKIP_ETS_TESTS ]; then
     git submodule init;
     git submodule update;
-    if [ "$BUILDKITE_BRANCH" == "master" -o -n "$RUN_FULL_ETS" ]; then
+    if [ "$BUILDKITE_BRANCH" == "feature/ETCM-532-run-full-ets" -o -n "$RUN_FULL_ETS" ]; then
         export JAVA_OPTS="-Xmx3g -Xss16m -XX:MaxMetaspaceSize=512m"
         echo "running full ETS"
         $SBT "ets:testOnly * -- -DuseLocalVM=true -Dexg=vmPerf*";
