@@ -79,12 +79,16 @@ class FastSyncBranchResolverActorSpec
         val fastSyncBranchResolver =
           creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-        val (peer, peerInfo) = getBestPeer
-        (for {
+        val expectation: PartialFunction[Any, BranchResolvedSuccessful] = {
+          case r @ BranchResolvedSuccessful(num, _) if num == BigInt(5) => r
+        }
+
+        val response = (for {
           _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
-          response <- Task(sender.expectMsg(BranchResolvedSuccessful(5, peer)))
+          response <- Task(sender.expectMsgPF()(expectation))
           _ <- Task(stopController(fastSyncBranchResolver))
         } yield response).runSyncUnsafe()
+        assert(getBestPeers.contains(response.masterPeer))
       }
 
       "The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" - {
@@ -118,13 +122,12 @@ class FastSyncBranchResolverActorSpec
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(5) => r
           }
 
-          val (peer, peerInfo) = getBestPeer
-          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
-          (for {
+          val response = (for {
             _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
             response <- Task(sender.expectMsgPF()(expectation))
             _ <- Task(stopController(fastSyncBranchResolver))
           } yield response).runSyncUnsafe()
+          assert(getBestPeers.contains(response.masterPeer))
         }
         "highest common block is in the first half" in new TestSetup {
           override implicit lazy val system = self.system
@@ -157,13 +160,12 @@ class FastSyncBranchResolverActorSpec
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(3) => r
           }
 
-          val (peer, peerInfo) = getBestPeer
-          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
-          (for {
+          val response = (for {
             _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
             response <- Task(sender.expectMsgPF()(expectation))
             _ <- Task(stopController(fastSyncBranchResolver))
           } yield response).runSyncUnsafe()
+          assert(getBestPeers.contains(response.masterPeer))
         }
 
         "highest common block is in the second half" in new TestSetup {
@@ -196,13 +198,12 @@ class FastSyncBranchResolverActorSpec
             case r @ BranchResolvedSuccessful(num, _) if num == BigInt(6) => r
           }
 
-          val (peer, peerInfo) = getBestPeer
-          log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
-          (for {
+          val response = (for {
             _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
             response <- Task(sender.expectMsgPF()(expectation))
             _ <- Task(stopController(fastSyncBranchResolver))
           } yield response).runSyncUnsafe()
+          assert(getBestPeers.contains(response.masterPeer))
         }
       }
 
@@ -223,7 +224,7 @@ class FastSyncBranchResolverActorSpec
           1 -> firstBatchBlockHeaders,
           2 -> List(blocksSavedInPeer.get(3).get), // block 4
           3 -> List(blocksSavedInPeer.get(1).get), // block 2
-          4 -> List(blocksSavedInPeer.get(0).get) // block 1
+          4 -> List(blocksSavedInPeer.get(1).get) // block 1
         )
 
         saveBlocks(blocksSaved)
@@ -231,7 +232,6 @@ class FastSyncBranchResolverActorSpec
         val fastSyncBranchResolver =
           creatFastSyncBranchResolver(sender.ref, etcPeerManager, CacheBasedBlacklist.empty(BlacklistMaxElements))
 
-        val (peer, peerInfo) = getBestPeer
         log.debug(s"*** peers: ${handshakedPeers.map(p => (p._1.id, p._2.maxBlockNumber))}")
         (for {
           _ <- Task(sender.send(fastSyncBranchResolver, StartBranchResolver))
@@ -304,8 +304,9 @@ class FastSyncBranchResolverActorSpec
       awaitCond(gracefulStop(actorRef, actorAskTimeout.duration).futureValue)
     }
 
-    def getBestPeer: (Peer, PeerInfo) = {
-      handshakedPeers.toList.sortBy { case (_, peerInfo) => peerInfo.maxBlockNumber }(Ordering[BigInt].reverse).head
+    def getBestPeers: List[Peer] = {
+      val maxBlock = handshakedPeers.toList.map { case (_, peerInfo) => peerInfo.maxBlockNumber }.max
+      handshakedPeers.toList.filter { case (_, peerInfo) => peerInfo.maxBlockNumber == maxBlock }.map(_._1)
     }
   }
 }

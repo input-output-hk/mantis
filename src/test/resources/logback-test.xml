@@ -8,7 +8,7 @@
         </encoder>
     </appender>
 
-    <logger name="io.iohk.ethereum" level="DEBUG" />
+    <logger name="io.iohk.ethereum" level="INFO" />
     <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
 
     <root level="INFO">

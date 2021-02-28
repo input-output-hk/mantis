@@ -60,14 +60,15 @@ class RecentBlocksSearch(blockchain: Blockchain) {
       candidateHeaders: Seq[BlockHeader],
       bestBlockNumber: BigInt
   ): Option[BigInt] = {
+    def isParent(potentialParent: BigInt, childCandidate: BlockHeader): Boolean =
+      blockchain.getBlockHeaderByNumber(potentialParent).exists { _.isParentOf(childCandidate) }
     NonEmptyList.fromList(candidateHeaders.reverse.toList).flatMap { remoteHeaders =>
       val blocksToBeCompared = bestBlockNumber.until(bestBlockNumber - remoteHeaders.size).by(-1).toList
       remoteHeaders.toList
         .zip(blocksToBeCompared)
-        .find { case (childCandidate, parent) =>
-          blockchain.getBlockHeaderByNumber(parent).exists { _.isParentOf(childCandidate) }
+        .collectFirst {
+          case (childCandidate, parent) if isParent(parent, childCandidate) => parent
         }
-        .map(_._2)
     }
   }
 
@@ -107,10 +108,9 @@ object BinarySearchSupport extends Logger {
       else if (parentNum == min && childNum == max) ContinueBinarySearch(searchState.copy(minBlockNumber = childNum))
       else ContinueBinarySearch(searchState.copy(minBlockNumber = parentNum))
     } else { // no parent/child -> chains have diverged before parent block
-      if (min == 1 && max == 1) NoCommonBlock
+      if (min == 1 && max <= 2) NoCommonBlock
       else if (min == max) BinarySearchCompleted(parentOf(parentNum))
-      // else if (parentNum == max) BinarySearchCompleted(parentNum)
-      else ContinueBinarySearch(searchState.copy(maxBlockNumber = parentOf(parentNum)))
+      else ContinueBinarySearch(searchState.copy(maxBlockNumber = parentOf(parentNum).max(1)))
     }
   }
 

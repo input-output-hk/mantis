@@ -208,7 +208,6 @@ class FastSyncBranchResolverActor(
     restart()
   }
 
-  // TODO track restarts and give up after a couple of times
   private def restart(): Unit = {
     context.become(waitingForPeerWithHighestBlock)
     self ! StartBranchResolver
