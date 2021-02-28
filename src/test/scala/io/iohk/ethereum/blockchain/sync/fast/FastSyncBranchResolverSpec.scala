@@ -10,8 +10,17 @@ import org.scalacheck.Gen
 import io.iohk.ethereum.domain.Block
 import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
+import io.iohk.ethereum.network.Peer
+import java.net.InetSocketAddress
+import akka.actor.ActorRef
+import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
+import io.iohk.ethereum.Fixtures
 
 class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFactory {
+
+  import Fixtures.Blocks.ValidBlock
 
   private def dummyBlockHeader(num: BigInt, parentHash: ByteString = ByteString.empty): BlockHeader = {
     val emptyByteString = ByteString.empty
@@ -34,7 +43,18 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
     )
   }
 
-  private def dummyHeaderChain(fromBlock: BlockHeader, to: BigInt): List[BlockHeader] = ???
+  private def blocksMap(amount: Int, parent: Block): Map[BigInt, Block] = {
+    BlockHelpers.generateChain(amount, parent).map(b => (b.number, b)).toMap
+  }
+
+  private def headersMap(amount: Int, parent: Block): Map[BigInt, BlockHeader] = {
+    BlockHelpers.generateChain(amount, parent).map(b => (b.number, b.header)).toMap
+  }
+
+  private def headersList(blocksMap: Map[BigInt, Block]): List[BlockHeader] =
+    blocksMap.values.map(_.header).toList
+
+  private def headerNum(block: Block): BigInt = block.header.number
 
   "FastSyncBranchResolver" must {
     "calculate childOf block number" in {
@@ -48,18 +68,17 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
     }
     "correctly discard all blocks after a certain block number" in {
       val mockedBlockchain = mock[BlockchainImpl]
-      val h100 = dummyBlockHeader(100)
-      val h99 = dummyBlockHeader(99)
-      val h98 = dummyBlockHeader(98)
+
+      val headers = headersMap(amount = 3, parent = Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
 
       inSequence {
         (mockedBlockchain.getBestBlockNumber _).expects().returning(BigInt(100)).once()
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returning(Some(h100))
-        (mockedBlockchain.removeBlock _).expects(h100.hash, false).returning(())
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returning(Some(h99))
-        (mockedBlockchain.removeBlock _).expects(h99.hash, false).returning(())
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returning(Some(h98))
-        (mockedBlockchain.removeBlock _).expects(h98.hash, false).returning(())
+        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
+        (mockedBlockchain.removeBlock _).expects(headers(100).hash, false).returning(())
+        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
+        (mockedBlockchain.removeBlock _).expects(headers(99).hash, false).returning(())
+        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
+        (mockedBlockchain.removeBlock _).expects(headers(98).hash, false).returning(())
       }
 
       val resolver = new FastSyncBranchResolver {
@@ -71,87 +90,69 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
   "RecentBlocksSearch" must {
     "find highest common block header" when {
-      "it's at the very end" in {
+      "it's at the very end of the search range" in {
         val mockedBlockchain = mock[BlockchainImpl]
 
-        val h95 = dummyBlockHeader(95)
-        val h96 = dummyBlockHeader(96, parentHash = h95.hash)
-        val h97 = dummyBlockHeader(97, parentHash = h96.hash)
-        val h98 = dummyBlockHeader(98, parentHash = h97.hash)
-        val h99 = dummyBlockHeader(99, parentHash = h98.hash)
-        // *** chains diverged after this block => highest common block number [100] ***
-        val h100 = dummyBlockHeader(100, parentHash = h99.hash)
-        // ***
-        val h101r = dummyBlockHeader(101, parentHash = h100.hash)
+        // our: [..., 97, 98, 99, *100*]
+        // peer: [..., 97, 98, 99, *100*, 101, 102]
+        val startBlock = Block(ValidBlock.header.copy(number = 97), ValidBlock.body)
+        val ourBlocks = blocksMap(amount = 3, parent = startBlock)
+        val peerBlocks = ourBlocks ++ blocksMap(amount = 1, parent = ourBlocks(100))
 
-        val ourBestBlockHeader = 100
-        val ourBlockHeaders = List(h95, h96, h97, h98, h99, h100)
-        val remoteBlockHeaders = List(h98, h99, h100, h101r) // blocks we request from the remote peer
-
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(Some(h100))
+        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
-        assert(recentBlocksSearch.getHighestCommonBlock(remoteBlockHeaders, ourBestBlockHeader) === Some(BigInt(100)))
+        assert(
+          recentBlocksSearch.getHighestCommonBlock(peerBlocks.values.map(_.header).toList, 100) === Some(BigInt(100))
+        )
       }
-      "it's at the very beginning" in {
+      "it's at the very beginning of the search range" in {
         val mockedBlockchain = mock[BlockchainImpl]
 
-        // *** chains diverged after this block => highest common block number [95] ***
-        val h95 = dummyBlockHeader(95)
-        // ***
-        val h96 = dummyBlockHeader(96, parentHash = h95.hash)
-        val h96r = dummyBlockHeader(96, parentHash = h95.hash).copy(nonce = ByteString("foo"))
-        val h97 = dummyBlockHeader(97, parentHash = h96.hash)
-        val h97r = dummyBlockHeader(97, parentHash = h96r.hash)
-        val h98 = dummyBlockHeader(98, parentHash = h97.hash)
-        val h98r = dummyBlockHeader(98, parentHash = h97r.hash)
-        val h99 = dummyBlockHeader(99, parentHash = h98.hash)
-        val h99r = dummyBlockHeader(99, parentHash = h98r.hash)
-        val h100 = dummyBlockHeader(100, parentHash = h99.hash)
-        val h100r = dummyBlockHeader(100, parentHash = h99r.hash)
-        val h101r = dummyBlockHeader(101, parentHash = h100r.hash)
+        val ourBestBlock = 100
+        val highestCommonBlock = 97
 
-        val ourBestBlockHeader = 100
-        val ourBlockHeaders = List(h95, h96, h97, h98, h99, h100)
-        val remoteBlockHeaders = List(h96r, h97r, h98r, h99r, h100r, h101r) // blocks we receive from the remote peer
+        // our: [..., *97*, 98, 99, 100]
+        // peer: [..., *97*, 98x, 99x, 100, 101x]
+        val startBlock = Block(ValidBlock.header.copy(number = 96), ValidBlock.body)
+        val ourBlocks = blocksMap(amount = 4, parent = startBlock) // 97, 98, 99, 100
+        val peerBlocks = blocksMap(amount = 4, parent = ourBlocks(97)) // 98, 99, 100, 101
 
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(95)).returns(Some(h95))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(96)).returns(Some(h96))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(Some(h97))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(Some(h98))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(Some(h99))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(Some(h100))
+        inSequence {
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+        }
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
-        assert(recentBlocksSearch.getHighestCommonBlock(remoteBlockHeaders, ourBestBlockHeader) === Some(BigInt(95)))
+        assert(
+          recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === Some(
+            BigInt(highestCommonBlock)
+          )
+        )
       }
       "it's somewhere in the middle" in {
         val mockedBlockchain = mock[BlockchainImpl]
 
-        val h95 = dummyBlockHeader(95)
-        val h96 = dummyBlockHeader(96, parentHash = h95.hash)
-        // *** chains diverged after this block => highest common block number [97] ***
-        val h97 = dummyBlockHeader(97, parentHash = h96.hash)
-        // ***
-        val h98 = dummyBlockHeader(98, parentHash = h97.hash)
-        val h98r = dummyBlockHeader(98, parentHash = h97.hash).copy(nonce = ByteString("foo"))
-        val h99 = dummyBlockHeader(99, parentHash = h98.hash)
-        val h99r = dummyBlockHeader(99, parentHash = h98r.hash)
-        val h100 = dummyBlockHeader(100, parentHash = h99.hash)
-        val h100r = dummyBlockHeader(100, parentHash = h99r.hash)
-        val h101r = dummyBlockHeader(101, parentHash = h100r.hash)
+        val ourBestBlock = 100
+        val highestCommonBlock = 98
 
-        val ourBestBlockHeader = 100
-        val ourBlockHeaders = List(h95, h96, h97, h98, h99, h100)
-        val remoteBlockHeaders = List(h96, h97, h98r, h99r, h100r, h101r) // blocks we receive from the remote peer
+        // our: [..., 95, 96, 97, *98*, 99, 100]
+        // peer: [..., 95, 96, 97, *98*, 99x, 100x, 101x]
+        val startBlock = Block(ValidBlock.header.copy(number = 95), ValidBlock.body)
+        val commonBlocks = blocksMap(amount = 3, parent = startBlock)
+        val ourBlocks = commonBlocks ++ blocksMap(amount = 2, parent = commonBlocks(highestCommonBlock))
+        val peerBlocks = blocksMap(amount = 3, parent = commonBlocks(highestCommonBlock))
 
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(Some(h97))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(Some(h98))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(Some(h99))
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(Some(h100))
+        inSequence {
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+        }
 
         val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
-        assert(recentBlocksSearch.getHighestCommonBlock(remoteBlockHeaders, ourBestBlockHeader) === Some(BigInt(97)))
+        assert(recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === Some(BigInt(98)))
       }
     }
     "return None if there's no common block header" in {
@@ -202,13 +203,143 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       assert(BinarySearchSupport.blockHeaderNumberToRequest(4, 4) === 5)
     }
     "complete search with highest common block number" in {
-      assert(true)
+      val ourBestBlock = 10
+      val highestCommonBlock = 6
+
+      val commonBlocks: List[Block] = BlockHelpers.generateChain(highestCommonBlock, BlockHelpers.genesis)
+      val blocksSaved: List[Block] =
+        commonBlocks :++ BlockHelpers.generateChain(ourBestBlock - highestCommonBlock, commonBlocks.last)
+      val blocksSavedInPeer: List[Block] =
+        commonBlocks :++ BlockHelpers.generateChain(ourBestBlock + 1 - highestCommonBlock, commonBlocks.last)
+
+      val dummyPeer = Peer(new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+
+      val initialSearchState = SearchState(1, 10, dummyPeer)
+      val ours = blocksSaved.map(b => (b.number, b)).toMap
+      val peer = blocksSavedInPeer.map(b => (b.number, b)).toMap
+
+      val req1 = BinarySearchSupport.blockHeaderNumberToRequest(
+        initialSearchState.minBlockNumber,
+        initialSearchState.maxBlockNumber
+      )
+      assert(req1 === 6)
+
+      // checking whether [our:5] is the parent of [peer:6]
+      // -> yes, so block 5 is common and we continue to look for higher common blocks
+      val s1 = BinarySearchSupport.validateBlockHeaders(
+        ours(req1 - 1).header,
+        peer(req1).header,
+        initialSearchState
+      ) match {
+        case ContinueBinarySearch(searchState) => searchState
+        case _ => fail()
+      }
+      assert(s1 === SearchState(5, 10, dummyPeer))
+
+      val req2 = BinarySearchSupport.blockHeaderNumberToRequest(s1.minBlockNumber, s1.maxBlockNumber)
+      assert(req2 === 8)
+
+      // checking whether [our:7] is the parent of [peer:8]
+      // -> no, so block 6 is the max highest block and continue searching
+      val s2 = BinarySearchSupport.validateBlockHeaders(
+        ours(req2 - 1).header,
+        peer(req2).header,
+        s1
+      ) match {
+        case ContinueBinarySearch(searchState) => searchState
+        case _ => fail()
+      }
+      assert(s2 === SearchState(5, 6, dummyPeer))
+
+      val req3 = BinarySearchSupport.blockHeaderNumberToRequest(s2.minBlockNumber, s2.maxBlockNumber)
+      assert(req3 === 6)
+
+      // checking whether [our:5] is the parent of [peer:6]
+      // -> yes, and 5 was already the minimum and 6 the maximum, so the only block that could be potentially better is 6
+      // -> so we set both min and max to 6
+      val s3 = BinarySearchSupport.validateBlockHeaders(
+        ours(req3 - 1).header,
+        peer(req3).header,
+        s2
+      ) match {
+        case ContinueBinarySearch(searchState) => searchState
+        case _ => fail()
+      }
+      assert(s3 === SearchState(6, 6, dummyPeer))
+
+      val req4 = BinarySearchSupport.blockHeaderNumberToRequest(s3.minBlockNumber, s3.maxBlockNumber)
+      assert(req4 === 7)
+
+      // checking whether [our:6] is the parent of [peer:7]
+      // -> yes, so 6 is the final result
+      val res = BinarySearchSupport.validateBlockHeaders(
+        ours(req4 - 1).header,
+        peer(req4).header,
+        s3
+      ) match {
+        case BinarySearchCompleted(highestHeader) => highestHeader
+        case _ => fail()
+      }
+      assert(res === BigInt(6))
     }
-    "continue search" when {
-      "no parent/child relationship" in pending
-      "parent/child relationship but there could be a higher common block" in pending
+    "complete search with no match" in {
+      val ourBestBlock = 10
+
+      val blocksSaved: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
+      val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
+
+      val dummyPeer = Peer(new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+
+      val initialSearchState = SearchState(1, 8, dummyPeer)
+      val ours = blocksSaved.map(b => (b.number, b)).toMap
+      val peer = blocksSavedInPeer.map(b => (b.number, b)).toMap
+
+      val req1 = BinarySearchSupport.blockHeaderNumberToRequest(
+        initialSearchState.minBlockNumber,
+        initialSearchState.maxBlockNumber
+      )
+      assert(req1 === 5)
+
+      // checking whether [our:4] is the parent of [peer:5]
+      // -> no, so block 3 is the potentially best block
+      val s1 = BinarySearchSupport.validateBlockHeaders(
+        ours(req1 - 1).header,
+        peer(req1).header,
+        initialSearchState
+      ) match {
+        case ContinueBinarySearch(searchState) => searchState
+        case _ => fail()
+      }
+      assert(s1 === SearchState(1, 3, dummyPeer))
+
+      val req2 = BinarySearchSupport.blockHeaderNumberToRequest(s1.minBlockNumber, s1.maxBlockNumber)
+      assert(req2 === 3)
+
+      // checking whether [our:2] is the parent of [peer:3]
+      // -> no, so block 1 is the max highest block and continue searching
+      val s2 = BinarySearchSupport.validateBlockHeaders(
+        ours(req2 - 1).header,
+        peer(req2).header,
+        s1
+      ) match {
+        case ContinueBinarySearch(searchState) => searchState
+        case _ => fail()
+      }
+      assert(s2 === SearchState(1, 1, dummyPeer))
+
+      val req3 = BinarySearchSupport.blockHeaderNumberToRequest(s2.minBlockNumber, s2.maxBlockNumber)
+      assert(req3 === 2)
+
+      // checking whether [our:1] is the parent of [peer:2]
+      // -> no, that means not even block 1 is common
+      val res = BinarySearchSupport.validateBlockHeaders(
+        ours(req3 - 1).header,
+        peer(req3).header,
+        s2
+      )
+
+      assert(res === NoCommonBlock)
     }
-    "complete search with no match" in pending
   }
 
 }

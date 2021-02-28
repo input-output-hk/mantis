@@ -62,7 +62,7 @@ class RecentBlocksSearch(blockchain: Blockchain) {
   ): Option[BigInt] = {
     NonEmptyList.fromList(candidateHeaders.reverse.toList).flatMap { remoteHeaders =>
       val blocksToBeCompared = bestBlockNumber.until(bestBlockNumber - remoteHeaders.size).by(-1).toList
-      candidateHeaders.reverse
+      remoteHeaders.toList
         .zip(blocksToBeCompared)
         .find { case (childCandidate, parent) =>
           blockchain.getBlockHeaderByNumber(parent).exists { _.isParentOf(childCandidate) }
@@ -92,24 +92,6 @@ object BinarySearchSupport extends Logger {
   def blockHeaderNumberToRequest(min: BigInt, max: BigInt): BigInt =
     childOf(middleBlockNumber(min, max))
 
-  def validateBlockHeadersFoo(
-      parentBlockHeader: BlockHeader,
-      childBlockHeader: BlockHeader,
-      searchState: SearchState
-  ): BinarySearchResult = {
-    log.debug(s"$searchState")
-    if (parentBlockHeader.isParentOf(childBlockHeader)) {
-      if (parentBlockHeader.number == searchState.minBlockNumber)
-        BinarySearchCompleted(parentBlockHeader.number)
-      else ContinueBinarySearch(searchState.copy(minBlockNumber = parentBlockHeader.number))
-    } else if (parentBlockHeader.number == searchState.minBlockNumber && searchState.minBlockNumber == 0)
-      NoCommonBlock
-    else if (parentBlockHeader.number == searchState.minBlockNumber)
-      BinarySearchCompleted(parentOf(parentBlockHeader.number))
-    else
-      ContinueBinarySearch(searchState.copy(maxBlockNumber = parentBlockHeader.number))
-  }
-
   def validateBlockHeaders(
       parentBlockHeader: BlockHeader,
       childBlockHeader: BlockHeader,
@@ -120,14 +102,12 @@ object BinarySearchSupport extends Logger {
     val min = searchState.minBlockNumber
     val max = searchState.maxBlockNumber
 
-    log.debug(s"$searchState")
-
     if (parentBlockHeader.isParentOf(childBlockHeader)) { // chains are still aligned but there might be an even better block
       if (parentNum == max) BinarySearchCompleted(parentNum)
       else if (parentNum == min && childNum == max) ContinueBinarySearch(searchState.copy(minBlockNumber = childNum))
       else ContinueBinarySearch(searchState.copy(minBlockNumber = parentNum))
     } else { // no parent/child -> chains have diverged before parent block
-      if (min == 1 && max == 2) NoCommonBlock
+      if (min == 1 && max == 1) NoCommonBlock
       else if (min == max) BinarySearchCompleted(parentOf(parentNum))
       // else if (parentNum == max) BinarySearchCompleted(parentNum)
       else ContinueBinarySearch(searchState.copy(maxBlockNumber = parentOf(parentNum)))
