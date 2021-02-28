@@ -1,17 +1,9 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import io.iohk.ethereum.domain.Blockchain
-
-import cats.effect.Sync
-import cats.Applicative
-import cats.implicits._
-import io.iohk.ethereum.domain.BlockHeader
 import cats.data.NonEmptyList
-
-import com.typesafe.scalalogging
-import org.slf4j.LoggerFactory
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.utils.Logger
 
 trait FastSyncBranchResolver {
 
@@ -102,6 +94,13 @@ object BinarySearchSupport extends Logger {
     val parentNum = parentBlockHeader.number
     val min = searchState.minBlockNumber
     val max = searchState.maxBlockNumber
+
+    log.debug(
+      "Validating block headers (binary search) for parentBlockHeader {}, remote childBlockHeader {} and search state {}",
+      parentBlockHeader.number,
+      childBlockHeader.number,
+      searchState
+    )
 
     if (parentBlockHeader.isParentOf(childBlockHeader)) { // chains are still aligned but there might be an even better block
       if (parentNum == max) BinarySearchCompleted(parentNum)
