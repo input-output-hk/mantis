@@ -22,27 +22,6 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
   import Fixtures.Blocks.ValidBlock
 
-  private def dummyBlockHeader(num: BigInt, parentHash: ByteString = ByteString.empty): BlockHeader = {
-    val emptyByteString = ByteString.empty
-    BlockHeader(
-      parentHash,
-      emptyByteString,
-      emptyByteString,
-      emptyByteString,
-      emptyByteString,
-      emptyByteString,
-      emptyByteString,
-      1,
-      num,
-      1,
-      1,
-      1,
-      emptyByteString,
-      emptyByteString,
-      emptyByteString
-    )
-  }
-
   private def blocksMap(amount: Int, parent: Block): Map[BigInt, Block] = {
     BlockHelpers.generateChain(amount, parent).map(b => (b.number, b)).toMap
   }
@@ -158,38 +137,23 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
     "return None if there's no common block header" in {
       val mockedBlockchain = mock[BlockchainImpl]
 
-      val h95 = dummyBlockHeader(95)
-      val h96 = dummyBlockHeader(96, parentHash = h95.hash)
-      val h96r = dummyBlockHeader(96, parentHash = h95.hash).copy(nonce = ByteString("foo"))
-      val h97 = dummyBlockHeader(97, parentHash = h96.hash)
-      val h97r = dummyBlockHeader(97, parentHash = h96r.hash)
-      val h98 = dummyBlockHeader(98, parentHash = h97.hash)
-      val h98r = dummyBlockHeader(98, parentHash = h97r.hash)
-      val h99 = dummyBlockHeader(99, parentHash = h98.hash)
-      val h99r = dummyBlockHeader(99, parentHash = h98r.hash)
-      val h100 = dummyBlockHeader(100, parentHash = h99.hash)
-      val h100r = dummyBlockHeader(100, parentHash = h99r.hash)
-      val h101r = dummyBlockHeader(101, parentHash = h100r.hash)
+      val ourBestBlock = 100
 
-      val ourBestBlockHeader = 100
-      val ourBlockHeaders = List(h95, h96, h97, h98, h99, h100)
-      val remoteBlockHeaders =
-        List(
-          h97r,
-          h98r,
-          h99r,
-          h100r,
-          h101r
-        ) // we don't request header [96] so we don't see it would be a child of our h95
+      // our: [..., 95, 96, 97, 98, 99, 100]
+      // peer: [..., 95x, 96x, 97x, 98x, 99x, 100x]
+      val startBlock = Block(ValidBlock.header.copy(number = 95), ValidBlock.body)
+      val divergedStartBlock = Block(ValidBlock.header.copy(number = 95, nonce = ByteString("foo")), ValidBlock.body)
+      val ourBlocks = blocksMap(amount = 5, parent = startBlock)
+      val peerBlocks = blocksMap(amount = 5, parent = divergedStartBlock)
 
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(96)).returns(Some(h96))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(Some(h97))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(Some(h98))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(Some(h99))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(Some(h100))
+      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(96)).returns(ourBlocks.get(96).map(_.header))
 
       val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
-      assert(recentBlocksSearch.getHighestCommonBlock(remoteBlockHeaders, ourBestBlockHeader) === None)
+      assert(recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === None)
     }
   }
 
