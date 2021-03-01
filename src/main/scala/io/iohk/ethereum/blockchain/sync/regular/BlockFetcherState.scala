@@ -130,9 +130,10 @@ case class BlockFetcherState(
     }
 
   private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
-    if (waitingHeaders.isEmpty) {
-      (readyBlocks.lastOption.map(_.header), headers.headOption).mapN(_ isParentOf _).getOrElse(true)
-    } else true
+    (readyBlocks, headers) match {
+      case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header isParentOf head
+      case _ => true
+    }
   }
 
   def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
