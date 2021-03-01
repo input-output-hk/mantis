@@ -210,6 +210,7 @@ class BlockFetcher(
   private def handleNewBlock(block: Block, peerId: PeerId, state: BlockFetcherState): Unit = {
     //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
     log.debug("Received NewBlock {}", block.idTag)
+    log.debug("Received NewBlock from {}", peerId.value)
     val newBlockNr = block.number
     val nextExpectedBlock = state.lastBlock + 1
 
