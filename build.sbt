@@ -255,3 +255,6 @@ addCommandAlias(
     |;it:test
     |""".stripMargin
 )
+
+scapegoatVersion in ThisBuild := "1.4.7"
+scapegoatReports := Seq("xml")

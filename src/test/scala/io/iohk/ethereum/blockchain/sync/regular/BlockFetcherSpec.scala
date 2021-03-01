@@ -102,7 +102,7 @@ class BlockFetcherSpec
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
     }
 
-    "should not enqueue requested blocks if the received bodies does not match" in new TestSetup {
+    "should not enqueue requested blocks if the received bodies do not match" in new TestSetup {
 
       // Important: Here we are forcing the mismatch between request headers and received bodies
       override lazy val validators = new MockValidatorsFailingOnBlockBodies

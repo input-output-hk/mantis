@@ -38,10 +38,13 @@ import java.util.concurrent.atomic.AtomicReference
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import monix.execution.Scheduler
+import cats.implicits._
+import monix.eval.Task
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -114,7 +117,7 @@ trait PeerDiscoveryManagerBuilder {
     with DiscoveryServiceBuilder
     with StorageBuilder =>
 
-  import monix.execution.Scheduler.Implicits.global
+  import Scheduler.Implicits.global
 
   lazy val peerDiscoveryManager: ActorRef = system.actorOf(
     PeerDiscoveryManager.props(
@@ -676,6 +679,33 @@ trait SyncControllerBuilder {
 
 }
 
+trait PortForwardingBuilder {
+  self: DiscoveryConfigBuilder =>
+
+  import Scheduler.Implicits.global
+
+  private val portForwarding = PortForwarder
+    .openPorts(
+      Seq(Config.Network.Server.port),
+      Seq(discoveryConfig.port).filter(_ => discoveryConfig.discoveryEnabled)
+    )
+    .whenA(Config.Network.automaticPortForwarding)
+    .allocated
+    .map(_._2)
+
+  // reference to a task that produces the release task,
+  // memoized to prevent running multiple port forwarders at once
+  private val portForwardingRelease = new AtomicReference(Option.empty[Task[Task[Unit]]])
+
+  def startPortForwarding(): Future[Unit] = {
+    portForwardingRelease.compareAndSet(None, Some(portForwarding.memoize))
+    portForwardingRelease.get().fold(Future.unit)(_.runToFuture.void)
+  }
+
+  def stopPortForwarding(): Future[Unit] =
+    portForwardingRelease.getAndSet(None).fold(Future.unit)(_.flatten.runToFuture)
+}
+
 trait ShutdownHookBuilder {
   self: Logger =>
   def shutdown(): Unit = {
@@ -778,3 +808,4 @@ trait Node
     with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder
     with TransactionHistoryServiceBuilder.Default
+    with PortForwardingBuilder

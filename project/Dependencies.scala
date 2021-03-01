@@ -48,7 +48,7 @@ object Dependencies {
 
   val rocksDb = Seq(
     // use "5.18.3" for older macOS
-    "org.rocksdb" % "rocksdbjni" % "6.11.4"
+    "org.rocksdb" % "rocksdbjni" % "6.15.2"
   )
 
   val enumeratum: Seq[ModuleID] = Seq(
@@ -59,7 +59,7 @@ object Dependencies {
 
   val testing: Seq[ModuleID] = Seq(
     "org.scalatest" %% "scalatest" % "3.2.2" % "it,test",
-    "org.scalamock" %% "scalamock" % "5.0.0" % "test",
+    "org.scalamock" %% "scalamock" % "5.0.0" % "it,test",
     "org.scalatestplus" %% "scalacheck-1-15" % "3.2.3.0" % "test",
     "org.scalacheck" %% "scalacheck" % "1.15.1" % "it,test",
     "com.softwaremill.diffx" %% "diffx-core" % "0.3.30" % "test",
@@ -114,7 +114,11 @@ object Dependencies {
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
     "org.web3j" % "core" % "5.0.0" % Test,
-    "io.vavr" % "vavr" % "1.0.0-alpha-3"
+    "io.vavr" % "vavr" % "1.0.0-alpha-3",
+    "org.jupnp" % "org.jupnp" % "2.5.2",
+    "org.jupnp" % "org.jupnp.support" % "2.5.2",
+    "org.jupnp" % "org.jupnp.tool" % "2.5.2",
+    "javax.servlet" % "javax.servlet-api" % "4.0.1"
   )
 
   val guava: Seq[ModuleID] = {

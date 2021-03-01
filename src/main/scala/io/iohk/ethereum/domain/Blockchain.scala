@@ -142,7 +142,7 @@ trait Blockchain {
 
   def getBestBlockNumber(): BigInt
 
-  def getBestBlock(): Block
+  def getBestBlock(): Option[Block]
 
   def getLatestCheckpointBlockNumber(): BigInt
 
@@ -276,10 +276,10 @@ class BlockchainImpl(
   override def getLatestCheckpointBlockNumber(): BigInt =
     bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
 
-  override def getBestBlock(): Block = {
+  override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber).get
+    getBlockByNumber(bestBlockNumber)
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
@@ -341,12 +341,6 @@ class BlockchainImpl(
   }
 
   def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = {
-    log.debug("Saving new block block {} to database", block.idTag)
-    storeBlock(block)
-      .and(storeReceipts(block.header.hash, receipts))
-      .and(storeChainWeight(block.header.hash, weight))
-      .commit()
-
     if (saveAsBestBlock && block.hasCheckpoint) {
       log.debug(
         "New best known block block number - {}, new best checkpoint number - {}",
@@ -361,6 +355,12 @@ class BlockchainImpl(
       )
       saveBestKnownBlock(block.header.number)
     }
+
+    log.debug("Saving new block block {} to database", block.idTag)
+    storeBlock(block)
+      .and(storeReceipts(block.header.hash, receipts))
+      .and(storeChainWeight(block.header.hash, weight))
+      .commit()
 
     // not transactional part
     // the best blocks data will be persisted only when the cache will be persisted
@@ -397,20 +397,17 @@ class BlockchainImpl(
     }
   }
 
-  private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit = {
+  private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
     bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
-  }
 
-  private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit = {
+  private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit =
     bestKnownBlockAndLatestCheckpoint.set(BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber))
-  }
 
   def storeChainWeight(blockhash: ByteString, weight: ChainWeight): DataSourceBatchUpdate =
     chainWeightStorage.put(blockhash, weight)
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = {
+  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
-  }
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)

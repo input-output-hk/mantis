@@ -212,7 +212,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = ???
 
-  def getBestBlock(): Block = ???
+  def getBestBlock(): Option[Block] = ???
 
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
