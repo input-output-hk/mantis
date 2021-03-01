@@ -268,7 +268,7 @@ class BlockFetcher(
   }
 
   private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {
-    //by handling these type of messages, fetcher can received from network, fresh info about blocks on top
+    //by handling these type of messages, fetcher can receive from network fresh info about blocks on top
     //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
     case MessageFromPeer(BlockHeaders(headers), _) =>
       headers.lastOption.map { bh =>
@@ -276,12 +276,26 @@ class BlockFetcher(
         val newState = state.withPossibleNewTopAt(bh.number)
         fetchBlocks(newState)
       }
-    //keep fetcher state updated in case new checkpoint block or mined block was imported
+    //keep fetcher state updated in case new mined block was imported
     case InternalLastBlockImport(blockNr) =>
-      log.debug(s"New last block $blockNr imported from the inside")
+      log.debug(s"New mined block $blockNr imported from the inside")
       val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
 
       fetchBlocks(newState)
+
+    //keep fetcher state updated in case new checkpoint block was imported
+    case InternalCheckpointImport(blockNr) =>
+      log.debug(s"New checkpoint block $blockNr imported from the inside")
+
+      val newState = state
+        .clearQueues()
+        .withLastBlock(blockNr)
+        .withKnownTopAt(blockNr)
+
+      //stop fetching to give time to checkpointed block get propagated
+      context.system.scheduler.scheduleOnce(10.second, self, ResumeFetchBlocks(newState))
+
+    case ResumeFetchBlocks(newState) => fetchBlocks(newState)
   }
 
   private def handlePickedBlocks(
@@ -404,13 +418,13 @@ object BlockFetcher {
     Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator))
 
   sealed trait FetchMsg
-  case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
-  case class FetchStateNode(hash: ByteString) extends FetchMsg
-  case object RetryFetchStateNode extends FetchMsg
-  case class PickBlocks(amount: Int) extends FetchMsg
-  case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt) extends FetchMsg
-  case object PrintStatus extends FetchMsg
-  case class InvalidateBlocksFrom(fromBlock: BigInt, reason: String, toBlacklist: Option[BigInt]) extends FetchMsg
+  final case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
+  final case class FetchStateNode(hash: ByteString) extends FetchMsg
+  final case object RetryFetchStateNode extends FetchMsg
+  final case class PickBlocks(amount: Int) extends FetchMsg
+  final case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt) extends FetchMsg
+  final case object PrintStatus extends FetchMsg
+  final case class InvalidateBlocksFrom(fromBlock: BigInt, reason: String, toBlacklist: Option[BigInt]) extends FetchMsg
 
   object InvalidateBlocksFrom {
 
@@ -420,12 +434,14 @@ object BlockFetcher {
     def apply(from: BigInt, reason: String, toBlacklist: Option[BigInt]): InvalidateBlocksFrom =
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
-  case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
-  case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
-  case object RetryBodiesRequest extends FetchMsg
-  case object RetryHeadersRequest extends FetchMsg
+  final case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
+  final case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
+  final case class ResumeFetchBlocks(state: BlockFetcherState) extends FetchMsg
+  final case class InternalCheckpointImport(blockNr: BigInt) extends FetchMsg
+  final case object RetryBodiesRequest extends FetchMsg
+  final case object RetryHeadersRequest extends FetchMsg
 
   sealed trait FetchResponse
-  case class PickedBlocks(blocks: NonEmptyList[Block]) extends FetchResponse
-  case class FetchedStateNode(stateNode: NodeData) extends FetchResponse
+  final case class PickedBlocks(blocks: NonEmptyList[Block]) extends FetchResponse
+  final case class FetchedStateNode(stateNode: NodeData) extends FetchResponse
 }
