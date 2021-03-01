@@ -6,7 +6,7 @@ import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{NewCheckpointBlock, Start}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
 import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
@@ -18,7 +18,9 @@ import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.VmSetup
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.defaultConfig
@@ -173,7 +175,7 @@ object RegularSyncItSpecUtils {
 
     def getCheckpointFromPeer(checkpoint: Block, peerId: PeerId): Task[Unit] = Task {
       blockImporter ! Start
-      blockImporter ! NewCheckpointBlock(checkpoint, peerId)
+      fetcher ! MessageFromPeer(NewBlock(checkpoint, checkpoint.header.difficulty), peerId)
     }
 
     private def getMptForBlock(block: Block) = {
