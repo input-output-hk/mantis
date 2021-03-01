@@ -12,10 +12,16 @@ import io.iohk.ethereum.vm._
 import org.scalatest._
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import scala.concurrent.duration._
+import org.scalatest.concurrent.Signaler
+import org.scalatest.concurrent.ThreadSignaler
+import org.scalatest.concurrent.TimeLimits
 
-class VMSuite extends AnyFreeSpec with Matchers with Logger {
+class VMSuite extends AnyFreeSpec with Matchers with Logger with TimeLimits {
 
   val vm = new TestVM
+
+  implicit val signaler: Signaler = ThreadSignaler
 
   override def run(testName: Option[String], args: Args): Status = {
 
@@ -30,7 +36,9 @@ class VMSuite extends AnyFreeSpec with Matchers with Logger {
         } {
           name in {
             log.info(s"Running test: ${group.name}/$name")
-            runScenario(scenario)
+            failAfter(5.minutes) {
+              runScenario(scenario)
+            }
           }
         }
       }

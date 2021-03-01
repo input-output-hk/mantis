@@ -25,6 +25,9 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import scala.concurrent.duration._
+import org.scalatest.concurrent.Signaler
+import org.scalatest.concurrent.TimeLimits
+import org.scalatest.concurrent.ThreadSignaler
 
 class JsonRpcControllerSpec
     extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
@@ -36,6 +39,8 @@ class JsonRpcControllerSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
+
+  val signaler: Signaler = ThreadSignaler
 
   implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
     QuantitiesSerializer + UnformattedDataJsonSerializer

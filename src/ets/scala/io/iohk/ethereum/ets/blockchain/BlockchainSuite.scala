@@ -12,6 +12,10 @@ import monix.execution.Scheduler
 import org.scalatest.{Args, BeforeAndAfterAll, Status}
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.concurrent.TimeLimits
+import scala.concurrent.duration._
+import org.scalatest.concurrent.Signaler
+import org.scalatest.concurrent.ThreadSignaler
 
 object BlockchainSuite {
   implicit lazy val actorSystem: ActorSystem = ActorSystem("mantis_system")
@@ -19,8 +23,10 @@ object BlockchainSuite {
   lazy val extvm: VMImpl = VmSetup.vm(VmConfig(Config.config), Config.blockchains.blockchainConfig, testMode = true)
 }
 
-class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll with Logger {
+class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll with Logger with TimeLimits {
   import BlockchainSuite.testContext
+
+  implicit val signaler: Signaler = ThreadSignaler
 
   val unsupportedNetworks: Set[String] = Set(
     "Berlin"
@@ -65,7 +71,10 @@ class BlockchainSuite extends AnyFreeSpec with Matchers with BeforeAndAfterAll w
               cancel(s"Test: $name in group: ${group.name} not yet supported")
             } else {
               log.info(s"Running test: ${group.name}#$name")
-              runScenario(scenario, this, name)
+
+              failAfter(5.minutes) {
+                runScenario(scenario, this, name)
+              }
             }
           }
         }
