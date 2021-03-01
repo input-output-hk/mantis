@@ -21,8 +21,8 @@ import scala.concurrent.ExecutionContext
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
   */
 trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with StdLedgerBuilder {
-  protected lazy val executionContext = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-  protected lazy val monixScheduler = Scheduler(executionContext)
+  protected lazy val executionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  protected lazy val monixScheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)

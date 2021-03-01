@@ -1,14 +1,12 @@
 { cfg, pkgs, ... }:
 
 with cfg.steps.commands;
-
 let
   commonAttrs = {
     retry.automatic = true;
     agents.queue = "project42";
   };
 in
-
 {
   steps.commands = {
     nixExpr = commonAttrs // {
@@ -95,6 +93,19 @@ in
         "target/scala-2.13/scoverage-report/**/*"
         "target/scala-2.13/coverage-report/**/*"
       ];
+    };
+
+    annotate-test-reports = commonAttrs // {
+      dependsOn = [ test-unit ];
+      label = "annotate test reports";
+      command = "junit-annotate";
+      allowDependencyFailure = true;
+      plugins = [{
+        "junit-annotate#1.9.0" = {
+          artifacts = "target/test-reports/*.xml";
+          report-slowest = 50;
+        };
+      }];
     };
 
     test-evm = commonAttrs // {

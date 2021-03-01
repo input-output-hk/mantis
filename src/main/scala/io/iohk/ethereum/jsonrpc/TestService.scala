@@ -112,7 +112,7 @@ class TestService(
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
-      getBlockForMining(blockchain.getBestBlock()).map { blockForMining =>
+      getBlockForMining(blockchain.getBestBlock().get).map { blockForMining =>
         val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
         log.info("Block mining result: " + res)
         pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions

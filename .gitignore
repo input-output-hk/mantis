@@ -24,3 +24,6 @@ metals.sbt
 # Nix
 result
 .nix/
+
+# sonarScan
+.scannerwork/
