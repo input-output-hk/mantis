@@ -81,14 +81,10 @@ class FastSyncBranchResolverActor(
         context.unwatch(requestHandler)
         headers match {
           case childHeader :: Nil if childHeader.number == blockHeaderNumberToSearch =>
-            log.debug(
-              s"Received requested block header [$blockHeaderNumberToSearch] from peer [${peer.id}] in $durationMs ms"
-            )
+            log.debug(ReceivedBlockHeaderLog, blockHeaderNumberToSearch, peer.id, durationMs)
             handleBinarySearchBlockHeaderResponse(searchState, childHeader)
           case _ =>
-            log.warning(
-              s"Received invalid response when requesting block header [$blockHeaderNumberToSearch]: $headers"
-            )
+            log.warning(ReceivedWrongHeaders, blockHeaderNumberToSearch, headers.map(_.number))
             handleInvalidResponse(peer, requestHandler)
         }
       case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
@@ -202,9 +198,7 @@ class FastSyncBranchResolverActor(
   }
 
   private def handlePeerTermination(peer: Peer, peerHandlerRef: ActorRef): Unit = {
-    log.warning(
-      s"Peer request handler [${peerHandlerRef.path.name}] for peer [${peer.id}] terminated. Restarting branch resolver."
-    )
+    log.warning(peerTerminatedLog, peerHandlerRef.path.name, peer.id)
     restart()
   }
 
@@ -219,11 +213,20 @@ object FastSyncBranchResolverActor {
 
   protected val RestartTimerKey: String = "Restart"
 
-  protected val InvalidResponseLog: String =
+  protected val InvalidHeadersResponseLog: String =
     "Invalid response - Received {} block headers from peer {}. Requested {} headers. Current master peer {}"
 
   protected val SwitchToBinarySearchLog: String =
     "Branch diverged earlier than {} blocks ago. Switching to binary search to determine first common block."
+
+  protected val ReceivedBlockHeaderLog: String =
+    "Received requested block header [{}] from peer [{}] in {} ms"
+
+  protected val ReceivedWrongHeaders: String =
+    s"Received invalid response when requesting block header [{}]. Received: {}"
+
+  protected val peerTerminatedLog: String =
+    s"Peer request handler [{}] for peer [{}] terminated. Restarting branch resolver."
 
   def prop(
       fastSync: ActorRef,
