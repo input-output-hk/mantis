@@ -434,7 +434,7 @@ class BlockFetcherSpec
       }
     }
 
-    "should inform importer when checkpoint block is older than last block" in new TestSetup {
+    "should put checkpoint to ready blocks when checkpoint block is older than last block" in new TestSetup {
       startFetcher()
 
       triggerFetching(10)
@@ -469,7 +469,17 @@ class BlockFetcherSpec
 
       importer.expectMsg(BlockImporter.OnTop)
 
-      importer.expectMsg(BlockImporter.NewCheckpointBlock(checkpointBlock, fakePeer.id))
+      // We need to wait a while in order to allow fetcher to process all the blocks
+      system.scheduler.scheduleOnce(Timeouts.shortTimeout) {
+        importer.send(blockFetcher, PickBlocks(syncConfig.blocksBatchSize))
+      }
+
+      importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
+        val headers = blocks.map(_.header).toList
+
+        assert(HeadersSeq.areChain(headers))
+        assert(headers.contains(checkpointBlock.header))
+      }
     }
 
     "should properly handle a request timeout" in new TestSetup {

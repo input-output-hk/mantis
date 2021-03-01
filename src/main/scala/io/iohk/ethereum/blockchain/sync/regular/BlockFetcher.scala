@@ -13,7 +13,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
   AwaitingHeadersToBeIgnored
 }
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NewCheckpointBlock, NotOnTop, OnTop}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
@@ -241,12 +241,16 @@ class BlockFetcher(
     state.tryInsertBlock(block, peerId) match {
       case Left(_) if block.number <= state.lastBlock =>
         log.debug(
-          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} is older than current last block ${state.lastBlock}"
+          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} is older than current last block ${state.lastBlock}" +
+            s" - clearing the queues and putting checkpoint to ready blocks queue"
         )
-        state.importer ! NewCheckpointBlock(block, peerId)
+        val newState = state
+          .clearQueues()
+          .enqueueReadyBlock(block, peerId)
+        fetchBlocks(newState)
       case Left(_) if block.number <= state.knownTop =>
         log.debug(
-          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} not fit into queues - clearing the queues and setting new top"
+          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} not fit into queues - clearing the queues and setting possible new top"
         )
         val newState = state
           .clearQueues()
@@ -274,8 +278,7 @@ class BlockFetcher(
     //keep fetcher state updated in case new checkpoint block or mined block was imported
     case InternalLastBlockImport(blockNr) =>
       log.debug(s"New last block $blockNr imported from the inside")
-      val newLastBlock = blockNr.max(state.lastBlock)
-      val newState = state.withLastBlock(newLastBlock).withPossibleNewTopAt(blockNr)
+      val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
 
       fetchBlocks(newState)
   }
