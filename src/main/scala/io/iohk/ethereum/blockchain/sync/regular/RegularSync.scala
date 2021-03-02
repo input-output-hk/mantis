@@ -5,7 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalCheckpointImport, InternalLastBlockImport}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockValidator
@@ -100,13 +100,10 @@ class RegularSync(
       log.info(s"Got information about new block [number = $blockNumber]")
       val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
       context become running(newState)
-    case ProgressProtocol.ImportedBlock(blockNumber, isCheckpoint, internally) =>
+    case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
       log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
-      val newState = if (isCheckpoint) progressState.copy(currentBlock = blockNumber, bestKnownNetworkBlock = blockNumber)
-      else progressState.copy(currentBlock = blockNumber)
-      if (internally && isCheckpoint) {
-        fetcher ! InternalCheckpointImport(blockNumber)
-      } else if (internally) {
+      val newState = progressState.copy(currentBlock = blockNumber)
+      if (internally) {
         fetcher ! InternalLastBlockImport(blockNumber)
       }
       context become running(newState)
@@ -174,6 +171,6 @@ object RegularSync {
     case object StartedFetching extends ProgressProtocol
     case class StartingFrom(blockNumber: BigInt) extends ProgressProtocol
     case class GotNewBlock(blockNumber: BigInt) extends ProgressProtocol
-    case class ImportedBlock(blockNumber: BigInt, isCheckpoint: Boolean, internally: Boolean) extends ProgressProtocol
+    case class ImportedBlock(blockNumber: BigInt, internally: Boolean) extends ProgressProtocol
   }
 }

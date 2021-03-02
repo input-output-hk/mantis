@@ -184,7 +184,7 @@ class BlockImporter(
   ): Task[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
-        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally = false)
+        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         case None => ()
       }
 
@@ -258,7 +258,7 @@ class BlockImporter(
               val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-              supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally)
+              supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
             case BlockEnqueued => ()
             case DuplicateBlock => ()
             case UnknownParent => () // This is normal when receiving broadcast blocks
@@ -266,7 +266,7 @@ class BlockImporter(
               updateTxPool(newBranch, oldBranch)
               broadcastBlocks(newBranch, weights)
               newBranch.lastOption match {
-                case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
+                case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
                 case None => ()
               }
             case BlockImportFailed(error) =>
