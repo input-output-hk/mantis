@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
@@ -23,7 +24,7 @@ class PivotBlockSelector(
     val scheduler: Scheduler,
     fastSync: ActorRef
 ) extends Actor
-    with ActorLogging
+    with Logger
     with PeerListSupport
     with BlacklistSupport {
 

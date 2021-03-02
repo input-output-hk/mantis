@@ -7,13 +7,14 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration._
 import scala.concurrent.ExecutionContext.Implicits.global
 
 // will be removed once regular sync is switched to new blacklist/peerlist implementation
 trait PeerListSupport {
-  self: Actor with ActorLogging with BlacklistSupport =>
+  self: Actor with Logger with BlacklistSupport =>
   import PeerListSupport._
 
   def etcPeerManager: ActorRef

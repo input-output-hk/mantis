@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import com.typesafe.scalalogging
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -8,6 +9,8 @@ import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
+import org.slf4j.LoggerFactory
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
@@ -18,7 +21,7 @@ class PeersClient(
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
-    with ActorLogging
+    with Logger
     with PeerListSupport
     with BlacklistSupport {
   import PeersClient._
@@ -55,7 +58,7 @@ class PeersClient(
       case PeerRequestHandler.ResponseReceived(peer, message, _) =>
         handleResponse(requesters, Response(peer, message.asInstanceOf[Message]))
       case PeerRequestHandler.RequestFailed(peer, reason) =>
-        log.warning(s"Request to peer ${peer.remoteAddress} failed - reason: $reason")
+        log.debug(s"Request to peer ${peer.remoteAddress} failed - reason: $reason")
         handleResponse(requesters, RequestFailed(peer, reason))
     }
 

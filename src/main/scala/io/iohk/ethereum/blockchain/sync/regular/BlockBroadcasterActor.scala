@@ -4,6 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.Logger
 
 class BlockBroadcasterActor(
     broadcast: BlockBroadcast,
@@ -12,7 +13,7 @@ class BlockBroadcasterActor(
     val syncConfig: SyncConfig,
     val scheduler: Scheduler
 ) extends Actor
-    with ActorLogging
+    with Logger
     with PeerListSupport
     with BlacklistSupport {
   import BlockBroadcasterActor._
