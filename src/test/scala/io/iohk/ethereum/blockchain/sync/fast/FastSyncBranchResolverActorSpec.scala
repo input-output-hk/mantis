@@ -107,10 +107,10 @@ class FastSyncBranchResolverActorSpec
 
           val blocksSentFromPeer: Map[Int, List[Block]] = Map(
             1 -> firstBatchBlockHeaders,
-            2 -> List(blocksSavedInPeer.get(5).get), // block 6
-            3 -> List(blocksSavedInPeer.get(7).get), // block 8
-            4 -> List(blocksSavedInPeer.get(5).get), // block 6
-            5 -> List(blocksSavedInPeer.get(6).get) // block 7
+            2 -> List(blocksSavedInPeer.get(5).get),
+            3 -> List(blocksSavedInPeer.get(7).get),
+            4 -> List(blocksSavedInPeer.get(5).get),
+            5 -> List(blocksSavedInPeer.get(6).get)
           )
 
           saveBlocks(blocksSaved)
@@ -144,11 +144,11 @@ class FastSyncBranchResolverActorSpec
 
           val blocksSentFromPeer: Map[Int, List[Block]] = Map(
             1 -> firstBatchBlockHeaders,
-            2 -> List(blocksSavedInPeer.get(5).get), // block 6
-            3 -> List(blocksSavedInPeer.get(2).get), // block 3
-            4 -> List(blocksSavedInPeer.get(3).get), // block 4
-            5 -> List(blocksSavedInPeer.get(3).get), // block 4
-            6 -> List(blocksSavedInPeer.get(4).get) // block 4
+            2 -> List(blocksSavedInPeer.get(5).get),
+            3 -> List(blocksSavedInPeer.get(2).get),
+            4 -> List(blocksSavedInPeer.get(3).get),
+            5 -> List(blocksSavedInPeer.get(3).get),
+            6 -> List(blocksSavedInPeer.get(4).get)
           )
 
           saveBlocks(blocksSaved)
@@ -183,10 +183,10 @@ class FastSyncBranchResolverActorSpec
 
           val blocksSentFromPeer: Map[Int, List[Block]] = Map(
             1 -> firstBatchBlockHeaders,
-            2 -> List(blocksSavedInPeer.get(5).get), // block 6
-            3 -> List(blocksSavedInPeer.get(7).get), // block 8
-            4 -> List(blocksSavedInPeer.get(5).get), // block 6
-            5 -> List(blocksSavedInPeer.get(6).get) // block 7
+            2 -> List(blocksSavedInPeer.get(5).get),
+            3 -> List(blocksSavedInPeer.get(7).get),
+            4 -> List(blocksSavedInPeer.get(5).get),
+            5 -> List(blocksSavedInPeer.get(6).get)
           )
 
           saveBlocks(blocksSaved)
@@ -222,9 +222,9 @@ class FastSyncBranchResolverActorSpec
 
         val blocksSentFromPeer: Map[Int, List[Block]] = Map(
           1 -> firstBatchBlockHeaders,
-          2 -> List(blocksSavedInPeer.get(3).get), // block 4
-          3 -> List(blocksSavedInPeer.get(1).get), // block 2
-          4 -> List(blocksSavedInPeer.get(1).get) // block 1
+          2 -> List(blocksSavedInPeer.get(3).get),
+          3 -> List(blocksSavedInPeer.get(1).get),
+          4 -> List(blocksSavedInPeer.get(1).get)
         )
 
         saveBlocks(blocksSaved)

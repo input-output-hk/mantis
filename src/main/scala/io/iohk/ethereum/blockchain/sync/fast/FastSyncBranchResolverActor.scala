@@ -261,14 +261,12 @@ object FastSyncBranchResolverActor {
   final case class BranchResolutionFailed(failure: BranchResolutionFailure)
   object BranchResolutionFailed {
     def noCommonBlock: BranchResolutionFailed = BranchResolutionFailed(NoCommonBlockFound)
-    def tooManyRestarts(numRestarts: Int): BranchResolutionFailed = BranchResolutionFailed(TooManyRestarts(numRestarts))
     def blockHeaderNotFound(blockHeaderNum: BigInt): BranchResolutionFailed = BranchResolutionFailed(
       BlockHeaderNotFound(blockHeaderNum)
     )
 
     sealed trait BranchResolutionFailure
     final case object NoCommonBlockFound extends BranchResolutionFailure
-    final case class TooManyRestarts(numRestarts: Int) extends BranchResolutionFailure
     final case class BlockHeaderNotFound(blockHeaderNum: BigInt) extends BranchResolutionFailure
   }
 

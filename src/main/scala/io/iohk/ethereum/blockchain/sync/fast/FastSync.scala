@@ -307,6 +307,9 @@ class FastSync(
         masterPeer = Some(resolvedPeer)
         context become receive
         processSyncing()
+      case _: FastSyncBranchResolverActor.BranchResolutionFailed =>
+        // there isn't much we can do if we don't find a branch/peer to continue syncing, so let's try again
+        branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
     }
 
     private def blockHeadersError(peer: Peer): Unit = {
