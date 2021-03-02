@@ -37,10 +37,66 @@ class CheckpointingServiceSpec
 
       val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
 
-      val request = GetLatestBlockRequest(k)
-      val expectedResponse = GetLatestBlockResponse(block.hash, block.number)
+      val request = GetLatestBlockRequest(k, None)
+      val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      val result = service.getLatestBlock(request)
+
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
+    }
+  }
+
+  it should "get latest block that is a descendant of the passed parent checkpoint block" in new TestSetup {
+    val nums = for {
+      k <- Gen.choose[Int](1, 10) // checkpointing interval
+      m <- Gen.choose(0, 1000) // number of checkpoints in the chain
+      n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
+    } yield (k, m, n)
+
+    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val hash = previousCheckpoint.hash
+
+    forAll(nums) { case (k, m, n) =>
+      val checkpointedBlockNum: BigInt = k * m
+      val bestBlockNum: BigInt = checkpointedBlockNum + n
+
+      val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
+
+      val request = GetLatestBlockRequest(k, Some(hash))
+      val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
+
+      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header))
+      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      val result = service.getLatestBlock(request)
+
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
+    }
+  }
+
+  it should "return an empty response if the descendant is not a part of a local blockchain" in new TestSetup {
+    val nums = for {
+      k <- Gen.choose[Int](1, 10) // checkpointing interval
+      m <- Gen.choose(0, 1000) // number of checkpoints in the chain
+      n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
+    } yield (k, m, n)
+
+    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val hash = previousCheckpoint.hash
+
+    forAll(nums) { case (k, m, n) =>
+      val checkpointedBlockNum: BigInt = k * m
+      val bestBlockNum: BigInt = checkpointedBlockNum + n
+
+      val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
+
+      val request = GetLatestBlockRequest(k, Some(hash))
+      val expectedResponse = GetLatestBlockResponse(None, None)
+
+      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(None)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
@@ -62,7 +118,7 @@ class CheckpointingServiceSpec
 
   it should "get latest block in case of blockchain re-org" in new TestSetup {
     val block = Fixtures.Blocks.ValidBlock.block
-    val expectedResponse = GetLatestBlockResponse(block.hash, block.number)
+    val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
     (blockchain.getBestBlockNumber _)
       .expects()
       .returning(7)
@@ -76,7 +132,7 @@ class CheckpointingServiceSpec
       .expects(BigInt(4))
       .returning(Some(block))
 
-    val result = service.getLatestBlock(GetLatestBlockRequest(4))
+    val result = service.getLatestBlock(GetLatestBlockRequest(4, None))
 
     result.runSyncUnsafe() shouldEqual Right(expectedResponse)
   }
