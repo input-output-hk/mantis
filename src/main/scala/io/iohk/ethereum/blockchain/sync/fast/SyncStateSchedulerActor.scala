@@ -17,7 +17,7 @@ import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, Peer
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -33,7 +33,7 @@ class SyncStateSchedulerActor(
 ) extends Actor
     with PeerListSupport
     with BlacklistSupport
-    with ActorLogging
+    with Logger
     with Timers {
 
   implicit val monixScheduler = Scheduler(context.dispatcher)

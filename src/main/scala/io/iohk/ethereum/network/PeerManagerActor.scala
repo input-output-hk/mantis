@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
@@ -38,7 +39,7 @@ class PeerManagerActor(
     discoveryConfig: DiscoveryConfig,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
-    with ActorLogging
+    with Logger
     with Stash
     with BlacklistSupport {
 
