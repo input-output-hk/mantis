@@ -11,8 +11,7 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
       InvalidBranch
     } else {
       val knownParentOrGenesis = blockchain
-        .getBlockHeaderByHash(headers.head.parentHash)
-        .isDefined || headers.head.hash == blockchain.genesisHeader.hash
+        .isInChain(headers.head.parentHash) || headers.head.hash == blockchain.genesisHeader.hash
 
       if (!knownParentOrGenesis)
         UnknownBranch

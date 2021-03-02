@@ -140,18 +140,8 @@ class BlockImport(
     */
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
+    val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchain.getBestBlockNumber()
-    val newBranch = {
-      val branchFromQueue = blockQueue.getBranch(queuedLeaf, dequeue = true)
-      branchFromQueue.headOption match {
-        case Some(block) =>
-          // In case of node's restart and getting checkpoint to generate after that,
-          // missing branch between best block and checkpoint can exist in storage - not in queue
-          if (block.number > bestNumber + 1) getBranchFromStorages(block.hash, bestNumber) ++ branchFromQueue
-          else branchFromQueue
-        case None => branchFromQueue
-      }
-    }
 
     val reorgResult = for {
       parent <- newBranch.headOption
@@ -159,7 +149,7 @@ class BlockImport(
       parentWeight <- blockchain.getChainWeightByHash(parentHash)
     } yield {
       log.debug(
-        "Removing blocks starting from number {} and until find parent {}",
+        "Removing blocks starting from number {} and parent {}",
         bestNumber,
         ByteStringUtils.hash2string(parentHash)
       )
@@ -178,18 +168,6 @@ class BlockImport(
       case None =>
         BlockImportFailed("Error while trying to reorganise chain with parent of new branch")
     }
-  }
-
-  private def getBranchFromStorages(youngestHash: ByteString, until: BigInt): List[Block] = {
-    @tailrec
-    def loop(hash: ByteString, acc: List[Block]): List[Block] = {
-      blockchain.getBlockByHash(hash) match {
-        case Some(block) if block.number == until => acc
-        case Some(block) => loop(block.header.parentHash, block :: acc)
-        case None => acc
-      }
-    }
-    loop(youngestHash, Nil)
   }
 
   private def handleBlockExecResult(

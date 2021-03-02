@@ -41,8 +41,7 @@ class BranchResolutionSpec
       val headers = getChainHeadersNel(5, 10)
 
       setGenesisHeader(genesisHeader) // Check genesis block
-      setBestBlockNumber(10)
-      setHeaderByHash(headers.head.parentHash, None)
+      setHeaderInChain(headers.head.parentHash, result = false)
 
       ledger.resolveBranch(headers) shouldEqual UnknownBranch
     }
@@ -52,13 +51,13 @@ class BranchResolutionSpec
         val headers = getChainHeadersNel(1, 10)
 
         setBestBlockNumber(10)
-        setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+        setHeaderInChain(headers.head.parentHash)
         setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
         val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty - 1)
         oldBlocks.map(b => setBlockByNumber(b.header.number, Some(b)))
 
-        ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks.toList)
+        ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
       }
 
     "report no need for a chain switch the headers do not have chain weight greater than currently known branch" in
@@ -66,7 +65,7 @@ class BranchResolutionSpec
         val headers = getChainHeadersNel(1, 10)
 
         setBestBlockNumber(10)
-        setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+        setHeaderInChain(headers.head.parentHash)
         setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
         val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty)
@@ -78,6 +77,7 @@ class BranchResolutionSpec
     "correctly handle a branch that goes up to the genesis block" in new BranchResolutionTestSetup {
       val headers = genesisHeader :: getChainHeadersNel(1, 10, genesisHeader.hash)
 
+      setHeaderInChain(genesisHeader.parentHash, result = false)
       setGenesisHeader(genesisHeader)
       setBestBlockNumber(10)
       setChainWeightByHash(genesisHeader.hash, ChainWeight.zero)
@@ -93,6 +93,7 @@ class BranchResolutionSpec
       val differentGenesis: BlockHeader = genesisHeader.copy(extraData = ByteString("I'm different ;("))
       val headers = differentGenesis :: getChainHeadersNel(1, 10, differentGenesis.hash)
 
+      setHeaderInChain(differentGenesis.parentHash, result = false)
       setGenesisHeader(genesisHeader)
       setBestBlockNumber(10)
 
@@ -104,7 +105,7 @@ class BranchResolutionSpec
       val commonParent = headers.toList(1)
 
       setBestBlockNumber(8)
-      setHeaderByHash(headers.head.parentHash, Some(getBlock(0).header))
+      setHeaderInChain(headers.head.parentHash)
       setChainWeightByHash(commonParent.hash, ChainWeight.zero)
 
       val oldBlocks = getChain(3, 8, commonParent.hash)
@@ -123,7 +124,7 @@ class BranchResolutionSpec
       val longerBranchLowerWeight = getChain(2, 10, commonParent.hash, difficulty = 100)
       val shorterBranchHigherWeight = getChainNel(2, 8, commonParent.hash, difficulty = 200)
 
-      setHeaderByHash(commonParent.hash, Some(commonParent.header))
+      setHeaderInChain(commonParent.hash)
       setChainWeightForBlock(commonParent, parentWeight)
       setBestBlockNumber(longerBranchLowerWeight.last.number)
       longerBranchLowerWeight.foreach(b => setBlockByNumber(b.number, Some(b)))
@@ -150,7 +151,7 @@ class BranchResolutionSpec
 
           val noCheckpointBranch = getChain(2, checkpointBranchLength + 2, commonParent.hash)
 
-          setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setHeaderInChain(commonParent.hash)
           setChainWeightForBlock(commonParent, parentWeight)
           setBestBlockNumber(noCheckpointBranch.last.number)
           noCheckpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
@@ -176,7 +177,7 @@ class BranchResolutionSpec
 
           val noCheckpointBranch = getChainNel(2, checkpointBranchLength + 2, commonParent.hash)
 
-          setHeaderByHash(commonParent.hash, Some(commonParent.header))
+          setHeaderInChain(commonParent.hash)
           setChainWeightForBlock(commonParent, parentWeight)
           setBestBlockNumber(checkpointBranch.last.number)
           checkpointBranch.map(b => setBlockByNumber(b.number, Some(b)))

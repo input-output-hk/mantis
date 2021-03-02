@@ -393,15 +393,15 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       .once()
   }
 
-  def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]): CallHandler1[ByteString, Option[BlockHeader]] =
-    (blockchain.getBlockHeaderByHash _).expects(hash).returning(header)
+  def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] = {
+    (blockchain.isInChain _).expects(hash).returning(result)
+  }
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit = {
     (() => blockchain.genesisHeader).expects().returning(header)
-    setHeaderByHash(header.parentHash, None)
   }
 }
 
