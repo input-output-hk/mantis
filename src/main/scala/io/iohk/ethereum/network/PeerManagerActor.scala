@@ -3,8 +3,8 @@ package io.iohk.ethereum.network
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport.BlackListId
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -521,7 +521,7 @@ object PeerManagerActor {
 
   case class OutgoingConnectionAlreadyHandled(uri: URI) extends ConnectionError
 
-  case class PeerAddress(value: String) extends BlackListId
+  case class PeerAddress(value: String) extends BlacklistId
 
   case object SchedulePruneIncomingPeers
   case class PruneIncomingPeers(stats: PeerStatisticsActor.StatsForAll)

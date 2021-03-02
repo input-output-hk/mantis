@@ -2,9 +2,9 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 import java.nio.file.Files
-
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.RocksDbDataSourceClosedException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -45,6 +45,15 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
         }
 
         dataSource.destroy()
+      }
+    }
+
+    it should "throw an exception if the rocksdb storage is unavailable" in {
+      withDir { path =>
+        val dataSource = createDataSource(path)
+        val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
+        dataSource.destroy()
+        assertThrows[RocksDbDataSourceClosedException](dataSource.update(prepareUpdate(toUpsert = Seq(someByteString -> someByteString))))
       }
     }
 
@@ -111,5 +120,4 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
     }
   }
   // scalastyle:on
-
 }

@@ -43,13 +43,13 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
 
   def validateBlockAfterExecution(
       block: Block,
-      hash: ByteString,
+      stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
   ): Either[BlockExecutionError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockAfterExecution(
       block = block,
-      stateRootHash = hash,
+      stateRootHash = stateRootHash,
       receipts = receipts,
       gasUsed = gasUsed
     )

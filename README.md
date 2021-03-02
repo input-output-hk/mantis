@@ -14,7 +14,7 @@ Unit Test Code Coverage Status - TBD
 
 ### Docs - FIXME: Update docs!
 
-For more details on configuration and functionality check out our [wiki](http://mantis.readthedocs.io) (also at [wiki](https://github.com/input-output-hk/mantis/wiki))
+For more details on configuration and functionality check out our [website](https://docs.mantisclient.io/first-steps/getting-started) and [documentation](https://docs.mantisclient.io/first-steps/getting-started)
 
 ### Download the client
 
@@ -22,7 +22,7 @@ The latest release can be downloaded from [here](https://github.com/input-output
 
 ### Command line version
 
-You can use generic launcher with appropriate parameter to connect with pre-configured network, it can be found in `bin` directory.
+In the `bin` directory, you can find the generic launcher. To connect to a pre-configured network just pass the network name as a parameter.
 
 Example:
   - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
@@ -55,7 +55,7 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ./bin/mantis cli encrypt-key --passphrase=pass 00b11c32957057651d56cd83085ef3b259319057e0e887bd0fdaee657e6f75d0
 ```
 
-Command output uses the same format as keystore so it could be used ex. to setup private faucet
+The command output uses the same format as the keystore so it could be used ex. to setup private faucet
 
 ex.
 ```
@@ -135,20 +135,20 @@ git commit -m "Update nix-sbt sha"
 
 #### Locally build & run monitoring client
 
-Setup a dashboard using Prometheus and Grafana, popular choice of monitoring stack.
-Before that you need enable the metrics in the file “metrics.conf”, setting mantis.metrics.enabled=true.
+A docker-compose setup using Prometheus and Grafana, and a preconfigured dashboard, is available.
+As a precondition you need to have docker and sbt installed.
+Before running the script, you need to enable metrics by editing the file `metrics.conf` and setting `mantis.metrics.enabled=true`
 
-You can start Docker Compose initializing Prometheus and Grafana with a preconfigured dashboard.
-For build the monitoring, you need to run the  following script: `./docker/monitoring/build.sh`
-This script prepares a docker image of mantis. And as a precondition you need to have installed docker-compose and sbt.
+To build the monitoring, run the following script at `./docker/mantis/build.sh`.
+This script builds a docker image of mantis using the local sources and starts the docker-compose.
 
-We can see the dashboard called "Mantis" at URL: http://localhost:3000 using user and password: admin and admin
+Grafana will be available at http://localhost:3000 (using user and password: admin and admin) with a dashboard called `Mantis`.
 
 
 ### TLS setup
 
 Both the JSON RPC (on the node and faucet) can be additionally protected using TLS.
-On the development environment it's already properly configured with a development certificate.
+The development environment it already properly configured with a development certificate.
 
 #### Generating a new certificate
 
@@ -159,7 +159,9 @@ If a new certificate is required, create a new keystore with a certificate by ru
 1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `application.conf` file:
 
     keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
+   
     keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+   
     password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
 2. Enable TLS in specific config:
     - For JSON RPC: `mantis.network.rpc.http.mode=https`
@@ -168,18 +170,90 @@ If a new certificate is required, create a new keystore with a certificate by ru
 
 1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `faucet.conf` file:
 
-    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
-    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
+   keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
+   
+   keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+   
+   password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
 2. Enable TLS in specific config:
-    - For JSON RPC: `mantis.network.rpc.http.mode=https`
-3. Configure the certificate used from RpcClient to connect with the node. Necessary if the node uses http secure. 
+   - For JSON RPC: `mantis.network.rpc.http.mode=https`
+3. Configure the certificate used from RpcClient to connect with the node. Necessary if the node uses http secure.
    This certificate and password file to be used at `faucet.rpc-client.certificate` key on the `faucet.conf` file:
 
-    keystore-path: path to the keystore storing the certificates
-    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-    password-file: path to the file with the password used for accessing the certificate keystore
+   keystore-path: path to the keystore storing the certificates
+   keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
+   password-file: path to the file with the password used for accessing the certificate keystore
 
+### Faucet setup and testing
+1. First start a client node using the docker-compose, by running the script found at `./docker/mantis/build.sh`
+Modify the script before running it by adding the `volumes` and `command` sections to mantis configuration:
+```
+mantis:
+image: mantis:latest
+ports:
+- 8546:8546
+- 13798:13798
+- 9095:9095
+networks:
+- mantis-net
+volumes:
+- $HOME/.mantis:/home/demiourgos728/.mantis/
+command: -Dconfig.file=./conf/sagano.conf
+```
+   
+2. Create a wallet address. Run the following curl command, replacing `<password>` by a password of your choice:
+```
+curl --request POST \
+  --url http://127.0.0.1:8546/ \
+  --header 'Cache-Control: no-cache' \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"jsonrpc": "2.0",
+  "method": "personal_newAccount", 
+  "params": ["<password>"],
+  "id": 1
+}'
+```
+
+You will receive a response like this:
+```
+{"jsonrpc":"2.0","result":"<address>","id":1}
+```
+
+3. Modify `src/universal/conf/faucet.conf` file, config your account address created in the previous step. with the password choosen by you:
+```
+wallet-address = "<address>"
+wallet-password = "<password>"
+```
+
+4. Now check the `keystore` folder in `~/.mantis/testnet-internal-nomad/keystore`.
+Inside you will find a key generate with the curl request sent in step `2.`. Copy that file to `~/.mantis-faucet/keystore/`:
+```
+cp UTC--<date>--<key> ~/.mantis-faucet/keystore/
+```
+
+5. Start the faucet in command line:
+```
+sbt -Dconfig.file=src/universal/conf/faucet.conf "run faucet"
+```
+
+6. Run the following curl command to send tokens from your faucet to a wallet address:
+```
+curl --request POST \
+  --url http://127.0.0.1:8099/ \
+  --header 'Content-Type: application/json' \
+  --data '{
+	"jsonrpc": "2.0",
+  "method": "faucet_sendFunds", 
+  "params": ["<address>"],
+  "id": 1
+}'
+```
+
+Happy transfer!
+
+Note: In order for the transfer transaction be persisted, a faucet needs sufficient founds in its account and in this test
+case a new faucet, without ETC tokens, is being created.
 
 ### Feedback
 

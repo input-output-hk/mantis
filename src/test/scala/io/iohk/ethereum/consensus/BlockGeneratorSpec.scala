@@ -29,7 +29,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
     val pendingBlock =
-      blockGenerator.generateBlock(bestBlock, Nil, Address(testAddress), blockGenerator.emptyX, None).pendingBlock
+      blockGenerator.generateBlock(bestBlock.get, Nil, Address(testAddress), blockGenerator.emptyX, None).pendingBlock
 
     //mined with mantis + ethminer
     val minedNonce = ByteString(Hex.decode("eb49a2da108d63de"))
@@ -55,7 +55,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "generate correct block with transactions" in new TestSetup {
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -82,7 +82,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "be possible to simulate transaction, on world returned with pending block" in new TestSetup {
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -104,7 +104,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(
-      blockchain.getBestBlock(),
+      blockchain.getBestBlock().get,
       Seq(signedTransaction.tx),
       Address(testAddress),
       blockGenerator.emptyX,
@@ -131,7 +131,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val pendingBlock =
       blockGenerator
         .generateBlock(
-          bestBlock,
+          bestBlock.get,
           Seq(signedTransaction.tx, duplicatedSignedTransaction.tx),
           Address(testAddress),
           blockGenerator.emptyX,
@@ -174,7 +174,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val transactions = Seq(txWitGasTooBigGasLimit, signedTransaction.tx, duplicatedSignedTransaction.tx)
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock, transactions, Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, transactions, Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -246,7 +246,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock, Seq(generalTx, specificTx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(generalTx, specificTx), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -324,7 +324,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val generatedBlock =
       blockGenerator
-        .generateBlock(bestBlock, Seq(generalTx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(generalTx), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     blockExecution.executeAndValidateBlock(generatedBlock.block, true) shouldBe a[Right[_, Seq[Receipt]]]
@@ -336,7 +336,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val pendingBlock =
       blockGenerator
         .generateBlock(
-          bestBlock,
+          bestBlock.get,
           Seq(generalTx, signedTransaction.tx),
           Address(testAddress),
           blockGenerator.emptyX,
@@ -373,7 +373,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val pendingBlock =
       blockGenerator
         .generateBlock(
-          bestBlock,
+          bestBlock.get,
           Seq(nextTransaction, signedTransaction.tx),
           Address(testAddress),
           blockGenerator.emptyX,
@@ -424,7 +424,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val pendingBlock =
       blockGenerator
         .generateBlock(
-          bestBlock,
+          bestBlock.get,
           Seq(nextTransaction, signedFailingTransaction, signedTransaction.tx),
           Address(testAddress),
           blockGenerator.emptyX,
@@ -461,7 +461,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val pendingBlock =
       blockGenerator
         .generateBlock(
-          bestBlock,
+          bestBlock.get,
           Seq(txWitSameNonceButLowerGasPrice, signedTransaction.tx),
           Address(testAddress),
           blockGenerator.emptyX,
@@ -520,7 +520,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           (blockchainConfig.ecip1097BlockNumber + blockchainConfig.ecip1098BlockNumber) / 2
         else
           blockchainConfig.ecip1098BlockNumber / 2
-      val parentBlock = bestBlock.copy(header = bestBlock.header.copy(number = blockNumber - 1))
+      val parentBlock = bestBlock.get.copy(header = bestBlock.get.header.copy(number = blockNumber - 1))
       val generatedBlock =
         blockGenerator.generateBlock(parentBlock, Nil, Address(testAddress), blockGenerator.emptyX, None).pendingBlock
 

@@ -92,7 +92,7 @@ object RegularSyncItSpecUtils {
       Task(blockNumber match {
         case Some(bNumber) =>
           bl.getBlockByNumber(bNumber).getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
-        case None => bl.getBestBlock()
+        case None => bl.getBestBlock().get
       }).flatMap { block =>
         Task {
           val currentWeight = bl
@@ -105,20 +105,20 @@ object RegularSyncItSpecUtils {
       }
     }
 
-    def waitForRegularSyncLoadLastBlock(blockNumer: BigInt): Task[Boolean] = {
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumer), 1.second, 90) { isDone => isDone }
+    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] = {
+      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90) { isDone => isDone }
     }
 
     def mineNewBlock(
         plusDifficulty: BigInt = 0
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
-      val block: Block = bl.getBestBlock()
+      val block: Block = bl.getBestBlock().get
       val currentWeight = bl
         .getChainWeightByHash(block.hash)
         .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
-      val currentWolrd = getMptForBlock(block)
+      val currentWorld = getMptForBlock(block)
       val (newBlock, _, _) =
-        createChildBlock(block, currentWeight, currentWolrd, plusDifficulty)(updateWorldForBlock)
+        createChildBlock(block, currentWeight, currentWorld, plusDifficulty)(updateWorldForBlock)
       regularSync ! SyncProtocol.MinedBlock(newBlock)
     }
 

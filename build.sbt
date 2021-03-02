@@ -111,24 +111,26 @@ lazy val node = {
     Seq(
       Dependencies.akka,
       Dependencies.akkaHttp,
-      Dependencies.json4s,
-      Dependencies.circe,
+      Dependencies.apacheCommons,
       Dependencies.boopickle,
-      Dependencies.rocksDb,
-      Dependencies.enumeratum,
-      Dependencies.testing,
       Dependencies.cats,
+      Dependencies.circe,
+      Dependencies.cli,
+      Dependencies.crypto,
+      Dependencies.dependencies,
+      Dependencies.enumeratum,
+      Dependencies.guava,
+      Dependencies.json4s,
+      Dependencies.kamon,
+      Dependencies.logging,
+      Dependencies.micrometer,
       Dependencies.monix,
       Dependencies.network,
-      Dependencies.crypto,
-      Dependencies.scopt,
-      Dependencies.logging,
-      Dependencies.apacheCommons,
-      Dependencies.micrometer,
-      Dependencies.kamon,
       Dependencies.prometheus,
-      Dependencies.cli,
-      Dependencies.dependencies
+      Dependencies.rocksDb,
+      Dependencies.scaffeine,
+      Dependencies.scopt,
+      Dependencies.testing
     ).flatten ++ malletDeps
   }
 
@@ -253,3 +255,6 @@ addCommandAlias(
     |;it:test
     |""".stripMargin
 )
+
+scapegoatVersion in ThisBuild := "1.4.7"
+scapegoatReports := Seq("xml")

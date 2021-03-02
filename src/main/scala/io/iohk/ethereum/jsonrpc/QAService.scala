@@ -44,11 +44,15 @@ class QAService(
   def generateCheckpoint(
       req: GenerateCheckpointRequest
   ): ServiceResponse[GenerateCheckpointResponse] = {
-    Task {
-      val hash = req.blockHash.getOrElse(blockchain.getBestBlock().hash)
-      val checkpoint = generateCheckpoint(hash, req.privateKeys)
-      syncController ! NewCheckpoint(hash, checkpoint.signatures)
-      Right(GenerateCheckpointResponse(checkpoint))
+    val hash = req.blockHash.orElse(blockchain.getBestBlock().map(_.hash))
+    hash match {
+      case Some(hashValue) =>
+        Task {
+          val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
+          syncController ! NewCheckpoint(hashValue, checkpoint.signatures)
+          Right(GenerateCheckpointResponse(checkpoint))
+        }
+      case None => Task.now(Left(JsonRpcError.BlockNotFound))
     }
   }
 
