@@ -67,8 +67,16 @@ object Mocks {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Right(BlockValid)
     }
 
-    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockHeaderByHash) =>
-      Right(BlockHeaderValid)
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash
+      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+
+      override def validateHeaderOnly(
+          blockHeader: BlockHeader
+      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+    }
 
     override val ommersValidator: OmmersValidator =
       (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) => Right(OmmersValid)
@@ -84,8 +92,14 @@ object Mocks {
       (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) =>
         Left(SignedTransactionError.TransactionSignatureError)
 
-    override val blockHeaderValidator: BlockHeaderValidator = (_: BlockHeader, _: GetBlockHeaderByHash) =>
-      Left(HeaderNumberError)
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash
+      ): Either[BlockHeaderError, BlockHeaderValid] = Left(HeaderNumberError)
+
+      override def validateHeaderOnly(blockHeader: BlockHeader) = Left(HeaderNumberError)
+    }
 
     override val ommersValidator: OmmersValidator =
       (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) =>

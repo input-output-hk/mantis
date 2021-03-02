@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
@@ -333,8 +333,15 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   val execError = ValidationAfterExecError("error")
 
   object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator =
-      (_: BlockHeader, _: GetBlockHeaderByHash) => Left(HeaderParentNotFoundError)
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash
+      ): Either[BlockHeaderError, BlockHeaderValid] = Left(HeaderParentNotFoundError)
+
+      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        Left(HeaderParentNotFoundError)
+    }
   }
 
   object NotFailAfterExecValidation extends Mocks.MockValidatorsAlwaysSucceed {

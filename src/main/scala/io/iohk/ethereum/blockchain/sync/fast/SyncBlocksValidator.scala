@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
@@ -30,6 +30,9 @@ trait SyncBlocksValidator {
       }
     result
   }
+
+  def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    validators.blockHeaderValidator.validateHeaderOnly(blockHeader)
 
   def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =
     if (headers.length > 1) headers.zip(headers.tail).forall { case (parent, child) =>

@@ -15,7 +15,7 @@ class EthashTestBlockHeaderValidator(blockchainConfig: BlockchainConfig) extends
 
   protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
 
-  def validateEvenMore(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+  override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     Right(BlockHeaderValid)
 
 }

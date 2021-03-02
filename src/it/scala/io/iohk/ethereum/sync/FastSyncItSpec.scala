@@ -59,24 +59,26 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
 
   it should "sync blockchain with state nodes when peer do not response with full responses" in
     customTestCaseResourceM(
-      FakePeer.start3FakePeersRes(
+      FakePeer.start4FakePeersRes(
         fakePeerCustomConfig2 = FakePeerCustomConfig(HostConfig()),
         fakePeerCustomConfig3 = FakePeerCustomConfig(HostConfig())
       )
-    ) { case (peer1, peer2, peer3) =>
+    ) { case (peer1, peer2, peer3, peer4) =>
       for {
         _ <- peer2.importBlocksUntil(1000)(updateStateAtBlock(500))
         _ <- peer3.importBlocksUntil(1000)(updateStateAtBlock(500))
-        _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
+        _ <- peer4.importBlocksUntil(1000)(updateStateAtBlock(500))
+
+        _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
         _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         val trie = peer1.getBestBlockTrie()
         val synchronizingPeerHaveAllData = peer1.containsExpectedDataUpToAccountAtBlock(1000, 500)
-        // due to the fact that function generating state is deterministic both peer2 and peer3 ends up with exactly same
+        // due to the fact that function generating state is deterministic both peer3 and peer4 ends up with exactly same
         // state, so peer1 can get whole trie from both of them.
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
         assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer4.bl.getBestBlockNumber() - peer4.testSyncConfig.pivotBlockOffset)
         assert(trie.isDefined)
         assert(synchronizingPeerHaveAllData)
       }
@@ -84,24 +86,26 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
 
   it should "sync blockchain with state nodes when one of the peers send empty state responses" in
     customTestCaseResourceM(
-      FakePeer.start3FakePeersRes(
+      FakePeer.start4FakePeersRes(
         fakePeerCustomConfig2 = FakePeerCustomConfig(HostConfig()),
         fakePeerCustomConfig3 = FakePeerCustomConfig(HostConfig().copy(maxMptComponentsPerMessage = 0))
       )
-    ) { case (peer1, peer2, peer3) =>
+    ) { case (peer1, peer2, peer3, peer4) =>
       for {
         _ <- peer2.importBlocksUntil(1000)(updateStateAtBlock(500))
         _ <- peer3.importBlocksUntil(1000)(updateStateAtBlock(500))
-        _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
+        _ <- peer4.importBlocksUntil(1000)(updateStateAtBlock(500))
+
+        _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
         _ <- peer1.startFastSync().delayExecution(50.milliseconds)
         _ <- peer1.waitForFastSyncFinish()
       } yield {
         val trie = peer1.getBestBlockTrie()
         val synchronizingPeerHaveAllData = peer1.containsExpectedDataUpToAccountAtBlock(1000, 500)
-        // due to the fact that function generating state is deterministic both peer2 and peer3 ends up with exactly same
+        // due to the fact that function generating state is deterministic both peer3 and peer4 ends up with exactly same
         // state, so peer1 can get whole trie from both of them.
-        assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
         assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
+        assert(peer1.bl.getBestBlockNumber() == peer4.bl.getBestBlockNumber() - peer4.testSyncConfig.pivotBlockOffset)
         assert(trie.isDefined)
         assert(synchronizingPeerHaveAllData)
       }

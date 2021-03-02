@@ -228,7 +228,7 @@ object FastSyncBranchResolverActor {
   protected val peerTerminatedLog: String =
     s"Peer request handler [{}] for peer [{}] terminated. Restarting branch resolver."
 
-  def prop(
+  def props(
       fastSync: ActorRef,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,

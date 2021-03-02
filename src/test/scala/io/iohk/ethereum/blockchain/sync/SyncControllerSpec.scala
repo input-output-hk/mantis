@@ -2,15 +2,15 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{ExplicitlyTriggeredScheduler, TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
@@ -23,21 +23,16 @@ import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts.GetReceiptsEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.{NodeData, Receipts}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Seconds, Span}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import com.typesafe.config.ConfigFactory
-import akka.testkit.ExplicitlyTriggeredScheduler
-import io.iohk.ethereum.NormalPatience
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec
@@ -123,9 +118,17 @@ class SyncControllerSpec
   }
 
   it should "handle blocks that fail validation" in withTestSetup(
-    new Mocks.MockValidatorsAlwaysSucceed {
-      override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-        Left(HeaderPoWError)
+    validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+        override def validate(
+            blockHeader: BlockHeader,
+            getBlockHeaderByHash: GetBlockHeaderByHash
+        ): Either[BlockHeaderError, BlockHeaderValid] = {
+          Left(HeaderPoWError)
+        }
+
+        override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+          Left(HeaderPoWError)
       }
     }
   ) { testSetup =>
@@ -151,14 +154,37 @@ class SyncControllerSpec
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-      syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
-      syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
+
+      // Header validation failed when downloading skeleton headers.
+      // Sync state remains the same and the peer is blacklisted.
+      syncState.pivotBlock shouldBe defaultPivotBlockHeader
+      syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber)
+      syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1)
       syncState.blockBodiesQueue.isEmpty shouldBe true
       syncState.receiptsQueue.isEmpty shouldBe true
     }
   }
 
-  it should "rewind fast-sync state if received header have no known parent" in withTestSetup() { testSetup =>
+  it should "rewind fast-sync state if received header have no known parent" in withTestSetup(
+    validators = new Mocks.MockValidatorsAlwaysSucceed {
+      override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+        val invalidBlockNNumber = 399510
+        override def validate(
+            blockHeader: BlockHeader,
+            getBlockHeaderByHash: GetBlockHeaderByHash
+        ): Either[BlockHeaderError, BlockHeaderValid] = {
+          if (blockHeader.number == invalidBlockNNumber) {
+            Left(HeaderParentNotFoundError)
+          } else {
+            Right(BlockHeaderValid)
+          }
+        }
+
+        override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+          Right(BlockHeaderValid)
+      }
+    }
+  ) { testSetup =>
     import testSetup._
     startWithState(defaultStateBeforeNodeRestart)
 
@@ -166,14 +192,10 @@ class SyncControllerSpec
 
     val handshakedPeers = HandshakedPeers(singlePeer)
 
-    val newBlocks = Seq(
-      defaultPivotBlockHeader.copy(
-        number = defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1,
-        parentHash = ByteString(1, 2, 3)
-      )
-    )
+    val blockHeaders =
+      getHeaders(defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1, 10)
 
-    setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(newBlocks))
+    setupAutoPilot(etcPeerManager, handshakedPeers, defaultPivotBlockHeader, BlockchainData(blockHeaders))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -181,8 +203,12 @@ class SyncControllerSpec
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-      syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
-      syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
+      val invalidBlockNumber = defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 9
+
+      // Header validation failed at header number 399510
+      // Rewind sync state by configured number of headers.
+      syncState.bestBlockHeaderNumber shouldBe (invalidBlockNumber - syncConfig.fastSyncBlockValidationN)
+      syncState.nextBlockToFullyValidate shouldBe (invalidBlockNumber - syncConfig.fastSyncBlockValidationN + 1)
       syncState.blockBodiesQueue.isEmpty shouldBe true
       syncState.receiptsQueue.isEmpty shouldBe true
     }
@@ -195,7 +221,7 @@ class SyncControllerSpec
 
     syncController ! SyncProtocol.Start
 
-    val handshakedPeers = HandshakedPeers(singlePeer)
+    val handshakedPeers = HandshakedPeers(twoAcceptedPeers)
     val watcher = TestProbe()
     watcher.watch(syncController)
 
@@ -207,7 +233,7 @@ class SyncControllerSpec
 
     // Send block that is way forward, we should ignore that block and blacklist that peer
     val futureHeaders = Seq(defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20))
-    val futureHeadersMessage = PeerRequestHandler.ResponseReceived(peer1, BlockHeaders(futureHeaders), 2L)
+    val futureHeadersMessage = PeerRequestHandler.ResponseReceived(peer2, BlockHeaders(futureHeaders), 2L)
     implicit val ec = system.dispatcher
     system.scheduler.scheduleAtFixedRate(0.seconds, 0.1.second, fast, futureHeadersMessage)
 
@@ -224,14 +250,20 @@ class SyncControllerSpec
   }
 
   it should "update pivot block if pivot fail" in withTestSetup(new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-      {
+    override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash
+      ): Either[BlockHeaderError, BlockHeaderValid] = {
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
         } else {
-          Left(HeaderPoWError)
+          Left(HeaderParentNotFoundError)
         }
       }
+
+      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        Right(BlockHeaderValid)
     }
   }) { testSetup =>
     import testSetup._
@@ -243,7 +275,7 @@ class SyncControllerSpec
 
     val newPivot = defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20)
     val peerWithNewPivot = defaultPeer1Info.copy(maxBlockNumber = bestBlock + 20)
-    val newHanshaked = HandshakedPeers(Map(peer1 -> peerWithNewPivot))
+    val newHandShakedPeer = HandshakedPeers(Map(peer2 -> peerWithNewPivot))
 
     val newBest = 399500 + 9
 
@@ -257,7 +289,7 @@ class SyncControllerSpec
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
-    autopilot.updateAutoPilot(newHanshaked, newPivot, BlockchainData(newBlocks))
+    autopilot.updateAutoPilot(newHandShakedPeer, newPivot, BlockchainData(newBlocks))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -556,16 +588,13 @@ class SyncControllerSpec
 
           case SendMessage(msg: GetBlockHeadersEnc, peer) =>
             val underlyingMessage = msg.underlyingMsg
-            if (underlyingMessage.maxHeaders == 1) {
+            val requestedBlockNumber = underlyingMessage.block.swap.toOption.get
+            if (requestedBlockNumber == pivotHeader.number) {
               // pivot block
               sender ! MessageFromPeer(BlockHeaders(Seq(pivotHeader)), peer)
             } else {
-              if (!onlyPivot) {
-                val start = msg.underlyingMsg.block.swap.toOption.get
-                val stop = start + msg.underlyingMsg.maxHeaders
-                val headers = (start until stop).flatMap(i => blockchainData.headers.get(i))
-                sender ! MessageFromPeer(BlockHeaders(headers), peer)
-              }
+              val headers = generateBlockHeaders(underlyingMessage, blockchainData)
+              sender ! MessageFromPeer(BlockHeaders(headers), peer)
             }
             this
 
@@ -629,6 +658,19 @@ class SyncControllerSpec
         )
         sender.expectMsg(DataUpdated)
       }
+    }
+
+    private def generateBlockHeaders(
+        underlyingMessage: GetBlockHeaders,
+        blockchainData: BlockchainData
+    ): Seq[BlockHeader] = {
+      val start = underlyingMessage.block.swap.toOption.get
+      val stop = start + underlyingMessage.maxHeaders * (underlyingMessage.skip + 1)
+
+      (start until stop)
+        .flatMap(i => blockchainData.headers.get(i))
+        .zipWithIndex
+        .collect { case (header, index) if index % (underlyingMessage.skip + 1) == 0 => header }
     }
 
     // scalastyle:off method.length parameter.number

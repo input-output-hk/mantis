@@ -33,10 +33,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     * A hook where even more consensus-specific validation can take place.
     * For example, PoW validation is done here.
     */
-  protected def validateEvenMore(
-      blockHeader: BlockHeader,
-      parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid]
+  protected def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid]
 
   /** This method allows validate a BlockHeader (stated on
     * section 4.4.4 of http://paper.gavwood.com/).
@@ -55,7 +52,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     * @param blockHeader BlockHeader to validate.
     * @param getBlockHeaderByHash function to obtain the parent.
     */
-  def validate(
+  override def validate(
       blockHeader: BlockHeader,
       getBlockHeaderByHash: GetBlockHeaderByHash
   ): Either[BlockHeaderError, BlockHeaderValid] = {
@@ -87,7 +84,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       _ <- validateGasLimit(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validateExtraFields(blockHeader)
-      _ <- validateEvenMore(blockHeader, parentHeader)
+      _ <- validateEvenMore(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -242,4 +239,12 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     }
   }
 
+  override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+    for {
+      _ <- validateExtraData(blockHeader)
+      _ <- validateGasUsed(blockHeader)
+      _ <- validateExtraFields(blockHeader)
+      _ <- validateEvenMore(blockHeader)
+    } yield BlockHeaderValid
+  }
 }

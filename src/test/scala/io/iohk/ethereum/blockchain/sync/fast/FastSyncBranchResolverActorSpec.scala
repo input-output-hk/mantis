@@ -288,7 +288,7 @@ class FastSyncBranchResolverActorSpec
 
     def creatFastSyncBranchResolver(fastSync: ActorRef, etcPeerManager: ActorRef, blacklist: Blacklist): ActorRef =
       system.actorOf(
-        FastSyncBranchResolverActor.prop(
+        FastSyncBranchResolverActor.props(
           fastSync = fastSync,
           peerEventBus = TestProbe("peer_event_bus").ref,
           etcPeerManager = etcPeerManager,
