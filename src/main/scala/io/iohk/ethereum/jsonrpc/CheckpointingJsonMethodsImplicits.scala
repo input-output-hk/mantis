@@ -17,9 +17,18 @@ object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
           params: Option[JsonAST.JArray]
       ): Either[JsonRpcError, GetLatestBlockRequest] =
         params match {
-          case Some(JArray(JInt(chkpInterval) :: Nil)) =>
+          case Some(JArray(JInt(chkpInterval) :: second :: Nil)) =>
             if (chkpInterval > 0 && chkpInterval <= Int.MaxValue)
-              Right(GetLatestBlockRequest(chkpInterval.toInt))
+              second match {
+                case JString(blockHash) =>
+                  for {
+                    hash <- extractHash(blockHash)
+                  } yield GetLatestBlockRequest(chkpInterval.toInt, Some(hash))
+                case JNull =>
+                  Right(GetLatestBlockRequest(chkpInterval.toInt, None))
+                case _ =>
+                  Left(InvalidParams("Not supported type for parentCheckpoint"))
+              }
             else
               Left(InvalidParams("Expected positive integer"))
           case _ =>
