@@ -1,22 +1,17 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.must.Matchers
-import org.scalamock.scalatest.MockFactory
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.domain.BlockHeader
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
-import io.iohk.ethereum.domain.Block
-import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
-import io.iohk.ethereum.network.Peer
-import java.net.InetSocketAddress
 import akka.actor.ActorRef
+import akka.util.ByteString
+import io.iohk.ethereum.{BlockHelpers, Fixtures}
 import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
-import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.network.Peer
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.matchers.must.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
+import java.net.InetSocketAddress
 
 class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFactory {
 
@@ -32,8 +27,6 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
 
   private def headersList(blocksMap: Map[BigInt, Block]): List[BlockHeader] =
     blocksMap.values.map(_.header).toList
-
-  private def headerNum(block: Block): BigInt = block.header.number
 
   "FastSyncBranchResolver" must {
     "calculate childOf block number" in {

@@ -17,6 +17,8 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
 
   private implicit val ec: ExecutionContext = context.dispatcher
 
+  private val bigIntReverseOrdering: Ordering[BigInt] = Ordering[BigInt].reverse
+
   def etcPeerManager: ActorRef
   def peerEventBus: ActorRef
   def blacklist: Blacklist
@@ -47,7 +49,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
   def getPeerWithHighestBlock: Option[PeerWithInfo] =
     peersToDownloadFrom.values.toList.sortBy { case PeerWithInfo(_, peerInfo) =>
       peerInfo.maxBlockNumber
-    }(Ordering[BigInt].reverse).headOption
+    }(bigIntReverseOrdering).headOption
 
   def blacklistIfHandshaked(peerId: PeerId, duration: FiniteDuration, reason: BlacklistReason): Unit =
     handshakedPeers.get(peerId).foreach(_ => blacklist.add(peerId, duration, reason))
