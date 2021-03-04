@@ -287,12 +287,12 @@ class BlockFetcher(
     case InternalCheckpointImport(blockNr) =>
       log.debug(s"New checkpoint block $blockNr imported from the inside")
 
-      val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
+      val newState = state
+        .clearQueues()
+        .withLastBlock(blockNr)
+        .withPossibleNewTopAt(blockNr)
 
-      //stop fetching to give time to checkpointed block get propagated
-      context.system.scheduler.scheduleOnce(10.second, self, ResumeFetchBlocks(newState))
-
-    case ResumeFetchBlocks(newState) => fetchBlocks(newState)
+      fetchBlocks(newState)
   }
 
   private def handlePickedBlocks(
@@ -433,7 +433,6 @@ object BlockFetcher {
   }
   final case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
   final case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
-  final case class ResumeFetchBlocks(state: BlockFetcherState) extends FetchMsg
   final case class InternalCheckpointImport(blockNr: BigInt) extends FetchMsg
   final case object RetryBodiesRequest extends FetchMsg
   final case object RetryHeadersRequest extends FetchMsg
