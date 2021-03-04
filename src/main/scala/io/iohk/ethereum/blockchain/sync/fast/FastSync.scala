@@ -136,7 +136,11 @@ class FastSync(
     private val syncStateStorageActor = context.actorOf(Props[StateStorageActor](), "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
-    private val branchResolver = context.actorOf(Props[FastSyncBranchResolver](), "fast-sync-branch-resolver")
+    private val branchResolver = context.actorOf(
+      FastSyncBranchResolverActor
+        .props(self, peerEventBus, etcPeerManager, blockchain, blacklist, syncConfig, appStateStorage, scheduler),
+      "fast-sync-branch-resolver"
+    )
 
     private val syncStateScheduler = context.actorOf(
       SyncStateSchedulerActor
@@ -288,13 +292,13 @@ class FastSync(
 
         // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
         context become waitingForBranchResolution
-        branchResolver ! FastSyncBranchResolver.StartBranchResolver
+        branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
         currentSkeleton = None
       }
     }
 
     private def waitingForBranchResolution: Receive = handleStatus orElse {
-      case FastSyncBranchResolver.BranchResolvedSuccessful(firstCommonBlockNumber, resolvedPeer) =>
+      case FastSyncBranchResolverActor.BranchResolvedSuccessful(firstCommonBlockNumber, resolvedPeer) =>
         // Reset the batch failures count
         batchFailuresCount = 0
 
@@ -303,6 +307,9 @@ class FastSync(
         masterPeer = Some(resolvedPeer)
         context become receive
         processSyncing()
+      case _: FastSyncBranchResolverActor.BranchResolutionFailed =>
+        // there isn't much we can do if we don't find a branch/peer to continue syncing, so let's try again
+        branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
     }
 
     private def blockHeadersError(peer: Peer): Unit = {

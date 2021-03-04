@@ -81,7 +81,7 @@ object Blacklist {
 
     case object WrongBlockHeaders extends BlacklistReason {
       val reasonType: BlacklistReasonType = WrongBlockHeadersType
-      val description: String = "Wrong blockheaders response (empty or not chain forming)"
+      val description: String = "Wrong blockheaders response: Peer didn't respond with requested block headers."
     }
     case object BlockHeaderValidationFailed extends BlacklistReason {
       val reasonType: BlacklistReasonType = BlockHeaderValidationFailedType
