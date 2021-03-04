@@ -60,6 +60,17 @@ class BlockFetcherStateSpec
         }
         assert(result.map(_.knownTop) === Right(blocks.last.number))
       }
+
+      "enqueue requested blocks fails when ready blocks is not forming a sequence with given headers" in {
+
+        val result = BlockFetcherState
+          .initial(importer, validators.blockValidator, 0)
+          .copy(readyBlocks = Queue(blocks.head))
+          .appendHeaders(blocks.map(_.header))
+          .map(_.handleRequestedBlocks(blocks, peer))
+
+        assert(result.map(_.waitingHeaders) === Left("Given headers should form a sequence with ready blocks"))
+      }
     }
 
     "trying to insert block into the queues" should {

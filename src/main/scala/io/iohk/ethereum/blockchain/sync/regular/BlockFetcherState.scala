@@ -113,7 +113,7 @@ case class BlockFetcherState(
   }
 
   /**
-    * Validates received headers consistency and their compatibilty with the state
+    * Validates received headers consistency and their compatibility with the state
     * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
     */
   private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
@@ -123,10 +123,18 @@ case class BlockFetcherState(
       headers
         .asRight[String]
         .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
+        .ensure("Given headers should form a sequence with ready blocks")(checkConsistencyWithReadyBlocks)
         .ensure("Given headers do not form a chain with already stored ones")(headers =>
           (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
         )
     }
+
+  private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
+    (readyBlocks, headers) match {
+      case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header isParentOf head
+      case _ => true
+    }
+  }
 
   def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
     hashes
@@ -190,17 +198,20 @@ case class BlockFetcherState(
   def enqueueRequestedBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
     waitingHeaders.dequeueOption
       .map { case (waitingHeader, waitingHeadersTail) =>
-        if (waitingHeader.hash == block.hash)
-          withPeerForBlocks(fromPeer, Seq(block.number))
+        if (waitingHeader.hash == block.hash) {
+          enqueueReadyBlock(block, fromPeer)
             .withPossibleNewTopAt(block.number)
             .copy(
-              readyBlocks = readyBlocks.enqueue(block),
               waitingHeaders = waitingHeadersTail
             )
-        else
+        } else
           this
       }
       .getOrElse(this)
+
+  def enqueueReadyBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
+    withPeerForBlocks(fromPeer, Seq(block.number))
+      .copy(readyBlocks = readyBlocks.enqueue(block))
 
   def pickBlocks(amount: Int): Option[(NonEmptyList[Block], BlockFetcherState)] =
     if (readyBlocks.nonEmpty) {
