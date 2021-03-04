@@ -49,7 +49,7 @@ class FastSyncBranchResolverActor(
     getPeerWithHighestBlock match {
       case Some(PeerWithInfo(peer, _)) => requestRecentBlockHeaders(peer, blockchain.getBestBlockNumber())
       case None =>
-        log.info(s"Waiting for peers, rescheduling StartBranchResolver")
+        log.info("Waiting for peers, rescheduling StartBranchResolver")
         timers.startSingleTimer(RestartTimerKey, StartBranchResolver, 1.second)
     }
   }
@@ -223,10 +223,10 @@ object FastSyncBranchResolverActor {
     "Received requested block header [{}] from peer [{}] in {} ms"
 
   protected val ReceivedWrongHeaders: String =
-    s"Received invalid response when requesting block header [{}]. Received: {}"
+    "Received invalid response when requesting block header [{}]. Received: {}"
 
   protected val peerTerminatedLog: String =
-    s"Peer request handler [{}] for peer [{}] terminated. Restarting branch resolver."
+    "Peer request handler [{}] for peer [{}] terminated. Restarting branch resolver."
 
   def props(
       fastSync: ActorRef,
