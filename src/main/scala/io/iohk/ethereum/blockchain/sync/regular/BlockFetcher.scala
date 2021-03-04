@@ -287,10 +287,7 @@ class BlockFetcher(
     case InternalCheckpointImport(blockNr) =>
       log.debug(s"New checkpoint block $blockNr imported from the inside")
 
-      val newState = state
-        .clearQueues()
-        .withLastBlock(blockNr)
-        .withPossibleNewTopAt(blockNr)
+      val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
 
       //stop fetching to give time to checkpointed block get propagated
       context.system.scheduler.scheduleOnce(10.second, self, ResumeFetchBlocks(newState))
