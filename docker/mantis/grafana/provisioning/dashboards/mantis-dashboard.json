@@ -15,10 +15,11 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "iteration": 1612542581964,
+  "iteration": 1614173353394,
   "links": [],
   "panels": [
     {
+      "collapsed": true,
       "datasource": null,
       "gridPos": {
         "h": 1,
@@ -27,105 +28,107 @@
         "y": 0
       },
       "id": 164,
+      "panels": [
+        {
+          "aliasColors": {},
+          "bars": true,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 1
+          },
+          "hiddenSeries": false,
+          "id": 166,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": false,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": false
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.6",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "rate(app_regularsync_blocks_propagation_timer_seconds_sum[$__rate_interval]) / rate(app_regularsync_blocks_propagation_timer_seconds_count[$__rate_interval])",
+              "interval": "",
+              "legendFormat": "{{blocktype}}",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Block Import time",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:194",
+              "format": "short",
+              "label": "seconds",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:195",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        }
+      ],
       "title": "Regular Synchronization",
       "type": "row"
-    },
-    {
-      "aliasColors": {},
-      "bars": true,
-      "dashLength": 10,
-      "dashes": false,
-      "datasource": null,
-      "fieldConfig": {
-        "defaults": {
-          "custom": {}
-        },
-        "overrides": []
-      },
-      "fill": 1,
-      "fillGradient": 0,
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 1
-      },
-      "hiddenSeries": false,
-      "id": 166,
-      "legend": {
-        "avg": false,
-        "current": false,
-        "max": false,
-        "min": false,
-        "show": true,
-        "total": false,
-        "values": false
-      },
-      "lines": false,
-      "linewidth": 1,
-      "nullPointMode": "null",
-      "options": {
-        "alertThreshold": false
-      },
-      "percentage": false,
-      "pluginVersion": "7.3.6",
-      "pointradius": 2,
-      "points": false,
-      "renderer": "flot",
-      "seriesOverrides": [],
-      "spaceLength": 10,
-      "stack": false,
-      "steppedLine": false,
-      "targets": [
-        {
-          "expr": "rate(app_regularsync_blocks_propagation_timer_seconds_sum[$__rate_interval]) / rate(app_regularsync_blocks_propagation_timer_seconds_count[$__rate_interval])",
-          "interval": "",
-          "legendFormat": "{{blocktype}}",
-          "refId": "A"
-        }
-      ],
-      "thresholds": [],
-      "timeFrom": null,
-      "timeRegions": [],
-      "timeShift": null,
-      "title": "Block Import time",
-      "tooltip": {
-        "shared": true,
-        "sort": 0,
-        "value_type": "individual"
-      },
-      "type": "graph",
-      "xaxis": {
-        "buckets": null,
-        "mode": "time",
-        "name": null,
-        "show": true,
-        "values": []
-      },
-      "yaxes": [
-        {
-          "$$hashKey": "object:194",
-          "format": "short",
-          "label": "seconds",
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        },
-        {
-          "$$hashKey": "object:195",
-          "format": "short",
-          "label": null,
-          "logBase": 1,
-          "max": null,
-          "min": null,
-          "show": true
-        }
-      ],
-      "yaxis": {
-        "align": false,
-        "alignLevel": null
-      }
     },
     {
       "collapsed": true,
@@ -134,7 +137,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 1
       },
       "id": 142,
       "panels": [
@@ -168,7 +171,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 1
+            "y": 10
           },
           "id": 144,
           "options": {
@@ -226,7 +229,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 1
+            "y": 10
           },
           "id": 146,
           "options": {
@@ -284,7 +287,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 9
+            "y": 18
           },
           "id": 150,
           "options": {
@@ -342,7 +345,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 9
+            "y": 18
           },
           "id": 148,
           "options": {
@@ -392,7 +395,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 17
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 152,
@@ -490,7 +493,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 17
+            "y": 26
           },
           "hiddenSeries": false,
           "id": 154,
@@ -588,7 +591,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 34
           },
           "hiddenSeries": false,
           "id": 156,
@@ -684,7 +687,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 34
           },
           "hiddenSeries": false,
           "id": 158,
@@ -782,7 +785,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 33
+            "y": 42
           },
           "hiddenSeries": false,
           "id": 160,
@@ -880,7 +883,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 33
+            "y": 42
           },
           "hiddenSeries": false,
           "id": 162,
@@ -970,7 +973,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 10
+        "y": 2
       },
       "id": 42,
       "panels": [
@@ -993,7 +996,7 @@
             "h": 14,
             "w": 12,
             "x": 0,
-            "y": 11
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 48,
@@ -1092,7 +1095,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 11
+            "y": 3
           },
           "hiddenSeries": false,
           "id": 66,
@@ -1190,7 +1193,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 18
+            "y": 10
           },
           "hiddenSeries": false,
           "id": 58,
@@ -1286,7 +1289,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 25
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 117,
@@ -1382,7 +1385,7 @@
             "h": 7,
             "w": 12,
             "x": 12,
-            "y": 25
+            "y": 17
           },
           "hiddenSeries": false,
           "id": 54,
@@ -1480,7 +1483,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 24
           },
           "hiddenSeries": false,
           "id": 64,
@@ -1577,7 +1580,7 @@
             "h": 7,
             "w": 12,
             "x": 0,
-            "y": 39
+            "y": 31
           },
           "hiddenSeries": false,
           "id": 56,
@@ -1665,7 +1668,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 11
+        "y": 3
       },
       "id": 130,
       "panels": [
@@ -1875,7 +1878,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 12
+        "y": 4
       },
       "id": 136,
       "panels": [
@@ -1897,7 +1900,7 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 4
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 138,
@@ -1953,6 +1956,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:386",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -1961,6 +1965,7 @@
               "show": true
             },
             {
+              "$$hashKey": "object:387",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -1992,7 +1997,7 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 4
+            "y": 5
           },
           "hiddenSeries": false,
           "id": 140,
@@ -2048,6 +2053,7 @@
           },
           "yaxes": [
             {
+              "$$hashKey": "object:324",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -2056,6 +2062,104 @@
               "show": true
             },
             {
+              "$$hashKey": "object:325",
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": null,
+          "fieldConfig": {
+            "defaults": {
+              "custom": {}
+            },
+            "overrides": []
+          },
+          "fill": 1,
+          "fillGradient": 0,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 13
+          },
+          "hiddenSeries": false,
+          "id": 168,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "null",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": false,
+          "pluginVersion": "7.3.6",
+          "pointradius": 2,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "rate(app_consensus_minedblocks_evaluation_timer_seconds_sum[$__rate_interval]) / rate(app_consensus_minedblocks_evaluation_timer_seconds_count[$__rate_interval])\n",
+              "interval": "",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Mined block evaluation - average duration",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "$$hashKey": "object:143",
+              "format": "short",
+              "label": "seconds",
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": true
+            },
+            {
+              "$$hashKey": "object:144",
               "format": "short",
               "label": null,
               "logBase": 1,
@@ -2080,7 +2184,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 13
+        "y": 5
       },
       "id": 99,
       "panels": [
@@ -2630,7 +2734,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 14
+        "y": 6
       },
       "id": 77,
       "panels": [
@@ -3703,7 +3807,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 15
+        "y": 7
       },
       "id": 72,
       "panels": [
@@ -3735,7 +3839,7 @@
             "h": 3,
             "w": 6,
             "x": 0,
-            "y": 7
+            "y": 8
           },
           "id": 74,
           "interval": null,
@@ -3816,7 +3920,7 @@
             "h": 6,
             "w": 18,
             "x": 6,
-            "y": 7
+            "y": 8
           },
           "hiddenSeries": false,
           "id": 97,
@@ -3928,7 +4032,7 @@
             "h": 3,
             "w": 6,
             "x": 0,
-            "y": 10
+            "y": 11
           },
           "id": 70,
           "interval": null,
@@ -4037,7 +4141,7 @@
             "h": 5,
             "w": 24,
             "x": 0,
-            "y": 13
+            "y": 14
           },
           "id": 113,
           "options": {
@@ -4085,7 +4189,7 @@
             "h": 7,
             "w": 24,
             "x": 0,
-            "y": 18
+            "y": 19
           },
           "hiddenSeries": false,
           "id": 114,
@@ -4178,7 +4282,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 8
       },
       "id": 34,
       "panels": [
@@ -5155,7 +5259,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 9
       },
       "id": 8,
       "panels": [
@@ -5987,7 +6091,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 18
+        "y": 10
       },
       "id": 124,
       "panels": [
@@ -6361,7 +6465,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 19
+        "y": 11
       },
       "id": 119,
       "panels": [
@@ -6706,7 +6810,7 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 20
+        "y": 12
       },
       "id": 121,
       "panels": [
@@ -7550,5 +7654,5 @@
   "timezone": "utc",
   "title": "Mantis",
   "uid": "L3y-GTyWk",
-  "version": 3
+  "version": 4
 }
