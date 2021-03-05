@@ -8,4 +8,6 @@ object ConsensusMetrics extends MetricsContainer {
   final val RestrictedEthashBlockGeneratorTiming =
     metrics.timer(blockGenTimer, "class", "RestrictedEthashBlockGenerator")
   final val NoOmmersBlockGeneratorTiming = metrics.timer(blockGenTimer, "class", "NoOmmersBlockGenerator")
+
+  final val MinedBlockEvaluationTimer = metrics.timer("consensus.minedblocks.evaluation.timer")
 }
