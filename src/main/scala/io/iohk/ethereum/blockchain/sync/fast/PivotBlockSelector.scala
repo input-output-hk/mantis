@@ -2,7 +2,12 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.{
+  InvalidPivotBlockElectionResponse,
+  PivotBlockElectionTimeout
+}
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
+import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -21,20 +26,18 @@ class PivotBlockSelector(
     val peerEventBus: ActorRef,
     val syncConfig: SyncConfig,
     val scheduler: Scheduler,
-    fastSync: ActorRef
+    fastSync: ActorRef,
+    val blacklist: Blacklist
 ) extends Actor
     with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport {
+    with PeerListSupportNg {
 
   import PivotBlockSelector._
   import syncConfig._
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
-
   override def receive: Receive = idle
 
-  def idle: Receive = handleCommonMessages orElse { case SelectPivotBlock =>
+  private def idle: Receive = handlePeerListMessages orElse { case SelectPivotBlock =>
     val election @ ElectionDetails(correctPeers, expectedPivotBlock) = collectVoters
 
     if (election.isEnoughVoters(minPeersToChoosePivotBlock)) {
@@ -78,7 +81,7 @@ class PivotBlockSelector(
       timeout: Cancellable,
       headers: Map[ByteString, BlockHeaderWithVotes]
   ): Receive =
-    handleCommonMessages orElse {
+    handlePeerListMessages orElse {
       case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
         peerEventBus ! Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peerId)))
         val updatedPeersToAsk = peersToAsk - peerId
@@ -93,12 +96,12 @@ class PivotBlockSelector(
             val updatedHeaders = headers.updated(targetBlockHeader.hash, newValue)
             votingProcess(updatedPeersToAsk, waitingPeers, pivotBlockNumber, timeout, updatedHeaders)
           case None =>
-            blacklist(peerId, blacklistDuration, "Did not respond with pivot block header, blacklisting")
+            blacklist.add(peerId, blacklistDuration, InvalidPivotBlockElectionResponse)
             votingProcess(updatedPeersToAsk, waitingPeers, pivotBlockNumber, timeout, headers)
         }
       case ElectionPivotBlockTimeout =>
         peersToAsk.foreach { peerId =>
-          blacklist(peerId, blacklistDuration, "Did not respond with pivot block header (timeout), blacklisting")
+          blacklist.add(peerId, blacklistDuration, PivotBlockElectionTimeout)
         }
         peerEventBus ! Unsubscribe()
         log.info("Pivot block header receive timeout. Retrying in {}", startRetryInterval)
@@ -155,12 +158,12 @@ class PivotBlockSelector(
   private def isPossibleToReachConsensus(peersLeft: Int, bestHeaderVotes: Int): Boolean =
     peersLeft + bestHeaderVotes >= minPeersToChoosePivotBlock
 
-  def scheduleRetry(interval: FiniteDuration): Unit = {
+  private def scheduleRetry(interval: FiniteDuration): Unit = {
     scheduler.scheduleOnce(interval, self, SelectPivotBlock)
     context become idle
   }
 
-  def sendResponseAndCleanup(pivotBlockHeader: BlockHeader): Unit = {
+  private def sendResponseAndCleanup(pivotBlockHeader: BlockHeader): Unit = {
     log.info("Found pivot block: {} hash: {}", pivotBlockHeader.number, pivotBlockHeader.hashAsHexString)
     fastSync ! Result(pivotBlockHeader)
     peerEventBus ! Unsubscribe()
@@ -176,8 +179,9 @@ class PivotBlockSelector(
   }
 
   private def collectVoters: ElectionDetails = {
-    val peersUsedToChooseTarget = peersToDownloadFrom.collect { case (peer, PeerInfo(_, _, true, maxBlockNumber, _)) =>
-      (peer, maxBlockNumber)
+    val peersUsedToChooseTarget = peersToDownloadFrom.collect {
+      case (_, PeerWithInfo(peer, PeerInfo(_, _, true, maxBlockNumber, _))) =>
+        (peer, maxBlockNumber)
     }
 
     val peersSortedByBestNumber = peersUsedToChooseTarget.toList.sortBy { case (_, number) => -number }
@@ -199,9 +203,10 @@ object PivotBlockSelector {
       peerEventBus: ActorRef,
       syncConfig: SyncConfig,
       scheduler: Scheduler,
-      fastSync: ActorRef
+      fastSync: ActorRef,
+      blacklist: Blacklist
   ): Props =
-    Props(new PivotBlockSelector(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler, fastSync))
+    Props(new PivotBlockSelector(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler, fastSync, blacklist))
 
   case object SelectPivotBlock
   case class Result(targetBlockHeader: BlockHeader)
