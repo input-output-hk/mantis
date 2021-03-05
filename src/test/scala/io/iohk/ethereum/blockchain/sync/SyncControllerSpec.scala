@@ -224,7 +224,7 @@ class SyncControllerSpec
   }
 
   it should "update pivot block if pivot fail" in withTestSetup(new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, _) =>
       {
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
@@ -239,11 +239,11 @@ class SyncControllerSpec
 
     syncController ! SyncProtocol.Start
 
-    val handshakedPeers = HandshakedPeers(singlePeer)
+    val handshakedPeers = HandshakedPeers(twoAcceptedPeers)
 
     val newPivot = defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20)
     val peerWithNewPivot = defaultPeer1Info.copy(maxBlockNumber = bestBlock + 20)
-    val newHanshaked = HandshakedPeers(Map(peer1 -> peerWithNewPivot))
+    val newHandshaked = HandshakedPeers(Map(peer2 -> peerWithNewPivot))
 
     val newBest = 399500 + 9
 
@@ -257,7 +257,7 @@ class SyncControllerSpec
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
     }
 
-    autopilot.updateAutoPilot(newHanshaked, newPivot, BlockchainData(newBlocks))
+    autopilot.updateAutoPilot(newHandshaked, newPivot, BlockchainData(newBlocks))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
