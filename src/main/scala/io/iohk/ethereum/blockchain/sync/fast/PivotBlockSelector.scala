@@ -45,7 +45,7 @@ class PivotBlockSelector(
       val (peersToAsk, waitingPeers) = correctPeers.splitAt(minPeersToChoosePivotBlock + peersToChoosePivotBlockMargin)
 
       log.info(
-        "Trying to choose fast sync pivot block using {} peers ({} correct ones). Ask {} peers for block nr {}",
+        "Trying to choose fast sync pivot block using {} peers ({} ones with high enough block). Ask {} peers for block nr {}",
         peersToDownloadFrom.size,
         correctPeers.size,
         peersToAsk.size,
