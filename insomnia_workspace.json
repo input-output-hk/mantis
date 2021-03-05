@@ -1236,6 +1236,38 @@
       "_type": "request"
     },
     {
+      "_id": "req_2f54fafc9aa546a0b5dbf3dd10dbad32",
+      "parentId": "fld_a06eb77e183c4727800eb7dc43ceabe1",
+      "modified": 1614177250961,
+      "created": 1614176147504,
+      "url": "{{ node_url }}",
+      "name": "eth_submitWork",
+      "description": "",
+      "method": "POST",
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_submitWork\", \n  \"params\": [\"0x0000000000000001\", \"0x1234567890abcdef1234567890abcdef\", \"0xD1FE5700000000000000000000000001\"],\n  \"id\": 55\n}"
+      },
+      "parameters": [],
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json",
+          "id": "pair_9e428be5f8494b49af7edf14ad5764d4"
+        }
+      ],
+      "authentication": {},
+      "metaSortKey": -1552671519801.9062,
+      "isPrivate": false,
+      "settingStoreCookies": true,
+      "settingSendCookies": true,
+      "settingDisableRenderRequestBody": false,
+      "settingEncodeUrl": true,
+      "settingRebuildPath": true,
+      "settingFollowRedirects": "global",
+      "_type": "request"
+    },
+    {
       "_id": "req_48316ba9ba834bcc94fdeae41d966eb9",
       "parentId": "fld_9f9137459d5c429d83901f5c682be0f9",
       "modified": 1604346774105,
