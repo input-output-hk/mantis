@@ -4,6 +4,9 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
 import akka.pattern.pipe
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.InvalidStateResponse
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
@@ -13,7 +16,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
   SyncResponse
 }
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
+import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
@@ -29,26 +32,23 @@ class SyncStateSchedulerActor(
     val syncConfig: SyncConfig,
     val etcPeerManager: ActorRef,
     val peerEventBus: ActorRef,
+    val blacklist: Blacklist,
     val scheduler: akka.actor.Scheduler
-) extends Actor
-    with PeerListSupport
-    with BlacklistSupport
+)(implicit val actorScheduler: akka.actor.Scheduler)
+    extends Actor
+    with PeerListSupportNg
     with ActorLogging
     with Timers {
 
-  implicit val monixScheduler = Scheduler(context.dispatcher)
+  private implicit val monixScheduler: Scheduler = Scheduler(context.dispatcher)
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
-
-  private def getFreePeers(state: DownloaderState) = {
-    handshakedPeers.collect {
-      case (peer, _) if !state.activeRequests.contains(peer.id) && !isBlacklisted(peer.id) => peer
-    }
-  }
+  private def getFreePeers(state: DownloaderState): List[Peer] =
+    peersToDownloadFrom.collect {
+      case (_, PeerWithInfo(peer, _)) if !state.activeRequests.contains(peer.id) => peer
+    }.toList
 
   private def requestNodes(request: PeerRequest): ActorRef = {
     log.info("Requesting {} from peer {}", request.nodes.size, request.peer)
-    implicit val s = scheduler
     val handler = context.actorOf(
       PeerRequestHandler.props[GetNodeData, NodeData](
         request.peer,
@@ -67,11 +67,11 @@ class SyncStateSchedulerActor(
       log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
       FastSyncMetrics.setMptStateDownloadTime(timeTaken)
 
-      context unwatch (sender())
+      context.unwatch(sender())
       self ! RequestData(nodeData, peer)
 
     case PeerRequestHandler.RequestFailed(peer, reason) =>
-      context unwatch (sender())
+      context.unwatch(sender())
       log.debug("Request to peer {} failed due to {}", peer.id, reason)
       self ! RequestFailed(peer, reason)
     case RequestTerminated(peer) =>
@@ -79,7 +79,7 @@ class SyncStateSchedulerActor(
       self ! RequestFailed(peer, "Peer disconnected in the middle of request")
   }
 
-  val loadingCancelable = sync.loadFilterFromBlockchain.runAsync {
+  private val loadingCancelable = sync.loadFilterFromBlockchain.runAsync {
     case Left(value) =>
       log.error(
         "Unexpected error while loading bloom filter. Starting state sync with empty bloom filter" +
@@ -93,7 +93,7 @@ class SyncStateSchedulerActor(
   }
 
   def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive =
-    handleCommonMessages orElse {
+    handlePeerListMessages orElse {
       case BloomFilterResult(result) =>
         log.debug(
           "Loaded {} already known elements from storage to bloom filter the error while loading was {}",
@@ -132,7 +132,7 @@ class SyncStateSchedulerActor(
     self ! Sync
   }
 
-  def idle(processingStatistics: ProcessingStatistics): Receive = handleCommonMessages orElse {
+  def idle(processingStatistics: ProcessingStatistics): Receive = handlePeerListMessages orElse {
     case StartSyncingTo(root, bn) =>
       startSyncing(root, bn, processingStatistics, sender())
     case PrintInfo =>
@@ -165,11 +165,11 @@ class SyncStateSchedulerActor(
         resp match {
           case UnrequestedResponse =>
             ProcessingResult(
-              Left(DownloaderError(newDownloaderState, from, "unrequested response", blacklistPeer = false))
+              Left(DownloaderError(newDownloaderState, from, None))
             )
           case NoUsefulDataInResponse =>
             ProcessingResult(
-              Left(DownloaderError(newDownloaderState, from, "no useful data in response", blacklistPeer = true))
+              Left(DownloaderError(newDownloaderState, from, Some(InvalidStateResponse("no useful data in response"))))
             )
           case UsefulData(responses) =>
             sync.processResponses(currentState.currentSchedulerState, responses) match {
@@ -184,7 +184,7 @@ class SyncStateSchedulerActor(
       case RequestFailed(from, reason) =>
         log.debug("Processing failed request from {}. Failure reason {}", from, reason)
         val newDownloaderState = currentState.currentDownloaderState.handleRequestFailure(from)
-        ProcessingResult(Left(DownloaderError(newDownloaderState, from, reason, blacklistPeer = true)))
+        ProcessingResult(Left(DownloaderError(newDownloaderState, from, Some(BlacklistReason.RequestFailed(reason)))))
     }
   }
 
@@ -202,9 +202,9 @@ class SyncStateSchedulerActor(
 
   // scalastyle:off cyclomatic.complexity method.length
   def syncing(currentState: SyncSchedulerActorState): Receive =
-    handleCommonMessages orElse handleRequestResults orElse {
+    handlePeerListMessages orElse handleRequestResults orElse {
       case Sync if currentState.hasRemainingPendingRequests && !currentState.restartHasBeenRequested =>
-        val freePeers = getFreePeers(currentState.currentDownloaderState).toList
+        val freePeers = getFreePeers(currentState.currentDownloaderState)
         (currentState.getRequestToProcess, NonEmptyList.fromList(freePeers)) match {
           case (Some((nodes, newState)), Some(peers)) =>
             log.debug(
@@ -311,11 +311,9 @@ class SyncStateSchedulerActor(
             // TODO we should probably start sync again from new target block, as current trie is malformed or declare
             // fast sync as failure and start normal sync from scratch
             context.stop(self)
-          case DownloaderError(newDownloaderState, peer, description, blacklistPeer) =>
+          case DownloaderError(newDownloaderState, peer, blacklistWithReason) =>
             log.debug("Downloader error by peer {}", peer)
-            if (blacklistPeer && handshakedPeers.contains(peer)) {
-              blacklist(peer.id, syncConfig.blacklistDuration, description)
-            }
+            blacklistWithReason.foreach(blacklistIfHandshaked(peer.id, syncConfig.blacklistDuration, _))
             context.become(syncing(currentState.withNewDownloaderState(newDownloaderState)))
             self ! Sync
         }
@@ -348,46 +346,50 @@ object SyncStateSchedulerActor {
     )
   }
 
-  case class StateSyncStats(saved: Long, missing: Long)
+  final case class StateSyncStats(saved: Long, missing: Long)
 
-  case class ProcessingResult(result: Either[ProcessingError, ProcessingSuccess])
+  final case class ProcessingResult(result: Either[ProcessingError, ProcessingSuccess])
 
   def props(
       sync: SyncStateScheduler,
       syncConfig: SyncConfig,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
+      blacklist: Blacklist,
       scheduler: akka.actor.Scheduler
   ): Props = {
-    Props(new SyncStateSchedulerActor(sync, syncConfig, etcPeerManager, peerEventBus, scheduler))
+    Props(new SyncStateSchedulerActor(sync, syncConfig, etcPeerManager, peerEventBus, blacklist, scheduler)(scheduler))
   }
 
   final case object PrintInfo
   final case object PrintInfoKey
 
   sealed trait SyncStateSchedulerActorCommand
-  case class StartSyncingTo(stateRoot: ByteString, blockNumber: BigInt) extends SyncStateSchedulerActorCommand
+  final case class StartSyncingTo(stateRoot: ByteString, blockNumber: BigInt) extends SyncStateSchedulerActorCommand
   case object RestartRequested extends SyncStateSchedulerActorCommand
 
   sealed trait SyncStateSchedulerActorResponse
   case object StateSyncFinished extends SyncStateSchedulerActorResponse
   case object WaitingForNewTargetBlock extends SyncStateSchedulerActorResponse
 
-  case class GetMissingNodes(nodesToGet: List[ByteString])
-  case class MissingNodes(missingNodes: List[SyncResponse], downloaderCapacity: Int)
+  final case class GetMissingNodes(nodesToGet: List[ByteString])
+  final case class MissingNodes(missingNodes: List[SyncResponse], downloaderCapacity: Int)
 
-  case class BloomFilterResult(res: BloomFilterLoadingResult)
+  final case class BloomFilterResult(res: BloomFilterLoadingResult)
 
   sealed trait RequestResult
-  case class RequestData(nodeData: NodeData, from: Peer) extends RequestResult
-  case class RequestFailed(from: Peer, reason: String) extends RequestResult
+  final case class RequestData(nodeData: NodeData, from: Peer) extends RequestResult
+  final case class RequestFailed(from: Peer, reason: String) extends RequestResult
 
   sealed trait ProcessingError
-  case class Critical(er: CriticalError) extends ProcessingError
-  case class DownloaderError(newDownloaderState: DownloaderState, by: Peer, description: String, blacklistPeer: Boolean)
-      extends ProcessingError
+  final case class Critical(er: CriticalError) extends ProcessingError
+  final case class DownloaderError(
+      newDownloaderState: DownloaderState,
+      by: Peer,
+      blacklistWithReason: Option[BlacklistReason]
+  ) extends ProcessingError
 
-  case class ProcessingSuccess(
+  final case class ProcessingSuccess(
       newSchedulerState: SchedulerState,
       newDownloaderState: DownloaderState,
       processingStats: ProcessingStatistics
@@ -400,10 +402,7 @@ object SyncStateSchedulerActor {
   final case object RegisterScheduler
 
   sealed trait ResponseProcessingResult
-
   case object UnrequestedResponse extends ResponseProcessingResult
-
   case object NoUsefulDataInResponse extends ResponseProcessingResult
-
-  case class UsefulData(responses: List[SyncResponse]) extends ResponseProcessingResult
+  final case class UsefulData(responses: List[SyncResponse]) extends ResponseProcessingResult
 }

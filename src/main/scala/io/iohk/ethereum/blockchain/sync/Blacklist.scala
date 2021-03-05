@@ -77,6 +77,10 @@ object Blacklist {
         val code: Int = 9
         val name: String = "PeerActorTerminated"
       }
+      case object InvalidStateResponseType extends BlacklistReasonType {
+        val code: Int = 10
+        val name: String = "InvalidStateResponse"
+      }
     }
 
     case object WrongBlockHeaders extends BlacklistReason {
@@ -113,6 +117,10 @@ object Blacklist {
     }
     case object PeerActorTerminated extends BlacklistReason {
       val reasonType: BlacklistReasonType = PeerActorTerminatedType
+      val description: String = "Peer actor terminated"
+    }
+    final case class InvalidStateResponse(details: String) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = InvalidStateResponseType
       val description: String = "Peer actor terminated"
     }
   }

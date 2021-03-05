@@ -138,6 +138,7 @@ class FastSync(
           syncConfig,
           etcPeerManager,
           peerEventBus,
+          blacklist,
           scheduler
         ),
       "state-scheduler"
