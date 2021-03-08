@@ -60,6 +60,7 @@ class BlockFetcher(
         context become started(newState.withResumedFetching)
       }
       .throttleLast(10.seconds)
+      .subscribe()
   )
 
   override def receive: Receive = idle()
