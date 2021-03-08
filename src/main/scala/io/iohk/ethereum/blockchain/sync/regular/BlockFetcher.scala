@@ -55,6 +55,7 @@ class BlockFetcher(
     Observable
       .repeatEvalF(q.poll)
       .map { s =>
+        log.debug("Resuming fetching with the latest state")
         val newState = s |> tryFetchHeaders |> tryFetchBodies
         context become started(newState.withResumedFetching)
       }
@@ -83,7 +84,8 @@ class BlockFetcher(
     log.debug("{}", state.map(_.statusDetailed))
   }
 
-  private def started(state: BlockFetcherState): Receive =
+  private def started(state: BlockFetcherState): Receive = {
+    log.debug("Started listening to the messages with the new state, isFetchingHalted {}", state.pausedFetching)
     handleCommonMessages(Some(state)) orElse
       handleCommands(state) orElse
       handleNewBlockMessages(state) orElse
@@ -91,6 +93,7 @@ class BlockFetcher(
       handleBodiesMessages(state) orElse
       handleStateNodeMessages(state) orElse
       handlePossibleTopUpdate(state)
+  }
 
   private def handleCommands(state: BlockFetcherState): Receive = {
     case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
