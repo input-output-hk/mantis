@@ -27,8 +27,10 @@ import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import monix.catnap.ConcurrentQueue
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
+import monix.reactive.Observable
 import mouse.all._
 
 import scala.concurrent.duration._
@@ -46,6 +48,18 @@ class BlockFetcher(
 
   implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
+
+  val queue = ConcurrentQueue.unbounded[Task, BlockFetcherState]().runToFuture
+
+  queue.map(q =>
+    Observable
+      .repeatEvalF(q.poll)
+      .map { s =>
+        val newState = s |> tryFetchHeaders |> tryFetchBodies
+        context become started(newState.withResumedFetching)
+      }
+      .throttleLast(10.seconds)
+  )
 
   override def receive: Receive = idle()
 
@@ -103,7 +117,7 @@ class BlockFetcher(
   }
 
   private def handleHeadersMessages(state: BlockFetcherState): Receive = {
-    case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
+    case Response(_, BlockHeaders(headers)) if state.isFetchingHeaders =>
       val newState =
         if (state.fetchingHeadersState == AwaitingHeadersToBeIgnored) {
           log.debug(
@@ -153,7 +167,7 @@ class BlockFetcher(
               state.withBodiesFetchReceived.handleRequestedBlocks(newBlocks, peer.id)
           }
         val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
-        log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
+        log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
         fetchBlocks(newState)
       }
     case RetryBodiesRequest if state.isFetchingBodies =>
@@ -291,6 +305,7 @@ class BlockFetcher(
         .clearQueues()
         .withLastBlock(blockNr)
         .withPossibleNewTopAt(blockNr)
+        .withPausedFetching
 
       fetchBlocks(newState)
   }
@@ -308,9 +323,14 @@ class BlockFetcher(
   private def fetchBlocks(state: BlockFetcherState): Unit = {
     // Remember that tryFetchHeaders and tryFetchBodies can issue a request
     // Nice and clean way to express that would be to use SyncIO from cats-effect
-    val newState = state |> tryFetchHeaders |> tryFetchBodies
 
-    context become started(newState)
+    if (state.pausedFetching) {
+      queue.map(_.offer(state))
+      context become started(state)
+    } else {
+      val newState = state |> tryFetchHeaders |> tryFetchBodies
+      context become started(newState)
+    }
   }
 
   private def tryFetchHeaders(fetcherState: BlockFetcherState): BlockFetcherState =
@@ -341,7 +361,7 @@ class BlockFetcher(
       .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
-      .map(state => state.withNewBodiesFetch)
+      .map(_.withNewBodiesFetch)
       .getOrElse(fetcherState)
 
   private def fetchBodies(state: BlockFetcherState): Unit = {

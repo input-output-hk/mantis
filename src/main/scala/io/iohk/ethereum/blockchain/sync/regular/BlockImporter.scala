@@ -184,7 +184,8 @@ class BlockImporter(
   ): Task[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
-        case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally = false)
+        case Some(block) =>
+          supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally = false)
         case None => ()
       }
 
@@ -247,7 +248,7 @@ class BlockImporter(
       informFetcherOnFail: Boolean,
       internally: Boolean
   ): ImportFn = {
-    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2)//log.log(entry._1, entry._2)
+    def doLog(entry: ImportMessages.LogEntry): Unit = log.info(entry._2) //log.log(entry._1, entry._2)
     importWith(
       {
         Task(doLog(importMessages.preImport()))
@@ -266,7 +267,8 @@ class BlockImporter(
               updateTxPool(newBranch, oldBranch)
               broadcastBlocks(newBranch, weights)
               newBranch.lastOption match {
-                case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
+                case Some(newBlock) =>
+                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
                 case None => ()
               }
             case BlockImportFailed(error) =>
