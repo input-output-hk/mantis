@@ -17,7 +17,7 @@ class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Ac
 
   override def receive: Receive = { case StartServer(address) =>
     IO(Tcp) ! Bind(self, address)
-    context become waitingForBindingResult
+    context.become(waitingForBindingResult)
   }
 
   def waitingForBindingResult: Receive = {
@@ -31,11 +31,11 @@ class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Ac
         localAddress.getPort
       )
       nodeStatusHolder.getAndUpdate(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
-      context become listening
+      context.become(listening)
 
     case CommandFailed(b: Bind) =>
       log.warning("Binding to {} failed", b.localAddress)
-      context stop self
+      context.stop(self)
   }
 
   def listening: Receive = { case Connected(remoteAddress, _) =>

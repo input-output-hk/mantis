@@ -235,7 +235,7 @@ class CachedReferenceCountedStorageSpec
 
     def assertKeysExists(storage: NodesKeyValueStorage, keys: List[(ByteString, Array[Byte])]): Unit = {
       keys.foreach { case (key, value) =>
-        assert(storage.get(key).exists(enc => enc sameElements value))
+        assert(storage.get(key).exists(enc => enc.sameElements(value)))
       }
     }
   }

@@ -128,7 +128,7 @@ case class BlockFetcherState(
 
   private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
     (readyBlocks, headers) match {
-      case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header isParentOf head
+      case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header.isParentOf(head)
       case _                                                => true
     }
   }

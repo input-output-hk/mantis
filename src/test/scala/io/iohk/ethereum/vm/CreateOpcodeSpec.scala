@@ -480,7 +480,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
   }
 
   "CREATE" should {
-    behave like commonBehaviour(CREATE)
+    behave.like(commonBehaviour(CREATE))
 
     "account with non-zero balance, but empty code and zero nonce, already exists" should {
 
@@ -503,7 +503,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
   }
 
   "CREATE2" should {
-    behave like commonBehaviour(CREATE2)
+    behave.like(commonBehaviour(CREATE2))
 
     "returns correct address and spends correct amount of gas (examples from https://eips.ethereum.org/EIPS/eip-1014)" in {
 

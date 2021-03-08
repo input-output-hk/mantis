@@ -204,7 +204,7 @@ class PersonalService(
     }
     latestPendingTxNonceFuture.map { maybeLatestPendingTxNonce =>
       val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
-      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
+      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1).orElse(maybeCurrentNonce)
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
       val stx = if (blockchain.getBestBlockNumber() >= blockchainConfig.eip155BlockNumber) {

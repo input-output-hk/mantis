@@ -21,5 +21,5 @@ class RocksDbDataSourceIntegrationSuite extends AnyFlatSpec with DataSourceInteg
     Namespaces.nsSeq
   )
 
-  it should behave like dataSource(createDataSource)
+  (it should behave).like(dataSource(createDataSource))
 }

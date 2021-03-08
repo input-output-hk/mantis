@@ -54,7 +54,7 @@ class BlockFetcher(
     peerEventBus ! Unsubscribe()
   }
 
-  private def idle(): Receive = handleCommonMessages(None) orElse { case Start(importer, blockNr) =>
+  private def idle(): Receive = handleCommonMessages(None).orElse { case Start(importer, blockNr) =>
     BlockFetcherState.initial(importer, blockValidator, blockNr) |> fetchBlocks
     peerEventBus ! Subscribe(
       MessageClassifier(
@@ -70,13 +70,13 @@ class BlockFetcher(
   }
 
   private def started(state: BlockFetcherState): Receive =
-    handleCommonMessages(Some(state)) orElse
-      handleCommands(state) orElse
-      handleNewBlockMessages(state) orElse
-      handleHeadersMessages(state) orElse
-      handleBodiesMessages(state) orElse
-      handleStateNodeMessages(state) orElse
-      handlePossibleTopUpdate(state)
+    handleCommonMessages(Some(state))
+      .orElse(handleCommands(state))
+      .orElse(handleNewBlockMessages(state))
+      .orElse(handleHeadersMessages(state))
+      .orElse(handleBodiesMessages(state))
+      .orElse(handleStateNodeMessages(state))
+      .orElse(handlePossibleTopUpdate(state))
 
   private def handleCommands(state: BlockFetcherState): Receive = {
     case PickBlocks(amount)                  => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
@@ -183,7 +183,7 @@ class BlockFetcher(
             fetchStateNode(fetcher.hash, fetcher.replyTo, state)
           case Right(node) =>
             fetcher.replyTo ! FetchedStateNode(NodeData(node))
-            context become started(state.notFetchingStateNode())
+            context.become(started(state.notFetchingStateNode()))
         }
       })
   }
@@ -222,7 +222,7 @@ class BlockFetcher(
       state.importer ! OnTop
       state.importer ! ImportNewBlock(block, peerId)
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
-      context become started(newState)
+      context.become(started(newState))
     } else if (block.hasCheckpoint) {
       handleNewCheckpointBlockNotOnTop(block, peerId, state)
     } else handleFutureBlock(block, state)
@@ -298,7 +298,7 @@ class BlockFetcher(
     // Nice and clean way to express that would be to use SyncIO from cats-effect
     val newState = state |> tryFetchHeaders |> tryFetchBodies
 
-    context become started(newState)
+    context.become(started(newState))
   }
 
   private def tryFetchHeaders(fetcherState: BlockFetcherState): BlockFetcherState =
@@ -314,7 +314,7 @@ class BlockFetcher(
     val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
 
-    fetchHeadersFrom(blockNr, amount).runToFuture pipeTo self
+    fetchHeadersFrom(blockNr, amount).runToFuture.pipeTo(self)
   }
 
   private def fetchHeadersFrom(blockNr: BigInt, amount: Int): Task[Any] = {
@@ -336,15 +336,15 @@ class BlockFetcher(
     log.debug("Fetching bodies")
 
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
-    requestBlockBodies(hashes).runToFuture pipeTo self
+    requestBlockBodies(hashes).runToFuture.pipeTo(self)
   }
 
   private def fetchStateNode(hash: ByteString, originalSender: ActorRef, state: BlockFetcherState): Unit = {
     log.debug("Fetching state node for hash {}", ByteStringUtils.hash2string(hash))
-    requestStateNode(hash).runToFuture pipeTo self
+    requestStateNode(hash).runToFuture.pipeTo(self)
     val newState = state.fetchingStateNode(hash, originalSender)
 
-    context become started(newState)
+    context.become(started(newState))
   }
 
   private def requestBlockHeaders(msg: GetBlockHeaders): Task[Any] =

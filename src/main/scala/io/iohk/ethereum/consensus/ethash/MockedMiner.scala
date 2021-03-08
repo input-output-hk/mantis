@@ -28,12 +28,12 @@ class MockedMiner(
 
   override def receive: Receive = stopped
 
-  def stopped: Receive = notSupportedMockedMinerMessages orElse { case StartMining =>
-    context become waiting()
+  def stopped: Receive = notSupportedMockedMinerMessages.orElse { case StartMining =>
+    context.become(waiting())
   }
 
   def waiting(): Receive = {
-    case StopMining => context become stopped
+    case StopMining => context.become(stopped)
     case mineBlocks: MineBlocks =>
       mineBlocks.parentBlock match {
         case Some(parentHash) =>
@@ -68,7 +68,8 @@ class MockedMiner(
       if (numBlocks > 0) {
         blockCreator
           .getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution)
-          .runToFuture pipeTo self
+          .runToFuture
+          .pipeTo(self)
       } else {
         log.info(s"Mining all mocked blocks successful")
         context.become(waiting())

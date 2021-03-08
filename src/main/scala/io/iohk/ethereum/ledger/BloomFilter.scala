@@ -18,7 +18,7 @@ object BloomFilter {
       val bloomFilterForBytes = bloomFilter(bytes.toArray[Byte])
 
       val andResult = ByteUtils.and(bloomFilterForBytes, bloomFilterBytes.toArray[Byte])
-      andResult sameElements bloomFilterForBytes
+      andResult.sameElements(bloomFilterForBytes)
     }
   }
 

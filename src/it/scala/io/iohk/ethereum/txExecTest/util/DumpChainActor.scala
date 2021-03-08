@@ -187,7 +187,7 @@ class DumpChainActor(
       println("Finished download, dumped chain to file")
       assignWorkTimeout.cancel()
       connectToBootstrapTimeout.cancel()
-      context stop self
+      context.stop(self)
     } else {
       if (peers.nonEmpty) {
         val peerToRequest = peers.head

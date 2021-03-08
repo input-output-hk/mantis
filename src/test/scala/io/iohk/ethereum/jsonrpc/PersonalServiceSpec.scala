@@ -455,6 +455,6 @@ class PersonalServiceSpec
       new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T])(implicit ev: ClassTag[Array[T]]): MatcherBase =
-      argThat((_: Array[T]) sameElements arr)
+      argThat((_: Array[T]).sameElements(arr))
   }
 }

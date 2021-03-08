@@ -42,7 +42,7 @@ class EtcPeerManagerActor(
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
   def handleMessages(peersWithInfo: PeersWithInfo): Receive =
-    handleCommonMessages(peersWithInfo) orElse handlePeersInfoEvents(peersWithInfo)
+    handleCommonMessages(peersWithInfo).orElse(handlePeersInfoEvents(peersWithInfo))
 
   private def peerHasUpdatedBestBlock(peerInfo: PeerInfo): Boolean = {
     val peerBestBlockIsItsGenesisBlock = peerInfo.bestBlockHash == peerInfo.remoteStatus.genesisHash
@@ -69,7 +69,7 @@ class EtcPeerManagerActor(
       NetworkMetrics.SentMessagesCounter.increment()
       val newPeersWithInfo = updatePeersWithInfo(peersWithInfo, peerId, message.underlyingMsg, handleSentMessage)
       peerManagerActor ! PeerManagerActor.SendMessage(message, peerId)
-      context become handleMessages(newPeersWithInfo)
+      context.become(handleMessages(newPeersWithInfo))
   }
 
   /** Processes events and updating the information about each peer
@@ -81,7 +81,7 @@ class EtcPeerManagerActor(
     case MessageFromPeer(message, peerId) if peersWithInfo.contains(peerId) =>
       val newPeersWithInfo = updatePeersWithInfo(peersWithInfo, peerId, message, handleReceivedMessage)
       NetworkMetrics.ReceivedMessagesCounter.increment()
-      context become handleMessages(newPeersWithInfo)
+      context.become(handleMessages(newPeersWithInfo))
 
     case PeerHandshakeSuccessful(peer, peerInfo: PeerInfo) =>
       peerEventBusActor ! Subscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peer.id)))
@@ -90,13 +90,13 @@ class EtcPeerManagerActor(
       //Ask for the highest block from the peer
       peer.ref ! SendMessage(GetBlockHeaders(Right(peerInfo.remoteStatus.bestHash), 1, 0, false))
       NetworkMetrics.registerAddHandshakedPeer(peer)
-      context become handleMessages(peersWithInfo + (peer.id -> PeerWithInfo(peer, peerInfo)))
+      context.become(handleMessages(peersWithInfo + (peer.id -> PeerWithInfo(peer, peerInfo))))
 
     case PeerDisconnected(peerId) if peersWithInfo.contains(peerId) =>
       peerEventBusActor ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
       peerEventBusActor ! Unsubscribe(MessageClassifier(msgCodesWithInfo, PeerSelector.WithId(peerId)))
       NetworkMetrics.registerRemoveHandshakedPeer(peersWithInfo(peerId).peer)
-      context become handleMessages(peersWithInfo - peerId)
+      context.become(handleMessages(peersWithInfo - peerId))
 
   }
 
@@ -138,9 +138,9 @@ class EtcPeerManagerActor(
     * @return new updated peer info
     */
   private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo = {
-    (updateChainWeight(message) _
-      andThen updateForkAccepted(message, initialPeerWithInfo.peer)
-      andThen updateMaxBlock(message))(initialPeerWithInfo.peerInfo)
+    ((updateChainWeight(message) _)
+      .andThen(updateForkAccepted(message, initialPeerWithInfo.peer))
+      .andThen(updateMaxBlock(message)))(initialPeerWithInfo.peerInfo)
   }
 
   /** Processes the message and updates the chain weight of the peer

@@ -86,7 +86,7 @@ class PeerDiscoveryManager(
   }
 
   // The service hasn't been started yet, so it just serves the static known nodes.
-  def init: Receive = handleNodeInfoRequests(None) orElse {
+  def init: Receive = handleNodeInfoRequests(None).orElse {
     case Start =>
       if (discoveryConfig.discoveryEnabled) {
         log.info("Starting peer discovery...")
@@ -101,7 +101,7 @@ class PeerDiscoveryManager(
 
   // Waiting for the DiscoveryService to be initialized. Keep serving known nodes.
   // This would not be needed if Actors were treated as resources themselves.
-  def starting: Receive = handleNodeInfoRequests(None) orElse {
+  def starting: Receive = handleNodeInfoRequests(None).orElse {
     case Start =>
 
     case Stop =>
@@ -122,7 +122,7 @@ class PeerDiscoveryManager(
 
   // DiscoveryService started, we can ask it for nodes now.
   def started(discovery: Discovery, release: Task[Unit]): Receive =
-    handleNodeInfoRequests(Some(discovery)) orElse {
+    handleNodeInfoRequests(Some(discovery)).orElse {
       case Start =>
 
       case Stop =>
@@ -133,7 +133,7 @@ class PeerDiscoveryManager(
 
   // Waiting for the DiscoveryService to be initialized OR we received a stop request
   // before it even got a chance to start, so we'll stop it immediately.
-  def stopping: Receive = handleNodeInfoRequests(None) orElse {
+  def stopping: Receive = handleNodeInfoRequests(None).orElse {
     case Start | Stop =>
 
     case StartAttempt(result) =>

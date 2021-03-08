@@ -9,7 +9,7 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   protected val cache: Cache[K, V]
   def apply(cache: Cache[K, V], storage: I): T
 
-  def get(key: K): Option[V] = cache.get(key) orElse storage.get(key)
+  def get(key: K): Option[V] = cache.get(key).orElse(storage.get(key))
 
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
     cache.update(toRemove, toUpsert)

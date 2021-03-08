@@ -48,13 +48,13 @@ class TimeSlotStats[K, V: Monoid] private (
 
   /** Aggregate stats for a key in all slots that are within the duration. */
   def get(key: K, window: Option[Duration] = None): V =
-    fold(Monoid[V].empty, window getOrElse duration) { case (acc, stats) =>
+    fold(Monoid[V].empty, window.getOrElse(duration)) { case (acc, stats) =>
       stats.get(key).map(acc |+| _).getOrElse(acc)
     }
 
   /** Aggregate all stats in all slots within the duration. */
   def getAll(window: Option[Duration] = None): Map[K, V] =
-    fold(Map.empty[K, V], window getOrElse duration) { case (acc, stats) =>
+    fold(Map.empty[K, V], window.getOrElse(duration)) { case (acc, stats) =>
       acc |+| stats
     }
 

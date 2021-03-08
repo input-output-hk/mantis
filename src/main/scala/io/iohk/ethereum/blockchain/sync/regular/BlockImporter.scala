@@ -56,11 +56,11 @@ class BlockImporter(
   }
 
   private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
-    case OnTop    => context become currentBehavior(state.onTop())
-    case NotOnTop => context become currentBehavior(state.notOnTop())
+    case OnTop    => context.become(currentBehavior(state.onTop()))
+    case NotOnTop => context.become(currentBehavior(state.notOnTop()))
   }
 
-  private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
+  private def running(state: ImporterState): Receive = handleTopMessages(state, running).orElse {
     case ReceiveTimeout => self ! PickBlocks
 
     case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
@@ -101,7 +101,7 @@ class BlockImporter(
         self ! PickBlocks
       }
 
-      context become behavior(newState)
+      context.become(behavior(newState))
     case PickBlocks if !state.importing => pickBlocks(state)
   }
 
@@ -120,7 +120,7 @@ class BlockImporter(
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(self, startingBlockNumber)
     supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
-    context become running(ImporterState.initial)
+    context.become(running(ImporterState.initial))
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
@@ -252,7 +252,7 @@ class BlockImporter(
       {
         Task(doLog(importMessages.preImport()))
           .flatMap(_ => ledger.importBlock(block))
-          .tap(importMessages.messageForImportResult _ andThen doLog)
+          .tap((importMessages.messageForImportResult _).andThen(doLog))
           .tap {
             case BlockImportedToTop(importedBlocksData) =>
               val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
@@ -301,7 +301,7 @@ class BlockImporter(
   private def importWith(importTask: Task[NewBehavior], blockImportType: BlockImportType)(
       state: ImporterState
   ): Unit = {
-    context become running(state.importingBlocks())
+    context.become(running(state.importingBlocks()))
 
     importTask
       .map(self ! ImportDone(_, blockImportType))

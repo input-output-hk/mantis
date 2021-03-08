@@ -64,7 +64,7 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag
   def cleanupAndStop(): Unit = {
     timeout.cancel()
     peerEventBus ! Unsubscribe()
-    context stop self
+    context.stop(self)
   }
 }
 

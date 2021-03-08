@@ -117,7 +117,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
         blockHeader: BlockHeader,
         daoForkConfig: DaoForkConfig
     ): Either[BlockHeaderError, BlockHeaderValid] =
-      (daoForkConfig requiresExtraData blockHeader.number, daoForkConfig.blockExtraData) match {
+      (daoForkConfig.requiresExtraData(blockHeader.number), daoForkConfig.blockExtraData) match {
         case (false, _) =>
           Right(BlockHeaderValid)
         case (true, Some(forkExtraData)) if blockHeader.extraData == forkExtraData =>

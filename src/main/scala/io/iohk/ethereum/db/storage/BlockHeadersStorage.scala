@@ -29,7 +29,7 @@ class BlockHeadersStorage(val dataSource: DataSource)
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockHeader =
     // TODO: consider reusing this formula in other storages: ETCM-322
-    byteSequenceToBuffer _ andThen Unpickle[BlockHeader].fromBytes
+    (byteSequenceToBuffer _).andThen(Unpickle[BlockHeader].fromBytes)
 }
 
 object BlockHeadersStorage {

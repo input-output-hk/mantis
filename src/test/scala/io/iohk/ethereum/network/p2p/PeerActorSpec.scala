@@ -70,7 +70,7 @@ class PeerActorSpec
 
     rlpxConnection.watch(peer)
 
-    (0 to 3) foreach { _ =>
+    (0 to 3).foreach { _ =>
       time.advance(5.seconds)
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
       rlpxConnection.reply(RLPxConnectionHandler.ConnectionFailed)

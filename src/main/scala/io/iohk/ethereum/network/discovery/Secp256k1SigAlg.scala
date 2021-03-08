@@ -180,7 +180,7 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   }
 
   private def toECDSASignature(signatureBytes: Array[Byte]): ECDSASignature =
-    ECDSASignature.fromBytes(ByteString(signatureBytes)) getOrElse {
+    ECDSASignature.fromBytes(ByteString(signatureBytes)).getOrElse {
       throw new IllegalArgumentException(s"Could not convert to ECDSA signature.")
     }
 }

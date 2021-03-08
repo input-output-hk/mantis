@@ -210,7 +210,7 @@ class RLPxConnectionHandlerSpec
       ),
       rlpxConnectionParent.ref
     )
-    rlpxConnectionParent watch rlpxConnection
+    rlpxConnectionParent.watch(rlpxConnection)
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state
     def setupIncomingRLPxConnection(): Unit = {

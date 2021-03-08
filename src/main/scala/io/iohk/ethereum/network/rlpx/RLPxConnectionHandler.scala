@@ -47,12 +47,12 @@ class RLPxConnectionHandler(
   def waitingForCommand: Receive = {
     case ConnectTo(uri) =>
       tcpActor ! Connect(new InetSocketAddress(uri.getHost, uri.getPort))
-      context become waitingForConnectionResult(uri)
+      context.become(waitingForConnectionResult(uri))
 
     case HandleConnection(connection) =>
       connection ! Register(self)
       val timeout = system.scheduler.scheduleOnce(rlpxConfiguration.waitForHandshakeTimeout, self, AuthHandshakeTimeout)
-      context become new ConnectedHandler(connection).waitingForAuthHandshakeInit(authHandshaker, timeout)
+      context.become(new ConnectedHandler(connection).waitingForAuthHandshakeInit(authHandshaker, timeout))
   }
 
   def waitingForConnectionResult(uri: URI): Receive = {
@@ -62,18 +62,18 @@ class RLPxConnectionHandler(
       val (initPacket, handshaker) = authHandshaker.initiate(uri)
       connection ! Write(initPacket)
       val timeout = system.scheduler.scheduleOnce(rlpxConfiguration.waitForHandshakeTimeout, self, AuthHandshakeTimeout)
-      context become new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout)
+      context.become(new ConnectedHandler(connection).waitingForAuthHandshakeResponse(handshaker, timeout))
 
     case CommandFailed(_: Connect) =>
       log.debug("[Stopping Connection] Connection to {} failed", uri)
       context.parent ! ConnectionFailed
-      context stop self
+      context.stop(self)
   }
 
   class ConnectedHandler(connection: ActorRef) {
 
     def waitingForAuthHandshakeInit(handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-      handleTimeout orElse handleConnectionClosed orElse { case Received(data) =>
+      handleTimeout.orElse(handleConnectionClosed).orElse { case Received(data) =>
         timeout.cancel()
         val maybePreEIP8Result = Try {
           val (responsePacket, result) = handshaker.handleInitialMessage(data.take(InitiatePacketLength))
@@ -86,7 +86,7 @@ class RLPxConnectionHandler(
           (responsePacket, result, remainingData)
         }
 
-        maybePreEIP8Result orElse maybePostEIP8Result match {
+        maybePreEIP8Result.orElse(maybePostEIP8Result) match {
           case Success((responsePacket, result, remainingData)) =>
             connection ! Write(responsePacket)
             processHandshakeResult(result, remainingData)
@@ -96,12 +96,12 @@ class RLPxConnectionHandler(
               s"[Stopping Connection] Init AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}"
             )
             context.parent ! ConnectionFailed
-            context stop self
+            context.stop(self)
         }
       }
 
     def waitingForAuthHandshakeResponse(handshaker: AuthHandshaker, timeout: Cancellable): Receive =
-      handleWriteFailed orElse handleTimeout orElse handleConnectionClosed orElse { case Received(data) =>
+      handleWriteFailed.orElse(handleTimeout).orElse(handleConnectionClosed).orElse { case Received(data) =>
         timeout.cancel()
         val maybePreEIP8Result = Try {
           val result = handshaker.handleResponseMessage(data.take(ResponsePacketLength))
@@ -113,14 +113,14 @@ class RLPxConnectionHandler(
           val result = handshaker.handleResponseMessageV4(packetData)
           (result, remainingData)
         }
-        maybePreEIP8Result orElse maybePostEIP8Result match {
+        maybePreEIP8Result.orElse(maybePostEIP8Result) match {
           case Success((result, remainingData)) => processHandshakeResult(result, remainingData)
           case Failure(ex) =>
             log.debug(
               s"[Stopping Connection] Response AuthHandshaker message handling failed for peer $peerId due to ${ex.getMessage}"
             )
             context.parent ! ConnectionFailed
-            context stop self
+            context.stop(self)
         }
       }
 
@@ -138,7 +138,7 @@ class RLPxConnectionHandler(
     def handleTimeout: Receive = { case AuthHandshakeTimeout =>
       log.debug(s"[Stopping Connection] Auth handshake timeout for peer $peerId")
       context.parent ! ConnectionFailed
-      context stop self
+      context.stop(self)
     }
 
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
@@ -148,13 +148,13 @@ class RLPxConnectionHandler(
           context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
-          messagesSoFar foreach processMessage
-          context become handshaked(messageCodec)
+          messagesSoFar.foreach(processMessage)
+          context.become(handshaked(messageCodec))
 
         case AuthHandshakeError =>
           log.debug(s"[Stopping Connection] Auth handshake failed for peer $peerId")
           context.parent ! ConnectionFailed
-          context stop self
+          context.stop(self)
       }
 
     def processMessage(messageTry: Try[Message]): Unit = messageTry match {
@@ -164,7 +164,7 @@ class RLPxConnectionHandler(
       case Failure(ex) =>
         log.debug(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
         // break connection in case of failed decoding, to avoid attack which would send us garbage
-        context stop self
+        context.stop(self)
     }
 
     /** Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
@@ -181,21 +181,23 @@ class RLPxConnectionHandler(
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive =
-      handleWriteFailed orElse handleConnectionClosed orElse {
+      handleWriteFailed.orElse(handleConnectionClosed).orElse {
         case sm: SendMessage =>
           if (cancellableAckTimeout.isEmpty)
             sendMessage(messageCodec, sm.serializable, seqNumber, messagesNotSent)
           else
-            context become handshaked(
-              messageCodec,
-              messagesNotSent :+ sm.serializable,
-              cancellableAckTimeout,
-              seqNumber
+            context.become(
+              handshaked(
+                messageCodec,
+                messagesNotSent :+ sm.serializable,
+                cancellableAckTimeout,
+                seqNumber
+              )
             )
 
         case Received(data) =>
           val messages = messageCodec.readMessages(data)
-          messages foreach processMessage
+          messages.foreach(processMessage)
 
         case Ack if cancellableAckTimeout.nonEmpty =>
           //Cancel pending message timeout
@@ -205,12 +207,12 @@ class RLPxConnectionHandler(
           if (messagesNotSent.nonEmpty)
             sendMessage(messageCodec, messagesNotSent.head, seqNumber, messagesNotSent.tail)
           else
-            context become handshaked(messageCodec, Queue.empty, None, seqNumber)
+            context.become(handshaked(messageCodec, Queue.empty, None, seqNumber))
 
         case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
           cancellableAckTimeout.foreach(_.cancellable.cancel())
           log.debug(s"[Stopping Connection] Write to $peerId failed")
-          context stop self
+          context.stop(self)
       }
 
     /** Sends an encoded message through the TCP connection, an Ack will be received when the message was
@@ -232,11 +234,13 @@ class RLPxConnectionHandler(
       log.debug(s"Sent message: $messageToSend from $peerId")
 
       val timeout = system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
-      context become handshaked(
-        messageCodec = messageCodec,
-        messagesNotSent = remainingMsgsToSend,
-        cancellableAckTimeout = Some(CancellableAckTimeout(seqNumber, timeout)),
-        seqNumber = increaseSeqNumber(seqNumber)
+      context.become(
+        handshaked(
+          messageCodec = messageCodec,
+          messagesNotSent = remainingMsgsToSend,
+          cancellableAckTimeout = Some(CancellableAckTimeout(seqNumber, timeout)),
+          seqNumber = increaseSeqNumber(seqNumber)
+        )
       )
     }
 
@@ -254,7 +258,7 @@ class RLPxConnectionHandler(
       log.debug(
         s"[Stopping Connection] Write to peer $peerId failed, trying to send ${Hex.toHexString(cmd.data.toArray[Byte])}"
       )
-      context stop self
+      context.stop(self)
     }
 
     def handleConnectionClosed: Receive = { case msg: ConnectionClosed =>
@@ -265,7 +269,7 @@ class RLPxConnectionHandler(
         log.debug(s"[Stopping Connection] Connection with $peerId closed because of error ${msg.getErrorCause}")
       }
 
-      context stop self
+      context.stop(self)
     }
   }
 

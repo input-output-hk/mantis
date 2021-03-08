@@ -27,7 +27,7 @@ class ReceiptStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
     compactPickledBytes(Pickle.intoBytes(receipts))
 
   override def valueDeserializer: IndexedSeq[Byte] => ReceiptSeq =
-    byteSequenceToBuffer _ andThen Unpickle[Seq[Receipt]].fromBytes
+    (byteSequenceToBuffer _).andThen(Unpickle[Seq[Receipt]].fromBytes)
 }
 
 object ReceiptStorage {

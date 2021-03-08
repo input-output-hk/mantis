@@ -62,7 +62,7 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
   }
 
   override def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
-    val namespaceVals = storage collect {
+    val namespaceVals = storage.collect {
       case (buffer, bytes) if buffer.array().startsWith(namespace) => Right(buffer.array(), bytes)
     }
 

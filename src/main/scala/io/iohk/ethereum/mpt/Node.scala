@@ -32,7 +32,7 @@ sealed abstract class MptNode {
       false
     } else {
       val compared = obj.asInstanceOf[MptNode]
-      hash sameElements compared.hash
+      hash.sameElements(compared.hash)
     }
   }
 

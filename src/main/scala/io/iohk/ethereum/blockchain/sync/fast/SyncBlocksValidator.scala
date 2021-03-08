@@ -16,7 +16,8 @@ trait SyncBlocksValidator {
 
   def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
     var result: BlockBodyValidationResult = Valid
-    (requestedHashes zip blockBodies)
+    (requestedHashes
+      .zip(blockBodies))
       .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
       .forall {
         case (Some(header), body) =>

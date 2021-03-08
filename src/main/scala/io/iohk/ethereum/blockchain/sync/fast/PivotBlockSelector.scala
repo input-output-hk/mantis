@@ -30,11 +30,11 @@ class PivotBlockSelector(
   import PivotBlockSelector._
   import syncConfig._
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
+  def handleCommonMessages: Receive = handlePeerListMessages.orElse(handleBlacklistMessages)
 
   override def receive: Receive = idle
 
-  def idle: Receive = handleCommonMessages orElse { case SelectPivotBlock =>
+  def idle: Receive = handleCommonMessages.orElse { case SelectPivotBlock =>
     val election @ ElectionDetails(correctPeers, expectedPivotBlock) = collectVoters
 
     if (election.isEnoughVoters(minPeersToChoosePivotBlock)) {
@@ -52,12 +52,14 @@ class PivotBlockSelector(
       peersToAsk.foreach(peer => obtainBlockHeaderFromPeer(peer.id, expectedPivotBlock))
 
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, ElectionPivotBlockTimeout)
-      context become runningPivotBlockElection(
-        peersToAsk.map(_.id).toSet,
-        waitingPeers.map(_.id),
-        expectedPivotBlock,
-        timeout,
-        Map.empty
+      context.become(
+        runningPivotBlockElection(
+          peersToAsk.map(_.id).toSet,
+          waitingPeers.map(_.id),
+          expectedPivotBlock,
+          timeout,
+          Map.empty
+        )
       )
     } else {
       log.info(
@@ -78,7 +80,7 @@ class PivotBlockSelector(
       timeout: Cancellable,
       headers: Map[ByteString, BlockHeaderWithVotes]
   ): Receive =
-    handleCommonMessages orElse {
+    handleCommonMessages.orElse {
       case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
         peerEventBus ! Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peerId)))
         val updatedPeersToAsk = peersToAsk - peerId
@@ -128,12 +130,14 @@ class PivotBlockSelector(
 
         obtainBlockHeaderFromPeer(additionalPeer, pivotBlockNumber)
 
-        context become runningPivotBlockElection(
-          peersToAsk + additionalPeer,
-          newWaitingPeers,
-          pivotBlockNumber,
-          newTimeout,
-          headers
+        context.become(
+          runningPivotBlockElection(
+            peersToAsk + additionalPeer,
+            newWaitingPeers,
+            pivotBlockNumber,
+            newTimeout,
+            headers
+          )
         )
       } else { // No more peers. Restart the whole process
         peerEventBus ! Unsubscribe()
@@ -142,12 +146,14 @@ class PivotBlockSelector(
       }
       // Continue voting
     } else {
-      context become runningPivotBlockElection(
-        peersToAsk,
-        waitingPeers,
-        pivotBlockNumber,
-        timeout,
-        headers
+      context.become(
+        runningPivotBlockElection(
+          peersToAsk,
+          waitingPeers,
+          pivotBlockNumber,
+          timeout,
+          headers
+        )
       )
     }
   }
@@ -157,14 +163,14 @@ class PivotBlockSelector(
 
   def scheduleRetry(interval: FiniteDuration): Unit = {
     scheduler.scheduleOnce(interval, self, SelectPivotBlock)
-    context become idle
+    context.become(idle)
   }
 
   def sendResponseAndCleanup(pivotBlockHeader: BlockHeader): Unit = {
     log.info("Found pivot block: {} hash: {}", pivotBlockHeader.number, pivotBlockHeader.hashAsHexString)
     fastSync ! Result(pivotBlockHeader)
     peerEventBus ! Unsubscribe()
-    context stop self
+    context.stop(self)
   }
 
   private def obtainBlockHeaderFromPeer(peer: PeerId, blockNumber: BigInt): Unit = {

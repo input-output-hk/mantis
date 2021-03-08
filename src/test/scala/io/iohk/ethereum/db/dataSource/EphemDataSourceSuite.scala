@@ -32,7 +32,7 @@ class EphemDataSourceSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
       keyList.foreach { key =>
         val obtained = db.get(OtherNamespace, key)
         assert(obtained.isDefined)
-        assert(obtained.get sameElements key)
+        assert(obtained.get.sameElements(key))
       }
     }
   }
@@ -48,7 +48,7 @@ class EphemDataSourceSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
       keyValueLeft.foreach { key =>
         val obtained = db.get(OtherNamespace, key)
         assert(obtained.isDefined)
-        assert(obtained.get sameElements key)
+        assert(obtained.get.sameElements(key))
       }
       keysToDelete.foreach { key =>
         assert(db.get(OtherNamespace, key).isEmpty)

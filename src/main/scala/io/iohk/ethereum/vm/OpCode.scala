@@ -288,7 +288,7 @@ case object EXP extends BinaryOp(0x0a, _.G_exp)(_ ** _) {
   }
 }
 
-case object SIGNEXTEND extends BinaryOp(0x0b, _.G_low)((a, b) => b signExtend a) with ConstGas
+case object SIGNEXTEND extends BinaryOp(0x0b, _.G_low)((a, b) => b.signExtend(a)) with ConstGas
 
 case object LT extends BinaryOp(0x10, _.G_verylow)(_ < _) with ConstGas
 
@@ -310,7 +310,7 @@ case object XOR extends BinaryOp(0x18, _.G_verylow)(_ ^ _) with ConstGas
 
 case object NOT extends UnaryOp(0x19, _.G_verylow)(~_) with ConstGas
 
-case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with ConstGas
+case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b.getByte(a)) with ConstGas
 
 // logical shift left
 case object SHL extends ShiftingOp(0x1b, _ << _)
@@ -325,7 +325,7 @@ case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
 
     val result = if (shift >= UInt256(256)) {
       if (value.toSign >= 0) Zero else UInt256(-1)
-    } else value sshift shift
+    } else value.sshift(shift)
 
     val resultStack = remainingStack.push(result)
     state.withStack(resultStack).step()
@@ -563,7 +563,7 @@ case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with ConstGas {
 case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, value), stack1) = state.stack.pop(2)
-    val valueToByte = (value mod 256).toByte
+    val valueToByte = (value.mod(256)).toByte
     val updatedMem = state.memory.store(offset, valueToByte)
     state.withStack(stack1).withMemory(updatedMem).step()
   }
@@ -1043,7 +1043,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
-    memCostIn max memCostOut
+    memCostIn.max(memCostOut)
   }
 
   protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](
@@ -1073,7 +1073,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       consumedGas: BigInt
   ): BigInt = {
     if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
-      g min state.config.gasCap(state.gas - consumedGas)
+      g.min(state.config.gasCap(state.gas - consumedGas))
     else
       g
   }

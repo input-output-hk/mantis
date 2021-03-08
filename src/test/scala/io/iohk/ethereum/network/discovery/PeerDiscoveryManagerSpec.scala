@@ -92,7 +92,7 @@ class PeerDiscoveryManagerSpec
       address = ENode.Address(ip = node.addr, udpPort = node.udpPort, tcpPort = node.tcpPort)
     )
 
-  behavior of "PeerDiscoveryManager"
+  behavior.of("PeerDiscoveryManager")
 
   it should "serve no peers if discovery is disabled and known peers are disabled and the manager isn't started" in test {
     new Fixture {

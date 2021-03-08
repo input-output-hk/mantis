@@ -14,7 +14,7 @@ class TransactionMappingStorage(val dataSource: DataSource)
   def keyDeserializer: IndexedSeq[Byte] => TxHash = identity
   def valueSerializer: TransactionLocation => IndexedSeq[Byte] = tl => compactPickledBytes(Pickle.intoBytes(tl))
   def valueDeserializer: IndexedSeq[Byte] => TransactionLocation =
-    byteSequenceToBuffer _ andThen Unpickle[TransactionLocation].fromBytes
+    (byteSequenceToBuffer _).andThen(Unpickle[TransactionLocation].fromBytes)
 
   implicit val byteStringPickler: Pickler[ByteString] =
     transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])

@@ -21,7 +21,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
   val localhost = InetAddress.getByName("127.0.0.1")
 
-  behavior of "RLPCodecs with the EIP8 test vectors"
+  behavior.of("RLPCodecs with the EIP8 test vectors")
 
   // Test vectors from https://github.com/ethereum/EIPs/blob/b883968936d83aa1c458d48fdc81bc59e8095da5/EIPS/eip-8.md#rlpx-discovery-protocol
   case class EIP8TestVector(

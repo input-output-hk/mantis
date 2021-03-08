@@ -27,7 +27,7 @@ class PeerStatisticsSpec
     }
   }
 
-  behavior of "PeerStatisticsActor"
+  behavior.of("PeerStatisticsActor")
 
   it should "subscribe to peer events" in new Fixture {
     peerEventBus.expectMsg(Subscribe(PeerStatisticsActor.MessageSubscriptionClassifier))

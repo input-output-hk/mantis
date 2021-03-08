@@ -21,11 +21,11 @@ class MessageHandler(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithCo
     val bytes = msg.toByteArray
     val lengthBytes = ByteString(BigIntegers.asUnsignedByteArray(LengthPrefixSize, BigInteger.valueOf(bytes.length)))
 
-    out offer (lengthBytes ++ ByteString(bytes))
+    out.offer(lengthBytes ++ ByteString(bytes))
   }
 
   def awaitMessage[M <: GeneratedMessage](implicit companion: GeneratedMessageCompanion[M]): M = {
-    val resF = in.pull() map {
+    val resF = in.pull().map {
       case Some(bytes) => companion.parseFrom(CodedInputStream.newInstance(bytes.toArray[Byte]))
       case None        => throw new RuntimeException("Stream completed")
     }

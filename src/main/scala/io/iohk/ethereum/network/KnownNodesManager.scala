@@ -18,7 +18,7 @@ class KnownNodesManager(
 
   import KnownNodesManager._
 
-  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  private def scheduler = externalSchedulerOpt.getOrElse(context.system.scheduler)
 
   var knownNodes: Set[URI] = knownNodesStorage.getKnownNodes()
 

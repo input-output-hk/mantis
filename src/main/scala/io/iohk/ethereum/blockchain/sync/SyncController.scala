@@ -29,7 +29,7 @@ class SyncController(
   private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
   private val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 
-  def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt.getOrElse(context.system.scheduler)
 
   override def receive: Receive = idle
 
@@ -91,7 +91,7 @@ class SyncController(
       "fast-sync"
     )
     fastSync ! SyncProtocol.Start
-    context become runningFastSync(fastSync)
+    context.become(runningFastSync(fastSync))
   }
 
   def startRegularSync(): Unit = {
@@ -114,7 +114,7 @@ class SyncController(
       "regular-sync"
     )
     regularSync ! SyncProtocol.Start
-    context become runningRegularSync(regularSync)
+    context.become(runningRegularSync(regularSync))
   }
 
 }

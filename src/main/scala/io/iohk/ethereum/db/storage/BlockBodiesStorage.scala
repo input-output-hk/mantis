@@ -25,7 +25,7 @@ class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyVal
     compactPickledBytes(Pickle.intoBytes(blockBody))
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockBody =
-    byteSequenceToBuffer _ andThen Unpickle[BlockBody].fromBytes
+    (byteSequenceToBuffer _).andThen(Unpickle[BlockBody].fromBytes)
 }
 
 object BlockBodiesStorage {

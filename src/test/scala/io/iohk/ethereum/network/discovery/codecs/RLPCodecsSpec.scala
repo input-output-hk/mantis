@@ -35,7 +35,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     BitVector(bytes)
   }
 
-  behavior of "RLPCodecs"
+  behavior.of("RLPCodecs")
 
   it should "encode a Ping with an ENR as 5 items" in {
     val ping = Payload.Ping(

@@ -132,7 +132,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def sdiv(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.signedN / that.signedN) }
 
-  def mod(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.n mod that.n) }
+  def mod(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.n.mod(that.n)) }
 
   def smod(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.signedN % that.signedN.abs) }
 
@@ -141,7 +141,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   }
 
   def mulmod(that: UInt256, modulus: UInt256): UInt256 = zeroCheck(modulus) {
-    new UInt256((this.n * that.n) mod modulus.n)
+    new UInt256((this.n * that.n).mod(modulus.n))
   }
 
   def slt(that: UInt256): Boolean = this.signedN < that.signedN

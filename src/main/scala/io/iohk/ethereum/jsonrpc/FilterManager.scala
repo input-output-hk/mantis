@@ -30,7 +30,7 @@ class FilterManager(
   import akka.pattern.pipe
   import context.system
 
-  def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt.getOrElse(system.scheduler)
   private implicit val executionContext = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
@@ -226,7 +226,7 @@ class FilterManager(
 
   private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean = {
     logTopics.size >= filterTopics.size &&
-    (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
+    (filterTopics.zip(logTopics)).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
   }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {

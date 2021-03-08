@@ -25,7 +25,7 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
 
   val localhost = InetAddress.getByName("127.0.0.1")
 
-  behavior of "RLPCodecs with ENR"
+  behavior.of("RLPCodecs with ENR")
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#test-vectors
   val nodeId = Hash(hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7".toBitVector)
@@ -72,7 +72,7 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
           // .toString hack used because RLPValue has mutable arrays in it where equality doesn't work.
           val encoded = a.map(_.toString).toList
           val expected = b.map(_.toString).toList
-          encoded should contain theSameElementsInOrderAs expected
+          (encoded should contain).theSameElementsInOrderAs(expected)
         }
 
         // Ignoring the signature, taking items up to where "tcp" would be.

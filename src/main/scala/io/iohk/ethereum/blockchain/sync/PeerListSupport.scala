@@ -50,7 +50,7 @@ trait PeerListSupport {
       removePeer(peerId)
   }
 
-  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers collectFirst {
+  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers.collectFirst {
     case (peer, _) if peer.id == peerId => peer
   }
 

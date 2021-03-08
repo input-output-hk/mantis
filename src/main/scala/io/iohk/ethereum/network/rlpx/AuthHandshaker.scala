@@ -215,7 +215,7 @@ case class AuthHandshaker(
       )
     }
 
-    successOpt getOrElse AuthHandshakeError
+    successOpt.getOrElse(AuthHandshakeError)
   }
 
   private def macSecretSetup(

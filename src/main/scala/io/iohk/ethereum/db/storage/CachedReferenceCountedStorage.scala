@@ -124,9 +124,10 @@ object CachedReferenceCountedStorage {
       val nodeHash = update.hash
 
       val currentState =
-        newState.get(nodeHash) orElse
-          cache.get(nodeHash).map((_, false)) orElse
-          nodeStorage.get(nodeHash).map(HeapEntry.fromBytes).map((_, false))
+        newState
+          .get(nodeHash)
+          .orElse(cache.get(nodeHash).map((_, false)))
+          .orElse(nodeStorage.get(nodeHash).map(HeapEntry.fromBytes).map((_, false)))
 
       currentState.foreach { case (current, deletable) =>
         val reversedState = update match {
@@ -178,9 +179,14 @@ class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: Ca
     extends NodesKeyValueStorage {
 
   def get(nodeHash: NodeHash): Option[NodeEncoded] = {
-    cache.get(nodeHash).map(_.nodeEncoded) orElse nodeStorage
+    cache
       .get(nodeHash)
-      .map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
+      .map(_.nodeEncoded)
+      .orElse(
+        nodeStorage
+          .get(nodeHash)
+          .map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
+      )
   }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {

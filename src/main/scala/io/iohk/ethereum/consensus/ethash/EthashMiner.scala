@@ -44,13 +44,13 @@ class EthashMiner(
 
   def stopped: Receive = {
     case StartMining =>
-      context become started
+      context.become(started)
       self ! ProcessMining
     case ProcessMining => // nothing
   }
 
   def started: Receive = {
-    case StopMining    => context become stopped
+    case StopMining    => context.become(stopped)
     case ProcessMining => processMining()
   }
 

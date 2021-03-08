@@ -75,7 +75,7 @@ object InMemoryWorldStateProxy {
     def persistAccountsStateTrie(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.copyWith(accountsStateTrie = worldState.accountsStateTrie.persist())
 
-    (persistCode _ andThen persistContractStorage andThen persistAccountsStateTrie)(worldState)
+    ((persistCode _).andThen(persistContractStorage).andThen(persistAccountsStateTrie))(worldState)
   }
 
   /** Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping

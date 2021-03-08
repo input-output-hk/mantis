@@ -39,7 +39,7 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
       if (underLying.size > testCapacityCacheConfig.maxSize)
         assert(cachedNodeStorage.persist())
 
-      keyvalues.foreach(elem => assert(cachedNodeStorage.get(elem._1).get sameElements elem._2))
+      keyvalues.foreach(elem => assert(cachedNodeStorage.get(elem._1).get.sameElements(elem._2)))
     }
   }
 

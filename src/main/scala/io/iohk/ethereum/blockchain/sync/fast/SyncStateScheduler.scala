@@ -307,7 +307,7 @@ object SyncStateScheduler {
 
   private val stateNodeRequestComparator = new Comparator[StateNodeRequest] {
     override def compare(o1: StateNodeRequest, o2: StateNodeRequest): Int = {
-      o2.nodeDepth compare o1.nodeDepth
+      o2.nodeDepth.compare(o1.nodeDepth)
     }
   }
 

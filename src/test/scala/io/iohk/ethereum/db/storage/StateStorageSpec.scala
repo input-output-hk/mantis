@@ -25,7 +25,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
       keyvals.foreach { case (key, value) =>
         val result = nodeStorage.get(key)
         assert(result.isDefined)
-        assert(result.get sameElements value)
+        assert(result.get.sameElements(value))
       }
     }
   }
@@ -45,7 +45,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
       val storage = stateStorage.getBackingStorage(0)
       storage.updateNodesInStorage(Some(node), Nil)
       val fromStorage = storage.get(node.hash)
-      assert(fromStorage.hash sameElements node.hash)
+      assert(fromStorage.hash.sameElements(node.hash))
     }
   }
 

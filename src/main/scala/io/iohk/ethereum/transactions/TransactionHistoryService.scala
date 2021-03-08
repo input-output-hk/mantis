@@ -51,7 +51,7 @@ class TransactionHistoryService(
       }
       .toListL
 
-    val txnsFromMempool = getTransactionsFromPool map { pendingTransactions =>
+    val txnsFromMempool = getTransactionsFromPool.map { pendingTransactions =>
       pendingTransactions
         .collect(Function.unlift(PendingTxChecker.checkTx(_, account)))
     }

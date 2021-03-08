@@ -70,7 +70,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
 
     protected val testBlockchainStorages = FixtureProvider.prepareStorages(startBlock, fixtures)
 
-    (startBlock to endBlock) foreach { blockToExecute =>
+    (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchain = BlockchainImpl(storages)
       val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))

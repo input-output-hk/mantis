@@ -84,7 +84,7 @@ object SignedTransaction {
   }
 
   def getSender(tx: SignedTransaction): Option[Address] = {
-    Option(txSenders.getIfPresent(tx.hash)) orElse calculateSender(tx)
+    Option(txSenders.getIfPresent(tx.hash)).orElse(calculateSender(tx))
   }
 
   private def calculateSender(tx: SignedTransaction): Option[Address] = Try {

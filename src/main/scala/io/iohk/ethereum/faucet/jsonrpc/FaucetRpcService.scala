@@ -23,14 +23,14 @@ class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)
       .flatMap(handler =>
         handler
           .askFor[Any](FaucetHandlerMsg.SendFunds(sendFundsRequest.address))
-          .map(handleSendFundsResponse orElse handleErrors)
+          .map(handleSendFundsResponse.orElse(handleErrors))
       )
       .onErrorRecover(handleErrors)
 
   def status(statusRequest: StatusRequest): ServiceResponse[StatusResponse] =
     selectFaucetHandler()
       .flatMap(handler => handler.askFor[Any](FaucetHandlerMsg.Status))
-      .map(handleStatusResponse orElse handleErrors)
+      .map(handleStatusResponse.orElse(handleErrors))
       .onErrorRecover(handleErrors)
 
   private def handleSendFundsResponse: PartialFunction[Any, Either[JsonRpcError, SendFundsResponse]] = {

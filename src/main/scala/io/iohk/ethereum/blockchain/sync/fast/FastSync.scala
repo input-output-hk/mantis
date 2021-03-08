@@ -61,7 +61,7 @@ class FastSync(
 
   override def receive: Receive = idle
 
-  def idle: Receive = handlePeerListMessages orElse {
+  def idle: Receive = handlePeerListMessages.orElse {
     case SyncProtocol.Start     => start()
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
   }
@@ -87,16 +87,16 @@ class FastSync(
       "pivot-block-selector"
     )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
-    context become waitingForPivotBlock
+    context.become(waitingForPivotBlock)
   }
 
-  def waitingForPivotBlock: Receive = handlePeerListMessages orElse {
+  def waitingForPivotBlock: Receive = handlePeerListMessages.orElse {
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
     case PivotBlockSelector.Result(pivotBlockHeader) =>
       if (pivotBlockHeader.number < 1) {
         log.info("Unable to start block synchronization in fast mode: pivot block is less than 1")
         appStateStorage.fastSyncDone().commit()
-        context become idle
+        context.become(idle)
         syncController ! Done
       } else {
         val initialSyncState =
@@ -161,7 +161,7 @@ class FastSync(
         syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = saved + missing)
     }
 
-    def receive: Receive = handlePeerListMessages orElse handleStatus orElse {
+    def receive: Receive = handlePeerListMessages.orElse(handleStatus).orElse {
       case UpdatePivotBlock(reason) => updatePivotBlock(reason)
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
@@ -222,7 +222,7 @@ class FastSync(
         )
       }
       pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
-      context become waitingForPivotBlockUpdate(updateReason)
+      context.become(waitingForPivotBlockUpdate(updateReason))
     }
 
     def reScheduleAskForNewPivot(updateReason: PivotBlockUpdateReason): Unit = {
@@ -248,12 +248,12 @@ class FastSync(
     }
 
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
-      handlePeerListMessages orElse handleStatus orElse {
+      handlePeerListMessages.orElse(handleStatus).orElse {
         case PivotBlockSelector.Result(pivotBlockHeader)
             if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
           log.info("New pivot block with number {} received", pivotBlockHeader.number)
           updatePivotSyncState(updateReason, pivotBlockHeader)
-          context become this.receive
+          context.become(this.receive)
           processSyncing()
 
         case PivotBlockSelector.Result(pivotBlockHeader)
@@ -341,18 +341,18 @@ class FastSync(
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
-      context unwatch handler
+      context.unwatch(handler)
       assignedHandlers -= handler
     }
 
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
-      (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
+      (startBlock to ((startBlock - blocksToDiscard).max(1)) by -1).foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }
       // TODO (maybe ETCM-77): Manage last checkpoint number too
-      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0).commit()
+      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1).max(0)).commit()
     }
 
     @tailrec
@@ -583,7 +583,8 @@ class FastSync(
     }
 
     private def insertBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
-      (requestedHashes zip blockBodies)
+      (requestedHashes
+        .zip(blockBodies))
         .map { case (hash, body) =>
           blockchain.storeBlockBody(hash, body)
         }
@@ -683,7 +684,7 @@ class FastSync(
       discardLastBlocks(syncState.safeDownloadTarget, syncConfig.fastSyncBlockValidationX - 1)
       cleanup()
       appStateStorage.fastSyncDone().commit()
-      context become idle
+      context.become(idle)
       peerRequestsTime = Map.empty
       syncController ! Done
     }
@@ -744,7 +745,7 @@ class FastSync(
         )
       )
 
-      context watch handler
+      context.watch(handler)
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(receiptsQueue = remainingReceipts)
@@ -765,7 +766,7 @@ class FastSync(
         )
       )
 
-      context watch handler
+      context.watch(handler)
       assignedHandlers += (handler -> peer)
       peerRequestsTime += (peer -> Instant.now())
       syncState = syncState.copy(blockBodiesQueue = remainingBlockBodies)
@@ -791,7 +792,7 @@ class FastSync(
         BlockHeadersHandlerName
       )
 
-      context watch handler
+      context.watch(handler)
       assignedHandlers += (handler -> peer)
       requestedHeaders += (peer -> limit)
       peerRequestsTime += (peer -> Instant.now())
@@ -901,8 +902,8 @@ object FastSync {
     def updateDiscardedBlocks(header: BlockHeader, N: Int): SyncState = copy(
       blockBodiesQueue = Seq.empty,
       receiptsQueue = Seq.empty,
-      bestBlockHeaderNumber = (header.number - N - 1) max 0,
-      nextBlockToFullyValidate = (header.number - N) max 1
+      bestBlockHeaderNumber = (header.number - N - 1).max(0),
+      nextBlockToFullyValidate = (header.number - N).max(1)
     )
 
     def updatePivotBlock(newPivot: BlockHeader, numberOfSafeBlocks: BigInt, updateFailures: Boolean): SyncState =

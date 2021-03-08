@@ -146,7 +146,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def pollForStatus(predicate: SyncProtocol.Status => Boolean) = Observable
       .repeatEvalF(getSyncStatus.delayExecution(10.millis))
-      .takeWhileInclusive(predicate andThen (!_))
+      .takeWhileInclusive(predicate.andThen(!_))
       .lastL
       .timeout(remainingOrDefault)
 

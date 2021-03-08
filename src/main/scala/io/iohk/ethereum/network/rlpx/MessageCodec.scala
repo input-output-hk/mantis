@@ -37,7 +37,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
 
-    frames map { frame =>
+    frames.map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
         if (remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion)) {
@@ -67,7 +67,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     val encoded: Array[Byte] = serializable.toBytes
     val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
     val contextId = contextIdCounter.incrementAndGet()
-    val frames = (0 until numFrames) map { frameNo =>
+    val frames = (0 until numFrames).map { frameNo =>
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
         if (

@@ -38,7 +38,7 @@ class PeerManagerSpec
     with NormalPatience
     with ScalaCheckDrivenPropertyChecks {
 
-  behavior of "PeerManagerActor"
+  behavior.of("PeerManagerActor")
 
   it should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
     start()
@@ -272,7 +272,7 @@ class PeerManagerSpec
     peerAsOutgoingProbe.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected))
   }
 
-  behavior of "outgoingConnectionDemand"
+  behavior.of("outgoingConnectionDemand")
 
   it should "try to connect to at least min-outgoing-peers but no more than max-outgoing-peers" in new ConnectedPeersFixture {
     forAll { (connectedPeers: ConnectedPeers) =>
@@ -328,7 +328,7 @@ class PeerManagerSpec
     peerManager.underlyingActor.triedNodes.size shouldEqual 3
   }
 
-  behavior of "numberOfIncomingConnectionsToPrune"
+  behavior.of("numberOfIncomingConnectionsToPrune")
 
   it should "try to prune incoming connections down to the minimum allowed number" in new ConnectedPeersFixture {
     forAll { (connectedPeers: ConnectedPeers) =>
@@ -347,7 +347,7 @@ class PeerManagerSpec
     }
   }
 
-  behavior of "ConnectedPeers.prunePeers"
+  behavior.of("ConnectedPeers.prunePeers")
 
   // The `ConnectedPeers` is quite slow to generate, so doing a few tests in one go.
   it should "prune peers which are old enough, protecting against repeated forced pruning" in new ConnectedPeersFixture {
@@ -416,7 +416,7 @@ class PeerManagerSpec
           numPeers = numPeersToPrune,
           currentTimeMillis = now + peerConfiguration.minPruneAge.toMillis
         )
-        peers1.toSet intersect peers2.toSet shouldBe empty
+        peers1.toSet.intersect(peers2.toSet) shouldBe empty
       }
 
       // Prune peers with minimum priority first.
@@ -427,7 +427,7 @@ class PeerManagerSpec
           priority = _.hashCode.toDouble // Dummy priority
         )
         whenever(peers.nonEmpty) {
-          Inspectors.forAll(peers.init zip peers.tail) { case (a, b) =>
+          Inspectors.forAll(peers.init.zip(peers.tail)) { case (a, b) =>
             a.id.hashCode shouldBe <=(b.id.hashCode)
           }
         }
@@ -471,7 +471,7 @@ class PeerManagerSpec
     }
   }
 
-  behavior of "prunePriority"
+  behavior.of("prunePriority")
 
   it should "calculate priority as count(responses)/lifetime" in {
     val now = System.currentTimeMillis

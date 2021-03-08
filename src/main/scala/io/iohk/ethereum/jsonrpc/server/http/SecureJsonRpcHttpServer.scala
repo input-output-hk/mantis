@@ -32,7 +32,7 @@ class SecureJsonRpcHttpServer(
       case Right(httpsContext) =>
         val bindingResultF = Http().newServerAt(config.interface, config.port).enableHttps(httpsContext).bind(route)
 
-        bindingResultF onComplete {
+        bindingResultF.onComplete {
           case Success(serverBinding) => log.info(s"JSON RPC HTTPS server listening on ${serverBinding.localAddress}")
           case Failure(ex)            => log.error("Cannot start JSON HTTPS RPC server", ex)
         }

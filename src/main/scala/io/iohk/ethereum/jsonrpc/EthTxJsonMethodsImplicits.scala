@@ -113,7 +113,7 @@ object EthTxJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val RawTransactionResponseJsonEncoder: JsonEncoder[RawTransactionResponse] =
     new JsonEncoder[RawTransactionResponse] {
       override def encodeJson(t: RawTransactionResponse): JValue =
-        t.transactionResponse.map(RawTransactionCodec.asRawTransaction _ andThen encodeAsHex)
+        t.transactionResponse.map((RawTransactionCodec.asRawTransaction _).andThen(encodeAsHex))
     }
 
 }

@@ -38,7 +38,7 @@ class SyncStateSchedulerActor(
 
   implicit val monixScheduler = Scheduler(context.dispatcher)
 
-  def handleCommonMessages: Receive = handlePeerListMessages orElse handleBlacklistMessages
+  def handleCommonMessages: Receive = handlePeerListMessages.orElse(handleBlacklistMessages)
 
   private def getFreePeers(state: DownloaderState) = {
     handshakedPeers.collect {
@@ -67,11 +67,11 @@ class SyncStateSchedulerActor(
       log.info("Received {} state nodes in {} ms", nodeData.values.size, timeTaken)
       FastSyncMetrics.setMptStateDownloadTime(timeTaken)
 
-      context unwatch (sender())
+      context.unwatch(sender())
       self ! RequestData(nodeData, peer)
 
     case PeerRequestHandler.RequestFailed(peer, reason) =>
-      context unwatch (sender())
+      context.unwatch(sender())
       log.debug("Request to peer {} failed due to {}", peer.id, reason)
       self ! RequestFailed(peer, reason)
     case RequestTerminated(peer) =>
@@ -93,7 +93,7 @@ class SyncStateSchedulerActor(
   }
 
   def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive =
-    handleCommonMessages orElse {
+    handleCommonMessages.orElse {
       case BloomFilterResult(result) =>
         log.debug(
           "Loaded {} already known elements from storage to bloom filter the error while loading was {}",
@@ -126,13 +126,15 @@ class SyncStateSchedulerActor(
     log.info("Starting state sync to root {} on block {}", ByteStringUtils.hash2string(root), bn)
     //TODO handle case when we already have root i.e state is synced up to this point
     val initState = sync.initState(root).get
-    context become syncing(
-      SyncSchedulerActorState.initial(initState, initialStats, bn, initiator)
+    context.become(
+      syncing(
+        SyncSchedulerActorState.initial(initState, initialStats, bn, initiator)
+      )
     )
     self ! Sync
   }
 
-  def idle(processingStatistics: ProcessingStatistics): Receive = handleCommonMessages orElse {
+  def idle(processingStatistics: ProcessingStatistics): Receive = handleCommonMessages.orElse {
     case StartSyncingTo(root, bn) =>
       startSyncing(root, bn, processingStatistics, sender())
     case PrintInfo =>
@@ -202,7 +204,7 @@ class SyncStateSchedulerActor(
 
   // scalastyle:off cyclomatic.complexity method.length
   def syncing(currentState: SyncSchedulerActorState): Receive =
-    handleCommonMessages orElse handleRequestResults orElse {
+    handleCommonMessages.orElse(handleRequestResults).orElse {
       case Sync if currentState.hasRemainingPendingRequests && !currentState.restartHasBeenRequested =>
         val freePeers = getFreePeers(currentState.currentDownloaderState).toList
         (currentState.getRequestToProcess, NonEmptyList.fromList(freePeers)) match {

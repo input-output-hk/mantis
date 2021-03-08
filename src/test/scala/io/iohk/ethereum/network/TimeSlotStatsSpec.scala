@@ -17,7 +17,7 @@ import io.iohk.ethereum.utils.MockClock
 class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
   import TimeSlotStatsSpec._
 
-  behavior of "TimeSlotStats"
+  behavior.of("TimeSlotStats")
 
   it should "add new keys to the last timeslot" in test {
     for {
@@ -77,7 +77,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
         entry.slotStats should not contain key("foo")
       }
       Inspectors.forExactly(2, stats.buffer.values) { entry =>
-        entry.slotStats should contain key ("bar")
+        (entry.slotStats should contain).key("bar")
       }
     }
   }

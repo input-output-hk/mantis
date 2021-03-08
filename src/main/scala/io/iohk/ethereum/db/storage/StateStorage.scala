@@ -151,9 +151,14 @@ class CachedReferenceCountedStateStorage(
     nodeStorage.put(nodeHash, HeapEntry.toBytes(HeapEntry(nodeEncoded, 1, bn)))
 
   override def getNode(nodeHash: NodeHash): Option[MptNode] =
-    lruCache.get(nodeHash).map(_.nodeEncoded.toMptNode) orElse nodeStorage
+    lruCache
       .get(nodeHash)
-      .map(enc => HeapEntry.fromBytes(enc).nodeEncoded.toMptNode)
+      .map(_.nodeEncoded.toMptNode)
+      .orElse(
+        nodeStorage
+          .get(nodeHash)
+          .map(enc => HeapEntry.fromBytes(enc).nodeEncoded.toMptNode)
+      )
 }
 
 object StateStorage {

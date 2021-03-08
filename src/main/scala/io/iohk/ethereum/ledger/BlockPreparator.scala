@@ -250,13 +250,13 @@ class BlockPreparator(
     val payMinerForGasFn =
       pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256, withTouch = true) _
 
-    val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
+    val worldAfterPayments = (refundGasFn.andThen(payMinerForGasFn))(resultWithErrorHandling.world)
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
+    val world2 = (deleteAccountsFn.andThen(deleteTouchedAccountsFn).andThen(persistStateFn))(worldAfterPayments)
 
     log.debug(s"""Transaction ${stx.hashAsHexString} execution end. Summary:
          | - Error: ${result.error}.

@@ -15,9 +15,9 @@ class ChainWeightStorage(val dataSource: DataSource) extends TransactionalKeyVal
   val namespace: IndexedSeq[Byte] = Namespaces.ChainWeightNamespace
   val keySerializer: BlockHash => ByteString = identity
   val keyDeserializer: IndexedSeq[Byte] => BlockHash = bytes => ByteString(bytes: _*)
-  val valueSerializer: ChainWeight => IndexedSeq[Byte] = Pickle.intoBytes[ChainWeight] _ andThen compactPickledBytes
+  val valueSerializer: ChainWeight => IndexedSeq[Byte] = (Pickle.intoBytes[ChainWeight] _).andThen(compactPickledBytes)
   val valueDeserializer: IndexedSeq[Byte] => ChainWeight =
-    byteSequenceToBuffer _ andThen Unpickle[ChainWeight].fromBytes
+    (byteSequenceToBuffer _).andThen(Unpickle[ChainWeight].fromBytes)
 }
 
 object ChainWeightStorage {

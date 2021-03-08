@@ -54,7 +54,7 @@ trait JsonRpcBaseController {
     }
 
     val handleFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
-      enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
+      enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty).orElse(fn))
 
     handleFn(request)
       .flatTap {

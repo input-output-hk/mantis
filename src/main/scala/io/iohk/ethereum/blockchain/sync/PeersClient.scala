@@ -36,7 +36,7 @@ class PeersClient(
   }
 
   def running(requesters: Requesters): Receive =
-    handleBlacklistMessages orElse handlePeerListMessages orElse {
+    handleBlacklistMessages.orElse(handlePeerListMessages).orElse {
       case PrintStatus                   => printStatus(requesters: Requesters)
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
@@ -47,7 +47,7 @@ class PeersClient(
             val handler =
               makeRequest(peer, message, responseMsgCode(message), toSerializable)(scheduler, responseClassTag(message))
             val newRequesters = requesters + (handler -> requester)
-            context become running(newRequesters)
+            context.become(running(newRequesters))
           case None =>
             log.debug("No suitable peer found to issue a request")
             requester ! NoSuitablePeer
@@ -79,7 +79,7 @@ class PeersClient(
   private def handleResponse[ResponseMsg <: ResponseMessage](requesters: Requesters, responseMsg: ResponseMsg): Unit = {
     val requestHandler = sender()
     requesters.get(requestHandler).foreach(_ ! responseMsg)
-    context become running(requesters - requestHandler)
+    context.become(running(requesters - requestHandler))
   }
 
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =

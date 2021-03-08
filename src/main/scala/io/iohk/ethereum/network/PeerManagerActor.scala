@@ -75,7 +75,7 @@ class PeerManagerActor(
   // Subscribe to the handshake event of any peer
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
-  def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt.getOrElse(context.system.scheduler)
   implicit val monix: MonixScheduler = MonixScheduler(context.dispatcher)
 
   override val supervisorStrategy: OneForOneStrategy =
@@ -87,7 +87,7 @@ class PeerManagerActor(
     case StartConnecting =>
       scheduleNodesUpdate()
       knownNodesManager ! KnownNodesManager.GetKnownNodes
-      context become listening(ConnectedPeers.empty)
+      context.become(listening(ConnectedPeers.empty))
       unstashAll()
     case _ =>
       stash()
@@ -103,11 +103,11 @@ class PeerManagerActor(
   }
 
   private def listening(connectedPeers: ConnectedPeers): Receive = {
-    handleCommonMessages(connectedPeers) orElse
-      handleBlacklistMessages orElse
-      handleConnections(connectedPeers) orElse
-      handleNewNodesToConnectMessages(connectedPeers) orElse
-      handlePruning(connectedPeers)
+    handleCommonMessages(connectedPeers)
+      .orElse(handleBlacklistMessages)
+      .orElse(handleConnections(connectedPeers))
+      .orElse(handleNewNodesToConnectMessages(connectedPeers))
+      .orElse(handlePruning(connectedPeers))
   }
 
   private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
@@ -229,7 +229,7 @@ class PeerManagerActor(
       case Right(address) =>
         val (peer, newConnectedPeers) = createPeer(address, incomingConnection = true, connectedPeers)
         peer.ref ! PeerActor.HandleConnection(connection, remoteAddress)
-        context become listening(newConnectedPeers)
+        context.become(listening(newConnectedPeers))
 
       case Left(error) =>
         handleConnectionErrors(error)
@@ -253,7 +253,7 @@ class PeerManagerActor(
       case Right(address) =>
         val (peer, newConnectedPeers) = createPeer(address, incomingConnection = false, connectedPeers)
         peer.ref ! PeerActor.ConnectTo(uri)
-        context become listening(newConnectedPeers)
+        context.become(listening(newConnectedPeers))
 
       case Left(error) => handleConnectionErrors(error)
     }
@@ -275,8 +275,8 @@ class PeerManagerActor(
       if (newConnectedPeers.outgoingConnectionDemand > 0) {
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
-      context unwatch ref
-      context become listening(newConnectedPeers)
+      context.unwatch(ref)
+      context.become(listening(newConnectedPeers))
 
     case PeerEvent.PeerHandshakeSuccessful(handshakedPeer, _) =>
       if (
@@ -287,7 +287,7 @@ class PeerManagerActor(
         // It looks like all incoming slots are taken; try to make some room.
         self ! SchedulePruneIncomingPeers
 
-        context become listening(connectedPeers)
+        context.become(listening(connectedPeers))
 
       } else if (handshakedPeer.nodeId.exists(connectedPeers.hasHandshakedWith)) {
         // FIXME: peers received after handshake should always have their nodeId defined, we could maybe later distinguish
@@ -298,7 +298,7 @@ class PeerManagerActor(
         log.debug(s"Disconnecting from ${handshakedPeer.remoteAddress} as we are already connected to him")
         handshakedPeer.ref ! PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected)
       } else {
-        context become listening(connectedPeers.promotePeerToHandshaked(handshakedPeer))
+        context.become(listening(connectedPeers.promotePeerToHandshaked(handshakedPeer)))
       }
   }
 
@@ -308,7 +308,7 @@ class PeerManagerActor(
       connectedPeers: ConnectedPeers
   ): (Peer, ConnectedPeers) = {
     val ref = peerFactory(context, address, incomingConnection)
-    context watch ref
+    context.watch(ref)
     val pendingPeer = Peer(address, ref, incomingConnection, None, createTimeMillis = System.currentTimeMillis)
 
     val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)
@@ -332,7 +332,7 @@ class PeerManagerActor(
     case PruneIncomingPeers(PeerStatisticsActor.StatsForAll(stats)) =>
       val prunedConnectedPeers = pruneIncomingPeers(connectedPeers, stats)
 
-      context become listening(prunedConnectedPeers)
+      context.become(listening(prunedConnectedPeers))
   }
 
   /** Disconnect some incoming connections so we can free up slots. */

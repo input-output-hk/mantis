@@ -114,7 +114,7 @@ class LedgerImpl(
   }
 
   override def getBlockByHash(hash: ByteString): Option[Block] =
-    blockchain.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+    blockchain.getBlockByHash(hash).orElse(blockQueue.getBlockByHash(hash))
 
   override def importBlock(
       block: Block

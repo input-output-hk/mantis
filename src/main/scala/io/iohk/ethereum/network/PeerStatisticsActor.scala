@@ -23,7 +23,7 @@ class PeerStatisticsActor(
     peerEventBus ! Subscribe(SubscriptionClassifier.PeerDisconnectedClassifier(PeerSelector.AllPeers))
   }
 
-  def receive: Receive = handlePeerEvents orElse handleStatsRequests
+  def receive: Receive = handlePeerEvents.orElse(handleStatsRequests)
 
   private def handlePeerEvents: Receive = {
     case PeerEvent.MessageFromPeer(msg, peerId) =>
@@ -87,7 +87,7 @@ object PeerStatisticsActor {
 
   val MessageSubscriptionClassifier =
     SubscriptionClassifier.MessageClassifier(
-      messageCodes = RequestCodes union ResponseCodes,
+      messageCodes = RequestCodes.union(ResponseCodes),
       peerSelector = PeerSelector.AllPeers
     )
 }

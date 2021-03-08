@@ -29,6 +29,6 @@ object MptListValidator {
       source = stateStorage
     )(intByteArraySerializable, vSerializable)
     val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
-    hash sameElements trieRoot
+    hash.sameElements(trieRoot)
   }
 }

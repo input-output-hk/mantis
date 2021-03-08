@@ -109,7 +109,7 @@ class FrameCodec(private val secrets: Secrets) {
   }
 
   def writeFrames(frames: Seq[Frame]): ByteString = {
-    val bytes = frames.zipWithIndex flatMap { case (frame, index) =>
+    val bytes = frames.zipWithIndex.flatMap { case (frame, index) =>
       val firstFrame = index == 0
       val lastFrame = index == frames.size - 1
 
@@ -129,7 +129,7 @@ class FrameCodec(private val secrets: Secrets) {
       var headerDataElems: Seq[Array[Byte]] = Nil
       headerDataElems :+= rlp.encode(frame.header.protocol)
       frame.header.contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
-      frame.header.totalPacketSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
+      frame.header.totalPacketSize.foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
 
       val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]]())
       System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
@@ -212,7 +212,7 @@ class FrameCodec(private val secrets: Secrets) {
 
     val length = 16
 
-    (0 until length) foreach { i =>
+    (0 until length).foreach { i =>
       aesBlock(i) = (aesBlock(i) ^ seed(i + offset)).toByte
     }
 
@@ -222,7 +222,7 @@ class FrameCodec(private val secrets: Secrets) {
 
     if (egress) System.arraycopy(result, 0, out, outOffset, length)
     else
-      (0 until length) foreach { i =>
+      (0 until length).foreach { i =>
         if (out(i + outOffset) != result(i)) throw new IOException("MAC mismatch")
       }
 

@@ -104,7 +104,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if created based on invalid timestamp" in new TestSetup {
-    forAll(longGen suchThat (_ != validBlockParentHeader.unixTimestamp + 1)) { timestamp =>
+    forAll(longGen.suchThat(_ != validBlockParentHeader.unixTimestamp + 1)) { timestamp =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(unixTimestamp = timestamp)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderTimestampError))
@@ -112,7 +112,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if difficulty is different than parent difficulty" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParentHeader.difficulty)) { difficulty =>
+    forAll(bigIntGen.suchThat(_ != validBlockParentHeader.difficulty)) { difficulty =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(
@@ -122,7 +122,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if gas used is not zero" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != UInt256.Zero.toBigInt)) { gasUsed =>
+    forAll(bigIntGen.suchThat(_ != UInt256.Zero.toBigInt)) { gasUsed =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasUsed = gasUsed)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderGasUsedError))
@@ -130,7 +130,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if gas limit is different than parent gas limit" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParentHeader.gasLimit)) { gasLimit =>
+    forAll(bigIntGen.suchThat(_ != validBlockParentHeader.gasLimit)) { gasLimit =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasLimit = gasLimit)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(
@@ -140,7 +140,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if created based on invalid number" in new TestSetup {
-    forAll(longGen suchThat (num => num != validBlockParentHeader.number + 1 && num >= config.ecip1097BlockNumber)) {
+    forAll(longGen.suchThat(num => num != validBlockParentHeader.number + 1 && num >= config.ecip1097BlockNumber)) {
       number =>
         val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
         val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
@@ -331,7 +331,7 @@ class BlockWithCheckpointHeaderValidatorSpec
         fieldName: String,
         emptyValue: ByteString = ByteString.empty
     ): Assertion = {
-      forAll(randomSizeByteStringGenerator suchThat (_ != emptyValue)) { byteString =>
+      forAll(randomSizeByteStringGenerator.suchThat(_ != emptyValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator
@@ -347,7 +347,7 @@ class BlockWithCheckpointHeaderValidatorSpec
         fieldName: String,
         filteredValue: ByteString
     ): Assertion = {
-      forAll(randomSizeByteStringGenerator suchThat (_ != filteredValue)) { byteString =>
+      forAll(randomSizeByteStringGenerator.suchThat(_ != filteredValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator

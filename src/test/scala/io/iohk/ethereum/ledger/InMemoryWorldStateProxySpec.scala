@@ -73,7 +73,9 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
           .store(UInt256.One, UInt256.One)
       )
     )
-    persistedWorldStateWithAnAccount.stateRootHash equals persistedWithContractStorageValue.stateRootHash shouldBe false
+    persistedWorldStateWithAnAccount.stateRootHash.equals(
+      persistedWithContractStorageValue.stateRootHash
+    ) shouldBe false
 
     val persistedWithZero = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(

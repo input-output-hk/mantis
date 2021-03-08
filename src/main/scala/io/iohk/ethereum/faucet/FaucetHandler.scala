@@ -33,7 +33,7 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
           throw new WalletException(error)
         case Right(wallet) =>
           log.info("Faucet initialization succeeded")
-          context become available(wallet)
+          context.become(available(wallet))
       }
     }
     case SendFunds(addressTo: Address) =>

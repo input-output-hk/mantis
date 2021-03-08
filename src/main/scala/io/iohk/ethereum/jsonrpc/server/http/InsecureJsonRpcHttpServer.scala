@@ -22,7 +22,7 @@ class InsecureJsonRpcHttpServer(
   def run(): Unit = {
     val bindingResultF = Http(actorSystem).newServerAt(config.interface, config.port).bind(route)
 
-    bindingResultF onComplete {
+    bindingResultF.onComplete {
       case Success(serverBinding) => log.info(s"JSON RPC HTTP server listening on ${serverBinding.localAddress}")
       case Failure(ex)            => log.error("Cannot start JSON HTTP RPC server", ex)
     }
