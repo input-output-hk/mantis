@@ -45,10 +45,9 @@ class LruCache[K <: AnyRef, V <: AnyRef](
     this
   }
 
-  private def isTimeToClear: Boolean = {
+  private def isTimeToClear: Boolean =
     FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
       lastClear.get(),
       TimeUnit.NANOSECONDS
     ) >= config.maxHoldTime
-  }
 }

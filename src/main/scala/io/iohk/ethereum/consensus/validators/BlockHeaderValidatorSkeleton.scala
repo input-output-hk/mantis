@@ -41,10 +41,9 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     * @param blockHeader BlockHeader to validate.
     * @param parentHeader BlockHeader of the parent of the block to validate.
     */
-  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.hasCheckpoint) validateBlockWithCheckpointHeader(blockHeader, parentHeader)
     else validateRegularHeader(blockHeader, parentHeader)
-  }
 
   /** This method allows validate a BlockHeader (stated on
     * section 4.4.4 of http://paper.gavwood.com/).
@@ -55,14 +54,13 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   def validate(
       blockHeader: BlockHeader,
       getBlockHeaderByHash: GetBlockHeaderByHash
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     for {
       blockHeaderParent <- getBlockHeaderByHash(blockHeader.parentHash)
         .map(Right(_))
         .getOrElse(Left(HeaderParentNotFoundError))
       _ <- validate(blockHeader, blockHeaderParent)
     } yield BlockHeaderValid
-  }
 
   /** This method runs a validation of the header of regular block.
     * It runs basic validation and pow validation (hidden in validateEvenMore)
@@ -73,7 +71,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   private def validateRegularHeader(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     for {
       // NOTE how we include everything except PoW (which is deferred to `validateEvenMore`),
       //      and that difficulty validation is in effect abstract (due to `difficulty`).
@@ -86,7 +84,6 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       _ <- validateExtraFields(blockHeader)
       _ <- validateEvenMore(blockHeader, parentHeader)
     } yield BlockHeaderValid
-  }
 
   /** This method runs a validation of the header of block with checkpoint.
     * It runs basic validation and checkpoint specific validation
@@ -97,13 +94,12 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   private def validateBlockWithCheckpointHeader(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     for {
       _ <- blockWithCheckpointHeaderValidator.validate(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validateExtraFields(blockHeader)
     } yield BlockHeaderValid
-  }
 
   /** Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
@@ -185,8 +181,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
   private def validateGasLimit(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
-
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
       Left(HeaderGasLimitError)
     else {
@@ -197,7 +192,6 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       else
         Left(HeaderGasLimitError)
     }
-  }
 
   /** Validates [[io.iohk.ethereum.domain.BlockHeader.number]] is the next one after its parents number
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/

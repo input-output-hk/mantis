@@ -111,7 +111,7 @@ object MockedMiner {
       )
     ).withDispatcher(BlockForgerDispatcherId)
 
-  def apply(node: Node): ActorRef = {
+  def apply(node: Node): ActorRef =
     node.consensus match {
       case consensus: EthashConsensus =>
         val blockCreator = new EthashBlockCreator(
@@ -129,5 +129,4 @@ object MockedMiner {
       case consensus =>
         wrongConsensusArgument[EthashConsensus](consensus)
     }
-  }
 }

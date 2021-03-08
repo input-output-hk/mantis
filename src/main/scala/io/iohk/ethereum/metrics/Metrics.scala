@@ -81,7 +81,7 @@ object Metrics {
   /** Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.
     * After this call completes successfully, you can obtain the metrics service by using `Metrics.get()`.
     */
-  def configure(config: MetricsConfig): Try[Unit] = {
+  def configure(config: MetricsConfig): Try[Unit] =
     Try {
       if (config.enabled) {
         val registry = MeterRegistryBuilder.build(MetricsPrefix)
@@ -94,5 +94,4 @@ object Metrics {
         }
       }
     }
-  }
 }

@@ -386,12 +386,11 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       receipts: Seq[Receipt],
       weight: ChainWeight,
       saveAsBestBlock: Boolean
-  ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] = {
+  ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] =
     (blockchain
       .save(_: Block, _: Seq[Receipt], _: ChainWeight, _: Boolean))
       .expects(block, receipts, weight, saveAsBestBlock)
       .once()
-  }
 
   def setHeaderByHash(hash: ByteString, header: Option[BlockHeader]): CallHandler1[ByteString, Option[BlockHeader]] =
     (blockchain.getBlockHeaderByHash _).expects(hash).returning(header)

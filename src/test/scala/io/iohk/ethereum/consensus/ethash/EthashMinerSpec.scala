@@ -45,15 +45,15 @@ class EthashMinerSpec
       .returning(PendingBlockAndState(PendingBlock(bfm, Nil), fakeWorld))
       .atLeastOnce()
 
-    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+    ommersPool.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! OmmersPool.Ommers(Nil)
       TestActor.KeepRunning
-    })
+    }
 
-    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+    pendingTransactionsManager.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
       TestActor.KeepRunning
-    })
+    }
 
     miner ! MinerProtocol.StartMining
 

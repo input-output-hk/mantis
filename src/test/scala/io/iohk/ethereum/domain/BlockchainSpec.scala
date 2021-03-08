@@ -198,9 +198,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       (stubStateStorage
         .onBlockSave(_: BigInt, _: BigInt)(_: () => Unit))
         .when(*, *, *)
-        .onCall((bn, _, persistFn) => {
+        .onCall { (bn, _, persistFn) =>
           if (blockImportToPersist.exists(_.number == bn)) persistFn()
-        })
+        }
 
       blocksToImport.foreach { block =>
         blockchainWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
@@ -221,9 +221,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       (stubStateStorage
         .onBlockRollback(_: BigInt, _: BigInt)(_: () => Unit))
         .when(*, *, *)
-        .onCall((bn, _, persistFn) => {
+        .onCall { (bn, _, persistFn) =>
           if (blockRollbackToPersist.exists(_.number == bn)) persistFn()
-        })
+        }
 
       blocksToRollback.reverse.foreach { block =>
         blockchainWithStubPersisting.removeBlock(block.hash, true)
@@ -247,14 +247,14 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockImportPersisted: Option[BigInt],
         blockRollbackPersisted: Option[BigInt],
         blocksRollbacked: Seq[BigInt]
-    ): BigInt = {
+    ): BigInt =
       (blocksRollbacked, blockImportPersisted) match {
         case (Nil, Some(bi)) =>
           // No blocks rollbacked, last persist was the persist during import
           bi
         case (nonEmptyRollbackedBlocks, Some(bi)) =>
           // Last forced persist during apply/rollback
-          val maxForcedPersist = blockRollbackPersisted.fold(bi) { br => (br - 1).max(bi) }
+          val maxForcedPersist = blockRollbackPersisted.fold(bi)(br => (br - 1).max(bi))
 
           // The above number would have been decreased by any rollbacked blocks
           (nonEmptyRollbackedBlocks.head - 1).min(maxForcedPersist)
@@ -262,7 +262,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           // If persisted rollback, then it  was decreased by the future rollbacks, if not no persistance was ever done
           blockRollbackPersisted.fold(0: BigInt)(_ => blocksRollbacked.head - 1)
       }
-    }
 
     trait StubPersistingBlockchainSetup {
       def stubStateStorage: StateStorage
@@ -270,7 +269,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       def blockchainWithStubPersisting: BlockchainImpl
     }
 
-    def newSetup(): StubPersistingBlockchainSetup = {
+    def newSetup(): StubPersistingBlockchainSetup =
       new StubPersistingBlockchainSetup with EphemBlockchainTestSetup {
         override val stubStateStorage = stub[StateStorage]
         override val blockchainStoragesWithStubPersisting = new BlockchainStorages {
@@ -291,7 +290,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
         blockchainWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }
-    }
 
   }
 }

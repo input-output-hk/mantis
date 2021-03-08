@@ -107,10 +107,10 @@ class EthProofServiceSpec
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
-        accountProof.storageProof.map(v => {
+        accountProof.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(0)
-        })
+        }
       }
     )
   }
@@ -132,10 +132,10 @@ class EthProofServiceSpec
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
-        r.proofAccount.storageProof.map(v => {
+        r.proofAccount.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(value)
-        })
+        }
       }
     )
   }
@@ -159,10 +159,10 @@ class EthProofServiceSpec
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
         accountProof.storageProof.size shouldBe 2
-        accountProof.storageProof.map(v => {
+        accountProof.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           expectedValueStorageKey should contain(v.value)
-        })
+        }
       }
     )
   }

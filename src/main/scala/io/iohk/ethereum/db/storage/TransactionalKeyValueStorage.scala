@@ -29,7 +29,7 @@ trait TransactionalKeyValueStorage[K, V] {
   /** This function creates a batch of updates to the KeyValueStorage by deleting, updating and inserting new (key-value)
     * pairs in the current namespace. The batch should be committed atomically.
     */
-  def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): DataSourceBatchUpdate = {
+  def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): DataSourceBatchUpdate =
     DataSourceBatchUpdate(
       dataSource,
       Array(
@@ -42,7 +42,6 @@ trait TransactionalKeyValueStorage[K, V] {
         )
       )
     )
-  }
 
   def put(key: K, value: V): DataSourceBatchUpdate =
     update(Nil, Seq(key -> value))
@@ -53,7 +52,7 @@ trait TransactionalKeyValueStorage[K, V] {
   def emptyBatchUpdate: DataSourceBatchUpdate =
     DataSourceBatchUpdate(dataSource, Array.empty)
 
-  def storageContent: Observable[Either[IterationError, (K, V)]] = {
+  def storageContent: Observable[Either[IterationError, (K, V)]] =
     dataSource.iterate(namespace).map { result =>
       result.map { case (key, value) =>
         val kseq = keyDeserializer(ArraySeq.unsafeWrapArray(key))
@@ -61,5 +60,4 @@ trait TransactionalKeyValueStorage[K, V] {
         (kseq, vseq)
       }
     }
-  }
 }

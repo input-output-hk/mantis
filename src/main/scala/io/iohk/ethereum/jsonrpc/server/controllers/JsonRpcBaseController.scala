@@ -83,7 +83,7 @@ trait JsonRpcBaseController {
   def handle[Req, Res](
       fn: Req => Task[Either[JsonRpcError, Res]],
       rpcReq: JsonRpcRequest
-  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] = {
+  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] =
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)
@@ -98,7 +98,6 @@ trait JsonRpcBaseController {
       case Left(error) =>
         Task.now(errorResponse(rpcReq, error))
     }
-  }
 
   private def successResponse[T](req: JsonRpcRequest, result: T)(implicit enc: JsonEncoder[T]): JsonRpcResponse =
     JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))

@@ -12,21 +12,19 @@ class DeltaSpikeGauge(name: String, metrics: Metrics) {
   private[this] final val isTriggeredRef = new AtomicBoolean(false)
   private[this] final val valueRef = new AtomicInteger(0)
 
-  private[this] def getValue(): Double = {
+  private[this] def getValue(): Double =
     if (isTriggeredRef.compareAndSet(true, false)) {
       valueRef.getAndSet(0)
     } else {
       valueRef.get()
     }
-  }
 
   private[this] final val gauge = metrics.gauge(name, () => getValue())
 
-  def trigger(): Unit = {
+  def trigger(): Unit =
     if (isTriggeredRef.compareAndSet(false, true)) {
       valueRef.set(1)
       // Let one of the exporting metric registries pick up the `1`.
       // As soon as that happens, `getValue` will make sure that we go back to `0`.
     }
-  }
 }

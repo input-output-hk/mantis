@@ -207,9 +207,8 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
   }
 
   object MockHandshakerRequiresHello {
-    def apply(): MockHandshakerRequiresHello = {
+    def apply(): MockHandshakerRequiresHello =
       new MockHandshakerRequiresHello(MockHelloExchangeState)
-    }
   }
 
   case object MockHelloExchangeState extends InProgressState[PeerInfo] {

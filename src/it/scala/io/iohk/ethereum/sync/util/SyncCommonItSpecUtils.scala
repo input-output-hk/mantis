@@ -10,7 +10,7 @@ import scala.concurrent.duration.FiniteDuration
 object SyncCommonItSpecUtils {
   def retryUntilWithDelay[A](source: Task[A], delay: FiniteDuration, maxRetries: Int)(
       predicate: A => Boolean
-  ): Task[A] = {
+  ): Task[A] =
     source.delayExecution(delay).flatMap { result =>
       if (predicate(result)) {
         Task.now(result)
@@ -22,7 +22,6 @@ object SyncCommonItSpecUtils {
         }
       }
     }
-  }
 
   case class HostConfig(
       maxBlocksHeadersPerMessage: Int,

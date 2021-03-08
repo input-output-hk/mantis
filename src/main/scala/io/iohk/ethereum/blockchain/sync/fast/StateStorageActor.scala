@@ -45,7 +45,7 @@ class StateStorageActor extends Actor with ActorLogging {
     implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
     val persistingQueues: Task[Try[FastSyncStateStorage]] = Task {
-      lazy val result = Try { storage.putSyncState(syncState) }
+      lazy val result = Try(storage.putSyncState(syncState))
       if (log.isDebugEnabled) {
         val now = System.currentTimeMillis()
         result

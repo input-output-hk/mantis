@@ -18,7 +18,6 @@ object ProofServiceDummy extends ProofService {
   )
   val EmptyProofResponse: GetProofResponse = GetProofResponse(EmptyProofAccount)
 
-  override def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
+  override def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] =
     Task.now(Right(EmptyProofResponse))
-  }
 }

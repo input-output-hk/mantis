@@ -69,11 +69,10 @@ class Memory private (private val underlying: ByteString) {
     new Memory(newUnderlying)
   }
 
-  def load(offset: UInt256): (UInt256, Memory) = {
+  def load(offset: UInt256): (UInt256, Memory) =
     doLoad(offset, UInt256.Size) match {
       case (bs, memory) => (UInt256(bs), memory)
     }
-  }
 
   def load(offset: UInt256, size: UInt256): (ByteString, Memory) = doLoad(offset, size.toInt)
 
@@ -116,12 +115,11 @@ class Memory private (private val underlying: ByteString) {
     */
   def size: Int = underlying.size
 
-  override def equals(that: Any): Boolean = {
+  override def equals(that: Any): Boolean =
     that match {
       case that: Memory => this.underlying.equals(that.underlying)
       case other        => false
     }
-  }
 
   override def hashCode: Int = underlying.hashCode()
 

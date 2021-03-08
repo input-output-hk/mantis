@@ -29,7 +29,7 @@ trait MessageDecoder { self =>
 
   def orElse(otherMessageDecoder: MessageDecoder): MessageDecoder = new MessageDecoder {
     override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version): Message =
-      Try { self.fromBytes(`type`, payload, protocolVersion) }
+      Try(self.fromBytes(`type`, payload, protocolVersion))
         .getOrElse(otherMessageDecoder.fromBytes(`type`, payload, protocolVersion))
   }
 }

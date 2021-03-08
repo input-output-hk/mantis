@@ -64,12 +64,10 @@ object BlockHelpers extends SecureRandomBuilder {
     Block(header, BlockBody(List(stx.tx), List(ommer)))
   }
 
-  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block = {
+  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block =
     block.copy(header = updater(block.header))
-  }
 
-  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block = {
+  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block =
     block.copy(body = block.body.copy(transactionList = transactions))
-  }
 
 }

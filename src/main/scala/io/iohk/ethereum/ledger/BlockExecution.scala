@@ -56,7 +56,7 @@ class BlockExecution(
   }
 
   /** Executes a block (executes transactions and pays rewards) */
-  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
+  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] =
     for {
       parent <- blockchain
         .getBlockHeaderByHash(block.header.parentHash)
@@ -68,7 +68,6 @@ class BlockExecution(
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
-  }
 
   /** This function runs transactions
     *
@@ -117,7 +116,7 @@ class BlockExecution(
   private def drainDaoForkAccounts(
       worldState: InMemoryWorldStateProxy,
       daoForkConfig: DaoForkConfig
-  ): InMemoryWorldStateProxy = {
+  ): InMemoryWorldStateProxy =
     daoForkConfig.refundContract match {
       case Some(refundContractAddress) =>
         daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
@@ -127,7 +126,6 @@ class BlockExecution(
         }
       case None => worldState
     }
-  }
 
   /** Executes and validates a list of blocks, storing the results in the blockchain.
     *
@@ -146,7 +144,7 @@ class BlockExecution(
         remainingBlocksIncOrder: List[Block],
         parentWeight: ChainWeight,
         error: Option[BlockExecutionError]
-    ): (List[BlockData], Option[BlockExecutionError]) = {
+    ): (List[BlockData], Option[BlockExecutionError]) =
       if (remainingBlocksIncOrder.isEmpty) {
         (executedBlocksDecOrder.reverse, None)
       } else {
@@ -161,7 +159,6 @@ class BlockExecution(
             (executedBlocksDecOrder.reverse, Some(executionError))
         }
       }
-    }
 
     go(List.empty[BlockData], blocks, parentChainWeight, None)
   }

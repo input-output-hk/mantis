@@ -229,12 +229,11 @@ case class JsonRpcController(
       handle[ListPeersInfoRequest, ListPeersInfoResponse](debugService.listPeersInfo, req)
   }
 
-  private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
+  private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
     testServiceOpt match {
       case Some(testService) => handleTestRequest(testService)
       case None              => PartialFunction.empty
     }
-  }
 
   private def handleTestRequest(testService: TestService): PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "test_setChainParams", _, _) =>
@@ -311,7 +310,7 @@ case class JsonRpcController(
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
-      val result = enabledApis.map { _ -> "1.0" }.toMap
+      val result = enabledApis.map(_ -> "1.0").toMap
       Task(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
 }

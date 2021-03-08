@@ -106,15 +106,13 @@ object Mocks {
       override def validateHeaderAndBody(
           blockHeader: BlockHeader,
           blockBody: BlockBody
-      ): Either[BlockError, BlockValid] = {
+      ): Either[BlockError, BlockValid] =
         if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
-      }
       override def validateBlockAndReceipts(
           blockHeader: BlockHeader,
           receipts: Seq[Receipt]
-      ): Either[BlockError, BlockValid] = {
+      ): Either[BlockError, BlockValid] =
         if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
-      }
     }
 
     override def validateBlockAfterExecution(
@@ -122,9 +120,8 @@ object Mocks {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+    ): Either[BlockExecutionError, BlockExecutionSuccess] =
       if (block.header.number == number) Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
-    }
   }
 
   case class MockHandshakerAlwaysSucceeds(

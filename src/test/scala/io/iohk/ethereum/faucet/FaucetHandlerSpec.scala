@@ -139,9 +139,8 @@ class FaucetHandlerSpec
       stopController()
     }
 
-    def stopController(): Unit = {
+    def stopController(): Unit =
       awaitCond(gracefulStop(faucetHandler, actorAskTimeout.duration).futureValue)
-    }
   }
 }
 

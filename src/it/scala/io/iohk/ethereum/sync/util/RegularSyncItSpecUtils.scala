@@ -88,7 +88,7 @@ object RegularSyncItSpecUtils {
 
     def broadcastBlock(
         blockNumber: Option[Int] = None
-    )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
       Task(blockNumber match {
         case Some(bNumber) =>
           bl.getBlockByNumber(bNumber).getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
@@ -103,11 +103,9 @@ object RegularSyncItSpecUtils {
           broadcastBlock(newBlock, newWeight)
         }
       }
-    }
 
-    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] = {
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90) { isDone => isDone }
-    }
+    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] =
+      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90)(isDone => isDone)
 
     def mineNewBlock(
         plusDifficulty: BigInt = 0
@@ -124,15 +122,14 @@ object RegularSyncItSpecUtils {
 
     def mineNewBlocks(delay: FiniteDuration, nBlocks: Int)(
         updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
-    ): Task[Unit] = {
+    ): Task[Unit] =
       if (nBlocks > 0) {
         mineNewBlock()(updateWorldForBlock)
           .delayExecution(delay)
           .flatMap(_ => mineNewBlocks(delay, nBlocks - 1)(updateWorldForBlock))
       } else Task(())
-    }
 
-    private def getMptForBlock(block: Block) = {
+    private def getMptForBlock(block: Block) =
       bl.getWorldStateProxy(
         blockNumber = block.number,
         accountStartNonce = blockchainConfig.accountStartNonce,
@@ -140,11 +137,9 @@ object RegularSyncItSpecUtils {
         noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
         ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
       )
-    }
 
-    private def broadcastBlock(block: Block, weight: ChainWeight) = {
+    private def broadcastBlock(block: Block, weight: ChainWeight) =
       broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
-    }
 
     private def createChildBlock(
         parent: Block,
@@ -171,33 +166,30 @@ object RegularSyncItSpecUtils {
 
   object FakePeer {
 
-    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] = {
+    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] =
       for {
         peer <- Task(new FakePeer(peerName, fakePeerCustomConfig))
         _ <- peer.startPeer()
       } yield peer
-    }
 
     def start1FakePeerRes(
         fakePeerCustomConfig: FakePeerCustomConfig = defaultConfig,
         name: String
-    ): Resource[Task, FakePeer] = {
+    ): Resource[Task, FakePeer] =
       Resource.make {
         startFakePeer(name, fakePeerCustomConfig)
       } { peer =>
         peer.shutdown()
       }
-    }
 
     def start2FakePeersRes(
         fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig
-    ): Resource[Task, (FakePeer, FakePeer)] = {
+    ): Resource[Task, (FakePeer, FakePeer)] =
       for {
         peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
         peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
       } yield (peer1, peer2)
-    }
 
   }
 }

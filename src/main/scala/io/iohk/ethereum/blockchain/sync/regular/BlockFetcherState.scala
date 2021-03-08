@@ -77,13 +77,13 @@ case class BlockFetcherState(
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
   def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
-    validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
+    validatedHeaders(headers.sortBy(_.number)).map { validHeaders =>
       val lastNumber = HeadersSeq.lastNumber(validHeaders)
       withPossibleNewTopAt(lastNumber)
         .copy(
           waitingHeaders = waitingHeaders ++ validHeaders
         )
-    })
+    }
 
   def tryInsertBlock(block: Block, peerId: PeerId): Either[String, BlockFetcherState] = {
     val blockHash = block.hash
@@ -126,12 +126,11 @@ case class BlockFetcherState(
         )
     }
 
-  private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
+  private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean =
     (readyBlocks, headers) match {
       case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header.isParentOf(head)
       case _                                                => true
     }
-  }
 
   def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
     hashes
@@ -247,7 +246,7 @@ case class BlockFetcherState(
 
   def invalidateBlocksFrom(nr: BigInt): (Option[PeerId], BlockFetcherState) = invalidateBlocksFrom(nr, Some(nr))
 
-  def invalidateBlocksFrom(nr: BigInt, toBlacklist: Option[BigInt]): (Option[PeerId], BlockFetcherState) = {
+  def invalidateBlocksFrom(nr: BigInt, toBlacklist: Option[BigInt]): (Option[PeerId], BlockFetcherState) =
     (
       toBlacklist.flatMap(blockProviders.get),
       this
@@ -257,7 +256,6 @@ case class BlockFetcherState(
           blockProviders = blockProviders - nr
         )
     )
-  }
 
   def isExist(hash: ByteString): Boolean = isExistInReadyBlocks(hash) || isExistInWaitingHeaders(hash)
 

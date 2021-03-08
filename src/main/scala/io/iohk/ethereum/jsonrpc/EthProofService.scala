@@ -139,10 +139,9 @@ trait ProofService {
 class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean)
     extends ProofService {
 
-  def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
+  def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] =
     getProofAccount(req.address, req.storageKeys, req.blockNumber)
       .map(_.map(GetProofResponse.apply))
-  }
 
   /** Get account and storage values for account including Merkle Proof.
     *
@@ -173,7 +172,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
   def getStorageProof(
       account: Account,
       storageKeys: Seq[StorageProofKey]
-  ): Seq[StorageProof] = {
+  ): Seq[StorageProof] =
     storageKeys.toList
       .map { storageKey =>
         blockchain
@@ -183,7 +182,6 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
             ethCompatibleStorage = ethCompatibleStorage
           )
       }
-  }
 
   private def noAccount(address: Address, blockNumber: BigInt): JsonRpcError =
     JsonRpcError.LogicError(s"No account found for Address [${address.toString}] blockNumber [${blockNumber.toString}]")
@@ -195,11 +193,10 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     ByteString(MptTraversals.encodeNode(node))
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] =
       blockchain
         .getBlockByNumber(number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
-    }
 
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))

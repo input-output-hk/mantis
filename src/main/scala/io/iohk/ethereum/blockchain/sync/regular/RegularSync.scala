@@ -156,7 +156,7 @@ object RegularSync {
       currentBlock: BigInt,
       bestKnownNetworkBlock: BigInt
   ) {
-    def toStatus: SyncProtocol.Status = {
+    def toStatus: SyncProtocol.Status =
       if (startedFetching && bestKnownNetworkBlock != 0 && currentBlock < bestKnownNetworkBlock) {
         Status.Syncing(initialBlock, Progress(currentBlock, bestKnownNetworkBlock), None)
       } else if (startedFetching && currentBlock >= bestKnownNetworkBlock) {
@@ -164,7 +164,6 @@ object RegularSync {
       } else {
         Status.NotSyncing
       }
-    }
   }
   sealed trait ProgressProtocol
   object ProgressProtocol {

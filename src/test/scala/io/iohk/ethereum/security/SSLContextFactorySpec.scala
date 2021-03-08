@@ -21,9 +21,8 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
     file = new File(fileName)
   }
 
-  override def afterAll(): Unit = {
+  override def afterAll(): Unit =
     file.delete()
-  }
 
   val keyStorePath = "mantisCA.p12"
   val keyStoreType = "pkcs12"

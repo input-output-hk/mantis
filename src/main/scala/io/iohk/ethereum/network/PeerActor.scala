@@ -156,13 +156,13 @@ class PeerActor[R <: HandshakeResult](
         context.become(processingHandshaking(handshaker, remoteNodeId, rlpxConnection, newTimeout, numRetries))
 
       case Left(HandshakeSuccess(handshakeResult)) =>
-        rlpxConnection.uriOpt.foreach { uri => knownNodesManager ! KnownNodesManager.AddKnownNode(uri) }
+        rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.AddKnownNode(uri))
         context.become(new HandshakedPeer(remoteNodeId, rlpxConnection, handshakeResult).receive)
         unstashAll()
 
       case Left(HandshakeFailure(reason)) =>
         context.parent ! PeerClosedConnection(peerAddress.getHostString, reason)
-        rlpxConnection.uriOpt.foreach { uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri) }
+        rlpxConnection.uriOpt.foreach(uri => knownNodesManager ! KnownNodesManager.RemoveKnownNode(uri))
         disconnectFromPeer(rlpxConnection, reason)
 
     }
@@ -333,9 +333,8 @@ object PeerActor {
   }
 
   case class RLPxConnection(ref: ActorRef, remoteAddress: InetSocketAddress, uriOpt: Option[URI]) {
-    def sendMessage(message: MessageSerializable): Unit = {
+    def sendMessage(message: MessageSerializable): Unit =
       ref ! RLPxConnectionHandler.SendMessage(message)
-    }
   }
 
   case class HandleConnection(connection: ActorRef, remoteAddress: InetSocketAddress)

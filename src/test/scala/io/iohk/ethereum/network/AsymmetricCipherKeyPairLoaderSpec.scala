@@ -15,9 +15,8 @@ class AsymmetricCipherKeyPairLoaderSpec extends AnyFlatSpec with Matchers with S
   def withFilePath(testCode: String => Any): Unit = {
     val path = Files.createTempFile("key-", "").toAbsolutePath.toString
     require(new File(path).delete(), "File deletion before test failed")
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val file = new File(path)
       assert(!file.exists() || file.delete(), "File deletion after test failed")
     }

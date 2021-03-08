@@ -18,7 +18,6 @@ trait EphemBlockchainTestSetup extends ScenarioSetup {
     with Storages.DefaultStorages
   //- cake overrides
 
-  def getNewStorages: EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages = {
+  def getNewStorages: EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages =
     new EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
-  }
 }

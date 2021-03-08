@@ -17,9 +17,8 @@ object MptTraversals {
     (HashNode(rootHash.toArray[Byte]), (rootHash, nodeEncoded) :: nodeCapper.getNodesToUpdate)
   }
 
-  def parseTrieIntoMemory(rootNode: MptNode, source: MptStorage): MptNode = {
+  def parseTrieIntoMemory(rootNode: MptNode, source: MptStorage): MptNode =
     dispatch(rootNode, new MptConstructionVisitor(source))
-  }
 
   def encodeNode(node: MptNode, nodeCapper: Option[NodeCapper] = None): Array[Byte] = {
     val nodeEncoded = encode(node, nodeCapper)
@@ -31,13 +30,11 @@ object MptTraversals {
     dispatch(node, new RlpHashingVisitor(new RlpEncVisitor, 0, nodeCap))
   }
 
-  def decodeNode(nodeEncoded: NodeEncoded): MptNode = {
+  def decodeNode(nodeEncoded: NodeEncoded): MptNode =
     parseMpt(decodeNodeRlp(nodeEncoded))
-  }
 
-  def decodeNodeRlp(nodeEncoded: NodeEncoded): RLPEncodeable = {
+  def decodeNodeRlp(nodeEncoded: NodeEncoded): RLPEncodeable =
     rawDecode(nodeEncoded)
-  }
 
   private def parseMpt(nodeEncoded: RLPEncodeable): MptNode = nodeEncoded match {
     case list @ RLPList(items @ _*) if items.size == MerklePatriciaTrie.ListSize =>
@@ -71,7 +68,7 @@ object MptTraversals {
     case _ => throw new MPTException("Invalid Node")
   }
 
-  private def dispatch[T](input: MptNode, visitor: MptVisitor[T]): T = {
+  private def dispatch[T](input: MptNode, visitor: MptVisitor[T]): T =
     input match {
       case leaf: LeafNode =>
         visitor.visitLeaf(leaf)
@@ -99,5 +96,4 @@ object MptTraversals {
       case nullNode: NullNode.type =>
         visitor.visitNull()
     }
-  }
 }

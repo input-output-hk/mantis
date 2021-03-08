@@ -157,7 +157,7 @@ class PeerDiscoveryManager(
       context.become(init)
   }
 
-  def startDiscoveryService(): Unit = {
+  def startDiscoveryService(): Unit =
     discoveryResources.allocated.runToFuture
       .onComplete {
         case Failure(ex) =>
@@ -165,16 +165,14 @@ class PeerDiscoveryManager(
         case Success(result) =>
           self ! StartAttempt(Right(result))
       }
-  }
 
-  def stopDiscoveryService(release: Task[Unit]): Unit = {
+  def stopDiscoveryService(release: Task[Unit]): Unit =
     release.runToFuture.onComplete {
       case Failure(ex) =>
         self ! StopAttempt(Left(ex))
       case Success(result) =>
         self ! StopAttempt(Right(result))
     }
-  }
 
   def sendDiscoveredNodesInfo(
       maybeDiscoveryService: Option[v4.DiscoveryService],

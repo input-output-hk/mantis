@@ -36,7 +36,7 @@ object NetworkMessageDecoder extends MessageDecoder {
 // scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message = {
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
     protocolVersion match {
       case PV64 => handlePV64(msgCode, payload)
       case PV63 => handlePV63(msgCode, payload)
@@ -44,9 +44,8 @@ object EthereumMessageDecoder extends MessageDecoder {
       case PV61 => handlePV61(msgCode, payload)
       case pv   => throw new RuntimeException("Unknown protocol version: " + pv)
     }
-  }
 
-  private def handleCommonMessages(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handleCommonMessages(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
       case Codes.StatusCode =>
         import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status._
@@ -59,9 +58,8 @@ object EthereumMessageDecoder extends MessageDecoder {
       case _ =>
         throw new RuntimeException("Unknown message type: " + msgCode)
     }
-  }
 
-  private def handlePV61(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV61(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
       case Codes.NewBlockHashesCode =>
         import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes._
@@ -70,9 +68,8 @@ object EthereumMessageDecoder extends MessageDecoder {
         payload.toBlockHashesFromNumber
       case _ => handleCommonMessages(msgCode, payload)
     }
-  }
 
-  private def handlePV62(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV62(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
       case Codes.NewBlockHashesCode  => payload.toNewBlockHashes
       case Codes.GetBlockHeadersCode => payload.toGetBlockHeaders
@@ -81,9 +78,8 @@ object EthereumMessageDecoder extends MessageDecoder {
       case Codes.BlockBodiesCode     => payload.toBlockBodies
       case _                         => handleCommonMessages(msgCode, payload)
     }
-  }
 
-  private def handlePV63(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV63(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
       case Codes.GetNodeDataCode => payload.toGetNodeData
       case Codes.NodeDataCode    => payload.toNodeData
@@ -91,9 +87,8 @@ object EthereumMessageDecoder extends MessageDecoder {
       case Codes.ReceiptsCode    => payload.toReceipts
       case _                     => handlePV62(msgCode, payload)
     }
-  }
 
-  private def handlePV64(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV64(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
       case Codes.StatusCode =>
         import io.iohk.ethereum.network.p2p.messages.PV64.Status._
@@ -103,5 +98,4 @@ object EthereumMessageDecoder extends MessageDecoder {
         payload.toNewBlock
       case _ => handlePV63(msgCode, payload)
     }
-  }
 }

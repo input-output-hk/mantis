@@ -40,11 +40,10 @@ class SyncStateSchedulerActor(
 
   def handleCommonMessages: Receive = handlePeerListMessages.orElse(handleBlacklistMessages)
 
-  private def getFreePeers(state: DownloaderState) = {
+  private def getFreePeers(state: DownloaderState) =
     handshakedPeers.collect {
       case (peer, _) if !state.activeRequests.contains(peer.id) && !isBlacklisted(peer.id) => peer
     }
-  }
 
   private def requestNodes(request: PeerRequest): ActorRef = {
     log.info("Requesting {} from peer {}", request.nodes.size, request.peer)
@@ -143,7 +142,7 @@ class SyncStateSchedulerActor(
 
   private def finalizeSync(
       state: SyncSchedulerActorState
-  ): Unit = {
+  ): Unit =
     if (state.memBatch.nonEmpty) {
       log.debug("Persisting {} elements to blockchain and finalizing the state sync", state.memBatch.size)
       val finalState = sync.persistBatch(state.currentSchedulerState, state.targetBlock)
@@ -155,12 +154,11 @@ class SyncStateSchedulerActor(
       state.syncInitiator ! StateSyncFinished
       context.become(idle(ProcessingStatistics()))
     }
-  }
 
   private def processNodes(
       currentState: SyncSchedulerActorState,
       requestResult: RequestResult
-  ): ProcessingResult = {
+  ): ProcessingResult =
     requestResult match {
       case RequestData(nodeData, from) =>
         val (resp, newDownloaderState) = currentState.currentDownloaderState.handleRequestSuccess(from, nodeData)
@@ -188,7 +186,6 @@ class SyncStateSchedulerActor(
         val newDownloaderState = currentState.currentDownloaderState.handleRequestFailure(from)
         ProcessingResult(Left(DownloaderError(newDownloaderState, from, reason, blacklistPeer = true)))
     }
-  }
 
   private def handleRestart(
       currentState: SchedulerState,
@@ -343,12 +340,11 @@ object SyncStateSchedulerActor {
       to: ActorRef,
       currentStats: ProcessingStatistics,
       currentState: SyncStateScheduler.SchedulerState
-  ): Unit = {
+  ): Unit =
     to ! StateSyncStats(
       currentStats.saved + currentState.memBatch.size,
       currentState.numberOfPendingRequests
     )
-  }
 
   case class StateSyncStats(saved: Long, missing: Long)
 
@@ -360,9 +356,8 @@ object SyncStateSchedulerActor {
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
       scheduler: akka.actor.Scheduler
-  ): Props = {
+  ): Props =
     Props(new SyncStateSchedulerActor(sync, syncConfig, etcPeerManager, peerEventBus, scheduler))
-  }
 
   final case object PrintInfo
   final case object PrintInfoKey

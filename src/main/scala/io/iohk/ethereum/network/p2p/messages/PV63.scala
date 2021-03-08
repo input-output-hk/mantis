@@ -94,7 +94,7 @@ object PV63 {
 
     implicit class NodeDataDec(val bytes: Array[Byte]) extends AnyVal {
       def toNodeData: NodeData = rawDecode(bytes) match {
-        case rlpList: RLPList => NodeData(rlpList.items.map { e => e: ByteString })
+        case rlpList: RLPList => NodeData(rlpList.items.map(e => e: ByteString))
         case _                => throw new RuntimeException("Cannot decode NodeData")
       }
     }

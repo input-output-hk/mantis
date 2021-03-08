@@ -38,7 +38,7 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
   def version(req: VersionRequest): ServiceResponse[VersionResponse] =
     Task.now(Right(VersionResponse(Config.Network.peer.networkId.toString)))
 
-  def listening(req: ListeningRequest): ServiceResponse[ListeningResponse] = {
+  def listening(req: ListeningRequest): ServiceResponse[ListeningResponse] =
     Task.now {
       Right(
         nodeStatusHolder.get().serverStatus match {
@@ -47,13 +47,12 @@ class NetService(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Act
         }
       )
     }
-  }
 
   def peerCount(req: PeerCountRequest): ServiceResponse[PeerCountResponse] = {
     implicit val timeout: Timeout = Timeout(config.peerManagerTimeout)
     import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
     peerManager
       .askFor[PeerManagerActor.Peers](PeerManagerActor.GetPeers)
-      .map { peers => Right(PeerCountResponse(peers.handshaked.size)) }
+      .map(peers => Right(PeerCountResponse(peers.handshaked.size)))
   }
 }

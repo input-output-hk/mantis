@@ -16,12 +16,11 @@ trait TransactionPicker extends Logger {
 
   implicit val timeout: Timeout = Timeout(getTransactionFromPoolTimeout)
 
-  def getTransactionsFromPool: Task[PendingTransactionsResponse] = {
+  def getTransactionsFromPool: Task[PendingTransactionsResponse] =
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .onErrorHandle { ex =>
         log.error("Failed to get transactions, mining block with empty transactions list", ex)
         PendingTransactionsResponse(Nil)
       }
-  }
 }

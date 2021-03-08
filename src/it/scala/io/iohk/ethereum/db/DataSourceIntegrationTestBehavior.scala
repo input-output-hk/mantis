@@ -25,9 +25,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val dir = new File(path)
       assert(!dir.exists() || dir.delete(), "File deletion failed")
     }
@@ -43,11 +42,10 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
   def updateInSeparateCalls(
       dataSource: DataSource,
       toUpsert: Seq[(ByteString, ByteString)]
-  ): Unit = {
+  ): Unit =
     toUpsert.foreach { keyValuePair =>
       dataSource.update(prepareUpdate(toUpsert = Seq(keyValuePair)))
     }
-  }
 
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {

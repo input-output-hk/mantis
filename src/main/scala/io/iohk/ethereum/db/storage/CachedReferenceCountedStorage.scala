@@ -35,7 +35,7 @@ class CachedReferenceCountedStorage(
     bn: BigInt
 ) extends NodesKeyValueStorage {
 
-  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
+  def get(nodeHash: NodeHash): Option[NodeEncoded] =
     cache
       .get(nodeHash)
       .fold {
@@ -44,7 +44,6 @@ class CachedReferenceCountedStorage(
           entry.nodeEncoded
         }
       }(entry => Some(entry.nodeEncoded))
-  }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     changeLog.withChangeLog(bn) { blockChangeLog =>
@@ -95,7 +94,7 @@ object CachedReferenceCountedStorage {
 
   def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage, forced: Boolean = false)(implicit
       ser: ByteArraySerializable[V]
-  ): Boolean = {
+  ): Boolean =
     if (cache.shouldPersist || forced) {
       val values = cache.getValues
       val serialized = values.map { case (key, value) => key -> ser.toBytes(value) }
@@ -105,7 +104,6 @@ object CachedReferenceCountedStorage {
     } else {
       false
     }
-  }
 
   def prune(deathRow: List[NodeHash], cache: Cache[NodeHash, HeapEntry], blockToPrune: BigInt): Unit = {
     val toDelFromCache = getNodesToPruneInCache(cache, deathRow, blockToPrune)
@@ -144,7 +142,7 @@ object CachedReferenceCountedStorage {
 
   private def gatherCacheUpdates(
       previousState: Map[NodeHash, (HeapEntry, Boolean)]
-  ): (List[NodeHash], List[(NodeHash, HeapEntry)]) = {
+  ): (List[NodeHash], List[(NodeHash, HeapEntry)]) =
     previousState.foldLeft(List.empty[NodeHash], List.empty[(NodeHash, HeapEntry)]) {
       case ((toDel, toUpdate), (entryKey, (entryValue, deletable))) =>
         if (entryValue.numOfParents == 0 && deletable)
@@ -152,7 +150,6 @@ object CachedReferenceCountedStorage {
         else
           (toDel, (entryKey, entryValue) :: toUpdate)
     }
-  }
 
   def rollback(
       cache: Cache[NodeHash, HeapEntry],
@@ -178,7 +175,7 @@ object CachedReferenceCountedStorage {
 class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: Cache[ByteString, HeapEntry], bn: BigInt)
     extends NodesKeyValueStorage {
 
-  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
+  def get(nodeHash: NodeHash): Option[NodeEncoded] =
     cache
       .get(nodeHash)
       .map(_.nodeEncoded)
@@ -187,7 +184,6 @@ class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: Ca
           .get(nodeHash)
           .map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
       )
-  }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     toUpsert.foreach { case (key, value) =>
@@ -208,13 +204,11 @@ import io.iohk.ethereum.utils.ByteUtils._
 
 final case class HeapEntry(nodeEncoded: NodeEncoded, numOfParents: Int, bn: BigInt) {
 
-  def incrementParents(incrementationBlock: BigInt): HeapEntry = {
+  def incrementParents(incrementationBlock: BigInt): HeapEntry =
     copy(numOfParents = numOfParents + 1, bn = incrementationBlock)
-  }
 
-  def decrementParents(decrementationBlock: BigInt): HeapEntry = {
+  def decrementParents(decrementationBlock: BigInt): HeapEntry =
     copy(numOfParents = numOfParents - 1, bn = decrementationBlock)
-  }
 }
 
 object HeapEntry {
@@ -222,13 +216,11 @@ object HeapEntry {
 
   implicit val HeapEntryPickler: Pickler[HeapEntry] = generatePickler[HeapEntry]
 
-  def toBytes(entry: HeapEntry): Array[Byte] = {
+  def toBytes(entry: HeapEntry): Array[Byte] =
     compactPickledBytes(Pickle.intoBytes(entry)).toArray[Byte]
-  }
 
-  def fromBytes(asbytes: Array[Byte]): HeapEntry = {
+  def fromBytes(asbytes: Array[Byte]): HeapEntry =
     Unpickle[HeapEntry].fromBytes(ByteBuffer.wrap(asbytes))
-  }
 
   implicit val heapEntrySerializer = new ByteArraySerializable[HeapEntry] {
     override def toBytes(input: HeapEntry): Array[Byte] = HeapEntry.toBytes(input)
@@ -254,7 +246,7 @@ object Update {
 class ChangeLog(nodeStorage: NodeStorage) {
   private val logs = mutable.Map.empty[BigInt, BlockChangeLog]
 
-  def persistChangeLog(forBlock: BigInt): Unit = {
+  def persistChangeLog(forBlock: BigInt): Unit =
     logs.get(forBlock).foreach { changeLog =>
       nodeStorage.update(
         Nil,
@@ -265,7 +257,6 @@ class ChangeLog(nodeStorage: NodeStorage) {
       )
       logs.remove(forBlock)
     }
-  }
 
   def withChangeLog(bn: BigInt)(updates: BlockChangeLog => Unit): Unit = {
     val changeLog = getChangeLogForBlock(bn)
@@ -273,7 +264,7 @@ class ChangeLog(nodeStorage: NodeStorage) {
     logs.update(bn, changeLog)
   }
 
-  def getChangeLogForBlock(bn: BigInt): BlockChangeLog = {
+  def getChangeLogForBlock(bn: BigInt): BlockChangeLog =
     logs.getOrElse(
       bn, {
         val newChangeLog = new BlockChangeLog(List.empty, Set.empty)
@@ -281,19 +272,15 @@ class ChangeLog(nodeStorage: NodeStorage) {
         newChangeLog
       }
     )
-  }
 
-  def removeBlockMetaData(bn: BigInt): Unit = {
+  def removeBlockMetaData(bn: BigInt): Unit =
     nodeStorage.update(Seq(ChangeLog.getLogKey(bn), ChangeLog.getDrwKey(bn)), Nil)
-  }
 
-  def getChangeLogFromStorage(bn: BigInt): Option[List[Update]] = {
+  def getChangeLogFromStorage(bn: BigInt): Option[List[Update]] =
     nodeStorage.get(ChangeLog.getLogKey(bn)).map(ChangeLog.deserializeChangeLog)
-  }
 
-  def getDeathRowFromStorage(bn: BigInt): Option[List[NodeHash]] = {
+  def getDeathRowFromStorage(bn: BigInt): Option[List[NodeHash]] =
     nodeStorage.get(ChangeLog.getDrwKey(bn)).map(ChangeLog.deserializeDeathRow)
-  }
 }
 
 object ChangeLog {

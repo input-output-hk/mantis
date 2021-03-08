@@ -83,13 +83,12 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   def extractCall(obj: JObject): Either[JsonRpcError, CallTx] = {
-    def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] = {
+    def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
       opt match {
         case Some(Right(v)) => Right(Option(v))
         case Some(Left(e))  => Left(e)
         case None           => Right(None)
       }
-    }
 
     for {
       from <- toEitherOpt((obj \ "from").extractOpt[String].map(extractBytes))

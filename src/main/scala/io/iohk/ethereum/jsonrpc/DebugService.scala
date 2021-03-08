@@ -18,12 +18,11 @@ object DebugService {
 
 class DebugService(peerManager: ActorRef, etcPeerManager: ActorRef) {
 
-  def listPeersInfo(getPeersInfoRequest: ListPeersInfoRequest): ServiceResponse[ListPeersInfoResponse] = {
+  def listPeersInfo(getPeersInfoRequest: ListPeersInfoRequest): ServiceResponse[ListPeersInfoResponse] =
     for {
       ids <- getPeerIds
       peers <- Task.traverse(ids)(getPeerInfo)
     } yield Right(ListPeersInfoResponse(peers.flatten))
-  }
 
   private def getPeerIds: Task[List[PeerId]] = {
     implicit val timeout: Timeout = Timeout(5.seconds)

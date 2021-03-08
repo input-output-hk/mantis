@@ -12,14 +12,13 @@ object AuthResponseMessage {
 
   val EncodedLength: Int = PublicKeyLength + NonceLength + KnownPeerLength
 
-  def decode(input: Array[Byte]): AuthResponseMessage = {
+  def decode(input: Array[Byte]): AuthResponseMessage =
     AuthResponseMessage(
       ephemeralPublicKey =
         curve.getCurve.decodePoint(ECDSASignature.UncompressedIndicator +: input.take(PublicKeyLength)),
       nonce = ByteString(input.slice(PublicKeyLength, PublicKeyLength + NonceLength)),
       knownPeer = input(PublicKeyLength + NonceLength) == 1
     )
-  }
 }
 
 case class AuthResponseMessage(ephemeralPublicKey: ECPoint, nonce: ByteString, knownPeer: Boolean) {

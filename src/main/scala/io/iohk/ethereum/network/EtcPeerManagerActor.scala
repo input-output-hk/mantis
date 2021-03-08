@@ -113,14 +113,13 @@ class EtcPeerManagerActor(
       peerId: PeerId,
       message: Message,
       messageHandler: (Message, PeerWithInfo) => PeerInfo
-  ): PeersWithInfo = {
+  ): PeersWithInfo =
     if (peers.contains(peerId)) {
       val peerWithInfo = peers(peerId)
       val newPeerInfo = messageHandler(message, peerWithInfo)
       peers + (peerId -> peerWithInfo.copy(peerInfo = newPeerInfo))
     } else
       peers
-  }
 
   /** Processes the message and the old peer info and returns the peer info
     *
@@ -137,11 +136,10 @@ class EtcPeerManagerActor(
     * @param initialPeerWithInfo from before the message was processed
     * @return new updated peer info
     */
-  private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo = {
+  private def handleReceivedMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo =
     ((updateChainWeight(message) _)
       .andThen(updateForkAccepted(message, initialPeerWithInfo.peer))
       .andThen(updateMaxBlock(message)))(initialPeerWithInfo.peerInfo)
-  }
 
   /** Processes the message and updates the chain weight of the peer
     *
@@ -192,7 +190,7 @@ class EtcPeerManagerActor(
     * @return new peer info with the max block number updated
     */
   private def updateMaxBlock(message: Message)(initialPeerInfo: PeerInfo): PeerInfo = {
-    def update(ns: Seq[(BigInt, ByteString)]): PeerInfo = {
+    def update(ns: Seq[(BigInt, ByteString)]): PeerInfo =
       if (ns.isEmpty) {
         initialPeerInfo
       } else {
@@ -205,7 +203,6 @@ class EtcPeerManagerActor(
         } else
           initialPeerInfo
       }
-    }
 
     message match {
       case m: BlockHeaders =>
@@ -236,7 +233,7 @@ object EtcPeerManagerActor {
       bestHash: ByteString,
       genesisHash: ByteString
   ) {
-    override def toString: String = {
+    override def toString: String =
       s"RemoteStatus { " +
         s"protocolVersion: $protocolVersion, " +
         s"networkId: $networkId, " +
@@ -244,15 +241,13 @@ object EtcPeerManagerActor {
         s"bestHash: ${ByteStringUtils.hash2string(bestHash)}, " +
         s"genesisHash: ${ByteStringUtils.hash2string(genesisHash)}," +
         s"}"
-    }
   }
 
   object RemoteStatus {
-    def apply(status: PV64.Status): RemoteStatus = {
+    def apply(status: PV64.Status): RemoteStatus =
       RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
-    }
 
-    def apply(status: CommonMessages.Status): RemoteStatus = {
+    def apply(status: CommonMessages.Status): RemoteStatus =
       RemoteStatus(
         status.protocolVersion,
         status.networkId,
@@ -260,7 +255,6 @@ object EtcPeerManagerActor {
         status.bestHash,
         status.genesisHash
       )
-    }
   }
 
   case class PeerInfo(
@@ -290,7 +284,7 @@ object EtcPeerManagerActor {
   }
 
   object PeerInfo {
-    def apply(remoteStatus: RemoteStatus, forkAccepted: Boolean): PeerInfo = {
+    def apply(remoteStatus: RemoteStatus, forkAccepted: Boolean): PeerInfo =
       PeerInfo(
         remoteStatus,
         remoteStatus.chainWeight,
@@ -298,7 +292,6 @@ object EtcPeerManagerActor {
         0,
         remoteStatus.bestHash
       )
-    }
 
     def withForkAccepted(remoteStatus: RemoteStatus): PeerInfo =
       PeerInfo(remoteStatus, forkAccepted = true)

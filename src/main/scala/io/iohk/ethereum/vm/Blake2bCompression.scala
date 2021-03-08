@@ -72,7 +72,7 @@ object Blake2bCompression {
     (rounds, h, m, t, f)
   }
 
-  def blake2bCompress(input: Array[Byte]): Option[Array[Byte]] = {
+  def blake2bCompress(input: Array[Byte]): Option[Array[Byte]] =
     if (isValidInput(input)) {
       val (rounds, h, m, t, f) = parseInput(input)
       compress(rounds, h, m, t, f)
@@ -80,7 +80,6 @@ object Blake2bCompression {
     } else {
       None
     }
-  }
 
   private def convertToBytes(h: Array[Long]): Array[Byte] = {
     var i = 0

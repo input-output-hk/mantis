@@ -78,13 +78,9 @@ class PeerDiscoveryManagerSpec
     def test(): Unit
   }
 
-  def test(fixture: Fixture): Unit = {
-    try {
-      fixture.test()
-    } finally {
-      system.stop(fixture.peerDiscoveryManager)
-    }
-  }
+  def test(fixture: Fixture): Unit =
+    try fixture.test()
+    finally system.stop(fixture.peerDiscoveryManager)
 
   def toENode(node: Node): ENode =
     ENode(
@@ -99,9 +95,8 @@ class PeerDiscoveryManagerSpec
       override lazy val discoveryConfig =
         defaultConfig.copy(discoveryEnabled = false, reuseKnownNodes = false)
 
-      override def test(): Unit = {
+      override def test(): Unit =
         getPeers.futureValue.nodes shouldBe empty
-      }
     }
   }
 
@@ -110,9 +105,8 @@ class PeerDiscoveryManagerSpec
       override lazy val discoveryConfig =
         defaultConfig.copy(discoveryEnabled = false, reuseKnownNodes = true, bootstrapNodes = sampleNodes)
 
-      override def test(): Unit = {
+      override def test(): Unit =
         getPeers.futureValue.nodes should contain theSameElementsAs (sampleNodes)
-      }
     }
   }
 
@@ -126,9 +120,8 @@ class PeerDiscoveryManagerSpec
         .returning(sampleKnownUris)
         .once()
 
-      override def test(): Unit = {
+      override def test(): Unit =
         getPeers.futureValue.nodes.map(_.toUri) should contain theSameElementsAs (sampleKnownUris)
-      }
     }
   }
 
@@ -243,9 +236,8 @@ class PeerDiscoveryManagerSpec
       val expectedLookups = Range.inclusive(3, 4)
       val lookupCount = AtomicInt(0)
 
-      implicit val nodeOrd: Ordering[ENode] = {
+      implicit val nodeOrd: Ordering[ENode] =
         Ordering.by(_.id.toByteArray.toSeq)
-      }
 
       (discoveryService.lookup _)
         .expects(*)
@@ -282,9 +274,8 @@ class PeerDiscoveryManagerSpec
         .returning(sampleKnownUris)
         .once()
 
-      override def test(): Unit = {
+      override def test(): Unit =
         getRandomPeer.failed.futureValue shouldBe an[AskTimeoutException]
-      }
     }
   }
 }

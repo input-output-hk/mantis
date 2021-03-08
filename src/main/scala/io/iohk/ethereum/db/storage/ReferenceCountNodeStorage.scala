@@ -125,13 +125,11 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
   val nodeKeyLength = 32
 
-  def drRowKey(bn: BigInt): ByteString = {
+  def drRowKey(bn: BigInt): ByteString =
     ByteString("dr".getBytes()) ++ ByteString(bn.toByteArray)
-  }
 
-  def getDeathRow(key: ByteString, nodeStorage: NodesStorage): ByteString = {
+  def getDeathRow(key: ByteString, nodeStorage: NodesStorage): ByteString =
     ByteString(nodeStorage.get(key).getOrElse(Array[Byte]()))
-  }
 
   type Changes = Map[NodeHash, (StoredNode, StoredNodeSnapshot)]
 
@@ -215,9 +213,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
       for {
         node <- nodeStorage.get(key).map(storedNodeFromBytes)
         if node.references == 0 && node.lastUsedByBlock <= blockNumber
-      } yield {
-        nodesToRemove = key :: nodesToRemove
-      }
+      } yield nodesToRemove = key :: nodesToRemove
     }
 
     nodesToRemove

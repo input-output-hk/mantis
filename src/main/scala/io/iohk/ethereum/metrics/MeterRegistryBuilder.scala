@@ -45,9 +45,8 @@ object MeterRegistryBuilder extends Logger {
     registry
       .config()
       .meterFilter(new MeterFilter {
-        override def map(id: Meter.Id): Meter.Id = {
+        override def map(id: Meter.Id): Meter.Id =
           id.withName(MetricsUtils.mkNameWithPrefix(metricsPrefix)(id.getName))
-        }
       })
       .onMeterAdded(onMeterAdded)
 

@@ -151,7 +151,7 @@ object PeerEventBusActor {
       * @param from, classifier for the message received event to unsubscribe
       * @return true if successful and false if not (because it wasn't subscribed to that Classifier, or otherwise)
       */
-    private def unsubscribeFromMessageReceived(subscriber: ActorRef, from: MessageClassifier): Boolean = {
+    private def unsubscribeFromMessageReceived(subscriber: ActorRef, from: MessageClassifier): Boolean =
       messageSubscriptions.get((subscriber, from.peerSelector)).exists { messageCodes =>
         val newMessageCodes = messageCodes -- from.messageCodes
         if (messageCodes == newMessageCodes) false
@@ -161,7 +161,6 @@ object PeerEventBusActor {
           true
         }
       }
-    }
 
     /** Unsubscribes the subscriber from a requested event
       *

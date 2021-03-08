@@ -181,7 +181,7 @@ class DumpChainActor(
 
   }
 
-  private def assignWork(): Unit = {
+  private def assignWork(): Unit =
     if (!anyRequestsRemaining()) {
       dumpChainToFile()
       println("Finished download, dumped chain to file")
@@ -227,7 +227,6 @@ class DumpChainActor(
         }
       }
     }
-  }
 
   private def anyRequestsRemaining(): Boolean =
     nodesToRequest.nonEmpty || blockBodiesToRequest.nonEmpty || receiptsToRequest.nonEmpty || (blockHeaderToRequest < maxBlocks)

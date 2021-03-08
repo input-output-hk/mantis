@@ -42,9 +42,8 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
         .withIdleTimeout(timeout)
     )
 
-  protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] = {
+  protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] =
     doJsonRequest(method, args).map(_.flatMap(getResult[T]))
-  }
 
   protected def doJsonRequest(
       method: String,
@@ -55,14 +54,13 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
     makeRpcCall(request.asJson)
   }
 
-  private def getResult[T: Decoder](jsonResponse: Json): Either[RpcError, T] = {
+  private def getResult[T: Decoder](jsonResponse: Json): Either[RpcError, T] =
     jsonResponse.hcursor.downField("error").as[JsonRpcError] match {
       case Right(error) =>
         Left(RpcClientError(s"Node returned an error: ${error.message} (${error.code})"))
       case Left(_) =>
         jsonResponse.hcursor.downField("result").as[T].left.map(f => RpcClientError(f.message))
     }
-  }
 
   private def makeRpcCall(jsonRequest: Json): Task[Either[RpcError, Json]] = {
     val entity = HttpEntity(ContentTypes.`application/json`, jsonRequest.noSpaces)
@@ -88,14 +86,13 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
       }
   }
 
-  private def prepareJsonRequest(method: String, args: Seq[Json]): Json = {
+  private def prepareJsonRequest(method: String, args: Seq[Json]): Json =
     Map(
       "jsonrpc" -> "2.0".asJson,
       "method" -> method.asJson,
       "params" -> args.asJson,
       "id" -> s"${UUID.randomUUID()}".asJson
     ).asJson
-  }
 
   private def exceptionToString(ex: Throwable): String = {
     val sw = new StringWriter()

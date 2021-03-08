@@ -565,7 +565,7 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "request pending transactions and return valid response when mempool has transactions" in new JsonRpcControllerFixture {
-    val transactions = (0 to 1).map(_ => {
+    val transactions = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
         Transaction(
           nonce = 0,
@@ -579,7 +579,7 @@ class JsonRpcControllerEthTransactionSpec
         sender = Address("0x1234")
       )
       PendingTransaction(fakeTransaction, System.currentTimeMillis)
-    })
+    }
 
     val mockEthTxService = mock[EthTxService]
     (mockEthTxService.ethPendingTransactions _)
@@ -601,11 +601,9 @@ class JsonRpcControllerEthTransactionSpec
     val response: JsonRpcResponse = jRpcController.handleRequest(request).runSyncUnsafe()
 
     val result = JArray(
-      transactions
-        .map(tx => {
-          encodeAsHex(tx.stx.tx.hash)
-        })
-        .toList
+      transactions.map { tx =>
+        encodeAsHex(tx.stx.tx.hash)
+      }.toList
     )
 
     response should haveResult(result)

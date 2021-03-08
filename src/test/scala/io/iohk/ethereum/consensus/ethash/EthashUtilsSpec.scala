@@ -140,13 +140,12 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   def seedForBlockReference(blockNumber: BigInt): ByteString = {
     @tailrec
-    def go(current: BigInt, currentHash: ByteString): ByteString = {
+    def go(current: BigInt, currentHash: ByteString): ByteString =
       if (current < EPOCH_LENGTH_BEFORE_ECIP_1099) {
         currentHash
       } else {
         go(current - EPOCH_LENGTH_BEFORE_ECIP_1099, kec256(currentHash))
       }
-    }
 
     go(blockNumber, ByteString(Hex.decode("00" * 32)))
   }

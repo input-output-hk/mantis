@@ -111,14 +111,13 @@ class TestService(
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
-    def mineBlock(): Task[Unit] = {
+    def mineBlock(): Task[Unit] =
       getBlockForMining(blockchain.getBestBlock().get).map { blockForMining =>
         val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
         log.info("Block mining result: " + res)
         pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
         consensus.blockTimestamp += 1
       }
-    }
 
     def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { res =>
       if (n <= 1) Task.now(res)

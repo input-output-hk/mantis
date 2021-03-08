@@ -27,18 +27,16 @@ sealed abstract class MptNode {
   val parsedRlp: Option[RLPEncodeable]
 
   // Overriding equals is necessery to avoid array comparisons.
-  override def equals(obj: Any): Boolean = {
+  override def equals(obj: Any): Boolean =
     if (!obj.isInstanceOf[MptNode]) {
       false
     } else {
       val compared = obj.asInstanceOf[MptNode]
       hash.sameElements(compared.hash)
     }
-  }
 
-  override def hashCode(): Int = {
+  override def hashCode(): Int =
     17 + util.Arrays.hashCode(hash)
-  }
 
   def isNew: Boolean = parsedRlp.isEmpty
 }
@@ -48,9 +46,8 @@ object MptNode {
 }
 
 object Node {
-  def hashFn(input: Array[Byte]): Array[Byte] = {
+  def hashFn(input: Array[Byte]): Array[Byte] =
     crypto.kec256(input, 0, input.length)
-  }
 }
 
 case class LeafNode(
@@ -151,9 +148,8 @@ object BranchNode {
     * @param terminator to be associated with the new BranchNode.
     * @return a new BranchNode.
     */
-  def withValueOnly(terminator: Array[Byte]): BranchNode = {
+  def withValueOnly(terminator: Array[Byte]): BranchNode =
     BranchNode(util.Arrays.copyOf(emptyChildren, numberOfChildren), Some(ByteString(terminator)))
-  }
 
   /** This function creates a new BranchNode having only one child associated with it (and optionaly a value).
     * This new BranchNode will be temporarily in an invalid state.

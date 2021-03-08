@@ -176,7 +176,7 @@ trait PayloadCodecs { self: ContentCodecs =>
 
         Attempt.successful(BitVector(packetType.toByte +: packetData))
       },
-      (bits: BitVector) => {
+      (bits: BitVector) =>
         bits.consumeThen(8)(
           err => Attempt.failure(Err(err)),
           (head, tail) => {
@@ -198,6 +198,5 @@ trait PayloadCodecs { self: ContentCodecs =>
             Attempt.fromTry(tryPayload.map(DecodeResult(_, BitVector.empty)))
           }
         )
-      }
     )
 }

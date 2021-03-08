@@ -29,13 +29,11 @@ trait PersistentStorage {
     dataSource.destroy()
   }
 
-  private def testExecution(testCode: MptStorage => Unit, dbPath: String, dataSource: DataSource): Unit = {
-    try {
-      testCode(new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(dataSource))))
-    } finally {
+  private def testExecution(testCode: MptStorage => Unit, dbPath: String, dataSource: DataSource): Unit =
+    try testCode(new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(dataSource))))
+    finally {
       val dir = new File(dbPath)
       !dir.exists() || dir.delete()
     }
-  }
 
 }

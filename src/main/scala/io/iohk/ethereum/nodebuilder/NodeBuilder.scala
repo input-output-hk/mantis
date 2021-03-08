@@ -715,12 +715,11 @@ trait ShutdownHookBuilder {
   lazy val shutdownTimeoutDuration: Duration = Config.shutdownTimeout
 
   Runtime.getRuntime.addShutdownHook(new Thread() {
-    override def run(): Unit = {
+    override def run(): Unit =
       shutdown()
-    }
   })
 
-  def shutdownOnError[A](f: => A): A = {
+  def shutdownOnError[A](f: => A): A =
     Try(f) match {
       case Success(v) => v
       case Failure(t) =>
@@ -728,7 +727,6 @@ trait ShutdownHookBuilder {
         shutdown()
         throw t
     }
-  }
 }
 
 object ShutdownHookBuilder extends ShutdownHookBuilder with Logger

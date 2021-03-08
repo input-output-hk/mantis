@@ -133,20 +133,18 @@ class BlockImporter(
   }
 
   private def importBlocks(blocks: NonEmptyList[Block], blockImportType: BlockImportType): ImportFn = importWith(
-    {
-      Task(
-        log.debug(
-          "Attempting to import blocks starting from {} and ending with {}",
-          blocks.head.number,
-          blocks.last.number
-        )
+    Task(
+      log.debug(
+        "Attempting to import blocks starting from {} and ending with {}",
+        blocks.head.number,
+        blocks.last.number
       )
-        .flatMap(_ => Task.now(resolveBranch(blocks)))
-        .flatMap {
-          case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-          case Left(resolvingFrom)   => Task.now(ResolvingBranch(resolvingFrom))
-        }
-    },
+    )
+      .flatMap(_ => Task.now(resolveBranch(blocks)))
+      .flatMap {
+        case Right(blocksToImport) => handleBlocksImport(blocksToImport)
+        case Left(resolvingFrom)   => Task.now(ResolvingBranch(resolvingFrom))
+      },
     blockImportType
   )
 
@@ -249,39 +247,37 @@ class BlockImporter(
   ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
     importWith(
-      {
-        Task(doLog(importMessages.preImport()))
-          .flatMap(_ => ledger.importBlock(block))
-          .tap((importMessages.messageForImportResult _).andThen(doLog))
-          .tap {
-            case BlockImportedToTop(importedBlocksData) =>
-              val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
-              broadcastBlocks(blocks, weights)
-              updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-              supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-            case BlockEnqueued  => ()
-            case DuplicateBlock => ()
-            case UnknownParent  => () // This is normal when receiving broadcast blocks
-            case ChainReorganised(oldBranch, newBranch, weights) =>
-              updateTxPool(newBranch, oldBranch)
-              broadcastBlocks(newBranch, weights)
-              newBranch.lastOption match {
-                case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
-                case None           => ()
-              }
-            case BlockImportFailed(error) =>
-              if (informFetcherOnFail) {
-                fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
-              }
-          }
-          .map(_ => Running)
-          .recover {
-            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-              // state node re-download will be handled when downloading headers
-              doLog(importMessages.missingStateNode(missingNodeEx))
-              Running
-          }
-      },
+      Task(doLog(importMessages.preImport()))
+        .flatMap(_ => ledger.importBlock(block))
+        .tap((importMessages.messageForImportResult _).andThen(doLog))
+        .tap {
+          case BlockImportedToTop(importedBlocksData) =>
+            val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
+            broadcastBlocks(blocks, weights)
+            updateTxPool(importedBlocksData.map(_.block), Seq.empty)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
+          case BlockEnqueued  => ()
+          case DuplicateBlock => ()
+          case UnknownParent  => () // This is normal when receiving broadcast blocks
+          case ChainReorganised(oldBranch, newBranch, weights) =>
+            updateTxPool(newBranch, oldBranch)
+            broadcastBlocks(newBranch, weights)
+            newBranch.lastOption match {
+              case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
+              case None           => ()
+            }
+          case BlockImportFailed(error) =>
+            if (informFetcherOnFail) {
+              fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
+            }
+        }
+        .map(_ => Running)
+        .recover {
+          case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
+            // state node re-download will be handled when downloading headers
+            doLog(importMessages.missingStateNode(missingNodeEx))
+            Running
+        },
       blockImportType
     )
   }

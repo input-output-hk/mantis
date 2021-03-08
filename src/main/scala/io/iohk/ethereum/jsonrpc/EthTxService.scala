@@ -51,9 +51,8 @@ class EthTxService(
     * @param req with the tx requested (by it's hash)
     * @return the raw transaction hask or None if the client doesn't have the tx
     */
-  def getRawTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[RawTransactionResponse] = {
+  def getRawTransactionByHash(req: GetTransactionByHashRequest): ServiceResponse[RawTransactionResponse] =
     getTransactionDataByHash(req.txHash).map(asRawTransactionResponse)
-  }
 
   /** eth_getRawTransactionByBlockHashAndIndex returns raw transaction data of a transaction with the block hash and index of which it was mined
     *
@@ -207,7 +206,7 @@ class EthTxService(
       .map(RawTransactionResponse)
   }
 
-  private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) = {
+  private def getTransactionDataByBlockNumberAndIndex(block: BlockParam, transactionIndex: BigInt) =
     resolveBlock(block)
       .map { blockWithTx =>
         val blockTxs = blockWithTx.block.body.transactionList
@@ -223,7 +222,6 @@ class EthTxService(
       }
       .left
       .flatMap(_ => Right(None))
-  }
 
   /** Returns the transactions that are pending in the transaction pool and have a from address that is one of the accounts this node manages.
     *

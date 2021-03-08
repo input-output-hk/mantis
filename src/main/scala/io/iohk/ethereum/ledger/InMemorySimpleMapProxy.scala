@@ -58,7 +58,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: 
     * @return the new DataSource after the removals and insertions were done.
     */
   override def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): InMemorySimpleMapProxy[K, V, I] = {
-    val afterRemoval = toRemove.foldLeft(cache) { (updated, key) => updated + (key -> None) }
+    val afterRemoval = toRemove.foldLeft(cache)((updated, key) => updated + (key -> None))
     val afterInserts = toUpsert.foldLeft(afterRemoval) { (updated, toUpsert) =>
       updated + (toUpsert._1 -> Some(toUpsert._2))
     }

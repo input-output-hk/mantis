@@ -22,12 +22,11 @@ case class Healthcheck[Error, Result](
     mapExceptionToError: Throwable => Option[String] = (t: Throwable) => Some(String.valueOf(t))
 ) {
 
-  def apply(): Task[HealthcheckResult] = {
+  def apply(): Task[HealthcheckResult] =
     f.map {
       case Left(error) =>
         HealthcheckResult(description, mapErrorToError(error))
       case Right(result) =>
         HealthcheckResult(description, mapResultToError(result))
     }.onErrorHandle(t => HealthcheckResult(description, mapExceptionToError(t)))
-  }
 }

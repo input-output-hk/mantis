@@ -16,9 +16,8 @@ object ECDSASignatureImplicits {
   }
 
   implicit class ECDSASignatureEnc(ecdsaSignature: ECDSASignature) extends RLPSerializable {
-    override def toRLPEncodable: RLPEncodeable = {
+    override def toRLPEncodable: RLPEncodeable =
       RLPList(ecdsaSignature.r, ecdsaSignature.s, ecdsaSignature.v)
-    }
   }
 
   implicit val ECDSASignatureOrdering: Ordering[ECDSASignature] = Ordering.by(sig => (sig.r, sig.s, sig.v))

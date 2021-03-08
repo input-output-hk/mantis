@@ -92,13 +92,12 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
 
   def getBlockTransactionCountByNumber(
       req: GetBlockTransactionCountByNumberRequest
-  ): ServiceResponse[GetBlockTransactionCountByNumberResponse] = {
+  ): ServiceResponse[GetBlockTransactionCountByNumberResponse] =
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetBlockTransactionCountByNumberResponse(block.body.transactionList.size)
       }
     }
-  }
 
   /** Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
     *
@@ -158,17 +157,16 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
 
   def getUncleCountByBlockNumber(
       req: GetUncleCountByBlockNumberRequest
-  ): ServiceResponse[GetUncleCountByBlockNumberResponse] = {
+  ): ServiceResponse[GetUncleCountByBlockNumberResponse] =
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         GetUncleCountByBlockNumberResponse(block.body.uncleNodesList.size)
       }
     }
-  }
 
   def getUncleCountByBlockHash(
       req: GetUncleCountByBlockHashRequest
-  ): ServiceResponse[GetUncleCountByBlockHashResponse] = {
+  ): ServiceResponse[GetUncleCountByBlockHashResponse] =
     Task {
       blockchain.getBlockBodyByHash(req.blockHash) match {
         case Some(blockBody) =>
@@ -179,5 +177,4 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
           )
       }
     }
-  }
 }

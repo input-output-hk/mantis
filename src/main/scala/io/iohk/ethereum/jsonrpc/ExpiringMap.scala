@@ -32,9 +32,8 @@ class ExpiringMap[K, V] private (
     this
   }
 
-  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
+  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] =
     addFor(k, v, duration)
-  }
 
   def addForever(k: K, v: V): ExpiringMap[K, V] =
     addFor(k, v, maxHoldDuration)
@@ -47,7 +46,7 @@ class ExpiringMap[K, V] private (
     this
   }
 
-  def get(k: K): Option[V] = {
+  def get(k: K): Option[V] =
     underlying
       .get(k)
       .flatMap(value =>
@@ -58,7 +57,6 @@ class ExpiringMap[K, V] private (
           None
         }
       )
-  }
 
   private def isNotExpired(value: ValueWithDuration[V]) =
     currentNanoDuration().minus(value.expiration).isNegative

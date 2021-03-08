@@ -44,13 +44,12 @@ trait JsonMethodsImplicits {
     duration <- getDuration(quantity)
   } yield duration
 
-  private def getDuration(value: BigInt): Either[JsonRpcError, Duration] = {
+  private def getDuration(value: BigInt): Either[JsonRpcError, Duration] =
     Either.cond(
       value.isValidInt,
       Duration.ofSeconds(value.toInt),
       InvalidParams("Duration should be an number of seconds, less than 2^31 - 1")
     )
-  }
 
   protected def extractAddress(input: JString): Either[JsonRpcError, Address] =
     extractAddress(input.s)
@@ -121,7 +120,7 @@ trait JsonMethodsImplicits {
     } yield TransactionRequest(from, to, value, gas, gasPrice, nonce, data)
   }
 
-  protected def extractBlockParam(input: JValue): Either[JsonRpcError, BlockParam] = {
+  protected def extractBlockParam(input: JValue): Either[JsonRpcError, BlockParam] =
     input match {
       case JString("earliest") => Right(BlockParam.Earliest)
       case JString("latest")   => Right(BlockParam.Latest)
@@ -132,7 +131,6 @@ trait JsonMethodsImplicits {
           .left
           .map(_ => JsonRpcError.InvalidParams(s"Invalid default block param: $other"))
     }
-  }
 
   def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] =
     opt.map(_.map(Some.apply)).getOrElse(Right(None))
@@ -265,7 +263,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   implicit val personal_unlockAccount = new JsonMethodCodec[UnlockAccountRequest, UnlockAccountResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] = {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, UnlockAccountRequest] =
       params match {
         case Some(JArray(JString(addr) :: JString(passphrase) :: JNull :: _)) =>
           extractAddress(addr).map(UnlockAccountRequest(_, passphrase, None))
@@ -279,21 +277,19 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
         case _ =>
           Left(InvalidParams())
       }
-    }
 
     def encodeJson(t: UnlockAccountResponse): JValue =
       JBool(t.result)
   }
 
   implicit val personal_lockAccount = new JsonMethodCodec[LockAccountRequest, LockAccountResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, LockAccountRequest] = {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, LockAccountRequest] =
       params match {
         case Some(JArray(JString(addr) :: _)) =>
           extractAddress(addr).map(LockAccountRequest)
         case _ =>
           Left(InvalidParams())
       }
-    }
 
     def encodeJson(t: LockAccountResponse): JValue =
       JBool(t.result)

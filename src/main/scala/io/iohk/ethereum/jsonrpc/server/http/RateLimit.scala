@@ -55,7 +55,7 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
   //   1) no IP address is extracted unless config.enabled is true
   //   2) no LRU is created unless config.enabled is true
   //   3) cache is accessed only once (using get)
-  override def tapply(f: Unit => Route): Route = {
+  override def tapply(f: Unit => Route): Route =
     if (config.enabled) {
       extractClientIP { ip =>
         if (isBelowRateLimit(ip)) {
@@ -66,6 +66,5 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
         }
       }
     } else f.apply(())
-  }
 
 }

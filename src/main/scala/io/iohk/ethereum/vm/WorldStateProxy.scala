@@ -62,13 +62,12 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
   def getBalance(address: Address): UInt256 =
     getAccount(address).map(a => UInt256(a.balance)).getOrElse(UInt256.Zero)
 
-  def transfer(from: Address, to: Address, value: UInt256): WS = {
+  def transfer(from: Address, to: Address, value: UInt256): WS =
     if (from == to || isZeroValueTransferToNonExistentAccount(to, value))
       touchAccounts(from)
     else
       // perhaps as an optimisation we could avoid touching accounts having non-zero nonce or non-empty code
       guaranteedTransfer(from, to, value).touchAccounts(from, to)
-  }
 
   private def guaranteedTransfer(from: Address, to: Address, value: UInt256): WS = {
     val debited = getGuaranteedAccount(from).increaseBalance(-value)
@@ -142,9 +141,8 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     * @param address, the address of the checked account
     * @return true if account is dead, false otherwise
     */
-  def isAccountDead(address: Address): Boolean = {
+  def isAccountDead(address: Address): Boolean =
     getAccount(address).forall(_.isEmpty(accountStartNonce))
-  }
 
   def nonEmptyCodeOrNonceAccount(address: Address): Boolean =
     getAccount(address).exists(_.nonEmptyCodeOrNonce(accountStartNonce))

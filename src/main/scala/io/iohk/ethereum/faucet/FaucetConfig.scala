@@ -17,13 +17,11 @@ case class RpcClientConfig(
 )
 
 object RpcClientConfig {
-  def apply(rpcClientConfig: Config): RpcClientConfig = {
-
+  def apply(rpcClientConfig: Config): RpcClientConfig =
     RpcClientConfig(
       address = rpcClientConfig.getString("rpc-address"),
       timeout = rpcClientConfig.getDuration("timeout").toMillis.millis
     )
-  }
 }
 
 case class FaucetConfig(

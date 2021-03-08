@@ -46,14 +46,13 @@ object FastSyncItSpecUtils {
       fastSync ! SyncProtocol.Start
     }
 
-    def waitForFastSyncFinish(): Task[Boolean] = {
+    def waitForFastSyncFinish(): Task[Boolean] =
       retryUntilWithDelay(Task(storagesInstance.storages.appStateStorage.isFastSyncDone()), 1.second, 90) { isDone =>
         isDone
       }
-    }
 
     // Reads whole trie into memory, if the trie lacks nodes in storage it will be None
-    def getBestBlockTrie(): Option[MptNode] = {
+    def getBestBlockTrie(): Option[MptNode] =
       Try {
         val bestBlock = bl.getBestBlock().get
         val bestStateRoot = bestBlock.header.stateRoot
@@ -62,11 +61,10 @@ object FastSyncItSpecUtils {
           storagesInstance.storages.stateStorage.getBackingStorage(bestBlock.number)
         )
       }.toOption
-    }
 
     def containsExpectedDataUpToAccountAtBlock(n: BigInt, blockNumber: BigInt): Boolean = {
       @tailrec
-      def go(i: BigInt): Boolean = {
+      def go(i: BigInt): Boolean =
         if (i >= n) {
           true
         } else {
@@ -92,12 +90,11 @@ object FastSyncItSpecUtils {
             false
           }
         }
-      }
 
       go(0)
     }
 
-    def startWithState(): Task[Unit] = {
+    def startWithState(): Task[Unit] =
       Task {
         val currentBest = bl.getBestBlock().get.header
         val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
@@ -116,64 +113,58 @@ object FastSyncItSpecUtils {
           )
         storagesInstance.storages.fastSyncStateStorage.putSyncState(syncState)
       }.map(_ => ())
-    }
 
   }
 
   object FakePeer {
 
-    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] = {
+    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] =
       for {
         peer <- Task(new FakePeer(peerName, fakePeerCustomConfig))
         _ <- peer.startPeer()
       } yield peer
-    }
 
     def start1FakePeerRes(
         fakePeerCustomConfig: FakePeerCustomConfig = defaultConfig,
         name: String
-    ): Resource[Task, FakePeer] = {
+    ): Resource[Task, FakePeer] =
       Resource.make {
         startFakePeer(name, fakePeerCustomConfig)
       } { peer =>
         peer.shutdown()
       }
-    }
 
     def start2FakePeersRes(
         fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig
-    ): Resource[Task, (FakePeer, FakePeer)] = {
+    ): Resource[Task, (FakePeer, FakePeer)] =
       for {
         peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
         peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
       } yield (peer1, peer2)
-    }
 
     def start3FakePeersRes(
         fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig3: FakePeerCustomConfig = defaultConfig
-    ): Resource[Task, (FakePeer, FakePeer, FakePeer)] = {
+    ): Resource[Task, (FakePeer, FakePeer, FakePeer)] =
       for {
         peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
         peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
         peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
       } yield (peer1, peer2, peer3)
-    }
 
     def start4FakePeersRes(
         fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig3: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig4: FakePeerCustomConfig = defaultConfig
-    ): Resource[Task, (FakePeer, FakePeer, FakePeer, FakePeer)] = {
+    ): Resource[Task, (FakePeer, FakePeer, FakePeer, FakePeer)] =
       for {
         peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
         peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
         peer3 <- start1FakePeerRes(fakePeerCustomConfig3, "Peer3")
         peer4 <- start1FakePeerRes(fakePeerCustomConfig4, "Peer3")
       } yield (peer1, peer2, peer3, peer4)
-    }
   }
 }

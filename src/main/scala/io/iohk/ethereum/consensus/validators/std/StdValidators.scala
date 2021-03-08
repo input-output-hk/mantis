@@ -24,23 +24,20 @@ final class StdValidators(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-
+  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
       getNBlocksBack = getNBlocksBack
     )
-  }
 
   def validateBlockAfterExecution(
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
-
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = this,
       block = block,
@@ -48,7 +45,6 @@ final class StdValidators(
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }
 
 object StdValidators {

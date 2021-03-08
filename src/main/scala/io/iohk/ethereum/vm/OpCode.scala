@@ -171,7 +171,7 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
     with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
-  def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+  def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     if (!availableInContext(state))
       state.withError(OpCodeNotAvailableInStaticContext(code))
     else if (state.stack.size < delta)
@@ -187,7 +187,6 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
       else
         exec(state).spendGas(gas)
     }
-  }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt
 
@@ -704,9 +703,8 @@ case object MSIZE extends ConstOp(0x59)(s => (UInt256.Size * wordsForBytes(s.mem
 case object GAS extends ConstOp(0x5a)(state => (state.gas - state.config.feeSchedule.G_base).toUInt256)
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, _.G_jumpdest) with ConstGas {
-  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     state.step()
-  }
 }
 
 sealed abstract class PushOp(code: Int) extends OpCode(code, 0, 1, _.G_verylow) with ConstGas {
@@ -1071,12 +1069,11 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       state: ProgramState[W, S],
       g: BigInt,
       consumedGas: BigInt
-  ): BigInt = {
+  ): BigInt =
     if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
       g.min(state.config.gasCap(state.gas - consumedGas))
     else
       g
-  }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](
       state: ProgramState[W, S],

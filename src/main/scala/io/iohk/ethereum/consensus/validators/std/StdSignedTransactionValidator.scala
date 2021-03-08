@@ -26,7 +26,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       blockHeader: BlockHeader,
       upfrontGasCost: UInt256,
       accumGasUsed: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  ): Either[SignedTransactionError, SignedTransactionValid] =
     for {
       _ <- checkSyntacticValidity(stx)
       _ <- validateSignature(stx, blockHeader.number)
@@ -35,7 +35,6 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       _ <- validateAccountHasEnoughGasToPayUpfrontCost(senderAccount.balance, upfrontGasCost)
       _ <- validateBlockHasEnoughGasLimitForTx(stx, accumGasUsed, blockHeader.gasLimit)
     } yield SignedTransactionValid
-  }
 
   /** Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
     *
@@ -102,10 +101,9 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
   private def validateNonce(
       stx: SignedTransaction,
       senderNonce: UInt256
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  ): Either[SignedTransactionError, SignedTransactionValid] =
     if (senderNonce == UInt256(stx.tx.nonce)) Right(SignedTransactionValid)
     else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
-  }
 
   /** Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
     *
@@ -133,10 +131,9 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
   private def validateAccountHasEnoughGasToPayUpfrontCost(
       senderBalance: UInt256,
       upfrontCost: UInt256
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  ): Either[SignedTransactionError, SignedTransactionValid] =
     if (senderBalance >= upfrontCost) Right(SignedTransactionValid)
     else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
-  }
 
   /** The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
     * block’s gasLimit
@@ -150,8 +147,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       stx: SignedTransaction,
       accumGasUsed: BigInt,
       blockGasLimit: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  ): Either[SignedTransactionError, SignedTransactionValid] =
     if (stx.tx.gasLimit + accumGasUsed <= blockGasLimit) Right(SignedTransactionValid)
     else Left(TransactionGasLimitTooBigError(stx.tx.gasLimit, accumGasUsed, blockGasLimit))
-  }
 }

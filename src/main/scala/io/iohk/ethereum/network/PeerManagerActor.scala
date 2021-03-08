@@ -93,22 +93,20 @@ class PeerManagerActor(
       stash()
   }
 
-  private def scheduleNodesUpdate(): Unit = {
+  private def scheduleNodesUpdate(): Unit =
     scheduler.scheduleWithFixedDelay(
       peerConfiguration.updateNodesInitialDelay,
       peerConfiguration.updateNodesInterval,
       peerDiscoveryManager,
       PeerDiscoveryManager.GetDiscoveredNodesInfo
     )
-  }
 
-  private def listening(connectedPeers: ConnectedPeers): Receive = {
+  private def listening(connectedPeers: ConnectedPeers): Receive =
     handleCommonMessages(connectedPeers)
       .orElse(handleBlacklistMessages)
       .orElse(handleConnections(connectedPeers))
       .orElse(handleNewNodesToConnectMessages(connectedPeers))
       .orElse(handlePruning(connectedPeers))
-  }
 
   private def handleNewNodesToConnectMessages(connectedPeers: ConnectedPeers): Receive = {
     case KnownNodesManager.KnownNodes(nodes) =>
@@ -128,7 +126,7 @@ class PeerManagerActor(
       maybeConnectToDiscoveredNodes(connectedPeers, nodes)
   }
 
-  private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit = {
+  private def maybeConnectToRandomNode(connectedPeers: ConnectedPeers, node: Node): Unit =
     if (connectedPeers.outgoingConnectionDemand > 0) {
       if (connectedPeers.canConnectTo(node)) {
         triedNodes.add(node.id)
@@ -137,7 +135,6 @@ class PeerManagerActor(
         peerDiscoveryManager ! PeerDiscoveryManager.GetRandomNodeInfo
       }
     }
-  }
 
   private def maybeConnectToDiscoveredNodes(connectedPeers: ConnectedPeers, nodes: Set[Node]): Unit = {
     val discoveredNodes = nodes
@@ -164,10 +161,10 @@ class PeerManagerActor(
 
     if (nodesToConnect.nonEmpty) {
       log.debug("Trying to connect to {} nodes", nodesToConnect.size)
-      nodesToConnect.foreach(n => {
+      nodesToConnect.foreach { n =>
         triedNodes.add(n.id)
         self ! ConnectToPeer(n.toUri)
-      })
+      }
     } else {
       log.debug("The nodes list is empty, no new nodes to connect to")
     }
@@ -358,18 +355,17 @@ class PeerManagerActor(
     prunedConnectedPeers
   }
 
-  private def getPeers(peers: Set[Peer]): Task[Peers] = {
+  private def getPeers(peers: Set[Peer]): Task[Peers] =
     Task
       .parSequence(peers.map(getPeerStatus))
       .map(_.flatten.toMap)
       .map(Peers.apply)
-  }
 
   private def getPeerStatus(peer: Peer): Task[Option[(Peer, PeerActor.Status)]] = {
     implicit val timeout: Timeout = Timeout(2.seconds)
     peer.ref
       .askFor[PeerActor.StatusResponse](PeerActor.GetStatus)
-      .map { sr => Some((peer, sr.status)) }
+      .map(sr => Some((peer, sr.status)))
       .onErrorHandle(_ => None)
   }
 
@@ -377,9 +373,8 @@ class PeerManagerActor(
       remoteAddress: InetSocketAddress,
       error: ConnectionError,
       stateCondition: Boolean
-  ): Either[ConnectionError, InetSocketAddress] = {
+  ): Either[ConnectionError, InetSocketAddress] =
     Either.cond(stateCondition, remoteAddress, error)
-  }
 
   private def handleConnectionErrors(error: ConnectionError): Unit = error match {
     case MaxIncomingPendingConnections(connection) =>
@@ -529,14 +524,13 @@ object PeerManagerActor {
   def outgoingConnectionDemand(
       connectedPeers: ConnectedPeers,
       peerConfiguration: PeerConfiguration.ConnectionLimits
-  ): Int = {
+  ): Int =
     if (connectedPeers.outgoingHandshakedPeersCount >= peerConfiguration.minOutgoingPeers)
       // We have established at least the minimum number of working connections.
       0
     else
       // Try to connect to more, up to the maximum, including pending peers.
       peerConfiguration.maxOutgoingPeers - connectedPeers.outgoingPeersCount
-  }
 
   def numberOfIncomingConnectionsToPrune(
       connectedPeers: ConnectedPeers,
@@ -552,7 +546,7 @@ object PeerManagerActor {
   /** Assign a priority to peers that we can use to order connections,
     * with lower priorities being the ones to prune first.
     */
-  def prunePriority(stats: Map[PeerId, PeerStat], currentTimeMillis: Long)(peerId: PeerId): Double = {
+  def prunePriority(stats: Map[PeerId, PeerStat], currentTimeMillis: Long)(peerId: PeerId): Double =
     stats
       .get(peerId)
       .flatMap { stat =>
@@ -566,7 +560,6 @@ object PeerManagerActor {
         maybeAgeSeconds.map(age => stat.responsesReceived.toDouble / age)
       }
       .getOrElse(0.0)
-  }
 
   def lruSet[A](maxEntries: Int): mutable.Set[A] =
     newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {

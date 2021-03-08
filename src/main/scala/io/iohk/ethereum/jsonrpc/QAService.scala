@@ -30,7 +30,7 @@ class QAService(
     * @param req with requested block's data
     * @return nothing
     */
-  def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
+  def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] =
     consensus
       .askMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
@@ -38,7 +38,6 @@ class QAService(
         log.warn("Unable to mine requested blocks", throwable)
         Left(JsonRpcError.InternalError)
       }
-  }
 
   def generateCheckpoint(
       req: GenerateCheckpointRequest
@@ -65,11 +64,10 @@ class QAService(
 
   def getFederationMembersInfo(
       req: GetFederationMembersInfoRequest
-  ): ServiceResponse[GetFederationMembersInfoResponse] = {
+  ): ServiceResponse[GetFederationMembersInfoResponse] =
     Task {
       Right(GetFederationMembersInfoResponse(blockchainConfig.checkpointPubKeys.toList))
     }
-  }
 }
 
 object QAService {

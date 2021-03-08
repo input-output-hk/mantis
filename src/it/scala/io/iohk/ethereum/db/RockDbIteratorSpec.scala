@@ -25,9 +25,8 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
     arr
   }
 
-  def genRandomByteString(): ByteString = {
+  def genRandomByteString(): ByteString =
     ByteString.fromArrayUnsafe(genRandomArray())
-  }
 
   def writeNValuesToDb(n: Int, db: RocksDbDataSource, namespace: IndexedSeq[Byte]): Task[Unit] = {
     val iterable = (0 until n)
@@ -59,9 +58,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
       // iterators needs to be closed before closing db.
       _ <- fib.cancel
       finalCounter <- counter.get
-    } yield {
-      assert(finalCounter < largeNum)
-    }
+    } yield assert(finalCounter < largeNum)
   }
 
   it should "read all key values in db" in testCaseT { db =>
@@ -76,9 +73,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
           counter.update(current => current + 1)
         })
       finalCounter <- counter.get
-    } yield {
-      assert(finalCounter == largeNum)
-    }
+    } yield assert(finalCounter == largeNum)
   }
 
   it should "iterate over keys and values from different namespaces" in testCaseT { db =>
@@ -123,14 +118,12 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
   it should "return empty list when iterating empty db" in testCaseT { db =>
     for {
       elems <- db.iterate().toListL
-    } yield {
-      assert(elems.isEmpty)
-    }
+    } yield assert(elems.isEmpty)
   }
 }
 
 object RockDbIteratorSpec {
-  def getRockDbTestConfig(dbPath: String) = {
+  def getRockDbTestConfig(dbPath: String) =
     new RocksDbConfig {
       override val createIfMissing: Boolean = true
       override val paranoidChecks: Boolean = false
@@ -142,14 +135,12 @@ object RockDbIteratorSpec {
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
     }
-  }
 
-  def buildRockDbResource(): Resource[Task, RocksDbDataSource] = {
+  def buildRockDbResource(): Resource[Task, RocksDbDataSource] =
     Resource.make {
       Task {
         val tempDir = Files.createTempDirectory("temp-iter-dir")
         RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
       }
     }(db => Task(db.destroy()))
-  }
 }

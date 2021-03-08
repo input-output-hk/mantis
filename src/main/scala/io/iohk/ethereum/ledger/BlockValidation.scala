@@ -7,17 +7,15 @@ import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
 class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: BlockQueue) {
 
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
     )
-  }
 
-  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
+  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] =
     blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
-  }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
     val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).takeRight(n)
@@ -46,12 +44,11 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     consensus.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = stateRootHash,
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }

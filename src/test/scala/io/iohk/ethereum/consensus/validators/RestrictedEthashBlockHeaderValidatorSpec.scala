@@ -66,7 +66,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
     val validKey = ByteStringUtils.string2hash(
       "69f6b54223c0d699c91f1f649e11dc52cb05910896b80c50137cd74a54d90782b69128d3ad5a9ba8c26e338891e33a46e317a3eeaabbf62e70a6b33ec57e00e6"
     )
-    def createBlockchainConfig(allowedMiners: Set[ByteString]): BlockchainConfig = {
+    def createBlockchainConfig(allowedMiners: Set[ByteString]): BlockchainConfig =
       BlockchainConfig(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
@@ -103,7 +103,6 @@ class RestrictedEthashBlockHeaderValidatorSpec
         allowedMinersPublicKeys = allowedMiners,
         ecip1099BlockNumber = Long.MaxValue
       )
-    }
 
     /** validParent and validHeader are special headers with extended extraData field and are only useful when used
       * with RestrictedEthashBlockHeaderValidator

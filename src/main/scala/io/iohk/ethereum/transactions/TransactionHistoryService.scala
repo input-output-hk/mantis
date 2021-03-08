@@ -27,10 +27,10 @@ class TransactionHistoryService(
       account: Address,
       fromBlocks: NumericRange[BigInt]
   ): Task[List[ExtendedTransactionData]] = {
-    val getLastCheckpoint = Task { blockchain.getLatestCheckpointBlockNumber() }.memoizeOnSuccess
+    val getLastCheckpoint = Task(blockchain.getLatestCheckpointBlockNumber()).memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
-      .mapParallelOrdered(10)(blockNr => Task { blockchain.getBlockByNumber(blockNr) })(OverflowStrategy.Unbounded)
+      .mapParallelOrdered(10)(blockNr => Task(blockchain.getBlockByNumber(blockNr)))(OverflowStrategy.Unbounded)
       .collect { case Some(block) => block }
       .concatMap { block =>
         val getBlockReceipts = Task {
@@ -93,7 +93,7 @@ object TransactionHistoryService {
       tx.stx.tx.tx.receivingAddress.contains(maybeReceiver)
     def asSigned(tx: PendingTransaction): SignedTransaction = tx.stx.tx
 
-    def checkTx(tx: PendingTransaction, address: Address): Option[ExtendedTransactionData] = {
+    def checkTx(tx: PendingTransaction, address: Address): Option[ExtendedTransactionData] =
       if (isSender(tx, address)) {
         Some(ExtendedTransactionData(asSigned(tx), isOutgoing = true, None))
       } else if (isReceiver(tx, address)) {
@@ -101,7 +101,6 @@ object TransactionHistoryService {
       } else {
         None
       }
-    }
   }
 
   object MinedTxChecker {
@@ -112,7 +111,7 @@ object TransactionHistoryService {
     def checkTx(
         tx: SignedTransaction,
         address: Address
-    ): Option[(SignedTransaction, MinedTransactionData => ExtendedTransactionData)] = {
+    ): Option[(SignedTransaction, MinedTransactionData => ExtendedTransactionData)] =
       if (isSender(tx, address)) {
         Some((tx, data => ExtendedTransactionData(tx, isOutgoing = true, Some(data))))
       } else if (isReceiver(tx, address)) {
@@ -120,7 +119,6 @@ object TransactionHistoryService {
       } else {
         None
       }
-    }
 
     def getMinedTxData(
         tx: SignedTransaction,

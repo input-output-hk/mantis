@@ -85,9 +85,8 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger {
     }
   }
 
-  def handleRequest(request: JsonRpcRequest): StandardRoute = {
+  def handleRequest(request: JsonRpcRequest): StandardRoute =
     complete(handleResponse(jsonRpcController.handleRequest(request)).runToFuture)
-  }
 
   private def handleResponse(f: Task[JsonRpcResponse]): Task[(StatusCode, JsonRpcResponse)] = f.map { jsonRpcResponse =>
     jsonRpcResponse.error match {

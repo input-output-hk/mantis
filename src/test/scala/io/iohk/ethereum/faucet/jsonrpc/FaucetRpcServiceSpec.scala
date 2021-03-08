@@ -144,15 +144,13 @@ class FaucetRpcServiceSpec
     val faucetHandler = TestProbe()
 
     val faucetRpcService: FaucetRpcService = new FaucetRpcService(config) {
-      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] =
         Task(faucetHandler.ref)
-      }
     }
 
     val faucetRpcServiceWithoutFaucetHandler: FaucetRpcService = new FaucetRpcService(config) {
-      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+      override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] =
         Task.raiseError(new RuntimeException("time out"))
-      }
     }
   }
 

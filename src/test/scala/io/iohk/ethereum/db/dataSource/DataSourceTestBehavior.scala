@@ -23,9 +23,8 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val dir = new File(path)
       assert(!dir.exists() || dir.delete(), "File deletion failed")
     }

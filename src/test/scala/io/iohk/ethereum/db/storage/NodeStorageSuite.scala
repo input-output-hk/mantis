@@ -44,7 +44,7 @@ class NodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with Ob
         val obtainedNode = nodeStorageAfterDelete.get(ByteString(node.hash)).map(_.toMptNode)
         assert(obtainedNode.contains(node))
       }
-      toDelete.foreach { node => assert(nodeStorageAfterDelete.get(ByteString(node.hash)).isEmpty) }
+      toDelete.foreach(node => assert(nodeStorageAfterDelete.get(ByteString(node.hash)).isEmpty))
     }
   }
 }

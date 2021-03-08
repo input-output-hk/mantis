@@ -43,9 +43,8 @@ object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits {
   }
 
   implicit val eth_coinbase = new NoParamsMethodDecoder(GetCoinbaseRequest()) with JsonEncoder[GetCoinbaseResponse] {
-    override def encodeJson(t: GetCoinbaseResponse): JsonAST.JValue = {
+    override def encodeJson(t: GetCoinbaseResponse): JsonAST.JValue =
       encodeAsHex(t.address.bytes)
-    }
   }
 
   implicit val eth_submitWork = new JsonMethodDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] {

@@ -38,8 +38,7 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
       ommers: Seq[BlockHeader],
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[OmmersError, OmmersValid] = {
-
+  ): Either[OmmersError, OmmersValid] =
     if (ommers.isEmpty)
       Right(OmmersValid)
     else
@@ -50,7 +49,6 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
         _ <- validateOmmersAncestors(parentHash, blockNumber, ommers, getNBlocksBack)
         _ <- validateOmmersNotUsed(parentHash, blockNumber, ommers, getNBlocksBack)
       } yield OmmersValid
-  }
 
   /** Validates ommers length based on validations stated in section 11.1 of the YP
     *
@@ -58,10 +56,9 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
     *
     * @return [[OmmersValidator.OmmersValid]] if valid, an [[OmmersValidator.OmmersError.OmmersLengthError]] otherwise
     */
-  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] =
     if (ommers.length <= OmmerSizeLimit) Right(OmmersValid)
     else Left(OmmersLengthError)
-  }
 
   /** Validates that each ommer's header is valid based on validations stated in section 11.1 of the YP
     *
@@ -73,10 +70,9 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
   private def validateOmmersHeaders(
       ommers: Seq[BlockHeader],
       getBlockHeaderByHash: GetBlockHeaderByHash
-  ): Either[OmmersError, OmmersValid] = {
+  ): Either[OmmersError, OmmersValid] =
     if (ommers.forall(blockHeaderValidator.validate(_, getBlockHeaderByHash).isRight)) Right(OmmersValid)
     else Left(OmmersNotValidError)
-  }
 
   /** Validates that each ommer is not too old and that it is a sibling as one of the current block's ancestors
     * based on validations stated in section 11.1 of the YP
@@ -135,10 +131,9 @@ class StdOmmersValidator(blockchainConfig: BlockchainConfig, blockHeaderValidato
     * @param ommers the list of ommers to validate
     * @return [[OmmersValidator.OmmersValid]] if valid, an [[OmmersValidator.OmmersError.OmmersDuplicatedError]] otherwise
     */
-  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] =
     if (ommers.distinct.length == ommers.length) Right(OmmersValid)
     else Left(OmmersDuplicatedError)
-  }
 
   private def collectAncestors(
       parentHash: ByteString,

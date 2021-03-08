@@ -38,13 +38,13 @@ object ReceiptStorage {
     transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
   implicit val hashOutcomePickler: Pickler[HashOutcome] = transformPickler[HashOutcome, ByteString] { hash =>
     HashOutcome(hash)
-  } { outcome => outcome.stateHash }
+  }(outcome => outcome.stateHash)
   implicit val successOutcomePickler: Pickler[SuccessOutcome.type] = transformPickler[SuccessOutcome.type, ByteString] {
     _ => SuccessOutcome
-  } { _ => ByteString(Array(1.toByte)) }
+  }(_ => ByteString(Array(1.toByte)))
   implicit val failureOutcomePickler: Pickler[FailureOutcome.type] = transformPickler[FailureOutcome.type, ByteString] {
     _ => FailureOutcome
-  } { _ => ByteString(Array(0.toByte)) }
+  }(_ => ByteString(Array(0.toByte)))
   implicit val transactionOutcomePickler: Pickler[TransactionOutcome] = compositePickler[TransactionOutcome]
     .addConcreteType[HashOutcome]
     .addConcreteType[SuccessOutcome.type]
@@ -55,7 +55,7 @@ object ReceiptStorage {
   implicit val txLogEntryPickler: Pickler[TxLogEntry] =
     transformPickler[TxLogEntry, (Address, Seq[ByteString], ByteString)] { case (address, topics, data) =>
       TxLogEntry(address, topics, data)
-    } { entry => (entry.loggerAddress, entry.logTopics, entry.data) }
+    }(entry => (entry.loggerAddress, entry.logTopics, entry.data))
 
   implicit val receiptPickler: Pickler[Receipt] =
     transformPickler[Receipt, (TransactionOutcome, BigInt, ByteString, Seq[TxLogEntry])] {

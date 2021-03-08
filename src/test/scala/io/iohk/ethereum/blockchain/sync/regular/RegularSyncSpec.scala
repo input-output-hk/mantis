@@ -48,7 +48,7 @@ class RegularSyncSpec
   type Fixture = RegularSyncFixture
 
   val actorSystemResource =
-    Resource.make(Task { ActorSystem() })(system => Task { TestKit.shutdownActorSystem(system) })
+    Resource.make(Task(ActorSystem()))(system => Task(TestKit.shutdownActorSystem(system)))
   val fixtureResource = actorSystemResource.map(new Fixture(_))
 
   // Used only in sync tests
@@ -374,7 +374,7 @@ class RegularSyncSpec
         (blockchain.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
-          .onCall((hash, encoded, totalDifficulty) => {
+          .onCall { (hash, encoded, totalDifficulty) =>
             val expectedNode = nodeData.head
 
             hash should be(kec256(expectedNode))
@@ -382,7 +382,7 @@ class RegularSyncSpec
             totalDifficulty should be(failingBlock.number)
 
             saveNodeWasCalled = true
-          })
+          }
 
         regularSync ! SyncProtocol.Start
 
@@ -547,7 +547,7 @@ class RegularSyncSpec
         regularSync ! newCheckpointMsg
 
         assertForDuration(
-          { ledger.didTryToImportBlock(checkpointBlock) shouldBe false },
+          ledger.didTryToImportBlock(checkpointBlock) shouldBe false,
           1.second
         )
         blockPromise.success(BlockImportedToTop(Nil))
@@ -645,7 +645,7 @@ class RegularSyncSpec
         import fixture._
 
         for {
-          _ <- Task { regularSync ! SyncProtocol.Start }
+          _ <- Task(regularSync ! SyncProtocol.Start)
           before <- getSyncStatus
           _ <- Task {
             peerEventBus.expectMsgClass(classOf[Subscribe])
@@ -670,7 +670,7 @@ class RegularSyncSpec
           _ <- testBlocks
             .take(5)
             .traverse(block =>
-              Task { blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true) }
+              Task(blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
             )
           _ <- Task {
             regularSync ! SyncProtocol.Start
@@ -713,9 +713,7 @@ class RegularSyncSpec
           }
           status <- pollForStatus(_.syncing)
           lastBlock = testBlocks.last.number
-        } yield {
-          assert(status === Status.Syncing(0, Progress(0, lastBlock), None))
-        }
+        } yield assert(status === Status.Syncing(0, Progress(0, lastBlock), None))
       }
 
       "return updated status after importing blocks" in testCaseT { fixture =>
@@ -750,7 +748,7 @@ class RegularSyncSpec
           import fixture._
 
           for {
-            _ <- Task { goToTop() }
+            _ <- Task(goToTop())
             status <- getSyncStatus
           } yield assert(status === Status.SyncDone)
       }

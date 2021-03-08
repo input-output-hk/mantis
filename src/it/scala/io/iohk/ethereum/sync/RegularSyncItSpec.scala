@@ -16,11 +16,10 @@ import scala.concurrent.duration._
 class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAll {
   implicit val testScheduler = Scheduler.fixedPool("test", 16)
 
-  override def beforeAll(): Unit = {
+  override def beforeAll(): Unit =
     Metrics.configure(
       MetricsConfig(Config.config.withValue("metrics.enabled", ConfigValueFactory.fromAnyRef(true)))
     )
-  }
 
   override def afterAll(): Unit = {
     testScheduler.shutdown()
@@ -36,9 +35,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
-        } yield {
-          assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-        }
+        } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
     }
 
     "given a previously mined blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
@@ -51,9 +48,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
-        } yield {
-          assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-        }
+        } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
     }
   }
 
@@ -71,9 +66,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 2)
       _ <- peer1.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
-    } yield {
-      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-    }
+    } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
   }
 
   "peers with divergent chains will be forced to resolve branches" in customTestCaseResourceM(

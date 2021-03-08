@@ -46,7 +46,7 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
     apply(dataSource)
   }
 
-  def storageContent: Observable[Either[IterationError, (K, V)]] = {
+  def storageContent: Observable[Either[IterationError, (K, V)]] =
     dataSource.iterate(namespace).map { result =>
       result.map { case (key, value) =>
         val kseq = keyDeserializer(ArraySeq.unsafeWrapArray(key))
@@ -54,5 +54,4 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
         (kseq, vseq)
       }
     }
-  }
 }

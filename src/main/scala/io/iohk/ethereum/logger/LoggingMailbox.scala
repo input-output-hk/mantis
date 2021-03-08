@@ -69,7 +69,6 @@ class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int) exten
 
   override def numberOfMessages: Int = queueSize.get
 
-  override def cleanUp(owner: ActorRef, deadLetters: MessageQueue): Unit = {
+  override def cleanUp(owner: ActorRef, deadLetters: MessageQueue): Unit =
     super.cleanUp(owner, deadLetters)
-  }
 }

@@ -10,19 +10,17 @@ import org.scalatest.matchers.should.Matchers
 
 class MemorySpec extends AnyFunSuite with ScalaCheckPropertyChecks with Matchers {
 
-  def zeros(size: Int): ByteString = {
+  def zeros(size: Int): ByteString =
     if (size <= 0)
       ByteString()
     else
       ByteString(Array.fill[Byte](size)(0))
-  }
 
-  def consecutiveBytes(size: Int, start: Int = 0): ByteString = {
+  def consecutiveBytes(size: Int, start: Int = 0): ByteString =
     if (size <= 0)
       ByteString()
     else
       ByteString((start until (start + size)).map(_.toByte): _*)
-  }
 
   import Arbitrary._
   import Gen._

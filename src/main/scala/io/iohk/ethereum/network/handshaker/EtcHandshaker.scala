@@ -14,9 +14,8 @@ case class EtcHandshaker private (
     handshakerConfiguration: EtcHandshakerConfiguration
 ) extends Handshaker[PeerInfo] {
 
-  protected def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = {
+  protected def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] =
     EtcHandshaker(handshakerState, handshakerConfiguration)
-  }
 
 }
 

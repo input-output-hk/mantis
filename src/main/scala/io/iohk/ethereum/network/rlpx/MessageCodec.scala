@@ -23,7 +23,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
   @volatile
   private var remotePeerP2pVersion: Option[Long] = None
 
-  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit = {
+  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit =
     if (remotePeerP2pVersion.isEmpty) {
       m match {
         case hello: Hello =>
@@ -31,7 +31,6 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
         case _ =>
       }
     }
-  }
 
   // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
@@ -54,14 +53,13 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     }
   }
 
-  private def decompressData(data: Array[Byte]): Try[Array[Byte]] = {
+  private def decompressData(data: Array[Byte]): Try[Array[Byte]] =
     Try(Snappy.uncompressedLength(data)).flatMap { decompressedSize =>
       if (decompressedSize > maxDecompressedLength)
         Failure(new RuntimeException("Message size larger than 16mb"))
       else
         Try(Snappy.uncompress(data))
     }
-  }
 
   def encodeMessage(serializable: MessageSerializable): ByteString = {
     val encoded: Array[Byte] = serializable.toBytes

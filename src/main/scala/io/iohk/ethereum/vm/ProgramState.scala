@@ -8,8 +8,7 @@ object ProgramState {
       vm: VM[W, S],
       context: ProgramContext[W, S],
       env: ExecEnv
-  ): ProgramState[W, S] = {
-
+  ): ProgramState[W, S] =
     ProgramState(
       vm = vm,
       env = env,
@@ -19,7 +18,6 @@ object ProgramState {
       addressesToDelete = context.initialAddressesToDelete,
       originalWorld = context.originalWorld
     )
-  }
 }
 
 /** Intermediate state updated with execution of each opcode in the program

@@ -44,13 +44,11 @@ class StoreOpCodeGasPostConstantinopleSpec
     )
 
     forAll(eip1283table) { (code, original, gasUsed, refund) =>
-      {
-        val result =
-          vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
+      val result =
+        vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
 
-        result.gasUsed shouldEqual gasUsed
-        result.gasRefund shouldEqual refund
-      }
+      result.gasUsed shouldEqual gasUsed
+      result.gasRefund shouldEqual refund
     }
   }
 
@@ -80,13 +78,11 @@ class StoreOpCodeGasPostConstantinopleSpec
     )
 
     forAll(eip2200table) { (code, original, gasUsed, refund, gaspool, maybeError) =>
-      {
-        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
+      val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
 
-        result.gasUsed shouldEqual gasUsed
-        result.gasRefund shouldEqual refund
-        result.error shouldEqual maybeError
-      }
+      result.gasUsed shouldEqual gasUsed
+      result.gasRefund shouldEqual refund
+      result.error shouldEqual maybeError
     }
   }
 }

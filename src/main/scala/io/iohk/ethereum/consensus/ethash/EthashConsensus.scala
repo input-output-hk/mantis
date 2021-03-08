@@ -53,11 +53,10 @@ class EthashConsensus private (
   override def sendMiner(msg: MinerProtocol): Unit =
     minerRef.foreach(_ ! msg)
 
-  override def askMiner(msg: MinerProtocol): Task[MinerResponse] = {
+  override def askMiner(msg: MinerProtocol): Task[MinerResponse] =
     minerRef
       .map(_.askFor[MinerResponse](msg))
       .getOrElse(Task.now(MinerNotExist))
-  }
 
   private[this] val mutex = new Object
 
@@ -67,7 +66,7 @@ class EthashConsensus private (
    *
    * TODO further refactors should focus on extracting two types - one with a miner, one without - based on the config
    */
-  private[this] def startMiningProcess(node: Node): Unit = {
+  private[this] def startMiningProcess(node: Node): Unit =
     if (minerRef.isEmpty) {
       mutex.synchronized {
         if (minerRef.isEmpty) {
@@ -80,11 +79,9 @@ class EthashConsensus private (
         }
       }
     }
-  }
 
-  private[this] def stopMiningProcess(): Unit = {
+  private[this] def stopMiningProcess(): Unit =
     sendMiner(MinerProtocol.StopMining)
-  }
 
   /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
     */
@@ -92,22 +89,20 @@ class EthashConsensus private (
 
   /** Starts the consensus protocol on the current `node`.
     */
-  def startProtocol(node: Node): Unit = {
+  def startProtocol(node: Node): Unit =
     if (config.miningEnabled) {
       startMiningProcess(node)
     }
-  }
 
-  def stopProtocol(): Unit = {
+  def stopProtocol(): Unit =
     if (config.miningEnabled) {
       stopMiningProcess()
     }
-  }
 
   def protocol: Protocol = Protocol.Ethash
 
   /** Internal API, used for testing */
-  protected def newBlockGenerator(validators: Validators): EthashBlockGenerator = {
+  protected def newBlockGenerator(validators: Validators): EthashBlockGenerator =
     validators match {
       case _validators: ValidatorsExecutor =>
         val blockPreparator = new BlockPreparator(
@@ -130,10 +125,9 @@ class EthashConsensus private (
       case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
-  }
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): EthashConsensus = {
+  def withValidators(validators: Validators): EthashConsensus =
     validators match {
       case _validators: ValidatorsExecutor =>
         val blockGenerator = newBlockGenerator(validators)
@@ -151,7 +145,6 @@ class EthashConsensus private (
       case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
-  }
 
   def withVM(vm: VMImpl): EthashConsensus =
     new EthashConsensus(

@@ -29,11 +29,11 @@ object Picklers {
   implicit val signedTransactionPickler: Pickler[SignedTransaction] =
     transformPickler[SignedTransaction, (Transaction, ECDSASignature)] { case (tx, signature) =>
       new SignedTransaction(tx, signature)
-    } { stx => (stx.tx, stx.signature) }
+    }(stx => (stx.tx, stx.signature))
 
   implicit val blockHeaderPickler: Pickler[BlockHeader] = generatePickler[BlockHeader]
   implicit val blockBodyPickler: Pickler[BlockBody] =
     transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])] { case (stx, nodes) =>
       BlockBody(stx, nodes)
-    } { blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
+    }(blockBody => (blockBody.transactionList, blockBody.uncleNodesList))
 }

@@ -219,9 +219,8 @@ object PivotBlockSelector {
   }
   import cats.implicits._
   implicit class SortableHeadersMap(headers: Map[ByteString, BlockHeaderWithVotes]) {
-    def mostVotedHeader: Option[BlockHeaderWithVotes] = {
+    def mostVotedHeader: Option[BlockHeaderWithVotes] =
       headers.toList.maximumByOption { case (_, headerWithVotes) => headerWithVotes.votes }.map(_._2)
-    }
   }
 
   case class ElectionDetails(participants: List[Peer], expectedPivotBlock: BigInt) {

@@ -11,7 +11,7 @@ import org.json4s.JsonAST._
 object QAJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val qa_mineBlocks: JsonMethodCodec[MineBlocksRequest, MineBlocksResponse] =
     new JsonMethodCodec[MineBlocksRequest, MineBlocksResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] = {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] =
         params match {
           case Some(JArray(JInt(numBlocks) :: JBool(withTransactions) :: Nil)) =>
             Right(MineBlocksRequest(numBlocks.toInt, withTransactions))
@@ -25,7 +25,6 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ =>
             Left(InvalidParams())
         }
-      }
 
       def encodeJson(t: MineBlocksResponse): JValue = JObject(
         "responseType" -> JString(t.responseType.entryName),
@@ -35,7 +34,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val qa_generateCheckpoint: JsonMethodCodec[GenerateCheckpointRequest, GenerateCheckpointResponse] =
     new JsonMethodCodec[GenerateCheckpointRequest, GenerateCheckpointResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] = {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] =
         params match {
           case Some(JArray((keys: JArray) :: JString(hash) :: Nil)) =>
             for {
@@ -47,7 +46,6 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ =>
             Left(InvalidParams())
         }
-      }
 
       def encodeJson(t: GenerateCheckpointResponse): JValue = Extraction.decompose(t.checkpoint)
     }

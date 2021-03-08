@@ -18,11 +18,10 @@ class EvmCodeStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
   def valueDeserializer: IndexedSeq[Byte] => Code = (code: IndexedSeq[Byte]) => ByteString(code.toArray)
 
   // overriding to avoid going through IndexedSeq[Byte]
-  override def storageContent: Observable[Either[IterationError, (CodeHash, Code)]] = {
+  override def storageContent: Observable[Either[IterationError, (CodeHash, Code)]] =
     dataSource.iterate(namespace).map { result =>
       result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), ByteString.fromArrayUnsafe(value)) }
     }
-  }
 }
 
 object EvmCodeStorage {

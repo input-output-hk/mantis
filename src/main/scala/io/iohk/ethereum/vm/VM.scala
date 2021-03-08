@@ -138,7 +138,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     maxCodeSizeExceeded
   }
 
-  private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR = {
+  private def saveNewContract(context: PC, address: Address, result: PR, config: EvmConfig): PR =
     if (result.error.isDefined) {
       if (result.error.contains(RevertOccurs)) result else result.copy(gasRemaining = 0)
     } else {
@@ -162,5 +162,4 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
         )
       }
     }
-  }
 }

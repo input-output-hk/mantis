@@ -73,18 +73,16 @@ object StdBlockValidator extends BlockValidator {
     * @param blockBody BlockBody to validate
     * @return BlockValid if there are no transactions, error otherwise
     */
-  private def validateNoTransactions(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+  private def validateNoTransactions(blockBody: BlockBody): Either[BlockError, BlockValid] =
     Either.cond(blockBody.transactionList.isEmpty, BlockValid, CheckpointBlockTransactionsNotEmptyError)
-  }
 
   /** Validates that the block body does not contain ommers
     *
     * @param blockBody BlockBody to validate
     * @return BlockValid if there are no ommers, error otherwise
     */
-  private def validateNoOmmers(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+  private def validateNoOmmers(blockBody: BlockBody): Either[BlockError, BlockValid] =
     Either.cond(blockBody.uncleNodesList.isEmpty, BlockValid, CheckpointBlockOmmersNotEmptyError)
-  }
 
   /** This method allows validate block with checkpoint. It performs the following validations:
     *   - no transactions in the body
@@ -93,12 +91,11 @@ object StdBlockValidator extends BlockValidator {
     * @param blockBody BlockBody to validate
     * @return The BlockValid if validations are ok, BlockError otherwise
     */
-  private def validateBlockWithCheckpoint(blockBody: BlockBody): Either[BlockError, BlockValid] = {
+  private def validateBlockWithCheckpoint(blockBody: BlockBody): Either[BlockError, BlockValid] =
     for {
       _ <- validateNoTransactions(blockBody)
       _ <- validateNoOmmers(blockBody)
     } yield BlockValid
-  }
 
   /** This method allows validate a regular Block. It only performs the following validations (stated on
     * section 4.4.2 of http://paper.gavwood.com/):
@@ -108,12 +105,11 @@ object StdBlockValidator extends BlockValidator {
     * @param block Block to validate
     * @return The BlockValid if validations are ok, BlockError otherwise
     */
-  private def validateRegularBlock(block: Block): Either[BlockError, BlockValid] = {
+  private def validateRegularBlock(block: Block): Either[BlockError, BlockValid] =
     for {
       _ <- validateTransactionRoot(block)
       _ <- validateOmmersHash(block)
     } yield BlockValid
-  }
 
   /** This method allows validate a Block. It only perfoms the following validations (stated on
     * section 4.4.2 of http://paper.gavwood.com/):
@@ -125,12 +121,11 @@ object StdBlockValidator extends BlockValidator {
     * @param receipts Receipts to be in validation process
     * @return The block if validations are ok, error otherwise
     */
-  def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
+  def validate(block: Block, receipts: Seq[Receipt]): Either[BlockError, BlockValid] =
     for {
       _ <- validateHeaderAndBody(block.header, block.body)
       _ <- validateBlockAndReceipts(block.header, receipts)
     } yield BlockValid
-  }
 
   /** This method allows validate that a BlockHeader matches a BlockBody.
     *
@@ -153,12 +148,11 @@ object StdBlockValidator extends BlockValidator {
     * @param receipts Receipts to be in validation process
     * @return The block if validations are ok, error otherwise
     */
-  def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
+  def validateBlockAndReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] =
     for {
       _ <- validateReceipts(blockHeader, receipts)
       _ <- validateLogBloom(blockHeader, receipts)
     } yield BlockValid
-  }
 
   sealed trait BlockError
 

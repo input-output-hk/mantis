@@ -118,7 +118,7 @@ class BlockImport(
       .validateBlockBeforeExecution(block)
       .fold(
         error => handleBlockValidationError(error, block),
-        _ => {
+        _ =>
           blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
             case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
               log.debug("Found a better chain, about to reorganise")
@@ -127,7 +127,6 @@ class BlockImport(
             case _ =>
               BlockEnqueued
           }
-        }
       )
   }
 
@@ -228,7 +227,7 @@ class BlockImport(
     */
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
-    def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] = {
+    def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] =
       blockchain.getBlockByNumber(fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
@@ -249,7 +248,6 @@ class BlockImport(
           log.error(s"Unexpected missing block number: $fromNumber")
           acc
       }
-    }
 
     removeBlocksUntil(parent, fromNumber, Nil)
   }

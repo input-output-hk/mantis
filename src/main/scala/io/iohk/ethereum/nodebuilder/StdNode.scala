@@ -20,9 +20,8 @@ import scala.util.{Failure, Success, Try}
   * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
   */
 abstract class BaseNode extends Node {
-  private[this] def loadGenesisData(): Unit = {
+  private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
-  }
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
@@ -41,9 +40,8 @@ abstract class BaseNode extends Node {
       case _                                                              => //Nothing
     }
 
-  private[this] def startJsonRpcIpcServer(): Unit = {
+  private[this] def startJsonRpcIpcServer(): Unit =
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
-  }
 
   private[this] def startMetricsClient(): Unit = {
     val metricsConfig = MetricsConfig(Config.config)

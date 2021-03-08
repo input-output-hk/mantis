@@ -27,22 +27,19 @@ class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
     collapsed
   }
 
-  override def persist(): Unit = {
+  override def persist(): Unit =
     storage.persist()
-  }
 }
 
 object MptStorage {
-  def collapseNode(node: Option[MptNode]): (Option[MptNode], List[(ByteString, Array[Byte])]) = {
+  def collapseNode(node: Option[MptNode]): (Option[MptNode], List[(ByteString, Array[Byte])]) =
     if (node.isEmpty)
       (None, List.empty[(ByteString, Array[Byte])])
     else {
       val (hashNode, newNodes) = MptTraversals.collapseTrie(node.get)
       (Some(hashNode), newNodes)
     }
-  }
 
-  def decodeNode(nodeEncoded: NodeEncoded, nodeId: Array[Byte]): MptNode = {
+  def decodeNode(nodeEncoded: NodeEncoded, nodeId: Array[Byte]): MptNode =
     MptTraversals.decodeNode(nodeEncoded).withCachedHash(nodeId).withCachedRlpEncoded(nodeEncoded)
-  }
 }

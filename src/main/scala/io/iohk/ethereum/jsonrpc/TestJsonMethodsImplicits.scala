@@ -25,7 +25,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       Right(accounts)
     }
 
-    private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
+    private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] =
       for {
         eIP150ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
         eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP158ForkBlock")
@@ -47,9 +47,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         homesteadForkBlock,
         maximumExtraDataSize
       )
-    }
 
-    private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
+    private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] =
       for {
         author <- extractBytes((genesisJson \ "author").extract[String])
         extraData <- extractBytes((genesisJson \ "extraData").extract[String])
@@ -57,7 +56,6 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         parentHash <- extractBytes((genesisJson \ "parentHash").extract[String])
         timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
       } yield GenesisParams(author, extraData, gasLimit, parentHash, timestamp)
-    }
 
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetChainParamsRequest] =
       params match {

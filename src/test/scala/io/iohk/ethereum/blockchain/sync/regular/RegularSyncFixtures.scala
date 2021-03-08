@@ -197,10 +197,10 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
         case PeersClient.Request(GetBlockHeaders(Left(minBlock), amount, _, _), _, _) =>
           val maxBlock = minBlock + amount
           val matchingHeaders = blocks
-            .filter(b => {
+            .filter { b =>
               val nr = b.number
               minBlock <= nr && nr < maxBlock
-            })
+            }
             .map(_.header)
             .sortBy(_.number)
           sender ! PeersClient.Response(defaultPeer, BlockHeaders(matchingHeaders))
@@ -299,7 +299,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     (ledger
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
-      .onCall((block, _) => {
+      .onCall { (block, _) =>
         if (block == newBlock) {
           importedNewBlock = true
           Task.now(
@@ -311,7 +311,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           }
           Task.now(BlockImportedToTop(Nil))
         }
-      })
+      }
 
     peersClient.setAutoPilot(new PeersClientAutoPilot)
 

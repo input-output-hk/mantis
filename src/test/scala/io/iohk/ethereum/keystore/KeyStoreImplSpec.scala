@@ -137,7 +137,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
       override val keyStoreDir: String = {
         val tmpDir: Path = Files.createTempDirectory("mentis-keystore")
         val principalLookupService = FileSystems.getDefault.getUserPrincipalLookupService
-        val rootOrAdminPrincipal = Try { principalLookupService.lookupPrincipalByName("root") }.orElse(Try {
+        val rootOrAdminPrincipal = Try(principalLookupService.lookupPrincipalByName("root")).orElse(Try {
           principalLookupService.lookupPrincipalByName("Administrator")
         })
         Files.setOwner(tmpDir, rootOrAdminPrincipal.get)
@@ -153,9 +153,8 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
 
     val keyStore = new KeyStoreImpl(keyStoreConfig, secureRandom)
 
-    def getKeyStore(config: KeyStoreConfig): KeyStoreImpl = {
+    def getKeyStore(config: KeyStoreConfig): KeyStoreImpl =
       new KeyStoreImpl(config, secureRandom)
-    }
 
     val key1 = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
     val addr1 = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
@@ -165,7 +164,6 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     val addr3 = Address(Hex.decode("d2ecb1332a233d314c30fe3b53f44541b7a07a9e"))
   }
 
-  def clearKeyStore(): Unit = {
+  def clearKeyStore(): Unit =
     FileUtils.deleteDirectory(new File(KeyStoreConfig(Config.config).keyStoreDir))
-  }
 }

@@ -21,20 +21,20 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteAccounts(Set.empty)(worldState))
-    accountAddresses.foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.stateRootHash shouldBe worldState.stateRootHash
   }
 
   it should "delete the accounts listed for deletion" in new TestSetup {
     val newWorld = consensus.blockPreparator.deleteAccounts(accountAddresses.tail)(worldState)
-    accountAddresses.tail.foreach { a => assert(newWorld.getAccount(a).isEmpty) }
+    accountAddresses.tail.foreach(a => assert(newWorld.getAccount(a).isEmpty))
     assert(newWorld.getAccount(accountAddresses.head).isDefined)
   }
 
   it should "delete all the accounts if they are all listed for deletion" in new TestSetup {
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteAccounts(accountAddresses)(worldState))
-    accountAddresses.foreach { a => assert(newWorld.getAccount(a).isEmpty) }
+    accountAddresses.foreach(a => assert(newWorld.getAccount(a).isEmpty))
     newWorld.stateRootHash shouldBe Account.EmptyStorageRootHash
   }
 

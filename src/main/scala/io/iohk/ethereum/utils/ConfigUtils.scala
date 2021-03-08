@@ -9,11 +9,10 @@ import scala.util.Try
 
 object ConfigUtils {
 
-  def parseCorsAllowedOrigins(config: TypesafeConfig, key: String): HttpOriginMatcher = {
+  def parseCorsAllowedOrigins(config: TypesafeConfig, key: String): HttpOriginMatcher =
     (Try(parseMultipleOrigins(config.getStringList(key).asScala.toSeq)).recoverWith { case _ =>
       Try(parseSingleOrigin(config.getString(key)))
     }).get
-  }
 
   def parseMultipleOrigins(origins: Seq[String]): HttpOriginMatcher = HttpOriginMatcher(origins.map(HttpOrigin(_)): _*)
 

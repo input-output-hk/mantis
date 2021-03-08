@@ -47,9 +47,8 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
   def putSyncStartingBlock(n: BigInt): DataSourceBatchUpdate =
     put(Keys.SyncStartingBlock, n.toString)
 
-  private def getBigInt(key: Key): BigInt = {
+  private def getBigInt(key: Key): BigInt =
     get(key).map(BigInt(_)).getOrElse(BigInt(BigInteger.ZERO))
-  }
 
   /** It is safe to return zero in case of not having any checkpoint block,
     * because we assume that genesis block is a kinda stable checkpoint block (without real checkpoint)
@@ -59,13 +58,11 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
   def getLatestCheckpointBlockNumber(): BigInt =
     getBigInt(Keys.LatestCheckpointBlockNumber)
 
-  def removeLatestCheckpointBlockNumber(): DataSourceBatchUpdate = {
+  def removeLatestCheckpointBlockNumber(): DataSourceBatchUpdate =
     update(toRemove = Seq(Keys.LatestCheckpointBlockNumber), toUpsert = Nil)
-  }
 
-  def putLatestCheckpointBlockNumber(latestCheckpointBlockNumber: BigInt): DataSourceBatchUpdate = {
+  def putLatestCheckpointBlockNumber(latestCheckpointBlockNumber: BigInt): DataSourceBatchUpdate =
     update(Nil, Seq(Keys.LatestCheckpointBlockNumber -> latestCheckpointBlockNumber.toString))
-  }
 }
 
 object AppStateStorage {

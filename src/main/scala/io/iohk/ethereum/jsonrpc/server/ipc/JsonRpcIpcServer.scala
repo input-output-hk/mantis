@@ -32,13 +32,12 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
 
     serverSocket = new UnixDomainServerSocket(config.socketFile)
     new Thread {
-      override def run(): Unit = {
+      override def run(): Unit =
         while (!serverSocket.isClosed) {
           val clientSocket = serverSocket.accept()
           // Note: consider using a thread pool to limit the number of connections/requests
           new ClientThread(jsonRpcController, clientSocket).start()
         }
-      }
     }.start()
   }
 
@@ -65,9 +64,8 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
     private var running = true
 
     override def run(): Unit = {
-      while (running) {
+      while (running)
         handleNextRequest()
-      }
       clientSocket.close()
     }
 
@@ -86,7 +84,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
       }
     }
 
-    private def handleNextRequest(): Unit = {
+    private def handleNextRequest(): Unit =
       readNextMessage() match {
         case Some(nextMsgJson) =>
           val request = nextMsgJson.extract[JsonRpcRequest]
@@ -97,7 +95,6 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
         case None =>
           running = false
       }
-    }
 
   }
 }

@@ -10,11 +10,8 @@ object SyncCommonItSpec {
 
   def randomAddress(): InetSocketAddress = {
     val s = new ServerSocket(0)
-    try {
-      new InetSocketAddress("localhost", s.getLocalPort)
-    } finally {
-      s.close()
-    }
+    try new InetSocketAddress("localhost", s.getLocalPort)
+    finally s.close()
   }
 
   final case class BlockchainState(

@@ -46,7 +46,7 @@ object InMemoryWorldStateProxy {
     * @return Updated world
     */
   def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.accountCodes.foldLeft(worldState) { case (updatedWorldState, (address, code)) =>
         val codeHash = kec256(code)
         updatedWorldState.evmCodeStorage.put(codeHash, code).commit()
@@ -56,7 +56,6 @@ object InMemoryWorldStateProxy {
           accountCodes = Map.empty
         )
       }
-    }
 
     def persistContractStorage(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.contractStorages.foldLeft(worldState) { case (updatedWorldState, (address, storageTrie)) =>
@@ -92,14 +91,13 @@ object InMemoryWorldStateProxy {
   private def createProxiedAccountsStateTrie(
       accountsStorage: MptStorage,
       stateRootHash: ByteString
-  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
+  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
         accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
-  }
 }
 
 class InMemoryWorldStateProxyStorage(
@@ -143,9 +141,8 @@ class InMemoryWorldStateProxy(
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
-  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy = {
+  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
-  }
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(
@@ -180,12 +177,11 @@ class InMemoryWorldStateProxy(
 
   override def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copyWith(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
 
   /** Returns world state root hash. This value is only updated after persist.
     */

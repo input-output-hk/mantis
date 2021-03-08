@@ -23,7 +23,7 @@ case class Node(id: ByteString, addr: InetAddress, tcpPort: Int, udpPort: Int) {
 object Node {
 
   // If there is no udp port specified or it is malformed use tcp as default
-  private def getUdpPort(uri: URI, default: Int): Int = {
+  private def getUdpPort(uri: URI, default: Int): Int =
     Option(uri.getQuery).fold(default) { query =>
       Try {
         val params = query.split("=")
@@ -36,7 +36,6 @@ object Node {
         case Failure(_)       => default
       }
     }
-  }
 
   def fromUri(uri: URI): Node = {
     val nodeId = ByteString(Hex.decode(uri.getUserInfo))
@@ -52,13 +51,12 @@ object NodeParser extends Logger {
 
   type Error = String
 
-  private def validateTcpAddress(uri: URI): Either[Error, URI] = {
+  private def validateTcpAddress(uri: URI): Either[Error, URI] =
     Try(InetAddress.getByName(uri.getHost) -> uri.getPort) match {
       case Success(tcpAddress) if tcpAddress._2 != -1 => Right(uri)
       case Success(_)                                 => Left(s"No defined port for uri $uri")
       case Failure(_)                                 => Left(s"Error parsing ip address for $uri")
     }
-  }
 
   private def validateScheme(uri: URI): Either[Error, URI] = {
     val scheme = Option(uri.getScheme).toRight(s"No defined scheme for uri $uri")
@@ -79,12 +77,11 @@ object NodeParser extends Logger {
     )
   }
 
-  private def validateUri(uriString: String): Either[Error, URI] = {
+  private def validateUri(uriString: String): Either[Error, URI] =
     Try(new URI(uriString)) match {
       case Success(nUri) => Right(nUri)
       case Failure(ex)   => Left(s"Malformed URI for node $uriString")
     }
-  }
 
   private def validateNodeUri(node: String): Either[Set[Error], URI] = {
     import io.iohk.ethereum.utils.ValidationUtils._
@@ -106,9 +103,8 @@ object NodeParser extends Logger {
     * @param node to be parsed
     * @return the parsed node, or the errors detected during parsing
     */
-  def parseNode(node: String): Either[Set[Error], Node] = {
+  def parseNode(node: String): Either[Set[Error], Node] =
     validateNodeUri(node).map(uri => Node.fromUri(uri))
-  }
 
   /** Parses a set of nodes, logging the invalid ones and returning the valid ones
     *

@@ -12,17 +12,15 @@ class EphemDataSourceSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
   val KeyNumberLimit: Int = 40
   val OtherNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('e'.toByte)
 
-  def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): Unit = {
+  def putMultiple(dataSource: DataSource, toInsert: Seq[(ByteString, ByteString)]): Unit =
     toInsert.foreach { keyValuePair =>
       dataSource.update(Seq(DataSourceUpdate(OtherNamespace, Seq(), Seq(keyValuePair))))
     }
-  }
 
-  def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): Unit = {
+  def removeMultiple(dataSource: DataSource, toDelete: Seq[ByteString]): Unit =
     toDelete.foreach { key =>
       dataSource.update(Seq(DataSourceUpdate(OtherNamespace, Seq(key), Seq())))
     }
-  }
 
   test("EphemDataSource insert") {
     forAll(seqByteStringOfNItemsGen(KeySize)) { unFilteredKeyList: Seq[ByteString] =>

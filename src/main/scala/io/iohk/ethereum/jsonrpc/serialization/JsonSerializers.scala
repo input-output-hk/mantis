@@ -13,7 +13,7 @@ object JsonSerializers {
   object UnformattedDataJsonSerializer
       extends CustomSerializer[ByteString](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case bs: ByteString => JString(s"0x${Hex.toHexString(bs.toArray)}") }
         )
       )
@@ -21,7 +21,7 @@ object JsonSerializers {
   object QuantitiesSerializer
       extends CustomSerializer[BigInt](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case n: BigInt =>
             if (n == 0)
               JString("0x0")
@@ -34,7 +34,7 @@ object JsonSerializers {
   object OptionNoneToJNullSerializer
       extends CustomSerializer[Option[_]](formats =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case None => JNull }
         )
       )
@@ -42,7 +42,7 @@ object JsonSerializers {
   object AddressJsonSerializer
       extends CustomSerializer[Address](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case addr: Address => JString(s"0x${Hex.toHexString(addr.bytes.toArray)}") }
         )
       )
@@ -50,7 +50,7 @@ object JsonSerializers {
   object RpcErrorJsonSerializer
       extends CustomSerializer[JsonRpcError](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case err: JsonRpcError => JsonEncoder.encode(err) }
         )
       )

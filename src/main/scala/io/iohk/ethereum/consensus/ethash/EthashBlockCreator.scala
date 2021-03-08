@@ -44,13 +44,12 @@ class EthashBlockCreator(
     }
   }
 
-  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] = {
+  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
     ommersPool
       .askFor[OmmersPool.Ommers](OmmersPool.GetOmmers(parentBlockHash))
       .onErrorHandle { ex =>
         log.error("Failed to get ommers, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
       }
-  }
 
 }

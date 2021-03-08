@@ -122,9 +122,8 @@ class StateSyncSpec
         appStateStorage = storages.appStateStorage,
         stateStorage = storages.stateStorage
       ) {
-        override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
+        override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] =
           Observable.interval(10.milliseconds).map(_ => Right(ByteString(1))).takeWhile(_ => !loadingFinished)
-        }
       }
 
     }
@@ -203,9 +202,9 @@ class StateSyncSpec
 
     val peerEventBus = TestProbe()
 
-    def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit = {
+    def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit =
       etcPeerManager.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any): AutoPilot = {
+        override def run(sender: ActorRef, msg: Any): AutoPilot =
           msg match {
             case SendMessage(msg: GetNodeDataEnc, peer) =>
               peerConfig(peer) match {
@@ -229,9 +228,7 @@ class StateSyncSpec
               sender ! HandshakedPeers(peersMap)
               this
           }
-        }
       })
-    }
 
     override lazy val syncConfig: Config.SyncConfig = defaultSyncConfig.copy(
       peersScanInterval = 0.5.second,
@@ -241,9 +238,8 @@ class StateSyncSpec
       syncRetryInterval = 50.milliseconds
     )
 
-    def buildBlockChain() = {
+    def buildBlockChain() =
       BlockchainImpl(getNewStorages.storages)
-    }
 
     def genRandomArray(): Array[Byte] = {
       val arr = new Array[Byte](32)
@@ -251,9 +247,8 @@ class StateSyncSpec
       arr
     }
 
-    def genRandomByteString(): ByteString = {
+    def genRandomByteString(): ByteString =
       ByteString.fromArrayUnsafe(genRandomArray())
-    }
 
     lazy val syncStateSchedulerActor = system.actorOf(
       SyncStateSchedulerActor.props(

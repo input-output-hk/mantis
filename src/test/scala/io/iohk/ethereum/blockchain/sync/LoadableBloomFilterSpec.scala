@@ -9,9 +9,8 @@ import monix.reactive.Observable
 
 class LoadableBloomFilterSpec extends FlatSpecBase {
   implicit object LongFun extends Funnel[Long] {
-    override def funnel(from: Long, into: PrimitiveSink): Unit = {
+    override def funnel(from: Long, into: PrimitiveSink): Unit =
       Funnels.longFunnel().funnel(from, into)
-    }
   }
 
   "LoadableBloomFilter" should "load all correct elements " in testCaseM {

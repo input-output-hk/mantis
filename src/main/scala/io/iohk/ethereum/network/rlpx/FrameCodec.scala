@@ -86,7 +86,7 @@ class FrameCodec(private val secrets: Secrets) {
     readRecursive()
   }
 
-  private def tryReadHeader(): Unit = {
+  private def tryReadHeader(): Unit =
     if (unprocessedData.size >= HeaderLength) {
       val headBuffer = unprocessedData.take(HeaderLength).toArray
 
@@ -106,7 +106,6 @@ class FrameCodec(private val secrets: Secrets) {
       unprocessedData = unprocessedData.drop(HeaderLength)
       headerOpt = Some(Header(bodySize, protocol, contextId, totalPacketSize))
     }
-  }
 
   def writeFrames(frames: Seq[Frame]): ByteString = {
     val bytes = frames.zipWithIndex.flatMap { case (frame, index) =>
@@ -128,8 +127,8 @@ class FrameCodec(private val secrets: Secrets) {
 
       var headerDataElems: Seq[Array[Byte]] = Nil
       headerDataElems :+= rlp.encode(frame.header.protocol)
-      frame.header.contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
-      frame.header.totalPacketSize.foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
+      frame.header.contextId.foreach(cid => headerDataElems :+= rlp.encode(cid))
+      frame.header.totalPacketSize.foreach(tfs => headerDataElems :+= rlp.encode(tfs))
 
       val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]]())
       System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
@@ -229,8 +228,7 @@ class FrameCodec(private val secrets: Secrets) {
     result
   }
 
-  private def doSum(mac: KeccakDigest, out: Array[Byte]) = {
+  private def doSum(mac: KeccakDigest, out: Array[Byte]) =
     new KeccakDigest(mac).doFinal(out, 0)
-  }
 
 }

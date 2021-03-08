@@ -28,7 +28,7 @@ object VmSetup extends Logger {
         throw new RuntimeException("Missing vm.external config for external VM")
     }
 
-  private def startExternalVm(externalConfig: ExternalConfig): Unit = {
+  private def startExternalVm(externalConfig: ExternalConfig): Unit =
     externalConfig.vmType match {
       case "iele" | "kevm" =>
         log.info(s"Starting external ${externalConfig.vmType} VM process using executable path")
@@ -42,7 +42,6 @@ object VmSetup extends Logger {
         log.info("Using external VM process not managed by Mantis")
       // expect the vm to be started by external means
     }
-  }
 
   /** Runs a standard VM binary that takes $port and $host as input arguments
     */
@@ -56,15 +55,13 @@ object VmSetup extends Logger {
       .start()
   }
 
-  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit = {
+  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit =
     if (externalConfig.executablePath.isDefined)
       startStandardVmProcess(externalConfig)
     else
       startMantisVmInThisProcess()
-  }
 
-  private def startMantisVmInThisProcess(): Unit = {
+  private def startMantisVmInThisProcess(): Unit =
     VmServerApp.main(Array())
-  }
 
 }

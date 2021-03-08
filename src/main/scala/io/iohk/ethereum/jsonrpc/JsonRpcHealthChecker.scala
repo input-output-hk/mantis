@@ -6,7 +6,7 @@ import monix.eval.Task
 trait JsonRpcHealthChecker {
   def healthCheck(): Task[HealthcheckResponse]
 
-  def handleResponse(responseF: Task[HealthcheckResponse]): Task[HealthcheckResponse] = {
+  def handleResponse(responseF: Task[HealthcheckResponse]): Task[HealthcheckResponse] =
     responseF
       .map {
         case response if (!response.isOK) =>
@@ -18,5 +18,4 @@ trait JsonRpcHealthChecker {
         JsonRpcControllerMetrics.HealhcheckErrorCounter.increment()
         Task.raiseError(t)
       }
-  }
 }

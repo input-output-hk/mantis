@@ -47,7 +47,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
     difficultyWithoutBomb + extraDifficulty
   }
 
-  private def calculateBombExponent(blockNumber: BigInt): Int = {
+  private def calculateBombExponent(blockNumber: BigInt): Int =
     if (blockNumber < difficultyBombPauseBlockNumber)
       (blockNumber / ExpDifficultyPeriod - 2).toInt
     else if (blockNumber < difficultyBombContinueBlockNumber)
@@ -56,5 +56,4 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / ExpDifficultyPeriod
       ((blockNumber / ExpDifficultyPeriod) - delay - 2).toInt
     }
-  }
 }

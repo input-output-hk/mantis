@@ -50,8 +50,7 @@ class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks 
     }
   }
 
-  def checkIfIsInStorage(headers: List[BlockHeader], totalStorage: BlockHeadersStorage): Unit = {
+  def checkIfIsInStorage(headers: List[BlockHeader], totalStorage: BlockHeadersStorage): Unit =
     headers.foreach(header => assert(totalStorage.get(header.hash).contains(header)))
 
-  }
 }

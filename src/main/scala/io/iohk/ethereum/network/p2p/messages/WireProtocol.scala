@@ -47,7 +47,7 @@ object WireProtocol {
 
     override val code: Int = Hello.code
 
-    override def toString: String = {
+    override def toString: String =
       s"Hello { " +
         s"p2pVersion: $p2pVersion " +
         s"clientId: $clientId " +
@@ -55,7 +55,6 @@ object WireProtocol {
         s"listenPort: $listenPort " +
         s"nodeId: ${Hex.toHexString(nodeId.toArray[Byte])} " +
         s"}"
-    }
     override def toShortString: String = toString
   }
 

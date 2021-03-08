@@ -336,11 +336,10 @@ class QaJRCSpec
     def responseType(expectedType: MineBlocksResponse.MinerResponseType): JField =
       "responseType" -> JString(expectedType.entryName)
 
-    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse) = {
+    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse) =
       (qaService.mineBlocks _)
         .expects(mineBlocksReq)
         .returning(Task.now(Right(MineBlocksResponse(resp))))
-    }
 
     val fakeChainId: Byte = 42.toByte
   }

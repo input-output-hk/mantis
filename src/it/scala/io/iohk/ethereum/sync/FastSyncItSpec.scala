@@ -114,9 +114,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "update pivot block and sync this new pivot block state" in customTestCaseResourceM(
@@ -128,9 +128,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer2.importBlocksUntil(2000)(updateStateAtBlock(1500)).startAndForget
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "sync state to peer from partially synced state" in customTestCaseResourceM(
@@ -144,9 +144,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer1.connectToPeers(Set(peer2.node))
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "follow the longest chains" in customTestCaseResourceM(

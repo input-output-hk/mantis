@@ -97,9 +97,8 @@ class BlockRewardCalculator(
     * @param blockNumber mined block
     * @return reward given to the miner for each ommer included
     */
-  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt = {
+  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt =
     calculateMiningRewardForBlock(blockNumber) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
-  }
 
   /** era number counting from 0 */
   private def eraNumber(blockNumber: BigInt): Int =

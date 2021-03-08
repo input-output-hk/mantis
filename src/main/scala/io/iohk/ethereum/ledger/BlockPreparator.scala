@@ -149,7 +149,7 @@ class BlockPreparator(
   /** Calculate total gas to be refunded
     * See YP, eq (72)
     */
-  private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
+  private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt =
     result.error.map(_.useWholeGas) match {
       case Some(true)  => 0
       case Some(false) => result.gasRemaining
@@ -157,7 +157,6 @@ class BlockPreparator(
         val gasUsed = stx.tx.gasLimit - result.gasRemaining
         result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
     }
-  }
 
   private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(
       world: InMemoryWorldStateProxy
@@ -169,14 +168,13 @@ class BlockPreparator(
 
   private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(
       world: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy = {
+  ): InMemoryWorldStateProxy =
     if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
       val savedWorld = increaseAccountBalance(address, value)(world)
       if (withTouch) savedWorld.touchAccounts(address) else savedWorld
     }
-  }
 
   /** Delete all accounts (that appear in SUICIDE list). YP eq (78).
     * The contract storage should be cleared during pruning as nodes could be used in other tries.
@@ -211,12 +209,11 @@ class BlockPreparator(
     *         Set is cleared
     */
   private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
+    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) =
       if (world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)))
         world.deleteAccount(address)
       else
         world
-    }
 
     world.touchedAccounts
       .foldLeft(world)(deleteEmptyAccount)

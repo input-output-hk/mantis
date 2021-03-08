@@ -43,11 +43,8 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
         } match {
           case Success(customGenesis) =>
             log.info(s"Using custom genesis data from: $customGenesisFile")
-            try {
-              customGenesis.getLines().mkString
-            } finally {
-              customGenesis.close()
-            }
+            try customGenesis.getLines().mkString
+            finally customGenesis.close()
           case Failure(ex) =>
             log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
             throw ex
@@ -55,11 +52,8 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
       case None =>
         log.info("Using default genesis data")
         val src = Source.fromResource("blockchain/default-genesis.json")
-        try {
-          src.getLines().mkString
-        } finally {
-          src.close()
-        }
+        try src.getLines().mkString
+        finally src.close()
     }
 
     loadGenesisData(genesisJson) match {

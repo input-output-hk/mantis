@@ -17,12 +17,11 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
   override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
-  def executeOp(op: OpCode, stateIn: PS): PS = {
+  def executeOp(op: OpCode, stateIn: PS): PS =
     // gas is not tested in this spec
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
-  }
 
-  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any = {
+  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any =
     if (stateIn.stack.size < op.delta)
       stateOut shouldEqual stateIn.withError(StackUnderflow).halt
     else if (stateIn.stack.size - op.delta + op.alpha > stateIn.stack.maxSize)
@@ -38,7 +37,6 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       }
       body
     }
-  }
 
   def stateWithCode(state: PS, code: ByteString): PS = {
     val newProgram = Program(code)

@@ -25,7 +25,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
 
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldStatePostEIP161))
-    accountAddresses.foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
 
@@ -36,7 +36,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
 
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
-    accountAddresses.foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
   }
 
   it should "delete touched empty account" in new TestSetup {
@@ -48,7 +48,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
-    (accountAddresses - validEmptyAccountAddress).foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    (accountAddresses - validEmptyAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
     newWorld.touchedAccounts.size shouldEqual 0
   }
@@ -62,7 +62,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
-    (accountAddresses - validEmptyAccountAddress).foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    (accountAddresses - validEmptyAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
     newWorld.touchedAccounts.size shouldEqual 0
   }
@@ -83,7 +83,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
-    accountAddresses.foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
   }
 
   it should "delete multiple touched empty accounts" in new TestSetup {
@@ -124,7 +124,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
       consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterInitAndTransfer)
     )
 
-    (accountAddresses + validCreatedAccountAddress).foreach { a => assert(newWorld.getAccount(a).isDefined) }
+    (accountAddresses + validCreatedAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.touchedAccounts.size shouldEqual 0
   }
 

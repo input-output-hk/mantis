@@ -6,17 +6,14 @@ import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptN
 
 class MptConstructionVisitor(source: MptStorage) extends MptVisitor[MptNode] {
 
-  def visitLeaf(leaf: LeafNode): MptNode = {
+  def visitLeaf(leaf: LeafNode): MptNode =
     leaf
-  }
 
-  def visitHash(hashNode: HashNode): HashNodeResult[MptNode] = {
+  def visitHash(hashNode: HashNode): HashNodeResult[MptNode] =
     ResolveResult(source.get(hashNode.hash))
-  }
 
-  override def visitNull(): MptNode = {
+  override def visitNull(): MptNode =
     NullNode
-  }
 
   override def visitExtension(extension: ExtensionNode): ExtensionVisitor[MptNode] =
     new MptExtensionVisitor(extension, source)
@@ -27,17 +24,15 @@ class MptConstructionVisitor(source: MptStorage) extends MptVisitor[MptNode] {
 class MptBranchVisitor(branchNode: BranchNode, source: MptStorage) extends BranchVisitor[MptNode] {
   var resolvedChildren: List[MptNode] = List.empty
 
-  override def visitChild(child: => MptNode): Unit = {
+  override def visitChild(child: => MptNode): Unit =
     resolvedChildren = child :: resolvedChildren
-  }
 
   override def visitChild(): MptVisitor[MptNode] = new MptConstructionVisitor(source)
 
   override def visitTerminator(term: Option[NodeHash]): Unit = ()
 
-  override def done(): MptNode = {
+  override def done(): MptNode =
     branchNode.copy(children = resolvedChildren.reverse.toArray)
-  }
 }
 
 class MptExtensionVisitor(extensionNode: ExtensionNode, source: MptStorage) extends ExtensionVisitor[MptNode] {
@@ -45,11 +40,9 @@ class MptExtensionVisitor(extensionNode: ExtensionNode, source: MptStorage) exte
 
   override def visitNext(): MptVisitor[MptNode] = new MptConstructionVisitor(source)
 
-  override def visitNext(value: => MptNode): Unit = {
+  override def visitNext(value: => MptNode): Unit =
     resolvedNext = value
-  }
 
-  override def done(): MptNode = {
+  override def done(): MptNode =
     extensionNode.copy(next = resolvedNext)
-  }
 }

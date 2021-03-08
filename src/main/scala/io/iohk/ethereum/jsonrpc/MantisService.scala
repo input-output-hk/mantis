@@ -16,7 +16,7 @@ object MantisService {
 class MantisService(transactionHistoryService: TransactionHistoryService, jsonRpcConfig: JsonRpcConfig) {
   def getAccountTransactions(
       request: GetAccountTransactionsRequest
-  ): ServiceResponse[GetAccountTransactionsResponse] = {
+  ): ServiceResponse[GetAccountTransactionsResponse] =
     if (request.blocksRange.length > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Task.now(
         Left(
@@ -31,5 +31,4 @@ class MantisService(transactionHistoryService: TransactionHistoryService, jsonRp
         .getAccountTransactions(request.address, request.blocksRange)
         .map(GetAccountTransactionsResponse(_).asRight)
     }
-  }
 }

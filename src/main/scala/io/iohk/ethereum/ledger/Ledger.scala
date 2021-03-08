@@ -104,14 +104,13 @@ class LedgerImpl(
       validationContext
     )
 
-  override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
+  override def checkBlockStatus(blockHash: ByteString): BlockStatus =
     if (blockchain.getBlockByHash(blockHash).isDefined)
       InChain
     else if (blockQueue.isQueued(blockHash))
       Queued
     else
       UnknownBlock
-  }
 
   override def getBlockByHash(hash: ByteString): Option[Block] =
     blockchain.getBlockByHash(hash).orElse(blockQueue.getBlockByHash(hash))
@@ -156,7 +155,7 @@ class LedgerImpl(
   override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     branchResolution.resolveBranch(headers)
 
-  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit =
     importResult match {
       case BlockImportedToTop(blockImportData) =>
         blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
@@ -164,7 +163,6 @@ class LedgerImpl(
         newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
       case _ => ()
     }
-  }
 
 }
 

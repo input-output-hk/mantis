@@ -9,12 +9,11 @@ trait DifficultyCalculator {
 }
 
 object DifficultyCalculator {
-  def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator = {
+  def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator =
     blockchainConfig.powTargetTime match {
       case Some(targetTime) => new TargetTimeDifficultyCalculator(targetTime)
       case None             => new EthashDifficultyCalculator(blockchainConfig)
     }
-  }
 
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99

@@ -29,9 +29,8 @@ class KnownNodesStorage(val dataSource: DataSource) extends TransactionalKeyValu
   def valueDeserializer: IndexedSeq[Byte] => Set[String] = (valueBytes: IndexedSeq[Byte]) =>
     new String(valueBytes.toArray, StorageStringCharset.UTF8Charset).split(' ').toSet
 
-  def getKnownNodes(): Set[URI] = {
+  def getKnownNodes(): Set[URI] =
     get(key).getOrElse(Set.empty).filter(_.nonEmpty).map(new URI(_))
-  }
 
   def updateKnownNodes(toAdd: Set[URI] = Set.empty, toRemove: Set[URI] = Set.empty): DataSourceBatchUpdate = {
     val updated = (getKnownNodes() ++ toAdd) -- toRemove

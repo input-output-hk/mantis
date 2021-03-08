@@ -84,7 +84,7 @@ class FastSyncSpec
       blockchain.save(BlockHelpers.genesis, receipts = Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
     }
 
-    val startSync: Task[Unit] = Task { fastSync ! SyncProtocol.Start }
+    val startSync: Task[Unit] = Task(fastSync ! SyncProtocol.Start)
 
     val getSyncStatus: Task[Status] =
       Task.deferFuture((fastSync ? SyncProtocol.GetStatus).mapTo[Status])
@@ -113,14 +113,12 @@ class FastSyncSpec
           _ <- etcPeerManager.pivotBlockSelected.firstL
           _ <- etcPeerManager.fetchedHeaders.firstL
           status <- getSyncStatus
-        } yield {
-          status match {
-            case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
-              assert(startingBlockNumber === BigInt(0))
-              assert(blocksProgress.target === expectedPivotBlockNumber)
-              assert(stateNodesProgress === Some(Progress(0, 1)))
-            case Status.NotSyncing | Status.SyncDone => fail("Expected syncing status")
-          }
+        } yield status match {
+          case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
+            assert(startingBlockNumber === BigInt(0))
+            assert(blocksProgress.target === expectedPivotBlockNumber)
+            assert(stateNodesProgress === Some(Progress(0, 1)))
+          case Status.NotSyncing | Status.SyncDone => fail("Expected syncing status")
         })
           .timeout(timeout.duration)
       }
@@ -136,15 +134,13 @@ class FastSyncSpec
           blocksBatch <- etcPeerManager.fetchedBlocks.firstL
           status <- getSyncStatus
           lastBlockFromBatch = blocksBatch.last.number
-        } yield {
-          status match {
-            case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
-              assert(startingBlockNumber === BigInt(0))
-              assert(blocksProgress.current >= lastBlockFromBatch)
-              assert(blocksProgress.target === expectedPivotBlockNumber)
-              assert(stateNodesProgress === Some(Progress(0, 1)))
-            case Status.NotSyncing | Status.SyncDone => fail("Expected other state")
-          }
+        } yield status match {
+          case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
+            assert(startingBlockNumber === BigInt(0))
+            assert(blocksProgress.current >= lastBlockFromBatch)
+            assert(blocksProgress.target === expectedPivotBlockNumber)
+            assert(stateNodesProgress === Some(Progress(0, 1)))
+          case Status.NotSyncing | Status.SyncDone => fail("Expected other state")
         })
           .timeout(timeout.duration)
       }

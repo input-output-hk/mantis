@@ -195,7 +195,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val keys = List("123456", "234567", "123467", "12346789", "0123").map(Hex.decode)
     val vals = List("01", "02", "03", "04", "05").map(Hex.decode)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     assertCanGetEveryKeyValues(trie, keysWithVal)
   }
@@ -207,10 +207,10 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       )
     val vals = List("01", "02", "03", "04", "05", "06", "07", "08", "09", "10").map(Hex.decode)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     val (keysWithValToDelete, keysWithValLeft) = keysWithVal.splitAt(3)
-    val trieAfterDelete = keysWithValToDelete.foldLeft(trie) { (recTrie, elem) => recTrie.remove(elem._1) }
+    val trieAfterDelete = keysWithValToDelete.foldLeft(trie)((recTrie, elem) => recTrie.remove(elem._1))
     assertCanGetEveryKeyValues(trieAfterDelete, keysWithValLeft)
     assertNotHave(trieAfterDelete, keysWithValToDelete)
     trieAfterDelete.get(Hex.decode("01"))
@@ -224,7 +224,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val keys = List(key1, key2, key3)
     val vals = List(val1, val1, val1)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     assertCanGetEveryKeyValues(trie, keysWithVal)
   }
@@ -620,14 +620,14 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
           recTrie.put(key, value)
         }
 
-      input.toList.foreach(x => {
+      input.toList.foreach { x =>
         val keyToFind = x._1
         val proof = trie.getProof(keyToFind)
         assert(proof.isDefined)
         proof.map { p =>
           assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == ValidProof)
         }
-      })
+      }
     }
   }
 

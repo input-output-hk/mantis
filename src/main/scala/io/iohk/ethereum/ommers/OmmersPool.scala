@@ -32,7 +32,7 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
 
   private def collectAncestors(parentHash: ByteString, generationLimit: Int): List[BlockHeader] = {
     @tailrec
-    def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] = {
+    def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] =
       if (limit > 0) {
         blockchain.getBlockHeaderByHash(hash) match {
           case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
@@ -41,12 +41,11 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
       } else {
         acc
       }
-    }
     rec(parentHash, generationLimit, List.empty)
   }
 
   private def logStatus(event: String, ommers: Seq[BlockHeader]): Unit = {
-    lazy val ommersAsString: Seq[String] = ommers.map { bh => s"[number = ${bh.number}, hash = ${bh.hashAsHexString}]" }
+    lazy val ommersAsString: Seq[String] = ommers.map(bh => s"[number = ${bh.number}, hash = ${bh.hashAsHexString}]")
     log.debug(s"$event ${ommersAsString}")
   }
 }

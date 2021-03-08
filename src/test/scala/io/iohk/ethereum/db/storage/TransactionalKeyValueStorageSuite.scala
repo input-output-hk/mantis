@@ -37,7 +37,7 @@ class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPrope
 
   test("Get ints from KeyValueStorage") {
     forAll(dataGenerator) { case (intsInStorage, intsNotInStorage) =>
-      val intsInStorageIndexedSeq = intsInStorage.map { IntStorage.intSerializer(_) }
+      val intsInStorageIndexedSeq = intsInStorage.map(IntStorage.intSerializer(_))
       val intDataSource = EphemDataSource()
       intDataSource.update(
         Seq(DataSourceUpdate(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq)))

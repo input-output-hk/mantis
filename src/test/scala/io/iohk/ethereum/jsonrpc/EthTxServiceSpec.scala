@@ -334,23 +334,21 @@ class EthTxServiceSpec
   }
 
   it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
-    val transactions = (0 to 1)
-      .map(_ => {
-        val fakeTransaction = SignedTransactionWithSender(
-          Transaction(
-            nonce = 0,
-            gasPrice = 123,
-            gasLimit = 123,
-            receivingAddress = Address("0x1234"),
-            value = 0,
-            payload = ByteString()
-          ),
-          signature = ECDSASignature(0, 0, 0.toByte),
-          sender = Address("0x1234")
-        )
-        PendingTransaction(fakeTransaction, System.currentTimeMillis)
-      })
-      .toList
+    val transactions = (0 to 1).map { _ =>
+      val fakeTransaction = SignedTransactionWithSender(
+        Transaction(
+          nonce = 0,
+          gasPrice = 123,
+          gasLimit = 123,
+          receivingAddress = Address("0x1234"),
+          value = 0,
+          payload = ByteString()
+        ),
+        signature = ECDSASignature(0, 0, 0.toByte),
+        sender = Address("0x1234")
+      )
+      PendingTransaction(fakeTransaction, System.currentTimeMillis)
+    }.toList
 
     val res = ethTxService.getTransactionsFromPool.runToFuture
 

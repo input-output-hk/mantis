@@ -42,9 +42,8 @@ class TimeSlotStats[K, V: Monoid] private (
   }
 
   /** Forget all statistics about a given key. */
-  def remove(key: K): TimeSlotStats[K, V] = {
+  def remove(key: K): TimeSlotStats[K, V] =
     updated(lastIdx, buffer.map { case (k, v) => k -> v.remove(key) })
-  }
 
   /** Aggregate stats for a key in all slots that are within the duration. */
   def get(key: K, window: Option[Duration] = None): V =
@@ -80,9 +79,8 @@ class TimeSlotStats[K, V: Monoid] private (
     clock.millis()
 
   /** Truncate the current timestamp based on the slot duration. */
-  private def slotId(timestamp: Timestamp): Timestamp = {
+  private def slotId(timestamp: Timestamp): Timestamp =
     timestamp - timestamp % slotDuration.toMillis
-  }
 
   /** The range of time slots based on the current timestamp and the buffer duration. */
   def slotRange(timestamp: Timestamp, window: Duration): (Timestamp, Timestamp) = {

@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
   */
 class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
 
-  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     for {
       _ <- validateLexicographicalOrderOfSignatures(blockHeader)
       _ <- validateCheckpointSignatures(blockHeader, parentHeader)
@@ -21,7 +21,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
       _ <- validateTimestamp(blockHeader, parentHeader)
       _ <- validateTreasuryOptOut(blockHeader)
     } yield BlockHeaderValid
-  }
 
   private def validateLexicographicalOrderOfSignatures(
       header: BlockHeader
@@ -45,7 +44,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   private def validateCheckpointSignatures(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     blockHeader.checkpoint
       .map { checkpoint =>
         lazy val signaturesWithRecoveredKeys = checkpoint.signatures.map(s => s -> s.publicKey(parentHeader.hash))
@@ -78,7 +77,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
           Right(BlockHeaderValid)
       }
       .getOrElse(Left(BlockWithCheckpointHeaderValidator.NoCheckpointInHeaderError))
-  }
 
   /** Validates emptiness of:
     * - beneficiary
@@ -94,7 +92,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderFieldNotEmptyError]] otherwise
     */
-  private def validateEmptyFields(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  private def validateEmptyFields(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.beneficiary != BlockHeader.EmptyBeneficiary)
       notEmptyFieldError("beneficiary")
     else if (blockHeader.ommersHash != BlockHeader.EmptyOmmers)
@@ -112,7 +110,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     else if (blockHeader.mixHash.nonEmpty)
       notEmptyFieldError("mixHash")
     else Right(BlockHeaderValid)
-  }
 
   private def notEmptyFieldError(field: String) = Left(HeaderFieldNotEmptyError(s"$field is not empty"))
 
@@ -126,7 +123,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   private def validateFieldsCopiedFromParent(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.stateRoot != parentHeader.stateRoot)
       fieldNotMatchedParentFieldError("stateRoot")
     else if (blockHeader.gasLimit != parentHeader.gasLimit)
@@ -134,7 +131,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     else if (blockHeader.difficulty != parentHeader.difficulty)
       fieldNotMatchedParentFieldError("difficulty")
     else Right(BlockHeaderValid)
-  }
 
   private def fieldNotMatchedParentFieldError(field: String) =
     Left(HeaderNotMatchParentError(s"$field has different value that similar parent field"))
@@ -143,10 +139,9 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderGasUsedError]] otherwise
     */
-  private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  private def validateGasUsed(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.gasUsed != BigInt(0)) Left(HeaderGasUsedError)
     else Right(BlockHeaderValid)
-  }
 
   /** Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is one bigger than parent unixTimestamp
     *

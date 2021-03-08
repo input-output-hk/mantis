@@ -28,7 +28,7 @@ trait OpCodeTesting extends AnyFunSuiteLike {
   /** Run this as the last test in the suite
     * Ignoring an OpCode test will NOT cause this test to fail
     */
-  def verifyAllOpCodesRegistered(except: OpCode*): Unit = {
+  def verifyAllOpCodesRegistered(except: OpCode*): Unit =
     test("all opcodes have been registered") {
       val untested = config.opCodes.filterNot(op => testNames(op.toString)).diff(except)
       if (untested.isEmpty)
@@ -36,9 +36,8 @@ trait OpCodeTesting extends AnyFunSuiteLike {
       else
         fail("Unregistered opcodes: " + untested.mkString(", "))
     }
-  }
 
-  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit = {
+  def verifyGas(expectedGas: BigInt, stateIn: PS, stateOut: PS, allowOOG: Boolean = true): Unit =
     if (stateOut.error.contains(OutOfGas) && allowOOG)
       stateIn.gas should be < expectedGas
     else if (stateOut.error.contains(OutOfGas) && !allowOOG)
@@ -55,5 +54,4 @@ trait OpCodeTesting extends AnyFunSuiteLike {
     } else {
       stateOut.gas shouldEqual (stateIn.gas - expectedGas)
     }
-  }
 }

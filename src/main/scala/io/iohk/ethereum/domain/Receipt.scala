@@ -19,9 +19,8 @@ object Receipt {
       cumulativeGasUsed: BigInt,
       logsBloomFilter: ByteString,
       logs: Seq[TxLogEntry]
-  ): Receipt = {
+  ): Receipt =
     Receipt(HashOutcome(postTransactionStateHash), cumulativeGasUsed, logsBloomFilter, logs)
-  }
 
 }
 

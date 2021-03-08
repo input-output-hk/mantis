@@ -27,7 +27,7 @@ class EthUserService(
 ) extends ResolveBlock {
   import EthUserService._
 
-  def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
+  def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] =
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = blockchain.getWorldStateProxy(
@@ -40,7 +40,6 @@ class EthUserService(
         GetCodeResponse(world.getCode(req.address))
       }
     }
-  }
 
   def getBalance(req: GetBalanceRequest): ServiceResponse[GetBalanceResponse] =
     withAccount(req.address, req.block) { account =>

@@ -99,9 +99,8 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       _ <- overwrite(keyFileName, newEncKey)
     } yield ()
 
-  private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
+  private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] =
     Try(Files.deleteIfExists(Paths.get(keyStoreConfig.keyStoreDir, fileName))).toEither.left.map(ioError)
-  }
 
   private def init(): Unit = {
     val dir = new File(keyStoreConfig.keyStoreDir)
@@ -135,12 +134,11 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
     }.toEither.left.map(ioError)
   }
 
-  private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
+  private def load(address: Address): Either[KeyStoreError, EncryptedKey] =
     for {
       filename <- findKeyFileName(address)
       key <- load(filename)
     } yield key
-  }
 
   private def load(path: String): Either[KeyStoreError, EncryptedKey] =
     for {
@@ -188,8 +186,7 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       .getOrElse(Left(KeyNotFound))
   } yield matching
 
-  private def sortKeyFilesByDate(files: List[String]): List[String] = {
+  private def sortKeyFilesByDate(files: List[String]): List[String] =
     // given the date and filename formats sorting by date is equivalent to sorting by name
     files.sorted
-  }
 }

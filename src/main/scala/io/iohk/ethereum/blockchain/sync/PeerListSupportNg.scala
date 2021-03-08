@@ -57,13 +57,12 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
     handshakedPeers = updated
   }
 
-  private def removePeerById(peerId: PeerId): Unit = {
+  private def removePeerById(peerId: PeerId): Unit =
     if (handshakedPeers.keySet.contains(peerId)) {
       peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
       blacklist.remove(peerId)
       handshakedPeers = handshakedPeers - peerId
     }
-  }
 
 }
 

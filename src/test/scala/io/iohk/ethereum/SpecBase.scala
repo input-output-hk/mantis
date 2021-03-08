@@ -22,16 +22,15 @@ trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { sel
 
   def customTestCaseResourceM[M[_]: Effect, T](
       fixture: Resource[M, T]
-  )(theTest: T => M[Assertion])(implicit bracket: Bracket[M, Throwable]): Future[Assertion] = {
+  )(theTest: T => M[Assertion])(implicit bracket: Bracket[M, Throwable]): Future[Assertion] =
     fixture.use(theTest).toIO.unsafeToFuture()
-  }
 
   def customTestCaseM[M[_]: Effect, T](fixture: => T)(theTest: T => M[Assertion]): Future[Assertion] =
     customTestCaseResourceM(Resource.pure[M, T](fixture))(theTest)
 
   def testCaseM[M[_]: Effect](theTest: => M[Assertion]): Future[Assertion] = customTestCaseM(())(_ => theTest)
 
-  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task { theTest })
+  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task(theTest))
 }
 
 trait FlatSpecBase extends AsyncFlatSpecLike with SpecBase {}

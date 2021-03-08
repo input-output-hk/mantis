@@ -330,7 +330,7 @@ class BlockWithCheckpointHeaderValidatorSpec
         invalidBlockHeaderCreator: ByteString => BlockHeader,
         fieldName: String,
         emptyValue: ByteString = ByteString.empty
-    ): Assertion = {
+    ): Assertion =
       forAll(randomSizeByteStringGenerator.suchThat(_ != emptyValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
@@ -340,13 +340,12 @@ class BlockWithCheckpointHeaderValidatorSpec
           )
         )
       }
-    }
 
     def testOfTheSameValueAsParent(
         invalidBlockHeaderCreator: ByteString => BlockHeader,
         fieldName: String,
         filteredValue: ByteString
-    ): Assertion = {
+    ): Assertion =
       forAll(randomSizeByteStringGenerator.suchThat(_ != filteredValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
@@ -356,7 +355,6 @@ class BlockWithCheckpointHeaderValidatorSpec
           )
         )
       }
-    }
 
   }
 

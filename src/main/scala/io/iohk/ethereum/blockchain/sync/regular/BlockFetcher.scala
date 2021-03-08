@@ -168,7 +168,7 @@ class BlockFetcher(
       state.stateNodeFetcher.foreach(fetcher => fetchStateNode(fetcher.hash, fetcher.replyTo, state))
     case Response(peer, NodeData(values)) if state.isFetchingStateNode =>
       log.debug("Received state node response from peer {}", peer)
-      state.stateNodeFetcher.foreach(fetcher => {
+      state.stateNodeFetcher.foreach { fetcher =>
         val validatedNode = values
           .asRight[String]
           .ensure(s"Empty response from peer $peer, blacklisting")(_.nonEmpty)
@@ -185,7 +185,7 @@ class BlockFetcher(
             fetcher.replyTo ! FetchedStateNode(NodeData(node))
             context.become(started(state.notFetchingStateNode()))
         }
-      })
+      }
   }
 
   private def handleNewBlockMessages(state: BlockFetcherState): Receive = {

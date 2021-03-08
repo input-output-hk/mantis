@@ -54,7 +54,7 @@ class EthashBlockGeneratorImpl(
   /** An empty `X` */
   def emptyX: Ommers = Nil
 
-  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] = {
+  def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] =
     cache
       .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
         override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
@@ -66,7 +66,6 @@ class EthashBlockGeneratorImpl(
         ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pbs.pendingBlock.block.header))) == powHeaderHash
       }
       .map(_.pendingBlock)
-  }
 
   def generateBlock(
       parent: Block,

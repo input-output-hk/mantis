@@ -181,8 +181,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       unixTimestamp = header.unixTimestamp
     )
 
-  def close(): Unit = {
+  def close(): Unit =
     messageHandler.close()
-  }
 
 }

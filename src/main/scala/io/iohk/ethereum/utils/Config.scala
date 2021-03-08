@@ -244,13 +244,12 @@ object KeyStoreConfig {
     }
   }
 
-  def customKeyStoreConfig(path: String): KeyStoreConfig = {
+  def customKeyStoreConfig(path: String): KeyStoreConfig =
     new KeyStoreConfig {
       val keyStoreDir: String = path
       val minimalPassphraseLength: Int = 7
       val allowNoPassphrase: Boolean = true
     }
-  }
 }
 
 trait FilterConfig {
@@ -363,7 +362,7 @@ case class MonetaryPolicyConfig(
 }
 
 object MonetaryPolicyConfig {
-  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = {
+  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig =
     MonetaryPolicyConfig(
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
@@ -371,7 +370,6 @@ object MonetaryPolicyConfig {
       BigInt(mpConfig.getString("first-era-reduced-block-reward")),
       BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward"))
     )
-  }
 }
 
 trait PruningConfig {

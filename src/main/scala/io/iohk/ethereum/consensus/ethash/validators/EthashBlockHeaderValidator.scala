@@ -37,7 +37,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
   protected def validatePoW(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
 
-    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData = {
+    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =
       powCaches.transformAndExtract { cache =>
         cache.find(_.epoch == epoch) match {
           case Some(pcd) => (pcd, cache)
@@ -47,7 +47,6 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
             (data, (data :: cache).take(MaxPowCaches))
         }
       }
-    }
 
     val epoch = EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
     val seed = EthashUtils.seed(blockHeader.number.toLong)

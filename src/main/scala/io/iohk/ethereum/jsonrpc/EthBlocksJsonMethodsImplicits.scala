@@ -28,13 +28,12 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_getBlockByHash = new JsonMethodDecoder[BlockByBlockHashRequest]
     with JsonEncoder[BlockByBlockHashResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] = {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByBlockHashRequest] =
       params match {
         case Some(JArray(JString(blockHash) :: JBool(fullTxs) :: Nil)) =>
           extractHash(blockHash).map(BlockByBlockHashRequest(_, fullTxs))
         case _ => Left(InvalidParams())
       }
-    }
 
     override def encodeJson(t: BlockByBlockHashResponse): JValue =
       Extraction.decompose(t.blockResponse)
@@ -42,13 +41,12 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val eth_getBlockByNumber = new JsonMethodDecoder[BlockByNumberRequest]
     with JsonEncoder[BlockByNumberResponse] {
-    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByNumberRequest] = {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, BlockByNumberRequest] =
       params match {
         case Some(JArray(blockStr :: JBool(fullTxs) :: Nil)) =>
           extractBlockParam(blockStr).map(BlockByNumberRequest(_, fullTxs))
         case _ => Left(InvalidParams())
       }
-    }
 
     override def encodeJson(t: BlockByNumberResponse): JValue =
       Extraction.decompose(t.blockResponse)

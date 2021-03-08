@@ -12,7 +12,7 @@ object SSLConfig {
 
   val key = "certificate"
 
-  def apply(config: Config): Option[SSLConfig] = {
+  def apply(config: Config): Option[SSLConfig] =
     if (config.getIsNull(key))
       None
     else {
@@ -25,6 +25,5 @@ object SSLConfig {
         )
       )
     }
-  }
 
 }

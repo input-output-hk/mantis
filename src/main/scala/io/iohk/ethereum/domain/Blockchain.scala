@@ -36,12 +36,11 @@ trait Blockchain {
     */
   def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader]
 
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
+  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
     for {
       hash <- getHashByBlockNumber(number)
       header <- getBlockHeaderByHash(hash)
     } yield header
-  }
 
   /** Allows to query a blockBody by block hash
     *
@@ -145,9 +144,8 @@ trait Blockchain {
     *
     * @param block Block to be saved
     */
-  def storeBlock(block: Block): DataSourceBatchUpdate = {
+  def storeBlock(block: Block): DataSourceBatchUpdate =
     storeBlockHeader(block.header).and(storeBlockBody(block.header.hash, block.body))
-  }
 
   def removeBlock(hash: ByteString, withState: Boolean): Unit
 
@@ -362,9 +360,8 @@ class BlockchainImpl(
   override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] =
     transactionMappingStorage.get(txHash)
 
-  override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
+  override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
-  }
 
   override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate =
     receiptStorage.put(blockHash, receipts)
@@ -372,14 +369,13 @@ class BlockchainImpl(
   override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate =
     evmCodeStorage.put(hash, evmCode)
 
-  override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = {
+  override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit =
     latestCheckpointNumber match {
       case Some(number) =>
         saveBestKnownBlockAndLatestCheckpointNumber(bestBlockNumber, number)
       case None =>
         saveBestKnownBlock(bestBlockNumber)
     }
-  }
 
   private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
     bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
@@ -399,9 +395,8 @@ class BlockchainImpl(
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
     blockNumberMappingStorage.put(number, hash)
 
-  private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate = {
+  private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)
-  }
 
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
     val maybeBlock = getBlockByHash(blockHash)
@@ -479,14 +474,13 @@ class BlockchainImpl(
 
     // not transactional part
     if (withState)
-      stateStorage.onBlockRollback(block.number, bestBlockNumber) { () => persistBestBlocksData() }
+      stateStorage.onBlockRollback(block.number, bestBlockNumber)(() => persistBestBlocksData())
   }
   // scalastyle:on method.length
 
-  def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
+  def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] =
     (nodeStorage.storageContent.map(c => c.map(_._1)) ++ evmCodeStorage.storageContent.map(c => c.map(_._1)))
       .takeWhileInclusive(_.isRight)
-  }
 
   /** Recursive function which try to find the previous checkpoint by traversing blocks from top to the bottom.
     * In case of finding the checkpoint block number, the function will finish the job and return result
@@ -495,7 +489,7 @@ class BlockchainImpl(
   private def findPreviousCheckpointBlockNumber(
       blockNumberToCheck: BigInt,
       latestCheckpointBlockNumber: BigInt
-  ): BigInt = {
+  ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
         currentBlock <- getBlockByNumber(blockNumberToCheck)
@@ -508,7 +502,6 @@ class BlockchainImpl(
         case None                                => findPreviousCheckpointBlockNumber(blockNumberToCheck - 1, latestCheckpointBlockNumber)
       }
     } else 0
-  }
 
   private def saveTxsLocations(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
     blockBody.transactionList.zipWithIndex.foldLeft(transactionMappingStorage.emptyBatchUpdate) {
@@ -516,11 +509,10 @@ class BlockchainImpl(
         updates.and(transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)))
     }
 
-  private def removeTxsLocations(stxs: Seq[SignedTransaction]): DataSourceBatchUpdate = {
+  private def removeTxsLocations(stxs: Seq[SignedTransaction]): DataSourceBatchUpdate =
     stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) { case (updates, hash) =>
       updates.and(transactionMappingStorage.remove(hash))
     }
-  }
 
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy

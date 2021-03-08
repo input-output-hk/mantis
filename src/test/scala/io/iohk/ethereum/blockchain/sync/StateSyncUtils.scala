@@ -17,7 +17,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   )
 
   class TrieProvider(bl: Blockchain, blockchainConfig: BlockchainConfig) {
-    def getNodes(hashes: List[ByteString]) = {
+    def getNodes(hashes: List[ByteString]) =
       hashes.map { hash =>
         val maybeResult = bl.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
@@ -28,7 +28,6 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
           case None         => throw new RuntimeException("Missing expected data in storage")
         }
       }
-    }
 
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
       val init: InMemoryWorldStateProxy = bl
@@ -71,7 +70,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
   }
 
-  def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int): Seq[MptNodeData] = {
+  def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int): Seq[MptNodeData] =
     (initialNumber until lastNumber).map { i =>
       val address = Address(i)
       val codeBytes = ByteString(BigInt(i).toByteArray)
@@ -79,10 +78,9 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       val balance = i
       MptNodeData(address, Some(codeBytes), storage, balance)
     }
-  }
 
   def checkAllDataExists(nodeData: List[MptNodeData], bl: Blockchain, blNumber: BigInt): Boolean = {
-    def go(remaining: List[MptNodeData]): Boolean = {
+    def go(remaining: List[MptNodeData]): Boolean =
       if (remaining.isEmpty) {
         true
       } else {
@@ -101,7 +99,6 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
           false
         }
       }
-    }
 
     go(nodeData)
   }

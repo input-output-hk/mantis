@@ -6,7 +6,7 @@ import io.iohk.ethereum.utils.Logger
 
 class BranchResolution(blockchain: Blockchain) extends Logger {
 
-  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
@@ -19,7 +19,6 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
       else
         compareBranch(headers)
     }
-  }
 
   private[ledger] def doHeadersFormChain(headers: NonEmptyList[BlockHeader]): Boolean =
     headers.toList.zip(headers.tail).forall { case (parent, child) =>

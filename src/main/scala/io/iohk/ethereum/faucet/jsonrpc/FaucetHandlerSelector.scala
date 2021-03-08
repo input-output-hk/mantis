@@ -15,13 +15,12 @@ trait FaucetHandlerSelector {
 
   lazy val handlerTimeout: Timeout = Timeout(faucetConfig.handlerTimeout)
 
-  def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] = {
+  def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] =
     Task.deferFuture(
       retry(() => system.actorSelection(handlerPath).resolveOne(handlerTimeout.duration), attempts, delay)(
         system.dispatcher,
         system.scheduler
       )
     )
-  }
 
 }

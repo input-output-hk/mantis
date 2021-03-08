@@ -13,14 +13,13 @@ object BloomFilter {
   val EmptyBloomFilter: ByteString = ByteString(Array.fill(BloomFilterByteSize)(0.toByte))
   private val IntIndexesToAccess: Set[Int] = Set(0, 2, 4)
 
-  def containsAnyOf(bloomFilterBytes: ByteString, toCheck: Seq[ByteString]): Boolean = {
+  def containsAnyOf(bloomFilterBytes: ByteString, toCheck: Seq[ByteString]): Boolean =
     toCheck.exists { bytes =>
       val bloomFilterForBytes = bloomFilter(bytes.toArray[Byte])
 
       val andResult = ByteUtils.and(bloomFilterForBytes, bloomFilterBytes.toArray[Byte])
       andResult.sameElements(bloomFilterForBytes)
     }
-  }
 
   /** Given the logs of a receipt creates the bloom filter associated with them
     * as stated in section 4.4.1 of the YP

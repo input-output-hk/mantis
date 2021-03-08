@@ -50,17 +50,15 @@ class NodeStorage(val dataSource: DataSource)
     apply(dataSource)
   }
 
-  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] = {
+  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] =
     dataSource.iterate(namespace).map { result =>
       result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), value) }
     }
-  }
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
 
-  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage = {
+  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage =
     update(toRemove, toUpsert)
-  }
 }
 
 class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])

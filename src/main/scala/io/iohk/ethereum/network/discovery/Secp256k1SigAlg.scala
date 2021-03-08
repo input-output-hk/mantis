@@ -55,7 +55,7 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
 
   // ENR wants the signature without recovery ID, just 64 bytes.
   // The Packet on the other hand has the full 65 bytes.
-  override def removeRecoveryId(signature: Signature): Signature = {
+  override def removeRecoveryId(signature: Signature): Signature =
     signature.size / 8 match {
       case SignatureBytesSize =>
         Signature(signature.dropRight(8))
@@ -64,9 +64,8 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
       case other =>
         throw new IllegalArgumentException(s"Unexpected signature size: $other bytes")
     }
-  }
 
-  override def compressPublicKey(publicKey: PublicKey): PublicKey = {
+  override def compressPublicKey(publicKey: PublicKey): PublicKey =
     publicKey.size / 8 match {
       case PublicKeyBytesSize =>
         // This is a public key without the prefix, it consists of an x and y bigint.
@@ -84,13 +83,12 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
       case other =>
         throw new IllegalArgumentException(s"Unexpected uncompressed public key size: $other bytes")
     }
-  }
 
   // The public key points lie on the curve `y^2 = x^3 + 7`.
   // In the compressed form we have x and a prefix telling us whether y is even or odd.
   // https://bitcoin.stackexchange.com/questions/86234/how-to-uncompress-a-public-key
   // https://bitcoin.stackexchange.com/questions/44024/get-uncompressed-public-key-from-compressed-form
-  def decompressPublicKey(publicKey: PublicKey): PublicKey = {
+  def decompressPublicKey(publicKey: PublicKey): PublicKey =
     publicKey.size / 8 match {
       case PublicKeyBytesSize =>
         publicKey
@@ -104,7 +102,6 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
       case other =>
         throw new IllegalArgumentException(s"Unexpected compressed public key size: $other bytes")
     }
-  }
 
   override def verify(publicKey: PublicKey, signature: Signature, data: BitVector): Boolean = {
     val message = crypto.kec256(data.toByteArray)
@@ -160,7 +157,7 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
   }
 
   // Based on whether we have the recovery ID in the signature we may have to try 1 or 2 signatures.
-  private def toECDSASignatures(signature: Signature): Iterable[ECDSASignature] = {
+  private def toECDSASignatures(signature: Signature): Iterable[ECDSASignature] =
     signature.size / 8 match {
       case SignatureBytesSize =>
         val signatureBytes = signature.toByteArray
@@ -177,7 +174,6 @@ class Secp256k1SigAlg extends SigAlg with SecureRandomBuilder {
       case other =>
         throw new IllegalArgumentException(s"Unexpected signature size: $other bytes")
     }
-  }
 
   private def toECDSASignature(signatureBytes: Array[Byte]): ECDSASignature =
     ECDSASignature.fromBytes(ByteString(signatureBytes)).getOrElse {

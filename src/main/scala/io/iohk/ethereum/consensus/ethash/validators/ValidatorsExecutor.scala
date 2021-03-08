@@ -16,23 +16,20 @@ trait ValidatorsExecutor extends Validators {
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
-
+  ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] =
     ValidatorsExecutor.validateBlockBeforeExecution(
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
       getNBlocksBack = getNBlocksBack
     )
-  }
 
   def validateBlockAfterExecution(
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
-
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     ValidatorsExecutor.validateBlockAfterExecution(
       self = this,
       block = block,
@@ -40,7 +37,6 @@ trait ValidatorsExecutor extends Validators {
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }
 
 object ValidatorsExecutor {
@@ -61,14 +57,13 @@ object ValidatorsExecutor {
 
   // Created only for testing purposes, shouldn't be used in production code.
   // Connected with: https://github.com/ethereum/tests/issues/480
-  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): ValidatorsExecutor = {
+  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): ValidatorsExecutor =
     new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
       new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
     )
-  }
 
   def validateBlockBeforeExecution(
       self: ValidatorsExecutor,
@@ -101,8 +96,7 @@ object ValidatorsExecutor {
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
-
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = self,
       block = block,
@@ -110,5 +104,4 @@ object ValidatorsExecutor {
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }

@@ -19,7 +19,7 @@ trait BlacklistSupport {
 
   val blacklistedPeers = mutable.LinkedHashMap.empty[BlacklistId, Cancellable]
 
-  def blacklist(blacklistId: BlacklistId, duration: FiniteDuration, reason: String): Unit = {
+  def blacklist(blacklistId: BlacklistId, duration: FiniteDuration, reason: String): Unit =
     if (duration > Duration.Zero) {
       if (blacklistedPeers.size >= maxBlacklistedNodes) {
         removeOldestPeer()
@@ -31,7 +31,6 @@ trait BlacklistSupport {
     } else {
       log.debug(s"Peer ($blacklistId) would be blacklisted (reason: $reason), but blacklisting duration is zero")
     }
-  }
 
   def undoBlacklist(blacklistId: BlacklistId): Unit = {
     val peer = blacklistedPeers.get(blacklistId)

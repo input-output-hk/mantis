@@ -69,10 +69,9 @@ case class MockWorldState(
 
   def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def keepPrecompileTouched(world: MockWorldState): MockWorldState = {
+  override def keepPrecompileTouched(world: MockWorldState): MockWorldState =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copy(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
 }

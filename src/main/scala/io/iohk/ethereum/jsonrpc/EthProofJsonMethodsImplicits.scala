@@ -34,9 +34,9 @@ object EthProofJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ => Left(InvalidParams())
         }
 
-      override def encodeJson(t: GetProofResponse): JValue = {
+      override def encodeJson(t: GetProofResponse): JValue =
         JObject(
-          "accountProof" -> JArray(t.proofAccount.accountProof.toList.map { ap => encodeAsHex(ap) }),
+          "accountProof" -> JArray(t.proofAccount.accountProof.toList.map(ap => encodeAsHex(ap))),
           "balance" -> encodeAsHex(t.proofAccount.balance),
           "codeHash" -> encodeAsHex(t.proofAccount.codeHash),
           "nonce" -> encodeAsHex(t.proofAccount.nonce),
@@ -44,12 +44,11 @@ object EthProofJsonMethodsImplicits extends JsonMethodsImplicits {
           "storageProof" -> JArray(t.proofAccount.storageProof.toList.map { sp =>
             JObject(
               "key" -> encodeAsHex(sp.key.v),
-              "proof" -> JArray(sp.proof.toList.map { p => encodeAsHex(p) }),
+              "proof" -> JArray(sp.proof.toList.map(p => encodeAsHex(p))),
               "value" -> encodeAsHex(sp.value)
             )
           })
         )
-      }
     }
 
 }

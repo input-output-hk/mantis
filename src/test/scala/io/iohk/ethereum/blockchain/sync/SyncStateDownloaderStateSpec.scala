@@ -223,13 +223,12 @@ class SyncStateDownloaderStateSpec
   }
 
   trait TestSetup {
-    def expectUsefulData(result: ResponseProcessingResult): UsefulData = {
+    def expectUsefulData(result: ResponseProcessingResult): UsefulData =
       result match {
         case UnrequestedResponse    => fail()
         case NoUsefulDataInResponse => fail()
         case data @ UsefulData(_)   => data
       }
-    }
 
     val ref1 = TestProbe().ref
     val ref2 = TestProbe().ref

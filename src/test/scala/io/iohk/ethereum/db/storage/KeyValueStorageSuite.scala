@@ -41,14 +41,14 @@ class KeyValueStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
 
   test("Get ints from KeyValueStorage") {
     forAll(dataGenerator) { case (intsInStorage, intsNotInStorage) =>
-      val intsInStorageIndexedSeq = intsInStorage.map { IntStorage.intSerializer(_) }
+      val intsInStorageIndexedSeq = intsInStorage.map(IntStorage.intSerializer(_))
       val initialIntDataSource = EphemDataSource()
       initialIntDataSource.update(
         Seq(DataSourceUpdate(IntStorage.intNamespace, Seq(), intsInStorageIndexedSeq.zip(intsInStorageIndexedSeq)))
       )
       val keyValueStorage = new IntStorage(initialIntDataSource)
-      intsInStorage.foreach { i => assert(keyValueStorage.get(i).contains(i)) }
-      intsNotInStorage.foreach { i => assert(keyValueStorage.get(i).isEmpty) }
+      intsInStorage.foreach(i => assert(keyValueStorage.get(i).contains(i)))
+      intsNotInStorage.foreach(i => assert(keyValueStorage.get(i).isEmpty))
     }
   }
 

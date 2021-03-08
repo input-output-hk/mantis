@@ -9,7 +9,7 @@ import scala.util.Try
 
 case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
 
-  def createSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
+  def createSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] =
     for {
       _ <- validateCertificateFiles(
         sslConfig.keyStorePath,
@@ -17,16 +17,13 @@ case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
       )
       sslContext <- getSSLContext(sslConfig, secureRandom)
     } yield sslContext
-  }
 
   private def getSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
     val passwordReader = getReader(sslConfig.passwordFile)
     try {
       val password = passwordReader.getLines().mkString
       obtainSSLContext(secureRandom, sslConfig.keyStorePath, sslConfig.keyStoreType, password)
-    } finally {
-      passwordReader.close()
-    }
+    } finally passwordReader.close()
   }
 
   /** Validates that the keystore certificate file and password file were configured and that the files exists

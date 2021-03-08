@@ -116,7 +116,7 @@ class FilterManager(
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     @tailrec
-    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] = {
+    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] =
       if (currentBlockNumber > toBlockNumber) {
         logsSoFar
       } else {
@@ -143,7 +143,6 @@ class FilterManager(
           case None    => logsSoFar
         }
       }
-    }
 
     val bestBlockNumber = blockchain.getBestBlockNumber()
 
@@ -224,16 +223,15 @@ class FilterManager(
     }
   }
 
-  private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean = {
+  private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean =
     logTopics.size >= filterTopics.size &&
-    (filterTopics.zip(logTopics)).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
-  }
+      (filterTopics.zip(logTopics)).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
     val bestBlock = blockchain.getBestBlockNumber()
 
     @tailrec
-    def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] = {
+    def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] =
       if (currentBlockNumber > bestBlock) {
         hashesSoFar
       } else
@@ -241,35 +239,32 @@ class FilterManager(
           case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
           case None         => hashesSoFar
         }
-    }
 
     recur(blockNumber + 1, Nil)
   }
 
-  private def getPendingTransactions(): Task[Seq[PendingTransaction]] = {
+  private def getPendingTransactions(): Task[Seq[PendingTransaction]] =
     pendingTransactionsManager
       .askFor[PendingTransactionsManager.PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .flatMap { response =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
             Task.now(
-              response.pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
+              response.pendingTransactions.filter(pt => accounts.contains(pt.stx.senderAddress))
             )
           case Left(_) => Task.raiseError(new RuntimeException("Cannot get account list"))
         }
       }
-  }
 
   private def generateId(): BigInt = BigInt(Random.nextLong()).abs
 
-  private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt = {
+  private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt =
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => blockNumber
       case BlockParam.Earliest                => 0
       case BlockParam.Latest                  => bestBlockNumber
       case BlockParam.Pending                 => bestBlockNumber
     }
-  }
 }
 
 object FilterManager {

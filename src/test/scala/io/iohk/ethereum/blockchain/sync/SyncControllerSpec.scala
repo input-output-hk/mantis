@@ -225,12 +225,10 @@ class SyncControllerSpec
 
   it should "update pivot block if pivot fail" in withTestSetup(new Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
-      {
-        if (blockHeader.number != 399500 + 10) {
-          Right(BlockHeaderValid)
-        } else {
-          Left(HeaderPoWError)
-        }
+      if (blockHeader.number != 399500 + 10) {
+        Right(BlockHeaderValid)
+      } else {
+        Left(HeaderPoWError)
       }
     }
   }) { testSetup =>
@@ -526,7 +524,7 @@ class SyncControllerSpec
         receipts: Map[ByteString, Seq[Receipt]]
     )
     object BlockchainData {
-      def apply(headers: Seq[BlockHeader]): BlockchainData = {
+      def apply(headers: Seq[BlockHeader]): BlockchainData =
         // assumes headers are correct chain
         headers.foldLeft(new BlockchainData(Map.empty, Map.empty, Map.empty)) { (state, header) =>
           state.copy(
@@ -535,7 +533,6 @@ class SyncControllerSpec
             receipts = state.receipts + (header.hash -> Seq.empty)
           )
         }
-      }
     }
     // scalastyle:off method.length
     case class SyncStateAutoPilot(
@@ -548,7 +545,7 @@ class SyncControllerSpec
         failedNodeRequest: Boolean,
         autoPilotProbeRef: ActorRef
     ) extends AutoPilot {
-      override def run(sender: ActorRef, msg: Any): AutoPilot = {
+      override def run(sender: ActorRef, msg: Any): AutoPilot =
         msg match {
           case EtcPeerManagerActor.GetHandshakedPeers =>
             sender ! handshakedPeers
@@ -603,7 +600,6 @@ class SyncControllerSpec
             sender ! DataUpdated
             this.copy(peers, pivot, data, failedReceipts, failedBodies, onlyPivot, failedNode)
         }
-      }
 
       def updateAutoPilot(
           handshakedPeers: HandshakedPeers,
@@ -708,7 +704,7 @@ class SyncControllerSpec
           parenthash: ByteString,
           headers: Seq[BlockHeader],
           result: Seq[BlockHeader] = Seq.empty
-      ): Seq[BlockHeader] = {
+      ): Seq[BlockHeader] =
         if (headers.isEmpty)
           result
         else {
@@ -717,16 +713,14 @@ class SyncControllerSpec
           val newHash = newHeader.hash
           genChain(newHash, headers.tail, result :+ newHeader)
         }
-      }
 
       val first = headers.head
 
       first +: genChain(first.hash, headers.tail)
     }
 
-    def startWithState(state: SyncState): Unit = {
+    def startWithState(state: SyncState): Unit =
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
-    }
 
     private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
 
@@ -742,10 +736,7 @@ class SyncControllerSpec
 
   def withTestSetup(validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)(test: TestSetup => Any): Unit = {
     val testSetup = new TestSetup(validators)
-    try {
-      test(testSetup)
-    } finally {
-      testSetup.cleanup()
-    }
+    try test(testSetup)
+    finally testSetup.cleanup()
   }
 }

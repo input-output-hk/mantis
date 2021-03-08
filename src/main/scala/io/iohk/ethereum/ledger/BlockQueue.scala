@@ -88,7 +88,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     */
   def getBranch(descendant: ByteString, dequeue: Boolean): List[Block] = {
 
-    def recur(hash: ByteString, childShared: Boolean): List[Block] = {
+    def recur(hash: ByteString, childShared: Boolean): List[Block] =
       blocks.get(hash) match {
         case Some(QueuedBlock(block, _)) =>
           import block.header.parentHash
@@ -105,7 +105,6 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
         case _ =>
           Nil
       }
-    }
 
     recur(descendant, false).reverse
   }
@@ -138,7 +137,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     * @param ancestor An ancestor's hash that determines the subtree
     * @return Best leaf from the affected subtree
     */
-  private def updateChainWeights(ancestor: ByteString): Option[Leaf] = {
+  private def updateChainWeights(ancestor: ByteString): Option[Leaf] =
     blocks.get(ancestor).flatMap(_.weight).flatMap { weight =>
       parentToChildren.get(ancestor) match {
 
@@ -153,7 +152,6 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
           Some(Leaf(ancestor, weight))
       }
     }
-  }
 
   /** Find a closest (youngest) chained ancestor. Chained means being part of a known chain, thus having total
     * difficulty defined

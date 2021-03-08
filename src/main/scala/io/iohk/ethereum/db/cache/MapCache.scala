@@ -23,40 +23,35 @@ class MapCache[K, V](val cache: mutable.Map[K, V], config: NodeCacheConfig) exte
     this
   }
 
-  override def getValues: Seq[(K, V)] = {
+  override def getValues: Seq[(K, V)] =
     cache.toSeq
-  }
 
-  override def get(key: K): Option[V] = {
+  override def get(key: K): Option[V] =
     this.synchronized {
       cache.get(key)
     }
-  }
 
   override def clear(): Unit = {
     lastClear.getAndSet(System.nanoTime())
     cache.clear()
   }
 
-  override def shouldPersist: Boolean = {
+  override def shouldPersist: Boolean =
     cache.size > config.maxSize || isTimeToClear
-  }
 
-  private def isTimeToClear: Boolean = {
+  private def isTimeToClear: Boolean =
     FiniteDuration(System.nanoTime(), TimeUnit.NANOSECONDS) - FiniteDuration(
       lastClear.get(),
       TimeUnit.NANOSECONDS
     ) >= config.maxHoldTime
-  }
 }
 
 object MapCache {
 
   def getMap[K, V]: mutable.Map[K, V] = mutable.Map.empty
 
-  def createCache[K, V](config: NodeCacheConfig): MapCache[K, V] = {
+  def createCache[K, V](config: NodeCacheConfig): MapCache[K, V] =
     new MapCache[K, V](getMap[K, V], config)
-  }
 
   private case class TestCacheConfig(override val maxSize: Long, override val maxHoldTime: FiniteDuration)
       extends NodeCacheConfig
@@ -64,7 +59,6 @@ object MapCache {
   def createTestCache[K, V](
       maxSize: Long,
       maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)
-  ): Cache[K, V] = {
+  ): Cache[K, V] =
     createCache[K, V](TestCacheConfig(maxSize, maxHoldTime))
-  }
 }

@@ -51,7 +51,7 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
   private[extvm] var processingThread: Thread = _
 
   @tailrec
-  private def processNextCall(): Unit = {
+  private def processNextCall(): Unit =
     Try {
       val callContext = messageHandler.awaitMessage[msg.CallContext]
       log.debug("Server received msg: CallContext")
@@ -66,7 +66,6 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       case Success(_) => processNextCall()
       case Failure(_) => close()
     }
-  }
 
   private def awaitHello(): Unit = {
     val helloMsg = messageHandler.awaitMessage[msg.Hello]
@@ -176,7 +175,7 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
   }
 
   // scalastyle:off magic.number
-  private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm = {
+  private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm =
     BlockchainConfigForEvm(
       frontierBlockNumber = conf.frontierBlockNumber,
       homesteadBlockNumber = conf.homesteadBlockNumber,
@@ -194,5 +193,4 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
       chainId = 0x3d.toByte //TODO include chainId in protobuf
     )
-  }
 }
