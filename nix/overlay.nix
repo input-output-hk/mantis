@@ -19,9 +19,17 @@ rev: final: prev: {
 
   writeBashBinChecked = name: final.writeBashChecked "/bin/${name}";
 
-  mantis-entrypoint = final.writeBashBinChecked "mantis-entrypoint" ''
-    export PATH=${final.lib.makeBinPath [ final.coreutils final.restic ]}
+  mantis-entrypoint-script = final.writeBashBinChecked "mantis-entrypoint" ''
+    export PATH=${
+      final.lib.makeBinPath
+      (with final; [ coreutils restic gnugrep awscli diffutils mantis ])
+    }
 
     ${builtins.readFile ./entrypoint.sh}
   '';
+
+  mantis-entrypoint = final.symlinkJoin {
+    name = "mantis";
+    paths = with final; [ mantis mantis-entrypoint-script ];
+  };
 }

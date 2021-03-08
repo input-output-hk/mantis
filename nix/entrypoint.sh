@@ -23,17 +23,9 @@ if [ -n "${DAG_NAME:-}" ]; then
   fi
 fi
 
-set +x
 until [ "$(grep -c enode mantis.conf)" -ge "$REQUIRED_PEER_COUNT" ]; do
   sleep 1
 done
-
-if [ -n "${DAG_NAME:-}" ]; then
-  delay="$((REQUIRED_PEER_COUNT * 100))"
-  echo "waiting for $delay seconds before start"
-  sleep "$delay"
-fi
-set -x
 
 ulimit -c unlimited
 cp mantis.conf running.conf
