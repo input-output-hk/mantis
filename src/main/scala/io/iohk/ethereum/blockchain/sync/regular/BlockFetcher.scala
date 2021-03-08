@@ -1,8 +1,10 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import akka.pattern.{ask, pipe}
+import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.{Keep, Sink, Source}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
@@ -27,10 +29,8 @@ import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
-import monix.catnap.ConcurrentQueue
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
-import monix.reactive.Observable
 import mouse.all._
 
 import scala.concurrent.duration._
@@ -47,21 +47,20 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
+  implicit val sys = context.system
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
-  val queue = ConcurrentQueue.unbounded[Task, BlockFetcherState]().runToFuture
-
-  queue.map(q =>
-    Observable
-      .repeatEvalF(q.poll)
-      .map { s =>
-        log.debug("Resuming fetching with the latest state")
-        val newState = s |> tryFetchHeaders |> tryFetchBodies
-        context become started(newState.withResumedFetching)
-      }
-      .throttleLast(10.seconds)
-      .subscribe()
-  )
+  val cap = 1000
+  val queue = Source
+    .queue[BlockFetcherState](cap, OverflowStrategy.backpressure)
+    .groupedWithin(Int.MaxValue, 10.seconds)
+    .mapConcat(_.lastOption.toList)
+    .map { s =>
+      log.debug("Resuming fetching with the latest state")
+      fetchBlocks(s.withResumedFetching)
+    }
+    .toMat(Sink.ignore)(Keep.left)
+    .run()
 
   override def receive: Receive = idle()
 
@@ -329,7 +328,7 @@ class BlockFetcher(
     // Nice and clean way to express that would be to use SyncIO from cats-effect
 
     if (state.pausedFetching) {
-      queue.map(_.offer(state))
+      queue.offer(state)
       context become started(state)
     } else {
       val newState = state |> tryFetchHeaders |> tryFetchBodies
