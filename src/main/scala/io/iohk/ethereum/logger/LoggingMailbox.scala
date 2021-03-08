@@ -7,8 +7,7 @@ import akka.dispatch._
 import akka.event.Logging
 import com.typesafe.config.Config
 
-/**
-  * Logs the mailbox size when exceeding the configured limit. It logs at most once per second
+/** Logs the mailbox size when exceeding the configured limit. It logs at most once per second
   * when the messages are enqueued or dequeued.
   *
   * Configuration:

@@ -23,7 +23,7 @@ object PV63 {
     implicit class GetNodeDataDec(val bytes: Array[Byte]) extends AnyVal {
       def toGetNodeData: GetNodeData = rawDecode(bytes) match {
         case rlpList: RLPList => GetNodeData(fromRlpList[ByteString](rlpList))
-        case _ => throw new RuntimeException("Cannot decode GetNodeData")
+        case _                => throw new RuntimeException("Cannot decode GetNodeData")
       }
     }
   }
@@ -95,7 +95,7 @@ object PV63 {
     implicit class NodeDataDec(val bytes: Array[Byte]) extends AnyVal {
       def toNodeData: NodeData = rawDecode(bytes) match {
         case rlpList: RLPList => NodeData(rlpList.items.map { e => e: ByteString })
-        case _ => throw new RuntimeException("Cannot decode NodeData")
+        case _                => throw new RuntimeException("Cannot decode NodeData")
       }
     }
   }
@@ -123,7 +123,7 @@ object PV63 {
     implicit class GetReceiptsDec(val bytes: Array[Byte]) extends AnyVal {
       def toGetReceipts: GetReceipts = rawDecode(bytes) match {
         case rlpList: RLPList => GetReceipts(fromRlpList[ByteString](rlpList))
-        case _ => throw new RuntimeException("Cannot decode GetReceipts")
+        case _                => throw new RuntimeException("Cannot decode GetReceipts")
       }
     }
   }
@@ -164,8 +164,8 @@ object PV63 {
         import receipt._
         val stateHash: RLPEncodeable = postTransactionStateHash match {
           case HashOutcome(hash) => hash
-          case SuccessOutcome => 1.toByte
-          case _ => 0.toByte
+          case SuccessOutcome    => 1.toByte
+          case _                 => 0.toByte
         }
         RLPList(stateHash, cumulativeGasUsed, logsBloomFilter, RLPList(logs.map(_.toRLPEncodable): _*))
       }
@@ -180,7 +180,7 @@ object PV63 {
 
       def toReceipts: Seq[Receipt] = rawDecode(bytes) match {
         case RLPList(items @ _*) => items.map(_.toReceipt)
-        case _ => throw new RuntimeException("Cannot decode Receipts")
+        case _                   => throw new RuntimeException("Cannot decode Receipts")
       }
     }
 
@@ -188,9 +188,9 @@ object PV63 {
       def toReceipt: Receipt = rlpEncodeable match {
         case RLPList(postTransactionStateHash, cumulativeGasUsed, logsBloomFilter, logs: RLPList) =>
           val stateHash = postTransactionStateHash match {
-            case RLPValue(bytes) if bytes.length > 1 => HashOutcome(ByteString(bytes))
+            case RLPValue(bytes) if bytes.length > 1                     => HashOutcome(ByteString(bytes))
             case RLPValue(bytes) if bytes.length == 1 && bytes.head == 1 => SuccessOutcome
-            case _ => FailureOutcome
+            case _                                                       => FailureOutcome
           }
           Receipt(stateHash, cumulativeGasUsed, logsBloomFilter, logs.items.map(_.toTxLogEntry))
         case _ => throw new RuntimeException("Cannot decode Receipt")
@@ -216,7 +216,7 @@ object PV63 {
 
       def toReceipts: Receipts = rawDecode(bytes) match {
         case rlpList: RLPList => Receipts(rlpList.items.collect { case r: RLPList => r.items.map(_.toReceipt) })
-        case _ => throw new RuntimeException("Cannot decode Receipts")
+        case _                => throw new RuntimeException("Cannot decode Receipts")
       }
     }
   }

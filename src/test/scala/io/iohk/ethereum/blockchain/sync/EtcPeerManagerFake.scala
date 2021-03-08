@@ -71,7 +71,7 @@ class EtcPeerManagerFake(
     Function.unlift(msg =>
       msg.message.underlyingMsg match {
         case GetReceipts(hashes) => Some(hashes)
-        case _ => None
+        case _                   => None
       }
     )
   )

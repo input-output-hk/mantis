@@ -18,16 +18,14 @@ trait KeyValueStorage[K, V, T <: KeyValueStorage[K, V, T]] extends SimpleMap[K, 
 
   protected def apply(dataSource: DataSource): T
 
-  /**
-    * This function obtains the associated value to a key in the current namespace, if there exists one.
+  /** This function obtains the associated value to a key in the current namespace, if there exists one.
     *
     * @param key
     * @return the value associated with the passed key, if there exists one.
     */
   def get(key: K): Option[V] = dataSource.get(namespace, keySerializer(key)).map(valueDeserializer)
 
-  /**
-    * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
+  /** This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
     * in the current namespace.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStorage.

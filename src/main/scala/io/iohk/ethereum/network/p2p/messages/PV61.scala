@@ -22,7 +22,7 @@ object PV61 {
     implicit class NewBlockHashesDec(val bytes: Array[Byte]) extends AnyVal {
       def toNewBlockHashes: NewBlockHashes = rawDecode(bytes) match {
         case rlpList: RLPList => NewBlockHashes(rlpList.items.map(e => ByteString(e: Array[Byte])))
-        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
+        case _                => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
 
     }
@@ -47,7 +47,7 @@ object PV61 {
     implicit class BlockHashesFromNumberDec(val bytes: Array[Byte]) extends AnyVal {
       def toBlockHashesFromNumber: BlockHashesFromNumber = rawDecode(bytes) match {
         case RLPList(number, maxBlocks) => BlockHashesFromNumber(number, maxBlocks)
-        case _ => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
+        case _                          => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
       }
     }
   }

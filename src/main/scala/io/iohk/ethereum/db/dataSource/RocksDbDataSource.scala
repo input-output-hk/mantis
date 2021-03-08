@@ -29,8 +29,7 @@ class RocksDbDataSource(
   @volatile
   private var isClosed = false
 
-  /**
-    * This function obtains the associated value to a key, if there exists one.
+  /** This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
     * @param key       the key retrieve the value.
@@ -55,8 +54,7 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function obtains the associated value to a key, if there exists one. It assumes that
+  /** This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
@@ -130,7 +128,7 @@ class RocksDbDataSource(
       }
       .onErrorHandleWith {
         case IterationFinished => Observable.empty
-        case ex => Observable(Left(IterationError(ex)))
+        case ex                => Observable(Left(IterationError(ex)))
       }
   }
 
@@ -142,8 +140,7 @@ class RocksDbDataSource(
     Observable.fromResource(namespaceIterator(namespace)).flatMap(it => moveIterator(it))
   }
 
-  /**
-    * This function is used only for tests.
+  /** This function is used only for tests.
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
     */
   override def clear(): Unit = {
@@ -161,8 +158,7 @@ class RocksDbDataSource(
     this.isClosed = false
   }
 
-  /**
-    * This function closes the DataSource, without deleting the files used by it.
+  /** This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
     log.info(s"About to close DataSource in path: ${rocksDbConfig.path}")
@@ -191,8 +187,7 @@ class RocksDbDataSource(
     }
   }
 
-  /**
-    * This function is used only for tests.
+  /** This function is used only for tests.
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
   override def destroy(): Unit = {
@@ -261,8 +256,7 @@ object RocksDbDataSource {
   case class RocksDbDataSourceClosedException(message: String) extends IllegalStateException(message)
   case class RocksDbDataSourceException(message: String, cause: Throwable) extends RuntimeException(message, cause)
 
-  /**
-    * The rocksdb implementation acquires a lock from the operating system to prevent misuse
+  /** The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 

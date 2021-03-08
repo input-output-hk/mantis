@@ -60,8 +60,7 @@ trait ResourceFixtures { self: SpecBase =>
   def testCaseM[M[_]: Effect](theTest: Fixture => M[Assertion]): Future[Assertion] =
     customTestCaseResourceM(fixtureResource.mapK(Task.liftTo[M]))(theTest)
 
-  /**
-    * Task-specific method to avoid type inference issues in [[testCaseM]]
+  /** Task-specific method to avoid type inference issues in [[testCaseM]]
     */
   def testCaseT(theTest: Fixture => Task[Assertion]): Future[Assertion] =
     customTestCaseResourceM(fixtureResource)(theTest)

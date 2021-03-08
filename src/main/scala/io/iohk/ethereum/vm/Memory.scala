@@ -11,8 +11,7 @@ object Memory {
   private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
 }
 
-/**
-  * Volatile memory with 256 bit address space.
+/** Volatile memory with 256 bit address space.
   * Every mutating operation on a Memory returns a new updated copy of it.
   *
   * Related reading:
@@ -113,15 +112,14 @@ class Memory private (private val underlying: ByteString) {
     }
   }
 
-  /**
-    * @return memory size in bytes
+  /** @return memory size in bytes
     */
   def size: Int = underlying.size
 
   override def equals(that: Any): Boolean = {
     that match {
       case that: Memory => this.underlying.equals(that.underlying)
-      case other => false
+      case other        => false
     }
   }
 

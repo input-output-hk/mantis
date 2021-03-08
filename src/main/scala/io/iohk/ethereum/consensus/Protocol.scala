@@ -2,14 +2,12 @@ package io.iohk.ethereum.consensus
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
-/**
-  * Enumerates the known consensus protocols that Mantis can use.
+/** Enumerates the known consensus protocols that Mantis can use.
   * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
   */
 sealed trait Protocol {
 
-  /**
-    * We use this `name` to specify the protocol in configuration.
+  /** We use this `name` to specify the protocol in configuration.
     *
     * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
     */
@@ -34,8 +32,7 @@ object Protocol {
   /** The standard Ethereum PoW consensus protocol. */
   case object Ethash extends ProtocolImpl(Names.Ethash)
 
-  /**
-    * Non-standard ethereum PoW consensus protocol, which allows restricting list of possible miners.
+  /** Non-standard ethereum PoW consensus protocol, which allows restricting list of possible miners.
     * Main differences from basic PoW consensus protocol:
     *   - Each miner, signs header data before mining i.e prepared header without mixHash and Nonce, and appends this
     *     signature to blockheader.extraData field. Only such prepared header is mined upon.

@@ -44,8 +44,7 @@ object CliCommands extends SecureRandomBuilder {
       keyNumberOpts.map { numOfKeys =>
         val keyPairs = for (_ <- 1 to numOfKeys) yield newRandomKeyPairAsStrings(secureRandom)
 
-        /**
-          * The key pairs will be printed in the format:
+        /** The key pairs will be printed in the format:
           *   priv-key-hex (32 bytes)
           *   pub-key-hex (64 bytes)
           */

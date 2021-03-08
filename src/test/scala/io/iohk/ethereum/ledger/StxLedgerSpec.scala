@@ -16,8 +16,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
   "StxLedger" should "correctly estimate minimum gasLimit to run transaction which throws" in new ScenarioSetup {
 
-    /**
-      * Transaction requires gasLimit equal to 121825, but actual gas used due to refund is equal 42907.
+    /** Transaction requires gasLimit equal to 121825, but actual gas used due to refund is equal 42907.
       * Our simulateTransaction properly estimates gas usage to 42907, but requires at least 121825 gas to
       * make that simulation
       *

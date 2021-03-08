@@ -7,8 +7,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage._
 
 import scala.collection.immutable.ArraySeq
 
-/**
-  * This class is used to store app state variables
+/** This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
   *   Value: stored string value
   */
@@ -52,8 +51,7 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
     get(key).map(BigInt(_)).getOrElse(BigInt(BigInteger.ZERO))
   }
 
-  /**
-    * It is safe to return zero in case of not having any checkpoint block,
+  /** It is safe to return zero in case of not having any checkpoint block,
     * because we assume that genesis block is a kinda stable checkpoint block (without real checkpoint)
     *
     * @return Latest CheckpointBlock Number

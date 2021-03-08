@@ -23,8 +23,7 @@ class OmmersPoolSpec
 
     "should not return ommers if there is no any" in new TestSetup {
 
-      /**
-        *   00 --> 11 --> 21 --> [31]  (chain1)
+      /**   00 --> 11 --> 21 --> [31]  (chain1)
         *      \-> 14                  (chain4)
         *  [] new block, reference!
         *  () ommer given the new block
@@ -48,8 +47,7 @@ class OmmersPoolSpec
 
       "in case of a chain with less length than the generation limit" in new TestSetup {
 
-        /**
-          *   00 --> (11) --> 21 --> 31  (chain1)
+        /**   00 --> (11) --> 21 --> 31  (chain1)
           *    \        \        \-> 33  (chain3)
           *     \        \--> 22 --> 32  (chain2)
           *      \-> [14]                (chain4)
@@ -75,8 +73,7 @@ class OmmersPoolSpec
 
       "despite of start losing older ommers candidates" in new TestSetup {
 
-        /**
-          *   XX -->  (11) -->  21 --> 31  (chain1)
+        /**   XX -->  (11) -->  21 --> 31  (chain1)
           *    \         \         \-> 33  (chain3)
           *     \         \-->  22 --> 32  (chain2)
           *      \-->  14 ---> [24]        (chain4)
@@ -110,8 +107,7 @@ class OmmersPoolSpec
 
       "by respecting size and generation limits" in new TestSetup {
 
-        /**
-          *   00 --> 11 -->  21  --> [31]  (chain1)
+        /**   00 --> 11 -->  21  --> [31]  (chain1)
           *    \      \          \-> (33)  (chain3)
           *     \      \--> (22) -->  32   (chain2)
           *      \-> 14                    (chain4)
@@ -149,8 +145,7 @@ class OmmersPoolSpec
     val ommerGenerationLimit: Int = 2
     val returnedOmmerSizeLimit: Int = 2 // Max amount of ommers allowed per block
 
-    /**
-      *   00 ---> 11 --> 21 --> 31 (chain1)
+    /**   00 ---> 11 --> 21 --> 31 (chain1)
       *    \       \       \--> 33 (chain3)
       *     \       \--> 22 --> 32 (chain2)
       *      \--> 14 --> 24        (chain4)

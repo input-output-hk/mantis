@@ -8,8 +8,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
-/**
-  * This is a single entry point to all VM interactions with the persisted state. Implementations are meant to be
+/** This is a single entry point to all VM interactions with the persisted state. Implementations are meant to be
   * immutable so that rolling back a transaction is equivalent to discarding resulting changes. The changes to state
   * should be kept in memory and applied only after a transaction completes without errors. This does not forbid mutable
   * caches for DB retrieval operations.
@@ -39,8 +38,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
 
   protected val ripmdContractAddress = Address(3)
 
-  /**
-    * In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
+  /** In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't
     * handle account existence in such cases. If it does fail, it means there's something terribly wrong with our code
     * and throwing an exception is an appropriate response.
@@ -78,8 +76,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     saveAccount(from, debited).saveAccount(to, credited)
   }
 
-  /**
-    * IF EIP-161 is in effect this sets new contract's account initial nonce to 1 over the default value
+  /** IF EIP-161 is in effect this sets new contract's account initial nonce to 1 over the default value
     * for the given network (usually zero)
     */
   def initialiseAccount(newAddress: Address): WS = {
@@ -98,8 +95,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     saveAccount(newAddress, accountWithCorrectNonce)
   }
 
-  /**
-    * In case of transfer to self, during selfdestruction the ether is actually destroyed
+  /** In case of transfer to self, during selfdestruction the ether is actually destroyed
     * see https://github.com/ethereum/wiki/wiki/Subtleties/d5d3583e1b0a53c7c49db2fa670fdd88aa7cabaf#other-operations
     * and https://github.com/ethereum/go-ethereum/blob/ff9a8682323648266d5c73f4f4bce545d91edccb/core/state/statedb.go#L322
     */
@@ -108,8 +104,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     saveAccount(address, debited).touchAccounts(address)
   }
 
-  /**
-    * Creates a new address based on the address and nonce of the creator. YP equation 82
+  /** Creates a new address based on the address and nonce of the creator. YP equation 82
     *
     * @param creatorAddr, the address of the creator of the new address
     * @return the new address
@@ -120,8 +115,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     Address(hash)
   }
 
-  /**
-    * Creates a new address based on the address, salt and init code
+  /** Creates a new address based on the address, salt and init code
     * see https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
     *
     * @param creatorAddr the address of the creator of the new address
@@ -135,16 +129,14 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
     Address(hash)
   }
 
-  /**
-    * Increase nonce for a guaranteed account - ie. throws an error if this does not exist
+  /** Increase nonce for a guaranteed account - ie. throws an error if this does not exist
     */
   def increaseNonce(address: Address): WS = {
     val account = getGuaranteedAccount(address).increaseNonce()
     saveAccount(address, account)
   }
 
-  /**
-    * Determines if account of provided address is dead.
+  /** Determines if account of provided address is dead.
     * According to EIP161: An account is considered dead when either it is non-existent or it is empty
     *
     * @param address, the address of the checked account

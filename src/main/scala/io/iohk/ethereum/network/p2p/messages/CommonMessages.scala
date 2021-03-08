@@ -46,8 +46,7 @@ object CommonMessages {
 
   }
 
-  /**
-    * used by eth61, eth62, eth63
+  /** used by eth61, eth62, eth63
     */
   case class Status(
       protocolVersion: Int,
@@ -110,8 +109,7 @@ object CommonMessages {
     }
   }
 
-  /**
-    * used by eth61, eth62, eth63
+  /** used by eth61, eth62, eth63
     */
   case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {
 
@@ -166,7 +164,7 @@ object CommonMessages {
     implicit class SignedTransactionsDec(val bytes: Array[Byte]) extends AnyVal {
       def toSignedTransactions: SignedTransactions = rawDecode(bytes) match {
         case rlpList: RLPList => SignedTransactions(rlpList.items.map(_.toSignedTransaction))
-        case _ => throw new RuntimeException("Cannot decode SignedTransactions")
+        case _                => throw new RuntimeException("Cannot decode SignedTransactions")
       }
     }
 

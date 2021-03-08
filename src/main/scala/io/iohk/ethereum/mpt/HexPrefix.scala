@@ -2,8 +2,7 @@ package io.iohk.ethereum.mpt
 
 object HexPrefix {
 
-  /**
-    * Pack nibbles to binary
+  /** Pack nibbles to binary
     *
     * @param nibbles sequence
     * @param isLeaf boolean used to encode whether or not the data being encoded corresponds to a LeafNode or an ExtensionNode
@@ -21,8 +20,7 @@ object HexPrefix {
     nibblesToBytes(nibblesWithFlag)
   }
 
-  /**
-    * Unpack a binary string to its nibbles equivalent
+  /** Unpack a binary string to its nibbles equivalent
     *
     * @param src of binary data
     * @return array of nibbles in byte-format and
@@ -39,8 +37,7 @@ object HexPrefix {
     (res, t)
   }
 
-  /**
-    * Transforms an array of 8bit values to the corresponding array of 4bit values (hexadecimal format)
+  /** Transforms an array of 8bit values to the corresponding array of 4bit values (hexadecimal format)
     * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param bytes byte[]
     * @return array with each individual nibble
@@ -58,8 +55,7 @@ object HexPrefix {
     newArray
   }
 
-  /**
-    * Transforms an array of 4bit values (hexadecimal format) to the corresponding array of 8bit values
+  /** Transforms an array of 4bit values (hexadecimal format) to the corresponding array of 8bit values
     * Needs to be as fast possible, which requires usage of var's and mutable arrays.
     * @param nibbles byte[]
     * @return array with bytes combining pairs of nibbles

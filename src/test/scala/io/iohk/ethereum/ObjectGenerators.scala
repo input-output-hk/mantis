@@ -167,8 +167,8 @@ trait ObjectGenerators {
     checkpoint <- if (optOut.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)
   } yield (optOut, checkpoint) match {
     case (Some(definedOptOut), Some(definedCheckpoint)) => HefPostEcip1097(definedOptOut, definedCheckpoint)
-    case (Some(definedOptOut), None) => HefPostEcip1098(definedOptOut)
-    case _ => HefEmpty
+    case (Some(definedOptOut), None)                    => HefPostEcip1098(definedOptOut)
+    case _                                              => HefEmpty
   }
 
   def blockHeaderGen: Gen[BlockHeader] = for {

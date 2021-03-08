@@ -83,13 +83,11 @@ class TestmodeConsensus(
   override def startProtocol(node: Node): Unit = {}
   override def stopProtocol(): Unit = {}
 
-  /**
-    * Sends msg to the internal miner and waits for the response
+  /** Sends msg to the internal miner and waits for the response
     */
   override def askMiner(msg: MinerProtocol): Task[MinerResponse] = Task.now(MinerNotExist)
 
-  /**
-    * Sends msg to the internal miner
+  /** Sends msg to the internal miner
     */
   override def sendMiner(msg: MinerProtocol): Unit = {}
 }

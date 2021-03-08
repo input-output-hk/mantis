@@ -87,8 +87,7 @@ class EthInfoService(
   def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
     Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
 
-  /**
-    * Implements the eth_syncing method that returns syncing information if the node is syncing.
+  /** Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
     * @return The syncing status if the node is syncing or None if not
     */
@@ -110,7 +109,7 @@ class EthInfoService(
             )
           )
         case Status.NotSyncing => SyncingResponse(None)
-        case Status.SyncDone => SyncingResponse(None)
+        case Status.SyncDone   => SyncingResponse(None)
       }
       .map(_.asRight)
 
@@ -125,9 +124,9 @@ class EthInfoService(
 
     val args = tx.arguments.getOrElse(Nil)
     val dataEither = (tx.function, tx.contractCode) match {
-      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (Some(function), None)     => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
-      case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+      case _                          => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
     dataEither match {

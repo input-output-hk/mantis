@@ -25,8 +25,7 @@ object Receipt {
 
 }
 
-/**
-  * @param postTransactionStateHash For blocks where block.number >= byzantium-block-number (from config),
+/** @param postTransactionStateHash For blocks where block.number >= byzantium-block-number (from config),
   *                                 the intermediate state root is replaced by a status code,
   *                                 0 indicating failure [[FailureOutcome]] (due to any operation that can cause
   *                                 the transaction or top-level call to revert)
@@ -44,8 +43,8 @@ case class Receipt(
   override def toString: String = {
     val stateHash = postTransactionStateHash match {
       case HashOutcome(hash) => hash.toArray[Byte]
-      case SuccessOutcome => Array(1.toByte)
-      case _ => Array(0.toByte)
+      case SuccessOutcome    => Array(1.toByte)
+      case _                 => Array(0.toByte)
     }
 
     s"Receipt{ " +

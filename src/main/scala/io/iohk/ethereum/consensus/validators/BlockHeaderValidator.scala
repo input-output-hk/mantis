@@ -5,8 +5,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 
-/**
-  * Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
+/** Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
   */
 trait BlockHeaderValidator {
   def validate(

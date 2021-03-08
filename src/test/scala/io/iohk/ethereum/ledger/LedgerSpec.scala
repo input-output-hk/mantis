@@ -125,7 +125,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
-        case _ => false
+        case _                            => false
       }
     })
   }
@@ -177,7 +177,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
-        case _ => false
+        case _                                 => false
       })
     }
   }

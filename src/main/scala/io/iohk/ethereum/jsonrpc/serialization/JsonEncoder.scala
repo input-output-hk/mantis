@@ -30,7 +30,7 @@ object JsonEncoder {
   trait OptionToNull {
     implicit def optionToNullEncoder[T](implicit valueEncoder: JsonEncoder[T]): JsonEncoder[Option[T]] = {
       case Some(value) => valueEncoder.encodeJson(value)
-      case None => JNull
+      case None        => JNull
     }
   }
   object OptionToNull extends OptionToNull

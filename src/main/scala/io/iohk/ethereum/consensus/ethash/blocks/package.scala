@@ -6,8 +6,7 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable}
 
 package object blocks {
 
-  /**
-    * This is type `X` in `BlockGenerator`.
+  /** This is type `X` in `BlockGenerator`.
     *
     * @see [[io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator EthashBlockGenerator]],
     *      [[io.iohk.ethereum.consensus.blocks.BlockGenerator.X BlockGenerator{ type X}]]

@@ -174,7 +174,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   override def equals(that: Any): Boolean = {
     that match {
       case that: UInt256 => this.n.equals(that.n)
-      case other => other == n
+      case other         => other == n
     }
   }
 
@@ -200,13 +200,11 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   // conversions
   def toBigInt: BigInt = n
 
-  /**
-    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
+  /** @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
     */
   def toInt: Int = n.intValue & Int.MaxValue
 
-  /**
-    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
+  /** @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
     */
   def toLong: Long = n.longValue & Long.MaxValue
 }

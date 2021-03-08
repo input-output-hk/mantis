@@ -101,8 +101,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
   lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
-  /**
-    * Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
+  /** Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
     * it is persisted in storage.
     */
   lazy val knownNodesManagerConfig =

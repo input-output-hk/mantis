@@ -41,8 +41,7 @@ class FrameCodec(private val secrets: Secrets) {
 
   private var headerOpt: Option[Header] = None
 
-  /**
-    * Note, this method is not reentrant.
+  /** Note, this method is not reentrant.
     *
     * @param data
     * @return

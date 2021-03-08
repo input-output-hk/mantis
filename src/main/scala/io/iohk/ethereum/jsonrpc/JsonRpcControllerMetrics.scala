@@ -6,8 +6,7 @@ import java.time.Duration
 
 case object JsonRpcControllerMetrics extends MetricsContainer {
 
-  /**
-    * Counts attempts to call non-existing methods.
+  /** Counts attempts to call non-existing methods.
     */
   final val NotFoundMethodsCounter = metrics.counter("json.rpc.notfound.calls.counter")
 

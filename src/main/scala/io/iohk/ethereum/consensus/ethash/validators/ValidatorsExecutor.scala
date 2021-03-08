@@ -46,8 +46,8 @@ trait ValidatorsExecutor extends Validators {
 object ValidatorsExecutor {
   def apply(blockchainConfig: BlockchainConfig, protocol: Protocol): ValidatorsExecutor = {
     val blockHeaderValidator: BlockHeaderValidator = protocol match {
-      case Protocol.MockedPow => new MockedPowBlockHeaderValidator(blockchainConfig)
-      case Protocol.Ethash => new EthashBlockHeaderValidator(blockchainConfig)
+      case Protocol.MockedPow        => new MockedPowBlockHeaderValidator(blockchainConfig)
+      case Protocol.Ethash           => new EthashBlockHeaderValidator(blockchainConfig)
       case Protocol.RestrictedEthash => new RestrictedEthashBlockHeaderValidator(blockchainConfig)
     }
 

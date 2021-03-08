@@ -10,8 +10,7 @@ import io.iohk.ethereum.utils.ByteUtils.or
 
 object StdBlockValidator extends BlockValidator {
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
@@ -27,8 +26,7 @@ object StdBlockValidator extends BlockValidator {
     else Left(BlockTransactionsHashError)
   }
 
-  /**
-    * Validates [[BlockBody.uncleNodesList]] against [[io.iohk.ethereum.domain.BlockHeader.ommersHash]]
+  /** Validates [[BlockBody.uncleNodesList]] against [[io.iohk.ethereum.domain.BlockHeader.ommersHash]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
@@ -40,8 +38,7 @@ object StdBlockValidator extends BlockValidator {
     else Left(BlockOmmersHashError)
   }
 
-  /**
-    * Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
+  /** Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param blockHeader    Block header to validate
@@ -56,8 +53,7 @@ object StdBlockValidator extends BlockValidator {
     else Left(BlockReceiptsHashError)
   }
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.logsBloom]] against [[Receipt.logsBloomFilter]]
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.logsBloom]] against [[Receipt.logsBloomFilter]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param blockHeader  Block header to validate
@@ -72,8 +68,7 @@ object StdBlockValidator extends BlockValidator {
     else Left(BlockLogBloomError)
   }
 
-  /**
-    * Validates that the block body does not contain transactions
+  /** Validates that the block body does not contain transactions
     *
     * @param blockBody BlockBody to validate
     * @return BlockValid if there are no transactions, error otherwise
@@ -82,8 +77,7 @@ object StdBlockValidator extends BlockValidator {
     Either.cond(blockBody.transactionList.isEmpty, BlockValid, CheckpointBlockTransactionsNotEmptyError)
   }
 
-  /**
-    * Validates that the block body does not contain ommers
+  /** Validates that the block body does not contain ommers
     *
     * @param blockBody BlockBody to validate
     * @return BlockValid if there are no ommers, error otherwise
@@ -92,8 +86,7 @@ object StdBlockValidator extends BlockValidator {
     Either.cond(blockBody.uncleNodesList.isEmpty, BlockValid, CheckpointBlockOmmersNotEmptyError)
   }
 
-  /**
-    * This method allows validate block with checkpoint. It performs the following validations:
+  /** This method allows validate block with checkpoint. It performs the following validations:
     *   - no transactions in the body
     *   - no ommers in the body
     *
@@ -107,8 +100,7 @@ object StdBlockValidator extends BlockValidator {
     } yield BlockValid
   }
 
-  /**
-    * This method allows validate a regular Block. It only performs the following validations (stated on
+  /** This method allows validate a regular Block. It only performs the following validations (stated on
     * section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateTransactionRoot
     *   - BlockValidator.validateOmmersHash
@@ -123,8 +115,7 @@ object StdBlockValidator extends BlockValidator {
     } yield BlockValid
   }
 
-  /**
-    * This method allows validate a Block. It only perfoms the following validations (stated on
+  /** This method allows validate a Block. It only perfoms the following validations (stated on
     * section 4.4.2 of http://paper.gavwood.com/):
     *   - validate regular block or block with checkpoint
     *   - BlockValidator.validateReceipts
@@ -141,8 +132,7 @@ object StdBlockValidator extends BlockValidator {
     } yield BlockValid
   }
 
-  /**
-    * This method allows validate that a BlockHeader matches a BlockBody.
+  /** This method allows validate that a BlockHeader matches a BlockBody.
     *
     * @param blockHeader to validate
     * @param blockBody to validate
@@ -154,8 +144,7 @@ object StdBlockValidator extends BlockValidator {
     else validateRegularBlock(block)
   }
 
-  /**
-    * This method allows validations of the block with its associated receipts.
+  /** This method allows validations of the block with its associated receipts.
     * It only perfoms the following validations (stated on section 4.4.2 of http://paper.gavwood.com/):
     *   - BlockValidator.validateReceipts
     *   - BlockValidator.validateLogBloom

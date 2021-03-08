@@ -12,7 +12,7 @@ object DifficultyCalculator {
   def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator = {
     blockchainConfig.powTargetTime match {
       case Some(targetTime) => new TargetTimeDifficultyCalculator(targetTime)
-      case None => new EthashDifficultyCalculator(blockchainConfig)
+      case None             => new EthashDifficultyCalculator(blockchainConfig)
     }
   }
 

@@ -10,8 +10,7 @@ trait Handshaker[T <: HandshakeResult] {
 
   protected val handshakerState: HandshakerState[T]
 
-  /**
-    * Obtains the next message to be sent if the handshaking is in progress, or the result of the handshake
+  /** Obtains the next message to be sent if the handshaking is in progress, or the result of the handshake
     *
     * @return next message to be sent or the result of the handshake
     */
@@ -24,8 +23,7 @@ trait Handshaker[T <: HandshakeResult] {
       Left(HandshakeFailure(reason))
   }
 
-  /**
-    * Processes a received message and obtains a new Handshaker if the handshaker handles the received message
+  /** Processes a received message and obtains a new Handshaker if the handshaker handles the received message
     *
     * @param receivedMessage, message received and to be processed
     * @return handshaker after the message was processed or None if it doesn't change
@@ -38,8 +36,7 @@ trait Handshaker[T <: HandshakeResult] {
     case _ => None
   }
 
-  /**
-    * Obtains the response to a message if there should be one.
+  /** Obtains the response to a message if there should be one.
     *
     * @param receivedMessage, message received and to be optionally responded
     * @return message to be sent as a response to the received one, if there should be any
@@ -50,8 +47,7 @@ trait Handshaker[T <: HandshakeResult] {
     case _ => None
   }
 
-  /**
-    * Processes a timeout to the latest message sent and obtains the new Handshaker
+  /** Processes a timeout to the latest message sent and obtains the new Handshaker
     *
     * @return handshaker after the timeout was processed
     */
@@ -62,8 +58,7 @@ trait Handshaker[T <: HandshakeResult] {
     case _ => this
   }
 
-  /**
-    * Obtains a Handshaker with the passed state
+  /** Obtains a Handshaker with the passed state
     *
     * @param handshakerState, for the new handshaker
     * @return handshaker with the passed state

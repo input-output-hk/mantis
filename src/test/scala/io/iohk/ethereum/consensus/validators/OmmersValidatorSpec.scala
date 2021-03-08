@@ -15,7 +15,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {
-      case Right(_) => succeed
+      case Right(_)  => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
     }
   }
@@ -23,8 +23,8 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
   it should "report a failure if the list of ommers is too big" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
       case Left(OmmersLengthError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)               => fail(s"Unexpected validation error: $err")
+      case Right(_)                => fail("Unexpected validation success")
     }
   }
 
@@ -33,8 +33,8 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
 
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
       case Left(OmmersNotValidError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                 => fail(s"Unexpected validation error: $err")
+      case Right(_)                  => fail("Unexpected validation success")
     }
   }
 
@@ -46,31 +46,31 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
       blockchain
     ) match {
       case Left(OmmersUsedBeforeError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                   => fail(s"Unexpected validation error: $err")
+      case Right(_)                    => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an ommer which is of the last ancestors" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                  => fail(s"Unexpected validation error: $err")
+      case Right(_)                   => fail("Unexpected validation success")
     }
   }
 
   it should "report a failure if there is an ommer too old" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
       case Left(OmmersAncestorsError) => succeed
-      case _ => fail()
+      case _                          => fail()
     }
   }
 
   it should "report a failure if there is a duplicated ommer in the ommer list" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
       case Left(OmmersDuplicatedError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                   => fail(s"Unexpected validation error: $err")
+      case Right(_)                    => fail("Unexpected validation success")
     }
   }
 

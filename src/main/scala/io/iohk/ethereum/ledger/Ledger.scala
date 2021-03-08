@@ -23,8 +23,7 @@ trait Ledger {
     */
   def checkBlockStatus(blockHash: ByteString): BlockStatus
 
-  /**
-    * Returns a block if it's either stored in the blockchain or enqueued
+  /** Returns a block if it's either stored in the blockchain or enqueued
     */
   def getBlockByHash(hash: ByteString): Option[Block]
 

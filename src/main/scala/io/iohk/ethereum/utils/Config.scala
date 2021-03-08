@@ -383,8 +383,8 @@ object PruningConfig {
     val pruningConfig = etcClientConfig.getConfig("pruning")
 
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
-      case "basic" => BasicPruning(pruningConfig.getInt("history"))
-      case "archive" => ArchivePruning
+      case "basic"    => BasicPruning(pruningConfig.getInt("history"))
+      case "archive"  => ArchivePruning
       case "inmemory" => InMemoryPruning(pruningConfig.getInt("history"))
     }
 
@@ -437,7 +437,7 @@ object VmConfig {
     mpConfig.getString("vm.mode") match {
       case "internal" => VmConfig(VmMode.Internal, None)
       case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
-      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
+      case other      => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
     }
   }
 }

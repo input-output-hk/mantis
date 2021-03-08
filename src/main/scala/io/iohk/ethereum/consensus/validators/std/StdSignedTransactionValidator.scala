@@ -11,8 +11,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
-  /**
-    * Initial tests of intrinsic validity stated in Section 6 of YP
+  /** Initial tests of intrinsic validity stated in Section 6 of YP
     *
     * @param stx                        Transaction to validate
     * @param senderAccount              Account of the sender of the tx
@@ -38,8 +37,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     } yield SignedTransactionValid
   }
 
-  /**
-    * Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
+  /** Validates if the transaction is syntactically valid (lengths of the transaction fields are correct)
     *
     * @param stx Transaction to validate
     * @return Either the validated transaction or TransactionSyntaxError if an error was detected
@@ -71,8 +69,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       Right(SignedTransactionValid)
   }
 
-  /**
-    * Validates if the transaction signature is valid as stated in appendix F in YP
+  /** Validates if the transaction signature is valid as stated in appendix F in YP
     *
     * @param stx                  Transaction to validate
     * @param blockNumber          Number of the block for this transaction
@@ -96,8 +93,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionSignatureError)
   }
 
-  /**
-    * Validates if the transaction nonce matches current sender account's nonce
+  /** Validates if the transaction nonce matches current sender account's nonce
     *
     * @param stx Transaction to validate
     * @param senderNonce Nonce of the sender of the transaction
@@ -111,8 +107,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionNonceError(UInt256(stx.tx.nonce), senderNonce))
   }
 
-  /**
-    * Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
+  /** Validates the gas limit is no smaller than the intrinsic gas used by the transaction.
     *
     * @param stx Transaction to validate
     * @param blockHeaderNumber Number of the block where the stx transaction was included
@@ -129,8 +124,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
   }
 
-  /**
-    * Validates the sender account balance contains at least the cost required in up-front payment.
+  /** Validates the sender account balance contains at least the cost required in up-front payment.
     *
     * @param senderBalance Balance of the sender of the tx
     * @param upfrontCost Upfront cost of the transaction tx
@@ -144,8 +138,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     else Left(TransactionSenderCantPayUpfrontCostError(upfrontCost, senderBalance))
   }
 
-  /**
-    * The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
+  /** The sum of the transaction’s gas limit and the gas utilised in this block prior must be no greater than the
     * block’s gasLimit
     *
     * @param stx           Transaction to validate

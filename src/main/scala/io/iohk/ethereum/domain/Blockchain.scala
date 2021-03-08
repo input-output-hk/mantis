@@ -21,8 +21,7 @@ import monix.reactive.Observable
 
 import scala.annotation.tailrec
 
-/**
-  * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
+/** Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
 // scalastyle:off number.of.methods
 trait Blockchain {
@@ -30,8 +29,7 @@ trait Blockchain {
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  /**
-    * Allows to query a blockHeader by block hash
+  /** Allows to query a blockHeader by block hash
     *
     * @param hash of the block that's being searched
     * @return [[BlockHeader]] if found
@@ -45,16 +43,14 @@ trait Blockchain {
     } yield header
   }
 
-  /**
-    * Allows to query a blockBody by block hash
+  /** Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
     * @return [[io.iohk.ethereum.domain.BlockBody]] if found
     */
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
 
-  /**
-    * Allows to query for a block based on it's hash
+  /** Allows to query for a block based on it's hash
     *
     * @param hash of the block that's being searched
     * @return Block if found
@@ -65,8 +61,7 @@ trait Blockchain {
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  /**
-    * Allows to query for a block based on it's number
+  /** Allows to query for a block based on it's number
     *
     * @param number Block number
     * @return Block if it exists
@@ -77,8 +72,7 @@ trait Blockchain {
       block <- getBlockByHash(hash)
     } yield block
 
-  /**
-    * Get an account for an address and a block number
+  /** Get an account for an address and a block number
     *
     * @param address address of the account
     * @param blockNumber the block that determines the state of the account
@@ -87,16 +81,14 @@ trait Blockchain {
 
   def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
 
-  /**
-    * Get account storage at given position
+  /** Get account storage at given position
     *
     * @param rootHash storage root hash
     * @param position storage position
     */
   def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString
 
-  /**
-    * Get a storage-value and its proof being the path from the root node until the last matching node.
+  /** Get a storage-value and its proof being the path from the root node until the last matching node.
     *
     * @param rootHash storage root hash
     * @param position storage position
@@ -107,29 +99,25 @@ trait Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof
 
-  /**
-    * Returns the receipts based on a block hash
+  /** Returns the receipts based on a block hash
     * @param blockhash
     * @return Receipts if found
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
 
-  /**
-    * Returns EVM code searched by it's hash
+  /** Returns EVM code searched by it's hash
     * @param hash Code Hash
     * @return EVM code if found
     */
   def getEvmCodeByHash(hash: ByteString): Option[ByteString]
 
-  /**
-    * Returns MPT node searched by it's hash
+  /** Returns MPT node searched by it's hash
     * @param hash Node Hash
     * @return MPT node
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode]
 
-  /**
-    * Looks up ChainWeight for a given chain
+  /** Looks up ChainWeight for a given chain
     * @param blockhash Hash of top block in the chain
     * @return ChainWeight if found
     */
@@ -146,14 +134,12 @@ trait Blockchain {
 
   def getLatestCheckpointBlockNumber(): BigInt
 
-  /**
-    * Persists full block along with receipts and chain weight
+  /** Persists full block along with receipts and chain weight
     * @param saveAsBestBlock - whether to save the block's number as current best block
     */
   def save(block: Block, receipts: Seq[Receipt], chainWeight: ChainWeight, saveAsBestBlock: Boolean): Unit
 
-  /**
-    * Persists a block in the underlying Blockchain Database
+  /** Persists a block in the underlying Blockchain Database
     * Note: all store* do not update the database immediately, rather they create
     * a [[io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate]] which then has to be committed (atomic operation)
     *
@@ -165,8 +151,7 @@ trait Blockchain {
 
   def removeBlock(hash: ByteString, withState: Boolean): Unit
 
-  /**
-    * Persists a block header in the underlying Blockchain Database
+  /** Persists a block header in the underlying Blockchain Database
     *
     * @param blockHeader Block to be saved
     */
@@ -184,8 +169,7 @@ trait Blockchain {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
-  /**
-    * Returns a block hash given a block number
+  /** Returns a block hash given a block number
     *
     * @param number Number of the searchead block
     * @return Block hash if found
@@ -504,8 +488,7 @@ class BlockchainImpl(
       .takeWhileInclusive(_.isRight)
   }
 
-  /**
-    * Recursive function which try to find the previous checkpoint by traversing blocks from top to the bottom.
+  /** Recursive function which try to find the previous checkpoint by traversing blocks from top to the bottom.
     * In case of finding the checkpoint block number, the function will finish the job and return result
     */
   @tailrec
@@ -522,7 +505,7 @@ class BlockchainImpl(
 
       maybePreviousCheckpointBlockNumber match {
         case Some(previousCheckpointBlockNumber) => previousCheckpointBlockNumber
-        case None => findPreviousCheckpointBlockNumber(blockNumberToCheck - 1, latestCheckpointBlockNumber)
+        case None                                => findPreviousCheckpointBlockNumber(blockNumberToCheck - 1, latestCheckpointBlockNumber)
       }
     } else 0
   }

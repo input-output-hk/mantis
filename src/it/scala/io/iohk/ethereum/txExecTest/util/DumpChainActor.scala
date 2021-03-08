@@ -28,8 +28,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-/**
-  * Actor used for obtaining all the blockchain data (blocks, receipts, nodes) from the blocks [startBlock, maxBlocks]
+/** Actor used for obtaining all the blockchain data (blocks, receipts, nodes) from the blocks [startBlock, maxBlocks]
   * from a peer bootstrapNode.
   * The bootstrapNode is assumed to respond to all the messages and properly, so no validation of the received data is done.
   */
@@ -127,10 +126,10 @@ class DumpChainActor(
       val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
 
       val children = nodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case n: BranchNode                          => n.children.collect { case HashNode(h) => ByteString(h) }
         case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
-        case _: LeafNode => Seq.empty
-        case _ => Seq.empty
+        case _: LeafNode                            => Seq.empty
+        case _                                      => Seq.empty
       }
 
       var contractChildren: Seq[ByteString] = Nil
@@ -158,9 +157,9 @@ class DumpChainActor(
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
       contractChildren = contractChildren ++ cNodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case n: BranchNode                          => n.children.collect { case HashNode(h) => ByteString(h) }
         case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
-        case _ => Seq.empty
+        case _                                      => Seq.empty
       }
 
       stateNodesHashes = stateNodesHashes ++ children.toSet

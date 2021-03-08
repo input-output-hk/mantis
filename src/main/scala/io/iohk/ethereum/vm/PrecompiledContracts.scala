@@ -45,14 +45,12 @@ object PrecompiledContracts {
     Blake2bCompressionAddr -> Blake2bCompress
   )
 
-  /**
-    * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
+  /** Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
   def isDefinedAt(context: ProgramContext[_, _]): Boolean =
     getContract(context).isDefined
 
-  /**
-    * Runs a contract for address provided in `ProgramContext#recipientAddr`
+  /** Runs a contract for address provided in `ProgramContext#recipientAddr`
     * Will throw an exception if the address does not point to a precompiled contract - callers should first
     * check with `isDefinedAt`
     */
@@ -89,7 +87,7 @@ object PrecompiledContracts {
         if (g <= context.startGas)
           exec(context.inputData) match {
             case Some(returnData) => (returnData, None, context.startGas - g)
-            case None => (ByteString.empty, Some(PreCompiledContractFail), 0)
+            case None             => (ByteString.empty, Some(PreCompiledContractFail), 0)
           }
         else
           (ByteString.empty, Some(OutOfGas), 0)
@@ -362,7 +360,7 @@ object PrecompiledContracts {
       while (bytes.hasNext) {
         getPair(bytes.next()) match {
           case Some(part) => accum = part :: accum
-          case None => return None // scalastyle:ignore
+          case None       => return None // scalastyle:ignore
         }
       }
       Some(accum)

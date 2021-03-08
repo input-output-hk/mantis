@@ -33,7 +33,7 @@ object Node {
           default
       } match {
         case Success(udpPort) => udpPort
-        case Failure(_) => default
+        case Failure(_)       => default
       }
     }
   }
@@ -55,8 +55,8 @@ object NodeParser extends Logger {
   private def validateTcpAddress(uri: URI): Either[Error, URI] = {
     Try(InetAddress.getByName(uri.getHost) -> uri.getPort) match {
       case Success(tcpAddress) if tcpAddress._2 != -1 => Right(uri)
-      case Success(_) => Left(s"No defined port for uri $uri")
-      case Failure(_) => Left(s"Error parsing ip address for $uri")
+      case Success(_)                                 => Left(s"No defined port for uri $uri")
+      case Failure(_)                                 => Left(s"Error parsing ip address for $uri")
     }
   }
 
@@ -71,7 +71,7 @@ object NodeParser extends Logger {
   private def validateNodeId(uri: URI): Either[Error, URI] = {
     val nodeId = Try(ByteString(Hex.decode(uri.getUserInfo))) match {
       case Success(id) => Right(id)
-      case Failure(_) => Left(s"Malformed nodeId for URI ${uri.toString}")
+      case Failure(_)  => Left(s"Malformed nodeId for URI ${uri.toString}")
     }
 
     nodeId.flatMap(nodeId =>
@@ -82,7 +82,7 @@ object NodeParser extends Logger {
   private def validateUri(uriString: String): Either[Error, URI] = {
     Try(new URI(uriString)) match {
       case Success(nUri) => Right(nUri)
-      case Failure(ex) => Left(s"Malformed URI for node $uriString")
+      case Failure(ex)   => Left(s"Malformed URI for node $uriString")
     }
   }
 
@@ -100,8 +100,7 @@ object NodeParser extends Logger {
     }
   }
 
-  /**
-    * Parse a node string, for it to be valid it should have the format:
+  /** Parse a node string, for it to be valid it should have the format:
     * "enode://[128 char (64bytes) hex string]@[IPv4 address | '['IPv6 address']' ]:[port]"
     *
     * @param node to be parsed
@@ -111,8 +110,7 @@ object NodeParser extends Logger {
     validateNodeUri(node).map(uri => Node.fromUri(uri))
   }
 
-  /**
-    * Parses a set of nodes, logging the invalid ones and returning the valid ones
+  /** Parses a set of nodes, logging the invalid ones and returning the valid ones
     *
     * @param unParsedNodes, nodes to be parsed
     * @return set of parsed and valid nodes

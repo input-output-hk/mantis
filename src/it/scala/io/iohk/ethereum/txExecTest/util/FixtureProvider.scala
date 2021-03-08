@@ -89,7 +89,7 @@ object FixtureProvider {
             storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
             m.next match {
               case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
-              case _ =>
+              case _                               =>
             }
 
           case Some(m: LeafNode) =>

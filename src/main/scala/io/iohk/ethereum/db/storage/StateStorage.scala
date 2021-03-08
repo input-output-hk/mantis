@@ -164,8 +164,8 @@ object StateStorage {
       lruCache: LruCache[NodeHash, HeapEntry]
   ): StateStorage = {
     pruningMode match {
-      case ArchivePruning => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
-      case pruning.BasicPruning(history) => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
+      case ArchivePruning                   => new ArchiveStateStorage(nodeStorage, cachedNodeStorage)
+      case pruning.BasicPruning(history)    => new ReferenceCountedStateStorage(nodeStorage, cachedNodeStorage, history)
       case pruning.InMemoryPruning(history) => new CachedReferenceCountedStateStorage(nodeStorage, history, lruCache)
     }
   }

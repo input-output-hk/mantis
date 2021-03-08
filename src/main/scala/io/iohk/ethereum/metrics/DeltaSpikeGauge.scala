@@ -2,8 +2,7 @@ package io.iohk.ethereum.metrics
 
 import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
-/**
-  * A gauge that starts at `0` and can be triggered to go to `1`.
+/** A gauge that starts at `0` and can be triggered to go to `1`.
   * Next time it is sampled, it goes back to `0`.
   * This is normally used for either one-off signals (e.g. when an application starts)
   * or slowly re-appearing signals. Specifically, the sampling rate must be greater

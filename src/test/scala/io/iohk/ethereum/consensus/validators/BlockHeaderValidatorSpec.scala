@@ -38,7 +38,7 @@ class BlockHeaderValidatorSpec
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     blockHeaderValidator.validate(validBlockHeader, validParent.header) match {
       case Right(_) => succeed
-      case _ => fail()
+      case _        => fail()
     }
   }
 
@@ -75,9 +75,9 @@ class BlockHeaderValidatorSpec
     forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
       val blockHeaderValidator = new EthashBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
       blockHeaderValidator.validate(blockHeader, parentBlock.header) match {
-        case Right(_) => assert(valid)
+        case Right(_)                      => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
-        case _ => fail()
+        case _                             => fail()
       }
     }
   }
@@ -88,8 +88,8 @@ class BlockHeaderValidatorSpec
       val validateResult = blockHeaderValidator.validate(blockHeader, validParent.header)
       timestamp match {
         case t if t <= validParentBlockHeader.unixTimestamp => assert(validateResult == Left(HeaderTimestampError))
-        case validBlockHeader.unixTimestamp => assert(validateResult == Right(BlockHeaderValid))
-        case _ => assert(validateResult == Left(HeaderDifficultyError))
+        case validBlockHeader.unixTimestamp                 => assert(validateResult == Right(BlockHeaderValid))
+        case _                                              => assert(validateResult == Left(HeaderDifficultyError))
       }
     }
   }
@@ -171,14 +171,14 @@ class BlockHeaderValidatorSpec
       .commit()
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Right(_) => succeed
-      case _ => fail()
+      case _        => fail()
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
     blockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
-      case _ => fail()
+      case _                               => fail()
     }
   }
 

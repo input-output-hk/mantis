@@ -97,8 +97,7 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger {
     }
   }
 
-  /**
-    * Try to start JSON RPC server
+  /** Try to start JSON RPC server
     */
   def run(): Unit
 

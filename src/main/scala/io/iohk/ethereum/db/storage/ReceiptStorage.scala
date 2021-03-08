@@ -8,8 +8,7 @@ import io.iohk.ethereum.domain.{Address, SuccessOutcome, _}
 import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import boopickle.DefaultBasic._
 
-/**
-  * This class is used to store the Receipts, by using:
+/** This class is used to store the Receipts, by using:
   * Key: hash of the block to which the list of receipts belong
   * Value: the list of receipts
   */

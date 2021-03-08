@@ -6,8 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
 
-/**
-  * Trie elements
+/** Trie elements
   */
 sealed abstract class MptNode {
   val cachedHash: Option[Array[Byte]]
@@ -93,8 +92,7 @@ case class BranchNode(
 
   require(children.length == 16, "MptBranch childHashes length have to be 16")
 
-  /**
-    * This function creates a new BranchNode by updating one of the children of the self node.
+  /** This function creates a new BranchNode by updating one of the children of the self node.
     *
     * @param childIndex of the BranchNode children where the child should be inserted.
     * @param childNode  to be inserted as a child of the new BranchNode (and hashed if necessary).
@@ -131,8 +129,7 @@ case object NullNode extends MptNode {
 
 object ExtensionNode {
 
-  /**
-    * This function creates a new ExtensionNode with next parameter as its node pointer
+  /** This function creates a new ExtensionNode with next parameter as its node pointer
     *
     * @param sharedKey of the new ExtensionNode.
     * @param next      to be inserted as the node pointer (and hashed if necessary).
@@ -148,8 +145,7 @@ object BranchNode {
   val numberOfChildren = 16
   private val emptyChildren: Array[MptNode] = Array.fill(numberOfChildren)(NullNode)
 
-  /**
-    * This function creates a new terminator BranchNode having only a value associated with it.
+  /** This function creates a new terminator BranchNode having only a value associated with it.
     * This new BranchNode will be temporarily in an invalid state.
     *
     * @param terminator to be associated with the new BranchNode.
@@ -159,8 +155,7 @@ object BranchNode {
     BranchNode(util.Arrays.copyOf(emptyChildren, numberOfChildren), Some(ByteString(terminator)))
   }
 
-  /**
-    * This function creates a new BranchNode having only one child associated with it (and optionaly a value).
+  /** This function creates a new BranchNode having only one child associated with it (and optionaly a value).
     * This new BranchNode will be temporarily in an invalid state.
     *
     * @param position   of the BranchNode children where the child should be inserted.

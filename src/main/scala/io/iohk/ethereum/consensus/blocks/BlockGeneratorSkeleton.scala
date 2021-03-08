@@ -18,8 +18,7 @@ import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 
-/**
-  * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+/** This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 abstract class BlockGeneratorSkeleton(
     blockchain: Blockchain,
@@ -182,8 +181,7 @@ abstract class BlockGeneratorSkeleton(
 
   def blockTimestampProvider: BlockTimestampProvider = _blockTimestampProvider
 
-  /**
-    * This function returns the block currently being mined block with highest timestamp
+  /** This function returns the block currently being mined block with highest timestamp
     */
   def getPendingBlock: Option[PendingBlock] =
     getPendingBlockAndState.map(_.pendingBlock)

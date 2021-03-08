@@ -7,8 +7,7 @@ object InMemorySimpleMapProxy {
     new InMemorySimpleMapProxy(inner, Map.empty[K, Option[V]])
 }
 
-/**
-  * This class keeps holds changes made to the inner [[io.iohk.ethereum.common.SimpleMap]] until data is commited
+/** This class keeps holds changes made to the inner [[io.iohk.ethereum.common.SimpleMap]] until data is commited
   *
   * @param inner [[io.iohk.ethereum.common.SimpleMap]] to proxy
   * @param cache InMemory map where data is going to be cached
@@ -23,12 +22,11 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: 
   def changes: Changes = cache.foldLeft(Seq.empty[K] -> Seq.empty[(K, V)]) { (acc, cachedItem) =>
     cachedItem match {
       case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
-      case (key, None) => (acc._1 :+ key, acc._2)
+      case (key, None)        => (acc._1 :+ key, acc._2)
     }
   }
 
-  /**
-    * Persists the changes into the underlying [[io.iohk.ethereum.common.SimpleMap]]
+  /** Persists the changes into the underlying [[io.iohk.ethereum.common.SimpleMap]]
     *
     * @return Updated proxy
     */
@@ -37,15 +35,13 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: 
     new InMemorySimpleMapProxy[K, V, I](inner.update(changesToApply._1, changesToApply._2), Map.empty)
   }
 
-  /**
-    * Clears the cache without applying the changes
+  /** Clears the cache without applying the changes
     *
     * @return Updated proxy
     */
   def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map.empty)
 
-  /**
-    * This function obtains the value asociated with the key passed, if there exists one.
+  /** This function obtains the value asociated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with value if there exists one.
@@ -54,8 +50,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: 
 
   def wrapped: I = inner
 
-  /**
-    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStore.
     * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.

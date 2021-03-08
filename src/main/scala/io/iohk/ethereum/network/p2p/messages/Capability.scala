@@ -18,7 +18,7 @@ object Capability {
   implicit class CapabilityRLPEncodableDec(val rLPEncodeable: RLPEncodeable) extends AnyVal {
     def toCapability: Capability = rLPEncodeable match {
       case RLPList(name, version) => Capability(name, version)
-      case _ => throw new RLPException("Cannot decode Capability")
+      case _                      => throw new RLPException("Cannot decode Capability")
     }
   }
 

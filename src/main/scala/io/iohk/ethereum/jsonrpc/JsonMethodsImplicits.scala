@@ -82,27 +82,27 @@ trait JsonMethodsImplicits {
   protected def optionalQuantity(input: JValue): Either[JsonRpcError, Option[BigInt]] =
     input match {
       case JNothing => Right(None)
-      case o => extractQuantity(o).map(Some(_))
+      case o        => extractQuantity(o).map(Some(_))
     }
 
   protected def extractTx(input: Map[String, JValue]): Either[JsonRpcError, TransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {
       case Some(v) => extractQuantity(v).map(Some(_))
-      case None => Right(None)
+      case None    => Right(None)
     }
 
     for {
       from <- input.get("from") match {
         case Some(JString(s)) if s.nonEmpty => extractAddress(s)
-        case Some(_) => Left(InvalidAddress)
-        case _ => Left(InvalidParams("TX 'from' is required"))
+        case Some(_)                        => Left(InvalidAddress)
+        case _                              => Left(InvalidParams("TX 'from' is required"))
       }
 
       to <- input.get("to") match {
         case Some(JString(s)) if s.nonEmpty => extractAddress(s).map(Option.apply)
-        case Some(JString(_)) => extractAddress("0x0").map(Option.apply)
-        case Some(_) => Left(InvalidAddress)
-        case None => Right(None)
+        case Some(JString(_))               => extractAddress("0x0").map(Option.apply)
+        case Some(_)                        => Left(InvalidAddress)
+        case None                           => Right(None)
       }
 
       value <- optionalQuantity("value")
@@ -115,8 +115,8 @@ trait JsonMethodsImplicits {
 
       data <- input.get("data") match {
         case Some(JString(s)) => extractBytes(s).map(Some(_))
-        case Some(_) => Left(InvalidParams())
-        case None => Right(None)
+        case Some(_)          => Left(InvalidParams())
+        case None             => Right(None)
       }
     } yield TransactionRequest(from, to, value, gas, gasPrice, nonce, data)
   }
@@ -124,8 +124,8 @@ trait JsonMethodsImplicits {
   protected def extractBlockParam(input: JValue): Either[JsonRpcError, BlockParam] = {
     input match {
       case JString("earliest") => Right(BlockParam.Earliest)
-      case JString("latest") => Right(BlockParam.Latest)
-      case JString("pending") => Right(BlockParam.Pending)
+      case JString("latest")   => Right(BlockParam.Latest)
+      case JString("pending")  => Right(BlockParam.Pending)
       case other =>
         extractQuantity(other)
           .map(BlockParam.WithNumber)
@@ -147,7 +147,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, Sha3Request] =
       params match {
         case Some(JArray((input: JString) :: Nil)) => extractBytes(input).map(Sha3Request)
-        case _ => Left(InvalidParams())
+        case _                                     => Left(InvalidParams())
       }
 
     override def encodeJson(t: Sha3Response): JValue = encodeAsHex(t.data)

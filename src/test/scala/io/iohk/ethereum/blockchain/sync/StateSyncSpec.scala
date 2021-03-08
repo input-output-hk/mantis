@@ -94,7 +94,7 @@ class StateSyncSpec
       initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
       initiator.send(syncStateSchedulerActor, RestartRequested)
       initiator.fishForMessage(20.seconds) {
-        case _: StateSyncStats => false
+        case _: StateSyncStats        => false
         case WaitingForNewTargetBlock => true
       }
     }

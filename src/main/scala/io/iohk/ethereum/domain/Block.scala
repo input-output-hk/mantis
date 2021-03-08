@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
 
-/**
-  * This class represent a block as a header and a body which are returned in two different messages
+/** This class represent a block as a header and a body which are returned in two different messages
   *
   * @param header Block header
   * @param body   Block body

@@ -50,7 +50,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
     val nodeStatus = nodeStatusHolder.get()
     val listenPort = nodeStatus.serverStatus match {
       case ServerStatus.Listening(address) => address.getPort
-      case ServerStatus.NotListening => 0
+      case ServerStatus.NotListening       => 0
     }
     val capabilities =
       if (handshakerConfiguration.protocolVersion == ProtocolVersions.PV64) Capabilities.All else Seq(Eth63Capability)

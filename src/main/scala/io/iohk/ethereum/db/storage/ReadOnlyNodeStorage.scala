@@ -4,8 +4,7 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import scala.collection.mutable
 
-/**
-  * This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.
+/** This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.
   * To do so, it uses an internal in memory cache to apply all the changes.
   */
 class ReadOnlyNodeStorage private (wrapped: NodesKeyValueStorage) extends NodesKeyValueStorage {
@@ -15,20 +14,18 @@ class ReadOnlyNodeStorage private (wrapped: NodesKeyValueStorage) extends NodesK
     buffer.foldLeft(Seq.empty[NodeHash] -> Seq.empty[(NodeHash, NodeEncoded)]) { (acc, cachedItem) =>
       cachedItem match {
         case (key, Some(value)) => (acc._1, acc._2 :+ key -> value)
-        case (key, None) => (acc._1 :+ key, acc._2)
+        case (key, None)        => (acc._1 :+ key, acc._2)
       }
     }
 
-  /**
-    * This function obtains the value asociated with the key passed, if there exists one.
+  /** This function obtains the value asociated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with value if there exists one.
     */
   override def get(key: NodeHash): Option[NodeEncoded] = buffer.getOrElse(key, wrapped.get(key))
 
-  /**
-    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStore.
     * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.

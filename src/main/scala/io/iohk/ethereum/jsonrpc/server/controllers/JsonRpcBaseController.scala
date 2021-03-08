@@ -30,8 +30,7 @@ trait JsonRpcBaseController {
 
   import JsonRpcBaseController._
 
-  /**
-    * FIXME: We are making mandatory to pass a config in all the Controllers that implements this trait
+  /** FIXME: We are making mandatory to pass a config in all the Controllers that implements this trait
     * when it is just used for the disabled methods.
     * We should change this behaviour in order to remove this unnecessary dependency.
     */
@@ -90,7 +89,7 @@ trait JsonRpcBaseController {
         fn(req)
           .map {
             case Right(success) => successResponse(rpcReq, success)
-            case Left(error) => errorResponse(rpcReq, error)
+            case Left(error)    => errorResponse(rpcReq, error)
           }
           .recover { case ex =>
             log.error("Failed to handle RPC request", ex)

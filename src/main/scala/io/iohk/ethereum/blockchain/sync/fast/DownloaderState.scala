@@ -57,8 +57,7 @@ final case class DownloaderState(
       .getOrElse(this)
   }
 
-  /**
-    * Responses from peers should be delivered in order, but can contain gaps or can be not full, so we cannot fail
+  /** Responses from peers should be delivered in order, but can contain gaps or can be not full, so we cannot fail
     * on first not matching response.
     * Matched responses are returned in correct order, the hashes to be rescheduled are returned in no particular order
     * as they will either way end up in map of hashes to be re-downloaded

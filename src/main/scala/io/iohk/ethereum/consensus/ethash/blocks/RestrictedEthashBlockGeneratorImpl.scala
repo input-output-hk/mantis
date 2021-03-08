@@ -42,7 +42,7 @@ class RestrictedEthashBlockGeneratorImpl(
     val parentHash = pHeader.hash
 
     val validatedOmmers = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain) match {
-      case Left(_) => emptyX
+      case Left(_)  => emptyX
       case Right(_) => ommers
     }
     val prepared = prepareBlock(

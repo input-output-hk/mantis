@@ -81,7 +81,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
         val dataSoFar = accum ++ newData
         parseOpt(dataSoFar) match {
           case Some(json) => Some(json)
-          case None => readNextMessage(dataSoFar)
+          case None       => readNextMessage(dataSoFar)
         }
       }
     }

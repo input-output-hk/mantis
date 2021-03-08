@@ -7,8 +7,7 @@ import io.iohk.ethereum.db.storage.ChainWeightStorage._
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 
-/**
-  * This class is used to store the ChainWeight of blocks, by using:
+/** This class is used to store the ChainWeight of blocks, by using:
   *   Key: hash of the block
   *   Value: ChainWeight
   */

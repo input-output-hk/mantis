@@ -11,7 +11,7 @@ class LoadableBloomFilter[A](bloomFilter: BloomFilter[A], source: Observable[Eit
     source
       .consumeWith(Consumer.foldLeftTask(BloomFilterLoadingResult()) { (s, e) =>
         e match {
-          case Left(value) => Task.now(s.copy(error = Some(value)))
+          case Left(value)  => Task.now(s.copy(error = Some(value)))
           case Right(value) => Task(bloomFilter.put(value)).map(_ => s.copy(writtenElements = s.writtenElements + 1))
         }
       })

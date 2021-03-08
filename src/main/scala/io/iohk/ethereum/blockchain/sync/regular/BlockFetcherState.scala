@@ -15,8 +15,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.Queue
 
 // scalastyle:off number.of.methods
-/**
-  * State used by the BlockFetcher
+/** State used by the BlockFetcher
   *
   * @param importer the BlockImporter actor reference
   * @param readyBlocks
@@ -65,8 +64,7 @@ case class BlockFetcherState(
       .orElse(waitingHeaders.headOption.map(_.number))
       .getOrElse(lastBlock)
 
-  /**
-    * Next block number to be fetched, calculated in a way to maintain local queues consistency,
+  /** Next block number to be fetched, calculated in a way to maintain local queues consistency,
     * even if `lastBlock` property is much higher - it's more important to have this consistency
     * here and allow standard rollback/reorganization mechanisms to kick in if we get too far with mining,
     * therefore `lastBlock` is used here only if blocks and headers queues are empty
@@ -112,8 +110,7 @@ case class BlockFetcherState(
     } else Left(s"Cannot insert block [${ByteStringUtils.hash2string(blockHash)}] into the queues")
   }
 
-  /**
-    * Validates received headers consistency and their compatibility with the state
+  /** Validates received headers consistency and their compatibility with the state
     * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
     */
   private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
@@ -132,7 +129,7 @@ case class BlockFetcherState(
   private def checkConsistencyWithReadyBlocks(headers: Seq[BlockHeader]): Boolean = {
     (readyBlocks, headers) match {
       case (_ :+ last, head +: _) if waitingHeaders.isEmpty => last.header isParentOf head
-      case _ => true
+      case _                                                => true
     }
   }
 
@@ -146,8 +143,7 @@ case class BlockFetcherState(
         }
       )
 
-  /**
-    * When bodies are requested, the response don't need to be a complete sub chain,
+  /** When bodies are requested, the response don't need to be a complete sub chain,
     * even more, we could receive an empty chain and that will be considered valid. Here we just
     * validate that the received bodies corresponds to an ordered subset of the requested headers.
     */
@@ -166,7 +162,7 @@ case class BlockFetcherState(
   ): Option[Seq[Block]] =
     (requestedHeaders, respondedBodies) match {
       case (Seq(), _ +: _) => None
-      case (_, Seq()) => Some(matchedBlocks)
+      case (_, Seq())      => Some(matchedBlocks)
       case (header +: remainingHeaders, body +: remainingBodies) =>
         val doMatch = blockValidator.validateHeaderAndBody(header, body).isRight
         if (doMatch)
@@ -175,8 +171,7 @@ case class BlockFetcherState(
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
     }
 
-  /**
-    * If blocks is empty collection - headers in queue are removed as the cause is:
+  /** If blocks is empty collection - headers in queue are removed as the cause is:
     *   - the headers are from rejected fork and therefore it won't be possible to resolve blocks for them
     *   - given peer is still syncing (quite unlikely due to preference of peers with best total difficulty
     *     when making a request)
@@ -191,8 +186,7 @@ case class BlockFetcherState(
         state.enqueueRequestedBlock(block, fromPeer)
       }
 
-  /**
-    * If the requested block is not the next in the line in the waiting headers queue,
+  /** If the requested block is not the next in the line in the waiting headers queue,
     * we opt for not adding it in the ready blocks queue.
     */
   def enqueueRequestedBlock(block: Block, fromPeer: PeerId): BlockFetcherState =
@@ -221,8 +215,7 @@ case class BlockFetcherState(
       None
     }
 
-  /**
-    * Returns all the ready blocks but only if it includes blocks with number:
+  /** Returns all the ready blocks but only if it includes blocks with number:
     * - lower = min(from, atLeastWith)
     * - upper = max(from, atLeastWith)
     */
@@ -339,8 +332,7 @@ object BlockFetcherState {
   case object NotFetchingHeaders extends FetchingHeadersState
   case object AwaitingHeaders extends FetchingHeadersState
 
-  /**
-    * Headers request in progress but will be ignored due to invalidation
+  /** Headers request in progress but will be ignored due to invalidation
     * State used to keep track of pending request to prevent multiple requests in parallel
     */
   case object AwaitingHeadersToBeIgnored extends FetchingHeadersState
@@ -349,8 +341,7 @@ object BlockFetcherState {
   case object NotFetchingBodies extends FetchingBodiesState
   case object AwaitingBodies extends FetchingBodiesState
 
-  /**
-    * Bodies request in progress but will be ignored due to invalidation
+  /** Bodies request in progress but will be ignored due to invalidation
     * State used to keep track of pending request to prevent multiple requests in parallel
     */
   case object AwaitingBodiesToBeIgnored extends FetchingBodiesState

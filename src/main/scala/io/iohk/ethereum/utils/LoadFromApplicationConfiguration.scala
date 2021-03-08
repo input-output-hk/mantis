@@ -5,8 +5,7 @@ import ch.qos.logback.core.joran.spi.InterpretationContext
 import com.typesafe.config.ConfigFactory
 import org.xml.sax.Attributes
 
-/**
-  * Make properties defined in application.conf available to logback
+/** Make properties defined in application.conf available to logback
   */
 class LoadFromApplicationConfiguration extends Action {
 

@@ -62,7 +62,7 @@ class FastSync(
   override def receive: Receive = idle
 
   def idle: Receive = handlePeerListMessages orElse {
-    case SyncProtocol.Start => start()
+    case SyncProtocol.Start     => start()
     case SyncProtocol.GetStatus => sender() ! SyncProtocol.Status.NotSyncing
   }
 
@@ -70,7 +70,7 @@ class FastSync(
     log.info("Trying to start block synchronization (fast mode)")
     fastSyncStateStorage.getSyncState() match {
       case Some(syncState) => startWithState(syncState)
-      case None => startFromScratch()
+      case None            => startFromScratch()
     }
   }
 
@@ -166,8 +166,8 @@ class FastSync(
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
         updatePivotBlock(ImportedLastBlock)
-      case ProcessSyncing => processSyncing()
-      case PrintStatus => printStatus()
+      case ProcessSyncing   => processSyncing()
+      case PrintStatus      => printStatus()
       case PersistSyncState => persistSyncState()
       case StateSyncFinished =>
         syncState = syncState.copy(stateSyncFinished = true)
@@ -540,8 +540,7 @@ class FastSync(
       }
     }
 
-    /**
-      * Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
+    /** Restarts download from a few blocks behind the current best block header, as an unexpected DB error happened
       */
     private def redownloadBlockchain(): Unit = {
       syncState = syncState.copy(
@@ -937,9 +936,9 @@ object FastSync {
 
   sealed abstract class PivotBlockUpdateReason {
     def isSyncRestart: Boolean = this match {
-      case ImportedLastBlock => false
+      case ImportedLastBlock         => false
       case LastBlockValidationFailed => false
-      case SyncRestart => true
+      case SyncRestart               => true
     }
   }
 

@@ -105,8 +105,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
       )
     }
 
-    /**
-      * validParent and validHeader are special headers with extended extraData field and are only useful when used
+    /** validParent and validHeader are special headers with extended extraData field and are only useful when used
       * with RestrictedEthashBlockHeaderValidator
       */
     val validParent = BlockHeader(

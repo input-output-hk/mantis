@@ -12,8 +12,7 @@ import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec
 
-/**
-  * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+/** This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   *
   * With its introduction, we:
   *
@@ -37,8 +36,7 @@ class BlockPreparator(
     blockchainConfig.constantinopleBlockNumber
   )
 
-  /**
-    * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
+  /** This function updates the state in order to pay rewards based on YP section 11.3 and with the required
     * modifications due to ECIP1097:
     *  1. Reward for block is distributed as:
     *      a. If treasury is disabled or it's has been selfdestructed:
@@ -106,16 +104,14 @@ class BlockPreparator(
     }
   }
 
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
+  /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
     *
     * @param tx Target transaction
     * @return Upfront cost
     */
   private[ledger] def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
+  /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
     *
     * @param tx Target transaction
     * @return Upfront cost
@@ -123,8 +119,7 @@ class BlockPreparator(
   private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
     UInt256(calculateUpfrontGas(tx) + tx.value)
 
-  /**
-    * Increments account nonce by 1 stated in YP equation (69) and
+  /** Increments account nonce by 1 stated in YP equation (69) and
     * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
     *
     * @param stx
@@ -151,13 +146,12 @@ class BlockPreparator(
     vm.run(context)
   }
 
-  /**
-    * Calculate total gas to be refunded
+  /** Calculate total gas to be refunded
     * See YP, eq (72)
     */
   private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
     result.error.map(_.useWholeGas) match {
-      case Some(true) => 0
+      case Some(true)  => 0
       case Some(false) => result.gasRemaining
       case None =>
         val gasUsed = stx.tx.gasLimit - result.gasRemaining
@@ -184,8 +178,7 @@ class BlockPreparator(
     }
   }
 
-  /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+  /** Delete all accounts (that appear in SUICIDE list). YP eq (78).
     * The contract storage should be cleared during pruning as nodes could be used in other tries.
     * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
     * the code of an account in case it is shared with another one.
@@ -202,8 +195,7 @@ class BlockPreparator(
   ): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy) { case (world, address) => world.deleteAccount(address) }
 
-  /**
-    * EIP161 - State trie clearing
+  /** EIP161 - State trie clearing
     * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
     *
     * All potentially state-changing operation are:
@@ -275,8 +267,7 @@ class BlockPreparator(
   }
 
   // scalastyle:off method.length
-  /**
-    * This functions executes all the signed transactions from a block (till one of those executions fails)
+  /** This functions executes all the signed transactions from a block (till one of those executions fails)
     *
     * @param signedTransactions from the block that are left to execute
     * @param world that will be updated by the execution of the signedTransactions

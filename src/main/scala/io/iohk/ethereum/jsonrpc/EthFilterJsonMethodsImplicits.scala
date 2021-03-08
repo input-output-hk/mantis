@@ -56,8 +56,8 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
       }
     override def encodeJson(t: GetFilterChangesResponse): JValue =
       t.filterChanges match {
-        case FilterManager.LogFilterChanges(logs) => JArray(logs.map(Extraction.decompose).toList)
-        case FilterManager.BlockFilterChanges(blockHashes) => JArray(blockHashes.map(encodeAsHex).toList)
+        case FilterManager.LogFilterChanges(logs)                    => JArray(logs.map(Extraction.decompose).toList)
+        case FilterManager.BlockFilterChanges(blockHashes)           => JArray(blockHashes.map(encodeAsHex).toList)
         case FilterManager.PendingTransactionFilterChanges(txHashes) => JArray(txHashes.map(encodeAsHex).toList)
       }
   }
@@ -76,8 +76,8 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
 
     override def encodeJson(t: GetFilterLogsResponse): JValue =
       t.filterLogs match {
-        case LogFilterLogs(logs) => JArray(logs.map(Extraction.decompose).toList)
-        case BlockFilterLogs(blockHashes) => JArray(blockHashes.map(encodeAsHex).toList)
+        case LogFilterLogs(logs)                    => JArray(logs.map(Extraction.decompose).toList)
+        case BlockFilterLogs(blockHashes)           => JArray(blockHashes.map(encodeAsHex).toList)
         case PendingTransactionFilterLogs(txHashes) => JArray(txHashes.map(encodeAsHex).toList)
       }
   }
@@ -116,22 +116,22 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
     def parseNestedTopics(jarr: JArray): Either[JsonRpcError, Seq[ByteString]] = {
       allSuccess(jarr.arr.map {
         case jstr: JString => parseTopic(jstr)
-        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data but got: $other"))
+        case other         => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data but got: $other"))
       })
     }
 
     val topicsEither: Either[JsonRpcError, Seq[Seq[ByteString]]] =
       allSuccess((obj \ "topics").extractOpt[JArray].map(_.arr).getOrElse(Nil).map {
-        case JNull => Right(Nil)
+        case JNull         => Right(Nil)
         case jstr: JString => parseTopic(jstr).map(Seq(_))
-        case jarr: JArray => parseNestedTopics(jarr)
-        case other => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
+        case jarr: JArray  => parseNestedTopics(jarr)
+        case other         => Left(InvalidParams(msg = s"Unable to parse topics, expected byte data or array but got: $other"))
       })
 
     def optionalBlockParam(field: String) =
       (obj \ field).extractOpt[JValue].flatMap {
         case JNothing => None
-        case other => Some(extractBlockParam(other))
+        case other    => Some(extractBlockParam(other))
       }
 
     for {

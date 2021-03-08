@@ -52,8 +52,7 @@ object PeerEventBusActor {
     private var messageSubscriptions: Map[(Subscriber, PeerSelector), Set[Int]] = Map.empty
     private var connectionSubscriptions: Seq[Subscription] = Nil
 
-    /**
-      * Subscribes the subscriber to a requested event
+    /** Subscribes the subscriber to a requested event
       *
       * @param subscriber
       * @param to, classifier for the event subscribed
@@ -61,11 +60,10 @@ object PeerEventBusActor {
       */
     override def subscribe(subscriber: ActorRef, to: Classifier): Boolean = to match {
       case msgClassifier: MessageClassifier => subscribeToMessageReceived(subscriber, msgClassifier)
-      case _ => subscribeToConnectionEvent(subscriber, to)
+      case _                                => subscribeToConnectionEvent(subscriber, to)
     }
 
-    /**
-      * Unsubscribes the subscriber from a requested event
+    /** Unsubscribes the subscriber from a requested event
       *
       * @param subscriber
       * @param from, classifier for the event to unsubscribe
@@ -73,11 +71,10 @@ object PeerEventBusActor {
       */
     override def unsubscribe(subscriber: ActorRef, from: Classifier): Boolean = from match {
       case msgClassifier: MessageClassifier => unsubscribeFromMessageReceived(subscriber, msgClassifier)
-      case _ => unsubscribeFromConnectionEvent(subscriber, from)
+      case _                                => unsubscribeFromConnectionEvent(subscriber, from)
     }
 
-    /**
-      * Unsubscribes the subscriber from all events it was subscribed
+    /** Unsubscribes the subscriber from all events it was subscribed
       *
       * @param subscriber
       */
@@ -113,8 +110,7 @@ object PeerEventBusActor {
       interestedSubscribers.foreach(_ ! event)
     }
 
-    /**
-      * Subscribes the subscriber to a requested message received event
+    /** Subscribes the subscriber to a requested message received event
       *
       * @param subscriber
       * @param to, classifier for the message received event subscribed
@@ -133,8 +129,7 @@ object PeerEventBusActor {
       }
     }
 
-    /**
-      * Subscribes the subscriber to a requested connection event (new peer handshaked or peer disconnected)
+    /** Subscribes the subscriber to a requested connection event (new peer handshaked or peer disconnected)
       *
       * @param subscriber
       * @param to, classifier for the connection event subscribed
@@ -150,8 +145,7 @@ object PeerEventBusActor {
       }
     }
 
-    /**
-      * Unsubscribes the subscriber from a requested received message event event
+    /** Unsubscribes the subscriber from a requested received message event event
       *
       * @param subscriber
       * @param from, classifier for the message received event to unsubscribe
@@ -169,8 +163,7 @@ object PeerEventBusActor {
       }
     }
 
-    /**
-      * Unsubscribes the subscriber from a requested event
+    /** Unsubscribes the subscriber from a requested event
       *
       * @param subscriber
       * @param from, classifier for the connection event to unsubscribe
@@ -209,10 +202,10 @@ class PeerEventBusActor extends Actor {
   val peerEventBus: PeerEventBus = new PeerEventBus
 
   override def receive: Receive = {
-    case Subscribe(to) => peerEventBus.subscribe(sender(), to)
+    case Subscribe(to)           => peerEventBus.subscribe(sender(), to)
     case Unsubscribe(Some(from)) => peerEventBus.unsubscribe(sender(), from)
-    case Unsubscribe(None) => peerEventBus.unsubscribe(sender())
-    case Publish(ev: PeerEvent) => peerEventBus.publish(ev)
+    case Unsubscribe(None)       => peerEventBus.unsubscribe(sender())
+    case Publish(ev: PeerEvent)  => peerEventBus.publish(ev)
   }
 
 }

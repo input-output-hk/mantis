@@ -14,8 +14,7 @@ import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.p2p.messages.Codes
 
-/**
-  * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
+/** BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.
   */
 class BlockchainHostActor(
@@ -37,8 +36,7 @@ class BlockchainHostActor(
     }
   }
 
-  /**
-    * Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
+  /** Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
     * Both types of node data are requested by the same GetNodeData message
     *
     * @param message to be processed
@@ -62,8 +60,7 @@ class BlockchainHostActor(
     case _ => None
   }
 
-  /**
-    * Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
+  /** Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
     *
     * @param message to be processed
     * @return message response if message is a request for block data or None if not

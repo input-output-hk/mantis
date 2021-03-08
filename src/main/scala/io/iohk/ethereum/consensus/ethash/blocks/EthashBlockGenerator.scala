@@ -80,7 +80,7 @@ class EthashBlockGeneratorImpl(
     val parentHash = pHeader.hash
 
     val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchain) match {
-      case Left(_) => emptyX
+      case Left(_)  => emptyX
       case Right(_) => x
     }
 

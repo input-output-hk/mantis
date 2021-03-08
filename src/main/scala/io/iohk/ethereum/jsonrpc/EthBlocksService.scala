@@ -42,8 +42,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
   private[jsonrpc] def consensus = ledger.consensus
   private[jsonrpc] def blockGenerator = consensus.blockGenerator
 
-  /**
-    * eth_blockNumber that returns the number of most recent block.
+  /** eth_blockNumber that returns the number of most recent block.
     *
     * @return Current block number the client is on.
     */
@@ -51,8 +50,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
   }
 
-  /**
-    * Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
+  /** Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.
     *
     * @param request with the hash of the block requested
     * @return the number of txs that the block has or None if the client doesn't have the block requested
@@ -63,8 +61,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
       Right(TxCountByBlockHashResponse(txsCount))
     }
 
-  /**
-    * Implements the eth_getBlockByHash method that fetches a requested block.
+  /** Implements the eth_getBlockByHash method that fetches a requested block.
     *
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
@@ -78,8 +75,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     Right(BlockByBlockHashResponse(blockResponseOpt))
   }
 
-  /**
-    * Implements the eth_getBlockByNumber method that fetches a requested block.
+  /** Implements the eth_getBlockByNumber method that fetches a requested block.
     *
     * @param request with the block requested (by it's number or by tag)
     * @return the block requested or None if the client doesn't have the block
@@ -104,8 +100,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     }
   }
 
-  /**
-    * Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
+  /** Implements the eth_getUncleByBlockHashAndIndex method that fetches an uncle from a certain index in a requested block.
     *
     * @param request with the hash of the block and the index of the uncle requested
     * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index
@@ -131,8 +126,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     Right(UncleByBlockHashAndIndexResponse(uncleBlockResponseOpt))
   }
 
-  /**
-    * Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
+  /** Implements the eth_getUncleByBlockNumberAndIndex method that fetches an uncle from a certain index in a requested block.
     *
     * @param request with the number/tag of the block and the index of the uncle requested
     * @return the uncle that the block has at the given index or None if the client doesn't have the block or if there's no uncle in that index

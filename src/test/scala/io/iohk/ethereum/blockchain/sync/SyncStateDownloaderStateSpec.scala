@@ -225,9 +225,9 @@ class SyncStateDownloaderStateSpec
   trait TestSetup {
     def expectUsefulData(result: ResponseProcessingResult): UsefulData = {
       result match {
-        case UnrequestedResponse => fail()
+        case UnrequestedResponse    => fail()
         case NoUsefulDataInResponse => fail()
-        case data @ UsefulData(_) => data
+        case data @ UsefulData(_)   => data
       }
     }
 

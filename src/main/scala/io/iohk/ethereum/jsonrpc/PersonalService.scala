@@ -175,9 +175,9 @@ class PersonalService(
 
     val args = tx.arguments.getOrElse(Nil)
     val dataEither = (tx.function, tx.contractCode) match {
-      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (Some(function), None)     => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
-      case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+      case _                          => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
     dataEither match {
@@ -232,10 +232,10 @@ class PersonalService(
   }
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
-    case KeyStore.DecryptionFailed => InvalidPassphrase
-    case KeyStore.KeyNotFound => KeyNotFound
+    case KeyStore.DecryptionFailed              => InvalidPassphrase
+    case KeyStore.KeyNotFound                   => KeyNotFound
     case KeyStore.PassPhraseTooShort(minLength) => PassPhraseTooShort(minLength)
-    case KeyStore.IOError(msg) => LogicError(msg)
-    case KeyStore.DuplicateKeySaved => LogicError("account already exists")
+    case KeyStore.IOError(msg)                  => LogicError(msg)
+    case KeyStore.DuplicateKeySaved             => LogicError("account already exists")
   }
 }

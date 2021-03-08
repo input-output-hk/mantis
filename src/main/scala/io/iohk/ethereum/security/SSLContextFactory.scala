@@ -29,8 +29,7 @@ case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
     }
   }
 
-  /**
-    * Validates that the keystore certificate file and password file were configured and that the files exists
+  /** Validates that the keystore certificate file and password file were configured and that the files exists
     *
     * @param keystorePath with the path to the certificate keystore if it was configured
     * @param passwordFile with the path to the password file if it was configured
@@ -52,8 +51,7 @@ case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
       Right(())
   }
 
-  /**
-    * Constructs the SSL context given a certificate
+  /** Constructs the SSL context given a certificate
     *
     * @param secureRandom
     * @param keyStorePath path to the keystore where the certificate is stored

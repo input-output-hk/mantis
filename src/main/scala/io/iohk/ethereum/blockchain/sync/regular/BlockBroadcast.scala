@@ -13,8 +13,7 @@ import scala.util.Random
 
 class BlockBroadcast(val etcPeerManager: ActorRef) {
 
-  /**
-    * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
+  /** Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
     * that is thought to know it.
     * The hash of the block is sent to all of those peers while the block itself is only sent to
     * the square root of the total number of those peers, with the subset being obtained randomly.
@@ -51,8 +50,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
       etcPeerManager ! EtcPeerManagerActor.SendMessage(newBlockHashMsg, peer.id)
   }
 
-  /**
-    * Obtains a random subset of peers. The returned set will verify:
+  /** Obtains a random subset of peers. The returned set will verify:
     *   subsetPeers.size == sqrt(peers.size)
     *
     * @param peers
@@ -66,8 +64,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
 
 object BlockBroadcast {
 
-  /**
-    * BlockToBroadcast was created to decouple block information from protocol new block messages
+  /** BlockToBroadcast was created to decouple block information from protocol new block messages
     * (they are different versions of NewBlock msg)
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight) {

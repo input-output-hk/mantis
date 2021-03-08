@@ -448,7 +448,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == newBlock => true
-              case _ => false
+              case _                                       => false
             }
           case _ => false
         }
@@ -518,7 +518,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == newBlock => true
-              case _ => false
+              case _                                       => false
             }
           case _ => false
         }
@@ -581,7 +581,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == checkpointBlock => true
-              case _ => false
+              case _                                              => false
             }
           case _ => false
         }
@@ -609,7 +609,7 @@ class RegularSyncSpec
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
                 case CommonMessages.NewBlock(`newBlock`, _) => true
-                case _ => false
+                case _                                      => false
               }
             case _ => false
           }
@@ -632,7 +632,7 @@ class RegularSyncSpec
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
                 case NewBlock(`newBlock`, _) => true
-                case _ => false
+                case _                       => false
               }
             case _ => false
           }

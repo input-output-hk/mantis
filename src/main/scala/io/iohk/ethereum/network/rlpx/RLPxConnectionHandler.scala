@@ -15,8 +15,7 @@ import scala.collection.immutable.Queue
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
 
-/**
-  * This actors takes care of initiating a secure connection (auth handshake) between peers.
+/** This actors takes care of initiating a secure connection (auth handshake) between peers.
   * Once such connection is established it allows to send/receive frames (messages) over it.
   *
   * The actor can be in one of four states:
@@ -125,8 +124,7 @@ class RLPxConnectionHandler(
         }
       }
 
-    /**
-      * Decode V4 packet
+    /** Decode V4 packet
       *
       * @param data , includes both the V4 packet with bytes from next messages
       * @return data of the packet and the remaining data
@@ -169,8 +167,7 @@ class RLPxConnectionHandler(
         context stop self
     }
 
-    /**
-      * Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
+    /** Handles sending and receiving messages from the Akka TCP connection, while also handling acknowledgement of
       * messages sent. Messages are only sent when all Ack from previous messages were received.
       *
       * @param messageCodec          , for encoding the messages sent
@@ -216,8 +213,7 @@ class RLPxConnectionHandler(
           context stop self
       }
 
-    /**
-      * Sends an encoded message through the TCP connection, an Ack will be received when the message was
+    /** Sends an encoded message through the TCP connection, an Ack will be received when the message was
       * successfully queued for delivery. A cancellable timeout is created for the Ack message.
       *
       * @param messageCodec        , for encoding the messages sent
@@ -244,15 +240,14 @@ class RLPxConnectionHandler(
       )
     }
 
-    /**
-      * Given a sequence number for the AckTimeouts, the next seq number is returned
+    /** Given a sequence number for the AckTimeouts, the next seq number is returned
       *
       * @param seqNumber , the current sequence number
       * @return the sequence number for the next message sent
       */
     private def increaseSeqNumber(seqNumber: Int): Int = seqNumber match {
       case Int.MaxValue => 0
-      case _ => seqNumber + 1
+      case _            => seqNumber + 1
     }
 
     def handleWriteFailed: Receive = { case CommandFailed(cmd: Write) =>

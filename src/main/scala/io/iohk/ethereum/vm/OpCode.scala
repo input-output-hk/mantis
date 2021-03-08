@@ -160,8 +160,7 @@ object OpCode {
   }
 }
 
-/**
-  * Base class for all the opcodes of the EVM
+/** Base class for all the opcodes of the EVM
   *
   * @param code Opcode byte representation
   * @param delta number of words to be popped from stack
@@ -367,8 +366,7 @@ case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with ConstGas {
     val (accountAddress, stack1) = state.stack.pop
     val address = Address(accountAddress)
 
-    /**
-      * Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0
+    /** Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0
       * In case the account does not exist 0 is pushed to the stack.
       *
       * But the interpretation is, that account does not exists if:
@@ -936,8 +934,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
         (toAddr, state.ownAddress, callValue, callValue, true, state.staticCtx)
 
       case STATICCALL =>
-        /**
-          * We return `doTransfer = true` for STATICCALL as it should  `functions equivalently to a CALL` (spec)
+        /** We return `doTransfer = true` for STATICCALL as it should  `functions equivalently to a CALL` (spec)
           * Note that we won't transfer any founds during later transfer, as `value` and `endowment` are equal to Zero.
           * One thing that will change though is that both - recipient and sender addresses will be added to touched accounts
           * Set. And if empty they will be deleted at the end of transaction.

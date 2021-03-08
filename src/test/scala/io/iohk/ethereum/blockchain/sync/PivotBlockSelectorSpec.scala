@@ -422,13 +422,13 @@ class PivotBlockSelectorSpec
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
-      case _ => false
+      case _           => false
     }
 
     val etcPeerManager = TestProbe()
     etcPeerManager.ignoreMsg {
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
-      case EtcPeerManagerActor.GetHandshakedPeers => true
+      case EtcPeerManagerActor.GetHandshakedPeers                                   => true
     }
 
     val peerMessageBus = TestProbe()
@@ -436,7 +436,7 @@ class PivotBlockSelectorSpec
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers))
           if codes == Set(Codes.NewBlockCode, Codes.NewBlockHashesCode) =>
         true
-      case Subscribe(PeerDisconnectedClassifier(_)) => true
+      case Subscribe(PeerDisconnectedClassifier(_))         => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
 

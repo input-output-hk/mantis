@@ -11,8 +11,7 @@ import io.iohk.ethereum.mpt.{ByteArraySerializable, NodesKeyValueStorage}
 
 import scala.collection.mutable
 
-/**
-  * In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
+/** In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
   * There are two occasions where node is saved to disk:
   *   1 - When cache becomes full, least recently used nodes are flushed to disk. In normal operation, these nodes
   *       have already survived several pruning cycles, and still have references pointing at them, which makes them
@@ -133,7 +132,7 @@ object CachedReferenceCountedStorage {
         val reversedState = update match {
           case Increase(_) => (current.decrementParents(newBestAfterRollback), deletable)
           case Decrease(_) => (current.incrementParents(newBestAfterRollback), deletable)
-          case New(_) => (current.decrementParents(newBestAfterRollback), true)
+          case New(_)      => (current.decrementParents(newBestAfterRollback), true)
         }
         newState += nodeHash -> reversedState
       }

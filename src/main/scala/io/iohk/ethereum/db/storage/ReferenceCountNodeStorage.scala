@@ -7,8 +7,7 @@ import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Logger
 
-/**
-  * This class helps to deal with two problems regarding MptNodes storage:
+/** This class helps to deal with two problems regarding MptNodes storage:
   * 1) Define a way to delete ones that are no longer needed but allow rollbacks to be performed
   * 2) Avoids removal of nodes that can be used in different trie branches because the hash is the same
   *
@@ -136,8 +135,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
 
   type Changes = Map[NodeHash, (StoredNode, StoredNodeSnapshot)]
 
-  /**
-    * Fetches snapshots stored in the DB for the given block number and deletes the stored nodes, referred to
+  /** Fetches snapshots stored in the DB for the given block number and deletes the stored nodes, referred to
     * by these snapshots, that meet criteria for deletion (see `getNodesToBeRemovedInPruning` for details).
     *
     * All snapshots for this block are removed, which means state can no longer be rolled back to this point.
@@ -158,8 +156,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     log.debug(s"Pruned block $blockNumber")
   }
 
-  /**
-    * Looks for the StoredNode snapshots based on block number and saves (or deletes) them
+  /** Looks for the StoredNode snapshots based on block number and saves (or deletes) them
     *
     * @param blockNumber BlockNumber to rollback
     * @param nodeStorage NodeStorage
@@ -175,7 +172,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
       val (toRemove, toUpsert) = snapshots.foldLeft(Seq.empty[NodeHash], Seq.empty[(NodeHash, NodeEncoded)]) {
         // Undo Actions
         case ((r, u), StoredNodeSnapshot(nodeHash, Some(sn))) => (r, (nodeHash -> storedNodeToBytes(sn)) +: u)
-        case ((r, u), StoredNodeSnapshot(nodeHash, None)) => (nodeHash +: r, u)
+        case ((r, u), StoredNodeSnapshot(nodeHash, None))     => (nodeHash +: r, u)
       }
       // also remove snapshot as we have done a rollback
       nodeStorage.updateCond(toRemove :+ snapshotsCountKey :+ deathRowKey, toUpsert, inMemory)
@@ -189,7 +186,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     val maybeSnapshotCount = nodeStorage.get(snapshotsCountKey).map(snapshotsCountFromBytes)
     maybeSnapshotCount match {
       case Some(snapshotCount) => f(snapshotsCountKey, snapshotCount)
-      case None => ()
+      case None                => ()
     }
   }
 
@@ -198,8 +195,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     (BigInt(0) until snapshotCount).map(snapshotIndex => getSnapshotKeyFn(snapshotIndex))
   }
 
-  /**
-    * Within death row of this block, it looks for Nodes that are not longer being used in order to remove them
+  /** Within death row of this block, it looks for Nodes that are not longer being used in order to remove them
     * from DB. To do so, it checks if nodes marked in death row have still reference count equal to 0 and are not used by future
     * blocks.
     * @param blockNumber
@@ -227,8 +223,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     nodesToRemove
   }
 
-  /**
-    * Wrapper of MptNode in order to store number of references it has.
+  /** Wrapper of MptNode in order to store number of references it has.
     *
     * @param nodeEncoded Encoded Mpt Node to be used in MerklePatriciaTrie
     * @param references  Number of references the node has. Each time it's updated references are increased and everytime it's deleted, decreased
@@ -246,8 +241,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     def withoutReferences(nodeEncoded: Array[Byte]): StoredNode = new StoredNode(ByteString(nodeEncoded), 0, 0)
   }
 
-  /**
-    * Key to be used to store BlockNumber -> Snapshots Count
+  /** Key to be used to store BlockNumber -> Snapshots Count
     *
     * @param blockNumber Block Number Tag
     * @return Key
@@ -256,8 +250,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     "sck".getBytes ++ blockNumber.toByteArray
   )
 
-  /**
-    * Returns a snapshot key given a block number and a snapshot index
+  /** Returns a snapshot key given a block number and a snapshot index
     * @param blockNumber Block Number Ta
     * @param index Snapshot Index
     * @return
@@ -266,8 +259,7 @@ object ReferenceCountNodeStorage extends PruneSupport with Logger {
     ("sk".getBytes ++ blockNumber.toByteArray) ++ index.toByteArray
   )
 
-  /**
-    * Used to store a node snapshot in the db. This will be used to rollback a transaction.
+  /** Used to store a node snapshot in the db. This will be used to rollback a transaction.
     * @param nodeKey Node's key
     * @param storedNode Stored node that can be rolledback. If None, it means that node wasn't previously in the DB
     */

@@ -9,7 +9,7 @@ object ActorsTesting {
         val response = makeResponse.lift(msg)
         response match {
           case Some(value) => sender ! value
-          case _ => ()
+          case _           => ()
         }
         this
       }

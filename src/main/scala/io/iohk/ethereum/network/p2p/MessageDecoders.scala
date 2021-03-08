@@ -25,10 +25,10 @@ object NetworkMessageDecoder extends MessageDecoder {
   override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
     msgCode match {
       case Disconnect.code => payload.toDisconnect
-      case Ping.code => payload.toPing
-      case Pong.code => payload.toPong
-      case Hello.code => payload.toHello
-      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
+      case Ping.code       => payload.toPing
+      case Pong.code       => payload.toPong
+      case Hello.code      => payload.toHello
+      case _               => throw new RuntimeException(s"Unknown message type: ${msgCode}")
     }
 
 }
@@ -42,7 +42,7 @@ object EthereumMessageDecoder extends MessageDecoder {
       case PV63 => handlePV63(msgCode, payload)
       case PV62 => handlePV62(msgCode, payload)
       case PV61 => handlePV61(msgCode, payload)
-      case pv => throw new RuntimeException("Unknown protocol version: " + pv)
+      case pv   => throw new RuntimeException("Unknown protocol version: " + pv)
     }
   }
 
@@ -74,22 +74,22 @@ object EthereumMessageDecoder extends MessageDecoder {
 
   private def handlePV62(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
-      case Codes.NewBlockHashesCode => payload.toNewBlockHashes
+      case Codes.NewBlockHashesCode  => payload.toNewBlockHashes
       case Codes.GetBlockHeadersCode => payload.toGetBlockHeaders
-      case Codes.BlockHeadersCode => payload.toBlockHeaders
-      case Codes.GetBlockBodiesCode => payload.toGetBlockBodies
-      case Codes.BlockBodiesCode => payload.toBlockBodies
-      case _ => handleCommonMessages(msgCode, payload)
+      case Codes.BlockHeadersCode    => payload.toBlockHeaders
+      case Codes.GetBlockBodiesCode  => payload.toGetBlockBodies
+      case Codes.BlockBodiesCode     => payload.toBlockBodies
+      case _                         => handleCommonMessages(msgCode, payload)
     }
   }
 
   private def handlePV63(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.GetNodeDataCode => payload.toGetNodeData
-      case Codes.NodeDataCode => payload.toNodeData
+      case Codes.NodeDataCode    => payload.toNodeData
       case Codes.GetReceiptsCode => payload.toGetReceipts
-      case Codes.ReceiptsCode => payload.toReceipts
-      case _ => handlePV62(msgCode, payload)
+      case Codes.ReceiptsCode    => payload.toReceipts
+      case _                     => handlePV62(msgCode, payload)
     }
   }
 

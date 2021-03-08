@@ -11,7 +11,7 @@ object FaucetMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val sendFundsRequestDecoder: JsonMethodDecoder[SendFundsRequest] = {
     case Some(JArray((input: JString) :: Nil)) => extractAddress(input).map(SendFundsRequest)
-    case _ => Left(InvalidParams())
+    case _                                     => Left(InvalidParams())
   }
 
   implicit val sendFundsResponseEncoder: JsonEncoder[SendFundsResponse] = (t: SendFundsResponse) => encodeAsHex(t.txId)

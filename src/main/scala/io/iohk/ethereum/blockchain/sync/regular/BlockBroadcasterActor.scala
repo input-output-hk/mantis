@@ -21,7 +21,7 @@ class BlockBroadcasterActor(
 
   private def handleBroadcastMessages: Receive = {
     case BroadcastBlock(newBlock) => broadcast.broadcastBlock(newBlock, handshakedPeers)
-    case BroadcastBlocks(blocks) => blocks.foreach(broadcast.broadcastBlock(_, handshakedPeers))
+    case BroadcastBlocks(blocks)  => blocks.foreach(broadcast.broadcastBlock(_, handshakedPeers))
   }
 }
 object BlockBroadcasterActor {

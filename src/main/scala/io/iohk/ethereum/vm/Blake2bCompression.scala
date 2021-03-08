@@ -34,8 +34,7 @@ object Blake2bCompression {
   def parseNumberOfRounds(input: Array[Byte]): Long =
     Integer.toUnsignedLong(bytesToInt(copyOfRange(input, 0, 4)))
 
-  /**
-    * Parses input according to the rules defined in: https://eips.ethereum.org/EIPS/eip-152
+  /** Parses input according to the rules defined in: https://eips.ethereum.org/EIPS/eip-152
     * The encoded inputs are corresponding to the ones specified in the BLAKE2 RFC Section 3.2:
     *
     * rounds - the number of rounds - 32-bit unsigned big-endian word

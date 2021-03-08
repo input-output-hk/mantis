@@ -24,7 +24,7 @@ class InsecureJsonRpcHttpServer(
 
     bindingResultF onComplete {
       case Success(serverBinding) => log.info(s"JSON RPC HTTP server listening on ${serverBinding.localAddress}")
-      case Failure(ex) => log.error("Cannot start JSON HTTP RPC server", ex)
+      case Failure(ex)            => log.error("Cannot start JSON HTTP RPC server", ex)
     }
   }
 

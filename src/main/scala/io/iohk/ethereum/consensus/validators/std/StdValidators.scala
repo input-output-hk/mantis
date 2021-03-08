@@ -8,8 +8,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, Va
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
+/** Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
   * interface.
   *
   * @see [[io.iohk.ethereum.consensus.ethash.validators.StdValidatorsExecutor StdEthashValidators]]
@@ -90,7 +89,7 @@ object StdValidators {
     else {
       blockAndReceiptsValidation match {
         case Left(err) => Left(ValidationAfterExecError(err.toString))
-        case _ => Right(BlockExecutionSuccess)
+        case _         => Right(BlockExecutionSuccess)
       }
     }
   }

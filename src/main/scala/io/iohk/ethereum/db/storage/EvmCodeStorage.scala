@@ -6,8 +6,7 @@ import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.EvmCodeStorage._
 import monix.reactive.Observable
 
-/**
-  * This class is used to store the EVM Code, by using:
+/** This class is used to store the EVM Code, by using:
   *   Key: hash of the code
   *   Value: the code
   */

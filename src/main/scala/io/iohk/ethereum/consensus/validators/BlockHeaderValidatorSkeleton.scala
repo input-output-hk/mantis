@@ -7,8 +7,7 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
-/**
-  * A block header validator that does everything Ethereum prescribes except from:
+/** A block header validator that does everything Ethereum prescribes except from:
   *  - PoW validation
   *  - Difficulty validation.
   *
@@ -24,13 +23,11 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
   private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator(blockchainConfig)
 
-  /**
-    * The difficulty calculator. This is specific to the consensus protocol.
+  /** The difficulty calculator. This is specific to the consensus protocol.
     */
   protected def difficulty: DifficultyCalculator
 
-  /**
-    * A hook where even more consensus-specific validation can take place.
+  /** A hook where even more consensus-specific validation can take place.
     * For example, PoW validation is done here.
     */
   protected def validateEvenMore(
@@ -108,8 +105,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     } yield BlockHeaderValid
   }
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.extraData]] length
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -138,8 +134,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     }
   }
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.unixTimestamp]] is greater than the one of its parent
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -153,8 +148,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     if (blockHeader.unixTimestamp > parentHeader.unixTimestamp) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.difficulty]] is correct
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.difficulty]] is correct
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -169,8 +163,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       Right(BlockHeaderValid)
     else Left(HeaderDifficultyError)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.gasUsed]] is not greater than [[io.iohk.ethereum.domain.BlockHeader.gasLimit]]
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.gasUsed]] is not greater than [[io.iohk.ethereum.domain.BlockHeader.gasLimit]]
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -180,8 +173,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     if (blockHeader.gasUsed <= blockHeader.gasLimit && blockHeader.gasUsed >= 0) Right(BlockHeaderValid)
     else Left(HeaderGasUsedError)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.gasLimit]] follows the restrictions based on its parent gasLimit
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.gasLimit]] follows the restrictions based on its parent gasLimit
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * EIP106(https://github.com/ethereum/EIPs/issues/106) adds additional validation of maximum value for gasLimit.
@@ -207,8 +199,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     }
   }
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.number]] is the next one after its parents number
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.number]] is the next one after its parents number
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -222,8 +213,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     if (blockHeader.number == parentHeader.number + 1) Right(BlockHeaderValid)
     else Left(HeaderNumberError)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraFields]] match the ECIP1097 and ECIP1098 enabling configuration
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.extraFields]] match the ECIP1097 and ECIP1098 enabling configuration
     *
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeader if valid, an [[HeaderExtraFieldsError]] otherwise
@@ -234,8 +224,8 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
     blockHeader.extraFields match {
       case HefPostEcip1097(_, _) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
-      case HefPostEcip1098(_) if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
-      case HefEmpty if !isECIP1097Activated && !isECIP1098Activated => Right(BlockHeaderValid)
+      case HefPostEcip1098(_) if !isECIP1097Activated && isECIP1098Activated   => Right(BlockHeaderValid)
+      case HefEmpty if !isECIP1097Activated && !isECIP1098Activated            => Right(BlockHeaderValid)
       case _ =>
         val error = HeaderExtraFieldsError(blockHeader.extraFields, isECIP1097Activated, isECIP1098Activated)
         Left(error)

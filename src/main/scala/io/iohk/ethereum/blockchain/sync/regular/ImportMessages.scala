@@ -24,12 +24,12 @@ sealed abstract class ImportMessages(block: Block) {
 
   def messageForImportResult(importResult: BlockImportResult): LogEntry =
     importResult match {
-      case BlockImportedToTop(_) => importedToTheTop()
-      case BlockEnqueued => enqueued()
-      case DuplicateBlock => duplicated()
-      case UnknownParent => orphaned()
+      case BlockImportedToTop(_)             => importedToTheTop()
+      case BlockEnqueued                     => enqueued()
+      case DuplicateBlock                    => duplicated()
+      case UnknownParent                     => orphaned()
       case ChainReorganised(_, newBranch, _) => reorganisedChain(newBranch)
-      case BlockImportFailed(error) => importFailed(error)
+      case BlockImportFailed(error)          => importFailed(error)
     }
 }
 

@@ -256,8 +256,7 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
 
       def callVarMemCost(config: EvmConfig): fxt.CallResult = {
 
-        /**
-          * Amount of memory which causes the improper OOG exception, if we don take memcost into account
+        /** Amount of memory which causes the improper OOG exception, if we don take memcost into account
           * during calculation of post EIP150 CALLOp gasCap: gasCap(state, gas, gExtra + memCost)
           */
         val gasFailingBeforeEIP150Fix = 141072
@@ -675,8 +674,7 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
     }
   }
 
-  /**
-    * This test should result in an OutOfGas error as (following the equations. on the DELEGATECALL opcode in the YP):
+  /** This test should result in an OutOfGas error as (following the equations. on the DELEGATECALL opcode in the YP):
     * DELEGATECALL cost = memoryCost + C_extra + C_gascap
     * and
     * memoryCost = 0 (result written were input was)

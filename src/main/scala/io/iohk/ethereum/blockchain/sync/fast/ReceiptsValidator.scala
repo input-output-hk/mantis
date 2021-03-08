@@ -13,8 +13,7 @@ trait ReceiptsValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  /**
-    * Validates whether the received receipts match the block headers stored on the blockchain,
+  /** Validates whether the received receipts match the block headers stored on the blockchain,
     * returning the valid receipts
     *
     * @param requestedHashes hash of the blocks to which the requested receipts should belong
@@ -31,7 +30,7 @@ trait ReceiptsValidator {
       case (Some(header), receipt) =>
         validators.blockValidator.validateBlockAndReceipts(header, receipt) match {
           case Left(err) => Some(Invalid(err))
-          case _ => None
+          case _         => None
         }
       case (None, _) => Some(DbError)
     }

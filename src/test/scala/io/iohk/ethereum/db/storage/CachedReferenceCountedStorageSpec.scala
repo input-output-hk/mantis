@@ -221,7 +221,7 @@ class CachedReferenceCountedStorageSpec
       updates.foldLeft(List.empty[ByteString], List.empty[ByteString]) { (acc, up) =>
         up match {
           case Increase(hash) => acc.copy(_2 = hash :: acc._2)
-          case New(hash) => acc.copy(_2 = hash :: acc._2)
+          case New(hash)      => acc.copy(_2 = hash :: acc._2)
           case Decrease(hash) => acc.copy(_1 = hash :: acc._1)
         }
       }

@@ -22,8 +22,7 @@ object ProgramState {
   }
 }
 
-/**
-  * Intermediate state updated with execution of each opcode in the program
+/** Intermediate state updated with execution of each opcode in the program
   *
   * @param vm                         the VM
   * @param env                        program constants

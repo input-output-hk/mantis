@@ -22,8 +22,7 @@ object BloomFilter {
     }
   }
 
-  /**
-    * Given the logs of a receipt creates the bloom filter associated with them
+  /** Given the logs of a receipt creates the bloom filter associated with them
     * as stated in section 4.4.1 of the YP
     *
     * @param logs from the receipt whose bloom filter will be created

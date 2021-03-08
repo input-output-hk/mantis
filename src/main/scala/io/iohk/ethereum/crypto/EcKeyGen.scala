@@ -2,8 +2,7 @@ package io.iohk.ethereum.crypto
 
 import io.iohk.ethereum.security.SecureRandomBuilder
 
-/**
-  * A simple tool to generate ECDSA key pairs. Takes an optional positional argument [n] - number of key pairs
+/** A simple tool to generate ECDSA key pairs. Takes an optional positional argument [n] - number of key pairs
   * to generate (default is 1).
   * The key pairs will be printed in the format:
   *   priv-key-hex (32 bytes)

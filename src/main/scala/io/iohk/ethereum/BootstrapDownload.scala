@@ -9,8 +9,7 @@ import java.util.zip.ZipInputStream
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * A facility to
+/** A facility to
   * - check the download location for a minimum amount of free space
   * - download a zip from a URL and generate SHA-512 checksum
   * - check the checksum

@@ -4,8 +4,7 @@ import scala.annotation.tailrec
 
 object LedgerUtils {
 
-  /**
-    * Function finds minimal value in some interval for which provided function do not return error
+  /** Function finds minimal value in some interval for which provided function do not return error
     * If searched value is not in provided interval, function returns maximum value of searched interval
     * @param min minimum of searched interval
     * @param max maximum of searched interval

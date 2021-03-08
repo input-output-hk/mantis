@@ -63,13 +63,11 @@ class PendingTransactionsManager(
       () => pendingTransactions.size().toDouble
     )
 
-  /**
-    * stores information which tx hashes are "known" by which peers
+  /** stores information which tx hashes are "known" by which peers
     */
   var knownTransactions: Map[ByteString, Set[PeerId]] = Map.empty
 
-  /**
-    * stores all pending transactions
+  /** stores all pending transactions
     */
   val pendingTransactions: Cache[ByteString, PendingTransaction] = CacheBuilder
     .newBuilder()

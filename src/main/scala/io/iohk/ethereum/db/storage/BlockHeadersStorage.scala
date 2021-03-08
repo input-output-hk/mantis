@@ -9,8 +9,7 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import io.iohk.ethereum.utils.Picklers._
 
-/**
-  * This class is used to store the BlockHeader, by using:
+/** This class is used to store the BlockHeader, by using:
   *   Key: hash of the block to which the BlockHeader belong
   *   Value: the block header
   */

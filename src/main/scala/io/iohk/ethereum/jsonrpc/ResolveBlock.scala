@@ -21,8 +21,8 @@ trait ResolveBlock {
   def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest                => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest                  => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
         ledger.consensus.blockGenerator.getPendingBlockAndState
           .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))

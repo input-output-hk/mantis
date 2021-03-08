@@ -27,7 +27,7 @@ class MessageHandler(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithCo
   def awaitMessage[M <: GeneratedMessage](implicit companion: GeneratedMessageCompanion[M]): M = {
     val resF = in.pull() map {
       case Some(bytes) => companion.parseFrom(CodedInputStream.newInstance(bytes.toArray[Byte]))
-      case None => throw new RuntimeException("Stream completed")
+      case None        => throw new RuntimeException("Stream completed")
     }
 
     Await.result(resF, AwaitTimeout)

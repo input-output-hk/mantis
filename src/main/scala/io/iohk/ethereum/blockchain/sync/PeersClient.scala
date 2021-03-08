@@ -37,7 +37,7 @@ class PeersClient(
 
   def running(requesters: Requesters): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
-      case PrintStatus => printStatus(requesters: Requesters)
+      case PrintStatus                   => printStatus(requesters: Requesters)
       case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
@@ -90,15 +90,15 @@ class PeersClient(
   private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
     requestMsg match {
       case _: GetBlockHeaders => implicitly[ClassTag[BlockHeaders]]
-      case _: GetBlockBodies => implicitly[ClassTag[BlockBodies]]
-      case _: GetNodeData => implicitly[ClassTag[NodeData]]
+      case _: GetBlockBodies  => implicitly[ClassTag[BlockBodies]]
+      case _: GetNodeData     => implicitly[ClassTag[NodeData]]
     }
 
   private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int =
     requestMsg match {
       case _: GetBlockHeaders => Codes.BlockHeadersCode
-      case _: GetBlockBodies => Codes.BlockBodiesCode
-      case _: GetNodeData => Codes.NodeDataCode
+      case _: GetBlockBodies  => Codes.BlockBodiesCode
+      case _: GetNodeData     => Codes.NodeDataCode
     }
 
   private def printStatus(requesters: Requesters): Unit = {

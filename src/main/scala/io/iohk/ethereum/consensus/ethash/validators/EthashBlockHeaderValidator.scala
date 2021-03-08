@@ -10,8 +10,7 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.execution.atomic.{Atomic, AtomicAny}
 
-/**
-  * A block header validator for Ethash.
+/** A block header validator for Ethash.
   */
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     extends BlockHeaderValidatorSkeleton(blockchainConfig) {
@@ -29,8 +28,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
   ): Either[BlockHeaderError, BlockHeaderValid] =
     validatePoW(blockHeader)
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.

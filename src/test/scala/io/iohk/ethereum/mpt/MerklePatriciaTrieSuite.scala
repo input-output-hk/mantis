@@ -439,8 +439,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
 
   }
 
-  /**
-    * The MPT tested in this example has duplicated nodes as the branch node has two children with the same node: LeafNode("a", value)
+  /** The MPT tested in this example has duplicated nodes as the branch node has two children with the same node: LeafNode("a", value)
     * When one of the key-value that uses one of this nodes is removed, this shouldn't affect the use of the other key-value
     * which shares the same LeafNode
     */
@@ -465,8 +464,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(trieAfterRemoval.get(key3).getOrElse(Array.emptyByteArray) sameElements value)
   }
 
-  /**
-    * Tests whether the creation of a duplicated valid temporal extension node removes it's original copy.
+  /** Tests whether the creation of a duplicated valid temporal extension node removes it's original copy.
     * The creation of this temporal nodes happens in the case that an insertion is done on an extension node with a
     * partial match between the extension node key and the search key
     * Case tested:
@@ -507,8 +505,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(trieAtBlock10.get(decodeHexString("aaaa")).contains(6))
   }
 
-  /**
-    * Tests whether the creation of a duplicated valid temporal leaf node removes it's original copy.
+  /** Tests whether the creation of a duplicated valid temporal leaf node removes it's original copy.
     * The creation of this temporal nodes happens in the case that an insertion is done on an leaf node with a
     * partial match between the leaf node key and the search key
     * Case tested:
@@ -568,7 +565,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val proof = trie.getProof(wrongKey)
       assert(proof.getOrElse(Vector.empty).toList match {
         case _ @HashNode(_) :: Nil => true
-        case _ => false
+        case _                     => false
       })
     }
   }
@@ -585,7 +582,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val proof = emptyTrie.getProof(key = wrongKey)
     assert(proof.getOrElse(Vector.empty).toList match {
       case _ @HashNode(_) :: tail => tail.nonEmpty
-      case _ => false
+      case _                      => false
     })
   }
 

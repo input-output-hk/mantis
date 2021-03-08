@@ -5,7 +5,7 @@ import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptN
 
 sealed abstract class HashNodeResult[T] {
   def next(visitor: MptVisitor[T])(f: (MptNode, MptVisitor[T]) => T): T = this match {
-    case Result(value) => value
+    case Result(value)       => value
     case ResolveResult(node) => f(node, visitor)
   }
 }

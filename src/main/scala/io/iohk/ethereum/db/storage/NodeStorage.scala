@@ -13,8 +13,7 @@ sealed trait NodesStorage extends {
   def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage
 }
 
-/**
-  * This class is used to store Nodes (defined in mpt/Node.scala), by using:
+/** This class is used to store Nodes (defined in mpt/Node.scala), by using:
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
@@ -30,8 +29,7 @@ class NodeStorage(val dataSource: DataSource)
 
   override def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(namespace, key.toArray)
 
-  /**
-    * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
+  /** This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
     * in the current namespace.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStorage.

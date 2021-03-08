@@ -232,7 +232,7 @@ case class JsonRpcController(
   private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     testServiceOpt match {
       case Some(testService) => handleTestRequest(testService)
-      case None => PartialFunction.empty
+      case None              => PartialFunction.empty
     }
   }
 

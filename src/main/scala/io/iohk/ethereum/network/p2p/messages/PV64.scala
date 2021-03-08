@@ -9,8 +9,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * This is temporal PV64 version, the real one will be implemented by ETCM-355
+/** This is temporal PV64 version, the real one will be implemented by ETCM-355
   * This one will be probably PV66 in the future
   */
 object PV64 {

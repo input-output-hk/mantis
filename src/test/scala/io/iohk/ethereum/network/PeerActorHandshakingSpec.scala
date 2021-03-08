@@ -220,7 +220,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = {
       case helloMsg: Hello => ConnectedState(defaultPeerInfo)
-      case status: Status => DisconnectedState(defaultReasonDisconnect)
+      case status: Status  => DisconnectedState(defaultReasonDisconnect)
     }
 
     def processTimeout: HandshakerState[PeerInfo] = DisconnectedState(defaultReasonDisconnect)

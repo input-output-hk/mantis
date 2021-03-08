@@ -175,9 +175,9 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
   }
 
   private def containsAccount(encKey: EncryptedKey): Either[KeyStoreError, Boolean] = load(encKey.address) match {
-    case Right(_) => Right(true)
+    case Right(_)          => Right(true)
     case Left(KeyNotFound) => Right(false)
-    case Left(err) => Left(err)
+    case Left(err)         => Left(err)
   }
 
   private def findKeyFileName(address: Address): Either[KeyStoreError, String] = for {

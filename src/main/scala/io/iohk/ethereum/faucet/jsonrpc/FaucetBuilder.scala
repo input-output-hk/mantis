@@ -133,6 +133,6 @@ class FaucetServer
   private[this] def startJsonRpcHttpServer() =
     faucetJsonRpcHttpServer match {
       case Right(jsonRpcServer) => jsonRpcServer.run()
-      case Left(error) => throw new RuntimeException(s"$error")
+      case Left(error)          => throw new RuntimeException(s"$error")
     }
 }

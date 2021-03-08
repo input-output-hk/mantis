@@ -51,25 +51,25 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
   protected def extractIeleTx(input: Map[String, JValue]): Either[JsonRpcError, IeleTransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {
       case Some(v) => extractQuantity(v).map(Some(_))
-      case None => Right(None)
+      case None    => Right(None)
     }
 
     for {
       from <- input.get("from") match {
         case Some(JString(s)) => extractAddress(s)
-        case Some(_) => Left(InvalidAddress)
-        case _ => Left(InvalidParams("TX 'from' is required"))
+        case Some(_)          => Left(InvalidAddress)
+        case _                => Left(InvalidParams("TX 'from' is required"))
       }
 
       to <- input.get("to") match {
         case Some(JString(s)) =>
           extractAddress(s).map {
             case addr if addr.toUInt256.isZero => None
-            case addr => Some(addr)
+            case addr                          => Some(addr)
           }
 
         case Some(_) => Left(InvalidAddress)
-        case None => Right(None)
+        case None    => Right(None)
       }
 
       value <- optionalQuantity("value")
@@ -86,8 +86,8 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 
       contractCode <- input.get("contractCode") match {
         case Some(JString(s)) => extractBytes(s).map(Some(_))
-        case Some(_) => Left(InvalidParams())
-        case None => Right(None)
+        case Some(_)          => Left(InvalidParams())
+        case None             => Right(None)
       }
 
     } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, function, arguments, contractCode)

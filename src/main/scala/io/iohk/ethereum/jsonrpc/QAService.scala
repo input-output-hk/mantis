@@ -25,8 +25,7 @@ class QAService(
     syncController: ActorRef
 ) extends Logger {
 
-  /**
-    * qa_mineBlocks that instructs mocked miner to mine given number of blocks
+  /** qa_mineBlocks that instructs mocked miner to mine given number of blocks
     *
     * @param req with requested block's data
     * @return nothing
@@ -82,8 +81,8 @@ object QAService {
 
     private def extractMessage(response: MinerResponse): Option[String] = response match {
       case MinerIsWorking | MiningOrdered | MinerNotExist => None
-      case MiningError(msg) => Some(msg)
-      case MinerNotSupport(msg) => Some(msg.toString)
+      case MiningError(msg)                               => Some(msg)
+      case MinerNotSupport(msg)                           => Some(msg.toString)
     }
 
     sealed trait MinerResponseType extends EnumEntry
@@ -97,10 +96,10 @@ object QAService {
       case object MinerNotSupport extends MinerResponseType
 
       def apply(minerResponse: MinerResponse): MinerResponseType = minerResponse match {
-        case MinerResponses.MinerIsWorking => MinerIsWorking
-        case MinerResponses.MiningOrdered => MiningOrdered
-        case MinerResponses.MinerNotExist => MinerNotExist
-        case MinerResponses.MiningError(_) => MiningError
+        case MinerResponses.MinerIsWorking     => MinerIsWorking
+        case MinerResponses.MiningOrdered      => MiningOrdered
+        case MinerResponses.MinerNotExist      => MinerNotExist
+        case MinerResponses.MiningError(_)     => MiningError
         case MinerResponses.MinerNotSupport(_) => MinerNotSupport
       }
     }

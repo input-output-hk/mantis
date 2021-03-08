@@ -34,7 +34,7 @@ class SecureJsonRpcHttpServer(
 
         bindingResultF onComplete {
           case Success(serverBinding) => log.info(s"JSON RPC HTTPS server listening on ${serverBinding.localAddress}")
-          case Failure(ex) => log.error("Cannot start JSON HTTPS RPC server", ex)
+          case Failure(ex)            => log.error("Cannot start JSON HTTPS RPC server", ex)
         }
       case Left(error) =>
         log.error(s"Cannot start JSON HTTPS RPC server due to: $error")

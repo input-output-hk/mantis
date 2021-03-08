@@ -2,8 +2,7 @@ package io.iohk.ethereum.consensus.ethash.validators
 
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockValidator, SignedTransactionValidator}
 
-/**
-  * Implements validators that adhere to the PoW-specific
+/** Implements validators that adhere to the PoW-specific
   * [[io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor]]
   * interface.
   */

@@ -48,12 +48,12 @@ class FilterManager(
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) =>
       addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
-    case NewBlockFilter => addFilterAndSendResponse(BlockFilter(generateId()))
+    case NewBlockFilter              => addFilterAndSendResponse(BlockFilter(generateId()))
     case NewPendingTransactionFilter => addFilterAndSendResponse(PendingTransactionFilter(generateId()))
-    case UninstallFilter(id) => uninstallFilter(id)
-    case GetFilterLogs(id) => getFilterLogs(id)
-    case GetFilterChanges(id) => getFilterChanges(id)
-    case FilterTimeout(id) => uninstallFilter(id)
+    case UninstallFilter(id)         => uninstallFilter(id)
+    case GetFilterLogs(id)           => getFilterLogs(id)
+    case GetFilterChanges(id)        => getFilterChanges(id)
+    case FilterTimeout(id)           => uninstallFilter(id)
     case gl: GetLogs =>
       val filter = LogFilter(0, gl.fromBlock, gl.toBlock, gl.address, gl.topics)
       sender() ! LogFilterLogs(getLogs(filter, None))
@@ -140,7 +140,7 @@ class FilterManager(
               case None => logsSoFar
             }
           case Some(_) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar)
-          case None => logsSoFar
+          case None    => logsSoFar
         }
       }
     }
@@ -239,7 +239,7 @@ class FilterManager(
       } else
         blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
           case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
-          case None => hashesSoFar
+          case None         => hashesSoFar
         }
     }
 
@@ -265,9 +265,9 @@ class FilterManager(
   private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt = {
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => blockNumber
-      case BlockParam.Earliest => 0
-      case BlockParam.Latest => bestBlockNumber
-      case BlockParam.Pending => bestBlockNumber
+      case BlockParam.Earliest                => 0
+      case BlockParam.Latest                  => bestBlockNumber
+      case BlockParam.Pending                 => bestBlockNumber
     }
   }
 }

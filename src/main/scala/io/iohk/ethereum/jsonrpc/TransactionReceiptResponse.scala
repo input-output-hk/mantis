@@ -18,8 +18,7 @@ import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
-/**
-  *  Params docs copied from - https://eth.wiki/json-rpc/API
+/**  Params docs copied from - https://eth.wiki/json-rpc/API
   *
   *  @param transactionHash DATA, 32 Bytes - hash of the transaction.
   *  @param transactionIndex QUANTITY - integer of the transactions index position in the block.
@@ -82,8 +81,8 @@ object TransactionReceiptResponse {
     }
 
     val (root, status) = receipt.postTransactionStateHash match {
-      case FailureOutcome => (None, Some(BigInt(0)))
-      case SuccessOutcome => (None, Some(BigInt(1)))
+      case FailureOutcome         => (None, Some(BigInt(0)))
+      case SuccessOutcome         => (None, Some(BigInt(1)))
       case HashOutcome(stateHash) => (Some(stateHash), None)
     }
 

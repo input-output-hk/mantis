@@ -209,7 +209,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     ): Block = {
       val extraFields = treasuryOptOut match {
         case Some(definedTreasuryOptOut) => HefPostEcip1098(definedTreasuryOptOut)
-        case None => HefEmpty
+        case None                        => HefEmpty
       }
 
       Block(

@@ -59,8 +59,7 @@ object EncryptedKey {
     crypto.kec256(dk.slice(16, 32) ++ ciphertext)
 }
 
-/**
-  * Represents an encrypted private key stored in the keystore
+/** Represents an encrypted private key stored in the keystore
   * See: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
   */
 case class EncryptedKey(

@@ -36,7 +36,7 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
       if (limit > 0) {
         blockchain.getBlockHeaderByHash(hash) match {
           case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
-          case None => acc
+          case None     => acc
         }
       } else {
         acc
@@ -53,8 +53,7 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
 
 object OmmersPool {
 
-  /**
-    * As is stated on section 11.1, eq. (143) of the YP
+  /** As is stated on section 11.1, eq. (143) of the YP
     *
     * @param ommerGenerationLimit should be === 6
     * @param returnedOmmersSizeLimit should be === 2

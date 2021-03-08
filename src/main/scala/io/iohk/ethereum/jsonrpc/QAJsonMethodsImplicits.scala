@@ -56,7 +56,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
     import cats.implicits._
     arr.arr.traverse {
       case JString(key) => extractBytes(key)
-      case other => Left(InvalidParams(msg = s"Unable to parse private key, expected byte data but got: $other"))
+      case other        => Left(InvalidParams(msg = s"Unable to parse private key, expected byte data but got: $other"))
     }
   }
 

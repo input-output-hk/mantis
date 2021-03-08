@@ -10,8 +10,7 @@ trait ConsensusBuilder {
   def consensus: Consensus
 }
 
-/**
-  * A consensus builder is responsible to instantiate the consensus protocol.
+/** A consensus builder is responsible to instantiate the consensus protocol.
   * This is done dynamically when Mantis boots, based on its configuration.
   *
   * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
@@ -41,7 +40,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val additionalEthashData = consensusConfig.protocol match {
       case Protocol.Ethash | Protocol.MockedPow => NoAdditionalEthashData
-      case Protocol.RestrictedEthash => RestrictedEthashMinerData(nodeKey)
+      case Protocol.RestrictedEthash            => RestrictedEthashMinerData(nodeKey)
     }
     val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalEthashData)
     consensus

@@ -10,8 +10,8 @@ object SyncProtocol {
   sealed trait Status {
     def syncing: Boolean = this match {
       case Status.Syncing(_, _, _) => true
-      case Status.NotSyncing => false
-      case Status.SyncDone => false
+      case Status.NotSyncing       => false
+      case Status.SyncDone         => false
     }
 
     def notSyncing: Boolean = !syncing

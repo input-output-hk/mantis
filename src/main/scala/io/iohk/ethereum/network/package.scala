@@ -56,8 +56,7 @@ package object network {
     }
   }
 
-  /**
-    * Given an address, returns the corresponding host name for the URI.
+  /** Given an address, returns the corresponding host name for the URI.
     * All IPv6 addresses are enclosed in square brackets.
     *
     * @param address, whose host name will be obtained
@@ -67,7 +66,7 @@ package object network {
     val hostName = address.getHostAddress
     address match {
       case _: Inet6Address => s"[$hostName]"
-      case _ => hostName
+      case _               => hostName
     }
   }
 

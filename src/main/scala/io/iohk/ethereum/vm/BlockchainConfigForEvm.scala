@@ -11,8 +11,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{
   Petersburg
 }
 
-/**
-  * A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
+/** A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
   * by a given VM
   */
@@ -38,17 +37,17 @@ case class BlockchainConfigForEvm(
 ) {
   def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match {
     case _ if blockNumber < atlantisBlockNumber => BeforeAtlantis
-    case _ if blockNumber < aghartaBlockNumber => Atlantis
-    case _ if blockNumber < phoenixBlockNumber => Agharta
+    case _ if blockNumber < aghartaBlockNumber  => Atlantis
+    case _ if blockNumber < phoenixBlockNumber  => Agharta
     case _ if blockNumber >= phoenixBlockNumber => Phoenix
   }
 
   def ethForkForBlockNumber(blockNumber: BigInt): BlockchainConfigForEvm.EthForks.Value = blockNumber match {
-    case _ if blockNumber < byzantiumBlockNumber => BeforeByzantium
+    case _ if blockNumber < byzantiumBlockNumber      => BeforeByzantium
     case _ if blockNumber < constantinopleBlockNumber => Byzantium
-    case _ if blockNumber < petersburgBlockNumber => Constantinople
-    case _ if blockNumber < istanbulBlockNumber => Petersburg
-    case _ if blockNumber >= istanbulBlockNumber => Istanbul
+    case _ if blockNumber < petersburgBlockNumber     => Constantinople
+    case _ if blockNumber < istanbulBlockNumber       => Petersburg
+    case _ if blockNumber >= istanbulBlockNumber      => Istanbul
   }
 }
 

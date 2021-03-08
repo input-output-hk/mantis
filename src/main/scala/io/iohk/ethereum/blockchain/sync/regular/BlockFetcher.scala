@@ -79,7 +79,7 @@ class BlockFetcher(
       handlePossibleTopUpdate(state)
 
   private def handleCommands(state: BlockFetcherState): Receive = {
-    case PickBlocks(amount) => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
+    case PickBlocks(amount)                  => state.pickBlocks(amount) |> handlePickedBlocks(state) |> fetchBlocks
     case StrictPickBlocks(from, atLeastWith) =>
       // FIXME: Consider having StrictPickBlocks calls guaranteeing this
       // from parameter could be negative or 0 so we should cap it to 1 if that's the case
@@ -192,7 +192,7 @@ class BlockFetcher(
     case MessageFromPeer(NewBlockHashes(hashes), _) =>
       log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
       val newState = state.validateNewBlockHashes(hashes) match {
-        case Left(_) => state
+        case Left(_)            => state
         case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
       }
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
@@ -374,7 +374,7 @@ class BlockFetcher(
 
   private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
-    case _ => ()
+    case _                           => ()
   }
 
   private def handleRequestResult(fallback: FetchMsg)(msg: Any): Task[Any] = msg match {

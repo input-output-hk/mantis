@@ -20,8 +20,7 @@ import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * Peer actor is responsible for initiating and handling high-level connection with peer.
+/** Peer actor is responsible for initiating and handling high-level connection with peer.
   * It creates child RLPxConnectionActor for handling underlying RLPx communication.
   * Once RLPx connection is established it proceeds with protocol handshake (i.e `Hello`
   * and `Status` exchange).
@@ -135,8 +134,7 @@ class PeerActor[R <: HandshakeResult](
 
       }
 
-  /**
-    * Asks for the next message to send to the handshaker, or, if there is None,
+  /** Asks for the next message to send to the handshaker, or, if there is None,
     * becomes MessageHandler if handshake was successful or disconnects from the peer otherwise
     *
     * @param handshaker
@@ -172,7 +170,7 @@ class PeerActor[R <: HandshakeResult](
     scheduler.scheduleOnce(peerConfiguration.connectRetryDelay, self, RetryConnectionTimeout)
     context become {
       case RetryConnectionTimeout => reconnect(uri, numRetries + 1)
-      case GetStatus => sender() ! StatusResponse(Connecting)
+      case GetStatus              => sender() ! StatusResponse(Connecting)
     }
   }
 
@@ -185,7 +183,7 @@ class PeerActor[R <: HandshakeResult](
 
   private def stopActor(rlpxConnection: RLPxConnection, status: Status): Unit = status match {
     case Handshaked => gracefulStop(rlpxConnection)
-    case _ => context stop self
+    case _          => context stop self
   }
 
   private def gracefulStop(rlpxConnection: RLPxConnection): Unit = {
@@ -267,8 +265,7 @@ class PeerActor[R <: HandshakeResult](
     val peer: Peer = Peer(peerAddress, self, incomingConnection, Some(remoteNodeId))
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
-    /**
-      * main behavior of actor that handles peer communication and subscriptions for messages
+    /** main behavior of actor that handles peer communication and subscriptions for messages
       */
     def receive: Receive =
       handlePingMsg(rlpxConnection) orElse

@@ -14,8 +14,7 @@ object MptListValidator {
     override def toBytes(input: Int): Array[Byte] = encode(input)
   }
 
-  /**
-    * This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT
+  /** This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT
     * (itemIndex, item) tuples and validates the resulting hash
     *
     * @param hash Hash to expect

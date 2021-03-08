@@ -9,8 +9,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import scala.util.{Failure, Success, Try}
 
-/**
-  * Persists current state of fast sync to a storage. Can save only one state at a time.
+/** Persists current state of fast sync to a storage. Can save only one state at a time.
   * If during persisting new state is received then it will be saved immediately after current state
   * was persisted.
   * If during persisting more than one new state is received then only the last state will be kept in queue.

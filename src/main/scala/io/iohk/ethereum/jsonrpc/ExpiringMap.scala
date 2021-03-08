@@ -16,8 +16,7 @@ object ExpiringMap {
     new ExpiringMap(mutable.Map.empty, defaultElementRetentionTime)
 }
 
-/**
-  * Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
+/** Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
   * Map is passive which means it only check for expiration and remove expired element during get function.
   * Duration in all calls is relative to current System.nanoTime()
   */

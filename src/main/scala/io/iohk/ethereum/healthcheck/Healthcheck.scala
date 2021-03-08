@@ -2,8 +2,7 @@ package io.iohk.ethereum.healthcheck
 
 import monix.eval.Task
 
-/**
-  * Represents a health check, runs it and interprets the outcome.
+/** Represents a health check, runs it and interprets the outcome.
   * The outcome can be either a normal result, an application error, or
   * an (unexpected) exception.
   *

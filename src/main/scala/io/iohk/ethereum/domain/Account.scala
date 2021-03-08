@@ -48,15 +48,13 @@ case class Account(
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
 
-  /**
-    * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
+  /** According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
     * An account's storage is not relevant when determining emptiness.
     */
   def isEmpty(startNonce: UInt256 = UInt256.Zero): Boolean =
     nonce == startNonce && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
 
-  /**
-    * Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
+  /** Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
     */
   def nonEmptyCodeOrNonce(startNonce: UInt256 = UInt256.Zero): Boolean =
     nonce != startNonce || codeHash != Account.EmptyCodeHash

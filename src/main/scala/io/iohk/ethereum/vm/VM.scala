@@ -11,8 +11,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   type PR = ProgramResult[W, S]
   type PS = ProgramState[W, S]
 
-  /**
-    * Executes a top-level program (transaction)
+  /** Executes a top-level program (transaction)
     * @param context context to be executed
     * @return result of the execution
     */
@@ -35,8 +34,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     }
   }
 
-  /**
-    * Message call - Θ function in YP
+  /** Message call - Θ function in YP
     */
   private[vm] def call(context: PC, ownerAddr: Address): PR =
     if (!isValidCall(context))
@@ -59,8 +57,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       }
     }
 
-  /**
-    * Contract creation - Λ function in YP
+  /** Contract creation - Λ function in YP
     * salt is used to create contract by CREATE2 opcode. See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
     */
   private[vm] def create(context: PC, salt: Option[UInt256] = None): (PR, Address) =
@@ -79,8 +76,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       // to empty values.
       val conflict = context.world.nonEmptyCodeOrNonceAccount(newAddress)
 
-      /**
-        * Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
+      /** Specification of https://eips.ethereum.org/EIPS/eip-1283 states, that `originalValue` should be taken from
         *  world which is left after `a reversion happens on the current transaction`, so in current scope `context.originalWorld`.
         *
         *  But ets test expects that it should be taken from world after the new account initialisation, which clears

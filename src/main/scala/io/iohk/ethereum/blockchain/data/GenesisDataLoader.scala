@@ -163,7 +163,7 @@ object GenesisDataLoader {
           else "0" ++ noPrefix
         Try(ByteString(Hex.decode(inp))) match {
           case Success(bs) => bs
-          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Failure(_)  => throw new RuntimeException("Cannot parse hex string: " + s)
         }
       case other => throw new RuntimeException("Expected hex string, but got: " + other)
     }

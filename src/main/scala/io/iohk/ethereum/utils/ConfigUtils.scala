@@ -19,7 +19,7 @@ object ConfigUtils {
 
   def parseSingleOrigin(origin: String): HttpOriginMatcher = origin match {
     case "*" => HttpOriginMatcher.*
-    case s => HttpOriginMatcher.Default(HttpOrigin(s) :: Nil)
+    case s   => HttpOriginMatcher.Default(HttpOrigin(s) :: Nil)
   }
 
   def getOptionalValue[V](config: TypesafeConfig, getter: TypesafeConfig => String => V, path: String): Option[V] =

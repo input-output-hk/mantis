@@ -56,7 +56,7 @@ class BlockImporter(
   }
 
   private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
-    case OnTop => context become currentBehavior(state.onTop())
+    case OnTop    => context become currentBehavior(state.onTop())
     case NotOnTop => context become currentBehavior(state.notOnTop())
   }
 
@@ -144,7 +144,7 @@ class BlockImporter(
         .flatMap(_ => Task.now(resolveBranch(blocks)))
         .flatMap {
           case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-          case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
+          case Left(resolvingFrom)   => Task.now(ResolvingBranch(resolvingFrom))
         }
     },
     blockImportType
@@ -185,7 +185,7 @@ class BlockImporter(
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
         case Some(block) => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
-        case None => ()
+        case None        => ()
       }
 
       Task.now((importedBlocks, None))
@@ -259,15 +259,15 @@ class BlockImporter(
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
               supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-            case BlockEnqueued => ()
+            case BlockEnqueued  => ()
             case DuplicateBlock => ()
-            case UnknownParent => () // This is normal when receiving broadcast blocks
+            case UnknownParent  => () // This is normal when receiving broadcast blocks
             case ChainReorganised(oldBranch, newBranch, weights) =>
               updateTxPool(newBranch, oldBranch)
               broadcastBlocks(newBranch, weights)
               newBranch.lastOption match {
                 case Some(newBlock) => supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
-                case None => ()
+                case None           => ()
               }
             case BlockImportFailed(error) =>
               if (informFetcherOnFail) {
@@ -345,9 +345,9 @@ class BlockImporter(
   private def startingBlockNumber: BigInt = blockchain.getBestBlockNumber()
 
   private def getBehavior(newBehavior: NewBehavior, blockImportType: BlockImportType): Behavior = newBehavior match {
-    case Running => running
+    case Running                             => running
     case ResolvingMissingNode(blocksToRetry) => resolvingMissingNode(blocksToRetry, blockImportType)
-    case ResolvingBranch(from) => resolvingBranch(from)
+    case ResolvingBranch(from)               => resolvingBranch(from)
   }
 }
 

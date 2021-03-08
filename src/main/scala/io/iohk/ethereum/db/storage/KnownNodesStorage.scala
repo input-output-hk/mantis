@@ -6,8 +6,7 @@ import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 
 import scala.collection.immutable.ArraySeq
 
-/**
-  * This class is used to store discovered nodes
+/** This class is used to store discovered nodes
   *   Value: stored nodes list
   */
 class KnownNodesStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[String, Set[String]] {

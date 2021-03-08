@@ -17,8 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
-/**
-  * EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
+/** EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to
   * query it for this information.
   * In order to do so it receives events for peer creation, disconnection and new messages being sent and
   * received by each peer.
@@ -38,8 +37,7 @@ class EtcPeerManagerActor(
 
   override def receive: Receive = handleMessages(Map.empty)
 
-  /**
-    * Processes both messages for updating the information about each peer and for requesting this information
+  /** Processes both messages for updating the information about each peer and for requesting this information
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
@@ -51,8 +49,7 @@ class EtcPeerManagerActor(
     peerBestBlockIsItsGenesisBlock || (!peerBestBlockIsItsGenesisBlock && peerInfo.maxBlockNumber > 0)
   }
 
-  /**
-    * Processes both messages for sending messages and for requesting peer information
+  /** Processes both messages for sending messages and for requesting peer information
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
@@ -75,8 +72,7 @@ class EtcPeerManagerActor(
       context become handleMessages(newPeersWithInfo)
   }
 
-  /**
-    * Processes events and updating the information about each peer
+  /** Processes events and updating the information about each peer
     *
     * @param peersWithInfo, which has the peer and peer information for each handshaked peer (identified by it's id)
     */
@@ -104,8 +100,7 @@ class EtcPeerManagerActor(
 
   }
 
-  /**
-    * Processes the message, updating the information for each peer
+  /** Processes the message, updating the information for each peer
     *
     * @param peers with the information for each peer
     * @param peerId from whom the message was received (or who sent the message)
@@ -127,8 +122,7 @@ class EtcPeerManagerActor(
       peers
   }
 
-  /**
-    * Processes the message and the old peer info and returns the peer info
+  /** Processes the message and the old peer info and returns the peer info
     *
     * @param message to be processed
     * @param initialPeerWithInfo from before the message was processed
@@ -137,8 +131,7 @@ class EtcPeerManagerActor(
   private def handleSentMessage(message: Message, initialPeerWithInfo: PeerWithInfo): PeerInfo =
     initialPeerWithInfo.peerInfo
 
-  /**
-    * Processes the message and the old peer info and returns the peer info
+  /** Processes the message and the old peer info and returns the peer info
     *
     * @param message to be processed
     * @param initialPeerWithInfo from before the message was processed
@@ -150,8 +143,7 @@ class EtcPeerManagerActor(
       andThen updateMaxBlock(message))(initialPeerWithInfo.peerInfo)
   }
 
-  /**
-    * Processes the message and updates the chain weight of the peer
+  /** Processes the message and updates the chain weight of the peer
     *
     * @param message to be processed
     * @param initialPeerInfo from before the message was processed
@@ -162,11 +154,10 @@ class EtcPeerManagerActor(
       case newBlock: CommonMessages.NewBlock =>
         initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
       case newBlock: PV64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
-      case _ => initialPeerInfo
+      case _                       => initialPeerInfo
     }
 
-  /**
-    * Processes the message and updates if the fork block was accepted from the peer
+  /** Processes the message and updates if the fork block was accepted from the peer
     *
     * @param message to be processed
     * @param initialPeerInfo from before the message was processed
@@ -194,8 +185,7 @@ class EtcPeerManagerActor(
     case _ => initialPeerInfo
   }
 
-  /**
-    * Processes the message and updates the max block number from the peer
+  /** Processes the message and updates the max block number from the peer
     *
     * @param message to be processed
     * @param initialPeerInfo from before the message was processed
@@ -236,8 +226,7 @@ object EtcPeerManagerActor {
 
   val msgCodesWithInfo: Set[Int] = Set(Codes.BlockHeadersCode, Codes.NewBlockCode, Codes.NewBlockHashesCode)
 
-  /**
-    * RemoteStatus was created to decouple status information from protocol status messages
+  /** RemoteStatus was created to decouple status information from protocol status messages
     * (they are different versions of Status msg)
     */
   case class RemoteStatus(

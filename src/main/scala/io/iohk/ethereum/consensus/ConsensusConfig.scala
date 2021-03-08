@@ -6,8 +6,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
-/**
-  * Provides generic consensus configuration. Each consensus protocol implementation
+/** Provides generic consensus configuration. Each consensus protocol implementation
   * will use its own specific configuration as well.
   *
   * @param protocol Designates the consensus protocol.

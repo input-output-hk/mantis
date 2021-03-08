@@ -77,19 +77,19 @@ object WireProtocol {
 
     def reasonToString(reasonCode: Long): String =
       reasonCode match {
-        case Reasons.DisconnectRequested => "Disconnect requested"
-        case Reasons.TcpSubsystemError => "TCP sub-system error"
-        case Reasons.UselessPeer => "Useless peer"
-        case Reasons.TooManyPeers => "Too many peers"
-        case Reasons.AlreadyConnected => "Already connected"
+        case Reasons.DisconnectRequested            => "Disconnect requested"
+        case Reasons.TcpSubsystemError              => "TCP sub-system error"
+        case Reasons.UselessPeer                    => "Useless peer"
+        case Reasons.TooManyPeers                   => "Too many peers"
+        case Reasons.AlreadyConnected               => "Already connected"
         case Reasons.IncompatibleP2pProtocolVersion => "Incompatible P2P protocol version"
-        case Reasons.NullNodeIdentityReceived => "Null node identity received - this is automatically invalid"
-        case Reasons.ClientQuitting => "Client quitting"
-        case Reasons.UnexpectedIdentity => "Unexpected identity"
-        case Reasons.IdentityTheSame => "Identity is the same as this node"
-        case Reasons.TimeoutOnReceivingAMessage => "Timeout on receiving a message"
-        case Reasons.Other => "Some other reason specific to a subprotocol"
-        case other => s"unknown reason code: $other"
+        case Reasons.NullNodeIdentityReceived       => "Null node identity received - this is automatically invalid"
+        case Reasons.ClientQuitting                 => "Client quitting"
+        case Reasons.UnexpectedIdentity             => "Unexpected identity"
+        case Reasons.IdentityTheSame                => "Identity is the same as this node"
+        case Reasons.TimeoutOnReceivingAMessage     => "Timeout on receiving a message"
+        case Reasons.Other                          => "Some other reason specific to a subprotocol"
+        case other                                  => s"unknown reason code: $other"
       }
 
     val code = 0x01
@@ -105,7 +105,7 @@ object WireProtocol {
     implicit class DisconnectDec(val bytes: Array[Byte]) extends AnyVal {
       def toDisconnect: Disconnect = rawDecode(bytes) match {
         case RLPList(reason, _*) => Disconnect(reason = reason)
-        case _ => throw new RuntimeException("Cannot decode Disconnect")
+        case _                   => throw new RuntimeException("Cannot decode Disconnect")
       }
     }
   }

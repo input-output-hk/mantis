@@ -180,7 +180,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
     (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
       case _ @HashNode(_) :: Nil => true
-      case _ => false
+      case _                     => false
     }) shouldBe true
     mptWithAcc.get(wrongAddress) shouldBe None
   }

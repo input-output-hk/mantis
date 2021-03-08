@@ -34,7 +34,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) => updatePeers(peers)
-    case PeerDisconnected(peerId) => removePeerById(peerId)
+    case PeerDisconnected(peerId)                   => removePeerById(peerId)
   }
 
   def peersToDownloadFrom: Map[PeerId, PeerWithInfo] =

@@ -70,7 +70,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
       val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
       uncleBlockResponse.removeField {
         case JField("transactions", _) => true
-        case _ => false
+        case _                         => false
       }
     }
   }
@@ -91,7 +91,7 @@ object EthBlocksJsonMethodsImplicits extends JsonMethodsImplicits {
       val uncleBlockResponse = Extraction.decompose(t.uncleBlockResponse)
       uncleBlockResponse.removeField {
         case JField("transactions", _) => true
-        case _ => false
+        case _                         => false
       }
     }
   }

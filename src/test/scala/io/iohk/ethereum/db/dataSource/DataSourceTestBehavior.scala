@@ -41,7 +41,7 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
 
         dataSource.get(OtherNamespace, someByteString) match {
           case Some(b) if b == someByteString => succeed
-          case _ => fail()
+          case _                              => fail()
         }
 
         dataSource.destroy()
@@ -53,7 +53,9 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
         val dataSource = createDataSource(path)
         val someByteString = byteStringOfLengthNGen(KeySizeWithoutPrefix).sample.get
         dataSource.destroy()
-        assertThrows[RocksDbDataSourceClosedException](dataSource.update(prepareUpdate(toUpsert = Seq(someByteString -> someByteString))))
+        assertThrows[RocksDbDataSourceClosedException](
+          dataSource.update(prepareUpdate(toUpsert = Seq(someByteString -> someByteString)))
+        )
       }
     }
 

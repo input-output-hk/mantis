@@ -16,8 +16,7 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 import scala.util.Try
 
-/**
-  * Scheduler which traverses Merkle patricia trie in DFS fashion, while also creating requests for nodes missing in traversed
+/** Scheduler which traverses Merkle patricia trie in DFS fashion, while also creating requests for nodes missing in traversed
   * trie.
   * Traversal example: Merkle Patricia Trie with 2 leaf child nodes, each with non empty code value.
   * Final State:
@@ -59,8 +58,7 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: LoadableBloomFilte
     }
   }
 
-  /**
-    * Default responses processor which ignores duplicated or not requested hashes, but informs the caller about critical
+  /** Default responses processor which ignores duplicated or not requested hashes, but informs the caller about critical
     * errors.
     * If it would valuable, it possible to implement processor which would gather statistics about duplicated or not requested data.
     */

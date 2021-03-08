@@ -25,7 +25,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_syncing = new NoParamsMethodDecoder(SyncingRequest()) with JsonEncoder[SyncingResponse] {
     def encodeJson(t: SyncingResponse): JValue = t.syncStatus match {
       case Some(syncStatus) => Extraction.decompose(syncStatus)
-      case None => false
+      case None             => false
     }
   }
 
@@ -86,8 +86,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def toEitherOpt[A, B](opt: Option[Either[A, B]]): Either[A, Option[B]] = {
       opt match {
         case Some(Right(v)) => Right(Option(v))
-        case Some(Left(e)) => Left(e)
-        case None => Right(None)
+        case Some(Left(e))  => Left(e)
+        case None           => Right(None)
       }
     }
 

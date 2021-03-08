@@ -20,19 +20,19 @@ object App extends Logger {
     val sigValidator = "signature-validator"
 
     args.headOption match {
-      case None => Mantis.main(args)
-      case Some(`launchMantis`) => Mantis.main(args.tail)
+      case None                  => Mantis.main(args)
+      case Some(`launchMantis`)  => Mantis.main(args.tail)
       case Some(`launchKeytool`) => KeyTool.main(args.tail)
       case Some(`downloadBootstrap`) => {
         Config.Db.dataSource match {
           case "rocksdb" => BootstrapDownload.main(args.tail :+ Config.Db.RocksDb.path)
         }
       }
-      case Some(`vmServer`) => VmServerApp.main(args.tail)
-      case Some(`faucet`) => Faucet.main(args.tail)
-      case Some(`ecKeyGen`) => EcKeyGen.main(args.tail)
+      case Some(`vmServer`)     => VmServerApp.main(args.tail)
+      case Some(`faucet`)       => Faucet.main(args.tail)
+      case Some(`ecKeyGen`)     => EcKeyGen.main(args.tail)
       case Some(`sigValidator`) => SignatureValidator.main(args.tail)
-      case Some(`cli`) => CliLauncher.main(args.tail)
+      case Some(`cli`)          => CliLauncher.main(args.tail)
       case Some(unknown) =>
         log.error(
           s"Unrecognised launcher option $unknown, " +

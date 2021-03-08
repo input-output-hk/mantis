@@ -14,8 +14,7 @@ import java.util.concurrent.Executors
 import monix.execution.Scheduler
 import scala.concurrent.ExecutionContext
 
-/**
-  * Provides a standard setup for the test suites.
+/** Provides a standard setup for the test suites.
   * The reference to "cake" is about the "Cake Pattern" used in Mantis.
   * Specifically it relates to the creation and wiring of the several components of a
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
@@ -27,8 +26,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)
 
-  /**
-    * The default validators for the test cases.
+  /** The default validators for the test cases.
     * Override this if you want to alter the behaviour of consensus
     * or if you specifically want other validators than the consensus provides.
     *
@@ -37,15 +35,13 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   lazy val validators: Validators = successValidators
 
   //+ cake overrides
-  /**
-    * The default VM for the test cases.
+  /** The default VM for the test cases.
     * Override it for the same reason explained in
     * [[io.iohk.ethereum.ledger.LedgerSpec.TestSetup#validators() validators]].
     */
   override lazy val vm: VMImpl = new MockVM()
 
-  /**
-    * The default consensus for the test cases.
+  /** The default consensus for the test cases.
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
@@ -56,8 +52,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
     */
   override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
 
-  /**
-    * Reuses the existing consensus instance and creates a new one
+  /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.
     *
     * @note The existing consensus instance is provided lazily via the cake, so that at the moment
@@ -72,8 +67,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
     consensus.withValidators(validators).withVM(vm)
 
-  /**
-    * Creates a new ledger instance, independent of the instance provided by the cake.
+  /** Creates a new ledger instance, independent of the instance provided by the cake.
     *
     * @note Since ledger depends on the consensus, it is the caller's responsibility to
     *       make sure that the cake-provided consensus and the one used here do not interfere.

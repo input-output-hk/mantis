@@ -73,8 +73,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
 
   lazy val getRootHash: Array[Byte] = rootNode.map(_.hash).getOrElse(EmptyRootHash)
 
-  /**
-    * Get the value associated with the key passed, if there exists one.
+  /** Get the value associated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with value if there exists one.
@@ -92,8 +91,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }.flatten
   }
 
-  /**
-    * Get the proof associated with the key passed, if there exists one.
+  /** Get the proof associated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with proof if there exists one.
@@ -109,8 +107,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
-  /**
-    * Traverse given path from the root to value and accumulate data.
+  /** Traverse given path from the root to value and accumulate data.
     * Only nodes which are significant for searching for value are taken into account.
     *
     * @param acc initial accumulator
@@ -169,8 +166,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
 
   private def mkKeyNibbles(key: K): Array[Byte] = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
 
-  /**
-    * This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
+  /** This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
     *
     * @param key
     * @param value
@@ -190,8 +186,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
-  /**
-    * This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
+  /** This function deletes a (key-value) pair from the trie. If no (key-value) pair exists with the passed trie then there's no effect on it.
     *
     * @param key
     * @return New trie with the (key-value) pair associated with the key passed deleted from the trie.
@@ -215,8 +210,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     }
   }
 
-  /**
-    * This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
+  /** This function updates the KeyValueStore by deleting, updating and inserting new (key-value) pairs.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStore.
     * @param toUpsert which includes all the (key-value) pairs to be inserted into the KeyValueStore.
@@ -250,9 +244,9 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   }
 
   private def put(node: MptNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {
-    case leafNode: LeafNode => putInLeafNode(leafNode, searchKey, value)
+    case leafNode: LeafNode           => putInLeafNode(leafNode, searchKey, value)
     case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
-    case branchNode: BranchNode => putInBranchNode(branchNode, searchKey, value)
+    case branchNode: BranchNode       => putInBranchNode(branchNode, searchKey, value)
     case HashNode(bytes) =>
       put(nodeStorage.get(bytes), searchKey, value)
     case _ => throw new MPTException("Cannot put node in NullNode")
@@ -381,9 +375,9 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   }
 
   private def remove(node: MptNode, searchKey: Array[Byte]): NodeRemoveResult = node match {
-    case leafNode: LeafNode => removeFromLeafNode(leafNode, searchKey)
+    case leafNode: LeafNode           => removeFromLeafNode(leafNode, searchKey)
     case extensionNode: ExtensionNode => removeFromExtensionNode(extensionNode, searchKey)
-    case branchNode: BranchNode => removeFromBranchNode(branchNode, searchKey)
+    case branchNode: BranchNode       => removeFromBranchNode(branchNode, searchKey)
     case HashNode(bytes) =>
       remove(nodeStorage.get(bytes), searchKey)
     case _ => throw new MPTException("Cannot delete node NullNode")
@@ -462,8 +456,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     } else NodeRemoveResult(hasChanged = false, newNode = Some(extensionNode))
   }
 
-  /**
-    * Given a node which may be in an invalid state, fix it such that it is then in a valid state. Invalid state means:
+  /** Given a node which may be in an invalid state, fix it such that it is then in a valid state. Invalid state means:
     *   - Branch node where there is only a single entry;
     *   - Extension node followed by anything other than a Branch node.
     *
@@ -486,7 +479,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
           val temporalExtNode = ExtensionNode(ByteString(index.toByte), children(index))
           fix(temporalExtNode)
         case (Nil, Some(value)) => LeafNode(ByteString.empty, value)
-        case _ => node
+        case _                  => node
       }
     case extensionNode @ ExtensionNode(sharedKey, _, _, _, _) =>
       val nextNode = extensionNode.next match {

@@ -24,8 +24,7 @@ import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.eval.Task
 import scala.concurrent.duration._
 
-/**
-  * Implements standard Ethereum consensus (ethash PoW).
+/** Implements standard Ethereum consensus (ethash PoW).
   */
 class EthashConsensus private (
     val vm: VMImpl,
@@ -74,7 +73,7 @@ class EthashConsensus private (
         if (minerRef.isEmpty) {
           val miner = config.generic.protocol match {
             case Ethash | RestrictedEthash => EthashMiner(node)
-            case MockedPow => MockedMiner(node)
+            case MockedPow                 => MockedMiner(node)
           }
           minerRef = Some(miner)
           sendMiner(MinerProtocol.StartMining)
@@ -87,13 +86,11 @@ class EthashConsensus private (
     sendMiner(MinerProtocol.StopMining)
   }
 
-  /**
-    * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+  /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
-  /**
-    * Starts the consensus protocol on the current `node`.
+  /** Starts the consensus protocol on the current `node`.
     */
   def startProtocol(node: Node): Unit = {
     if (config.miningEnabled) {

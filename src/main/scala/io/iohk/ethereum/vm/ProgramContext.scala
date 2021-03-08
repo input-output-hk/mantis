@@ -35,8 +35,7 @@ object ProgramContext {
   }
 }
 
-/**
-  * Input parameters to a program executed on the EVM. Apart from the code itself
+/** Input parameters to a program executed on the EVM. Apart from the code itself
   * it should have all (interfaces to) the data accessible from the EVM.
   *
   * Execution constants, see section 9.3 in Yellow Paper for more detail.

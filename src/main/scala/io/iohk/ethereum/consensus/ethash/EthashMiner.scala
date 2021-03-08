@@ -21,8 +21,7 @@ import org.bouncycastle.util.encoders.Hex
 import scala.concurrent.duration._
 import scala.util.{Failure, Random, Success, Try}
 
-/**
-  * Implementation of Ethash CPU mining worker.
+/** Implementation of Ethash CPU mining worker.
   * Could be started by switching configuration flag "consensus.mining-enabled" to true
   */
 class EthashMiner(
@@ -51,7 +50,7 @@ class EthashMiner(
   }
 
   def started: Receive = {
-    case StopMining => context become stopped
+    case StopMining    => context become stopped
     case ProcessMining => processMining()
   }
 

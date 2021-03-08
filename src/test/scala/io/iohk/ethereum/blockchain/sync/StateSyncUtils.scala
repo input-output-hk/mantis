@@ -21,11 +21,11 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       hashes.map { hash =>
         val maybeResult = bl.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
-          case None => bl.getEvmCodeByHash(hash)
+          case None        => bl.getEvmCodeByHash(hash)
         }
         maybeResult match {
           case Some(result) => SyncResponse(hash, result)
-          case None => throw new RuntimeException("Missing expected data in storage")
+          case None         => throw new RuntimeException("Missing expected data in storage")
         }
       }
     }

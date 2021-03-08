@@ -24,7 +24,7 @@ object PV62 {
     implicit class BlockHashRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toBlockHash: BlockHash = rlpEncodeable match {
         case RLPList(hash, number) => BlockHash(hash, number)
-        case _ => throw new RuntimeException("Cannot decode BlockHash")
+        case _                     => throw new RuntimeException("Cannot decode BlockHash")
       }
     }
   }
@@ -53,7 +53,7 @@ object PV62 {
       import BlockHash._
       def toNewBlockHashes: NewBlockHashes = rawDecode(bytes) match {
         case rlpList: RLPList => NewBlockHashes(rlpList.items.map(_.toBlockHash))
-        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
+        case _                => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }
   }
@@ -78,7 +78,7 @@ object PV62 {
         import msg._
         block match {
           case Left(blockNumber) => RLPList(blockNumber, maxHeaders, skip, if (reverse) 1 else 0)
-          case Right(blockHash) => RLPList(blockHash, maxHeaders, skip, if (reverse) 1 else 0)
+          case Right(blockHash)  => RLPList(blockHash, maxHeaders, skip, if (reverse) 1 else 0)
         }
       }
     }
@@ -123,7 +123,7 @@ object PV62 {
     implicit class BlockBodiesDec(val bytes: Array[Byte]) extends AnyVal {
       def toBlockBodies: BlockBodies = rawDecode(bytes) match {
         case rlpList: RLPList => BlockBodies(rlpList.items.map(_.toBlockBody))
-        case _ => throw new RuntimeException("Cannot decode BlockBodies")
+        case _                => throw new RuntimeException("Cannot decode BlockBodies")
       }
     }
   }
