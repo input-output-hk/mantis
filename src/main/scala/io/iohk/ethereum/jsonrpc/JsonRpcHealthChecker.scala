@@ -9,7 +9,7 @@ trait JsonRpcHealthChecker {
   def handleResponse(responseF: Task[HealthcheckResponse]): Task[HealthcheckResponse] =
     responseF
       .map {
-        case response if (!response.isOK) =>
+        case response if !response.isOK =>
           JsonRpcControllerMetrics.HealhcheckErrorCounter.increment()
           response
         case response => response

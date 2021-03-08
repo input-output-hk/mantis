@@ -250,7 +250,7 @@ class PeerActor[R <: HandshakeResult](
   object MessageLogger extends Logger {
     val isTraceEnabled = {
       var enabled = false
-      log.whenTraceEnabled({ enabled = true })
+      log.whenTraceEnabled { enabled = true }
       enabled
     }
     def logMessage(peerId: PeerId, message: Message): Unit =

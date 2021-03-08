@@ -50,7 +50,7 @@ class EthFilterServiceSpec
     val res = ethFilterService.newPendingTransactionFilter(NewPendingTransactionFilterRequest()).runToFuture
     filterManager.expectMsg(FM.NewPendingTransactionFilter)
     filterManager.reply(FM.NewFilterResponse(123))
-    res.futureValue shouldEqual Right(NewFilterResponse((123)))
+    res.futureValue shouldEqual Right(NewFilterResponse(123))
   }
 
   it should "handle uninstallFilter request" in new TestSetup {

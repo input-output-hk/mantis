@@ -106,7 +106,7 @@ class PeerDiscoveryManagerSpec
         defaultConfig.copy(discoveryEnabled = false, reuseKnownNodes = true, bootstrapNodes = sampleNodes)
 
       override def test(): Unit =
-        getPeers.futureValue.nodes should contain theSameElementsAs (sampleNodes)
+        getPeers.futureValue.nodes should contain theSameElementsAs sampleNodes
     }
   }
 
@@ -121,7 +121,7 @@ class PeerDiscoveryManagerSpec
         .once()
 
       override def test(): Unit =
-        getPeers.futureValue.nodes.map(_.toUri) should contain theSameElementsAs (sampleKnownUris)
+        getPeers.futureValue.nodes.map(_.toUri) should contain theSameElementsAs sampleKnownUris
     }
   }
 
@@ -145,7 +145,7 @@ class PeerDiscoveryManagerSpec
       override def test(): Unit = {
         peerDiscoveryManager ! PeerDiscoveryManager.Start
         eventually {
-          getPeers.futureValue.nodes.map(_.toUri) should contain theSameElementsAs (expected)
+          getPeers.futureValue.nodes.map(_.toUri) should contain theSameElementsAs expected
         }
       }
     }

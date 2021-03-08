@@ -82,7 +82,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) {
-      case (rootHash, (((address, AllocAccount(balance)), idx))) =>
+      case (rootHash, ((address, AllocAccount(balance)), idx)) =>
         val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
         val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
         val stateRoot = mpt

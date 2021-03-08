@@ -29,7 +29,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
     ByteString.fromArrayUnsafe(genRandomArray())
 
   def writeNValuesToDb(n: Int, db: RocksDbDataSource, namespace: IndexedSeq[Byte]): Task[Unit] = {
-    val iterable = (0 until n)
+    val iterable = 0 until n
     Observable.fromIterable(iterable).foreachL { _ =>
       db.update(Seq(DataSourceUpdateOptimized(namespace, Seq(), Seq((genRandomArray(), genRandomArray())))))
     }

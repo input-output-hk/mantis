@@ -17,7 +17,7 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   val iterations = 10
 
   "CachedNodeStorage" should "not update dataSource until persist" in new TestSetup {
-    forAll(keyValueByteStringGen(kvSize)) { (keyvalues) =>
+    forAll(keyValueByteStringGen(kvSize)) { keyvalues =>
       cachedNodeStorage.update(Nil, keyvalues)
     }
     dataSource.storage shouldBe empty
@@ -33,7 +33,7 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   }
 
   it should "persist elements to underlying data source when full" in new TestSetup {
-    forAll(keyValueByteStringGen(kvSize)) { (keyvalues) =>
+    forAll(keyValueByteStringGen(kvSize)) { keyvalues =>
       cachedNodeStorage.update(Nil, keyvalues)
 
       if (underLying.size > testCapacityCacheConfig.maxSize)

@@ -114,9 +114,9 @@ class SyncStateDownloaderStateSpec
     assert(handlingResult == UnrequestedResponse)
     // check that all requests are unchanged
     assert(newState2.activeRequests.size == 3)
-    assert(requests.forall({ req =>
+    assert(requests.forall { req =>
       req.nodes.forall(h => newState2.nodesToGet(h).contains(req.peer.id))
-    }))
+    })
   }
 
   it should "handle empty responses from from peers" in new TestSetup {

@@ -667,7 +667,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
   // https://eips.ethereum.org/EIPS/eip-2200
   private def isEip2200Enabled(etcFork: EtcFork, ethFork: EthFork): Boolean =
-    (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix)
+    ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {

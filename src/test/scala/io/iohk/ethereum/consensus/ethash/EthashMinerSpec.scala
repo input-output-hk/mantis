@@ -31,7 +31,7 @@ class EthashMinerSpec
 
   private implicit val timeout: Duration = 10.minutes
 
-  "EthashMiner" should "mine valid blocks" taggedAs (EthashMinerSpecTag) in new TestSetup {
+  "EthashMiner" should "mine valid blocks" taggedAs EthashMinerSpecTag in new TestSetup {
     val parent = origin
     val bfm = blockForMining(parent.header)
 
