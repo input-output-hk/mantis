@@ -17,6 +17,13 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   organization := "io.iohk",
   version := "3.2.1",
   scalaVersion := "2.13.4",
+  semanticdbEnabled := true, // enable SemanticDB
+  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
+  ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
+  ThisBuild / scalafixDependencies ++= List(
+    "com.github.liancheng" %% "organize-imports" % "0.5.0",
+    "com.github.vovapolu" %% "scaluzzi" % "0.1.16"
+  ),
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
@@ -25,7 +32,8 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-unchecked",
     "-deprecation",
     "-feature",
-    "-Xfatal-warnings",
+//    "-Xfatal-warnings",
+    "-Ywarn-unused",
     "-encoding",
     "utf-8"
   ),
