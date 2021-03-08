@@ -171,12 +171,11 @@ class StateSyncSpec
       )
     }.toMap
 
+    val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
+
     sealed trait PeerAction
-
     case object FullResponse extends PeerAction
-
     case object PartialResponse extends PeerAction
-
     case object NoResponse extends PeerAction
 
     val defaultPeerConfig: PeerConfig = peersMap.map { case (peer, _) =>
@@ -264,6 +263,7 @@ class StateSyncSpec
         syncConfig,
         etcPeerManager.ref,
         peerEventBus.ref,
+        blacklist,
         system.scheduler
       )
     )

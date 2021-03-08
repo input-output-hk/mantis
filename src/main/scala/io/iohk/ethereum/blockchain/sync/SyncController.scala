@@ -21,13 +21,11 @@ class SyncController(
     checkpointBlockGenerator: CheckpointBlockGenerator,
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
+    blacklist: Blacklist,
     syncConfig: SyncConfig,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
     with ActorLogging {
-
-  private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
-  private val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
 
@@ -132,6 +130,7 @@ object SyncController {
       checkpointBlockGenerator: CheckpointBlockGenerator,
       ommersPool: ActorRef,
       etcPeerManager: ActorRef,
+      blacklist: Blacklist,
       syncConfig: SyncConfig
   ): Props =
     Props(
@@ -146,6 +145,7 @@ object SyncController {
         checkpointBlockGenerator,
         ommersPool,
         etcPeerManager,
+        blacklist,
         syncConfig
       )
     )

@@ -1,10 +1,9 @@
 package io.iohk.ethereum.nodebuilder
 
 import java.time.Clock
-
 import akka.actor.{ActorRef, ActorSystem}
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.blockchain.sync.{Blacklist, BlockchainHostActor, CacheBasedBlacklist, SyncController}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
@@ -33,8 +32,8 @@ import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import java.util.concurrent.atomic.AtomicReference
 
+import java.util.concurrent.atomic.AtomicReference
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
@@ -134,6 +133,11 @@ trait PeerDiscoveryManagerBuilder {
     ),
     "peer-discovery-manager"
   )
+}
+
+trait BlacklistBuilder {
+  private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
+  val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 }
 
 trait NodeStatusBuilder {
@@ -658,7 +662,8 @@ trait SyncControllerBuilder {
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
     with ShutdownHookBuilder
-    with ConsensusBuilder =>
+    with ConsensusBuilder
+    with BlacklistBuilder =>
 
   lazy val syncController: ActorRef = system.actorOf(
     SyncController.props(
@@ -672,6 +677,7 @@ trait SyncControllerBuilder {
       checkpointBlockGenerator,
       ommersPool,
       etcPeerManager,
+      blacklist,
       syncConfig
     ),
     "sync-controller"
@@ -809,3 +815,4 @@ trait Node
     with CheckpointBlockGeneratorBuilder
     with TransactionHistoryServiceBuilder.Default
     with PortForwardingBuilder
+    with BlacklistBuilder

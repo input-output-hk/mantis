@@ -420,6 +420,8 @@ class PivotBlockSelectorSpec
 
   class TestSetup extends TestSyncConfig {
 
+    val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
+
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
       case _ => false
@@ -467,7 +469,8 @@ class PivotBlockSelectorSpec
         peerMessageBus.ref,
         defaultSyncConfig,
         time.scheduler,
-        fastSync.ref
+        fastSync.ref,
+        blacklist
       )
     )
 

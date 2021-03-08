@@ -77,6 +77,18 @@ object Blacklist {
         val code: Int = 9
         val name: String = "PeerActorTerminated"
       }
+      case object InvalidStateResponseType extends BlacklistReasonType {
+        val code: Int = 10
+        val name: String = "InvalidStateResponse"
+      }
+      case object InvalidPivotBlockElectionResponseType extends BlacklistReasonType {
+        val code: Int = 11
+        val name: String = "InvalidPivotElectionResponse"
+      }
+      case object PivotBlockElectionTimeoutType extends BlacklistReasonType {
+        val code: Int = 12
+        val name: String = "PivotBlockElectionTimeout"
+      }
     }
 
     case object WrongBlockHeaders extends BlacklistReason {
@@ -114,6 +126,18 @@ object Blacklist {
     case object PeerActorTerminated extends BlacklistReason {
       val reasonType: BlacklistReasonType = PeerActorTerminatedType
       val description: String = "Peer actor terminated"
+    }
+    final case class InvalidStateResponse(details: String) extends BlacklistReason {
+      val reasonType: BlacklistReasonType = InvalidStateResponseType
+      val description: String = s"Invalid response while syncing state trie: $details"
+    }
+    case object InvalidPivotBlockElectionResponse extends BlacklistReason {
+      val reasonType: BlacklistReasonType = InvalidStateResponseType
+      val description: String = "Invalid response while selecting pivot block"
+    }
+    case object PivotBlockElectionTimeout extends BlacklistReason {
+      val reasonType: BlacklistReasonType = InvalidStateResponseType
+      val description: String = "Peer didn't respond with requested pivot block candidate in a timely manner"
     }
   }
 }

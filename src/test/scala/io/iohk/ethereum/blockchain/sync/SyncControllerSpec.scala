@@ -2,15 +2,15 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.{ExplicitlyTriggeredScheduler, TestActorRef, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
@@ -23,21 +23,16 @@ import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts.GetReceiptsEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.{NodeData, Receipts}
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{Fixtures, Mocks}
+import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Seconds, Span}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import com.typesafe.config.ConfigFactory
-import akka.testkit.ExplicitlyTriggeredScheduler
-import io.iohk.ethereum.NormalPatience
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec
@@ -224,7 +219,7 @@ class SyncControllerSpec
   }
 
   it should "update pivot block if pivot fail" in withTestSetup(new Mocks.MockValidatorsAlwaysSucceed {
-    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, getBlockHeaderByHash) =>
+    override val blockHeaderValidator: BlockHeaderValidator = { (blockHeader, _) =>
       {
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
@@ -239,11 +234,11 @@ class SyncControllerSpec
 
     syncController ! SyncProtocol.Start
 
-    val handshakedPeers = HandshakedPeers(singlePeer)
+    val handshakedPeers = HandshakedPeers(twoAcceptedPeers.filter(_._1 == peer2))
 
     val newPivot = defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20)
     val peerWithNewPivot = defaultPeer1Info.copy(maxBlockNumber = bestBlock + 20)
-    val newHanshaked = HandshakedPeers(Map(peer1 -> peerWithNewPivot))
+    val newHandshaked = HandshakedPeers(Map(peer1 -> peerWithNewPivot))
 
     val newBest = 399500 + 9
 
@@ -255,9 +250,10 @@ class SyncControllerSpec
     eventually {
       littleTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
+      assert(blacklist.isBlacklisted(peer2.id))
     }
 
-    autopilot.updateAutoPilot(newHanshaked, newPivot, BlockchainData(newBlocks))
+    autopilot.updateAutoPilot(newHandshaked, newPivot, BlockchainData(newBlocks))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -479,6 +475,8 @@ class SyncControllerSpec
 
     val ommersPool = TestProbe()
 
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
+
     override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
       branchResolutionRequestSize = 20,
@@ -509,6 +507,7 @@ class SyncControllerSpec
           checkpointBlockGenerator,
           ommersPool.ref,
           etcPeerManager.ref,
+          blacklist,
           syncConfig,
           externalSchedulerOpt = Some(system.scheduler)
         )

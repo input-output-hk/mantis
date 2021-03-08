@@ -21,7 +21,12 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators with AsyncFlatSpecLike with Matchers with BeforeAndAfterAll {
+class BlockImporterItSpec
+    extends MockFactory
+    with TestSetupWithVmAndValidators
+    with AsyncFlatSpecLike
+    with Matchers
+    with BeforeAndAfterAll {
 
   implicit val testScheduler = Scheduler.fixedPool("test", 32)
 
@@ -57,11 +62,15 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
       ethCompatibleStorage = true
     )
 
-  override lazy val ledger = new TestLedgerImpl(successValidators)  {
-    override private[ledger] lazy val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation) {
-      override def executeAndValidateBlock(block: Block, alreadyValidated: Boolean = false): Either[BlockExecutionError, Seq[Receipt]] =
-        Right(BlockResult(emptyWorld).receipts)
-    }
+  override lazy val ledger = new TestLedgerImpl(successValidators) {
+    override private[ledger] lazy val blockExecution =
+      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation) {
+        override def executeAndValidateBlock(
+            block: Block,
+            alreadyValidated: Boolean = false
+        ): Either[BlockExecutionError, Seq[Receipt]] =
+          Right(BlockResult(emptyWorld).receipts)
+      }
   }
 
   val blockImporter = system.actorOf(
@@ -75,7 +84,8 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
       pendingTransactionsManagerProbe.ref,
       checkpointBlockGenerator,
       supervisor.ref
-    ))
+    )
+  )
 
   val genesisBlock = blockchain.genesisBlock
   val block1: Block = getBlock(genesisBlock.number + 1, parent = genesisBlock.header.hash)
@@ -119,7 +129,8 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
         pendingTransactionsManagerProbe.ref,
         checkpointBlockGenerator,
         supervisor.ref
-      ))
+      )
+    )
 
     blockImporter ! BlockImporter.Start
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
@@ -141,7 +152,6 @@ class BlockImporterItSpec extends MockFactory with TestSetupWithVmAndValidators 
     Thread.sleep(200)
     blockchain.getBestBlock().get shouldEqual newBlock3
   }
-
 
   it should "switch to a branch with a checkpoint" in {
 

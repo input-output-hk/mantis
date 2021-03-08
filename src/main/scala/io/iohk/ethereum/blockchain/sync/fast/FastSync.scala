@@ -83,7 +83,7 @@ class FastSync(
   def startFromScratch(): Unit = {
     log.info("Starting fast sync from scratch")
     val pivotBlockSelector = context.actorOf(
-      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self),
+      PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self, blacklist),
       "pivot-block-selector"
     )
     pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
@@ -138,6 +138,7 @@ class FastSync(
           syncConfig,
           etcPeerManager,
           peerEventBus,
+          blacklist,
           scheduler
         ),
       "state-scheduler"
@@ -218,7 +219,7 @@ class FastSync(
       log.info("Asking for new pivot block")
       val pivotBlockSelector = {
         context.actorOf(
-          PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self)
+          PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self, blacklist)
         )
       }
       pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
