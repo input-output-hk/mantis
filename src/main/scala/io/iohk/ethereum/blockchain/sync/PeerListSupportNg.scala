@@ -15,7 +15,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
   import PeerListSupportNg._
   import Blacklist._
 
-  private implicit val ec: ExecutionContext = context.dispatcher
+  implicit private val ec: ExecutionContext = context.dispatcher
 
   def etcPeerManager: ActorRef
   def peerEventBus: ActorRef

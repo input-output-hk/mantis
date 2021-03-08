@@ -142,7 +142,7 @@ class StateSyncSpec
   }
 
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
-    override implicit lazy val system = StateSyncSpec.this.system
+    implicit override lazy val system = StateSyncSpec.this.system
     type PeerConfig = Map[PeerId, PeerAction]
     val syncInit = TestProbe()
 

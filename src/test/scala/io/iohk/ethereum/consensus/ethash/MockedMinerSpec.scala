@@ -19,7 +19,7 @@ class MockedMinerSpec
     with Matchers
     with WithActorSystemShutDown {
 
-  private implicit val timeout: Duration = 1.minute
+  implicit private val timeout: Duration = 1.minute
 
   "MockedPowMiner" should {
     "not mine blocks" when {

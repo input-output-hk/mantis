@@ -47,7 +47,7 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
   }
 
   @tailrec
-  override final def run(context: PC): PR = {
+  final override def run(context: PC): PR = {
     if (vmClient.isEmpty) initConnection()
 
     Try(vmClient.get.run(context)) match {

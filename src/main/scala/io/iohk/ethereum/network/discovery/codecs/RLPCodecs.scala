@@ -131,7 +131,7 @@ trait ContentCodecs {
 
 trait PayloadCodecs { self: ContentCodecs =>
 
-  private implicit val payloadDerivationPolicy =
+  implicit private val payloadDerivationPolicy =
     DerivationPolicy.default.copy(omitTrailingOptionals = true)
 
   implicit val pingRLPCodec: RLPCodec[Payload.Ping] =

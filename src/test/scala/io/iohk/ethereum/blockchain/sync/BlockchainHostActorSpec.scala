@@ -259,7 +259,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    override implicit lazy val system = ActorSystem("BlockchainHostActor_System")
+    implicit override lazy val system = ActorSystem("BlockchainHostActor_System")
 
     blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 

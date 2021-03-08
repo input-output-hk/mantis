@@ -5,7 +5,7 @@ import io.iohk.ethereum.metrics.MetricsContainer
 import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS}
 
 object RegularSyncMetrics extends MetricsContainer {
-  private final val blockPropagationTimer = "regularsync.blocks.propagation.timer"
+  final private val blockPropagationTimer = "regularsync.blocks.propagation.timer"
 
   final val MinedBlockPropagationTimer = metrics.timer(blockPropagationTimer, "blocktype", "MinedBlockPropagation")
   final val CheckpointBlockPropagationTimer =

@@ -5,9 +5,9 @@ import java.util.concurrent.atomic.AtomicLong
 
 case object NetworkMetrics extends MetricsContainer {
 
-  private final val HandshakedIncomingPeersGauge =
+  final private val HandshakedIncomingPeersGauge =
     metrics.registry.gauge("network.peers.incoming.handshaked.gauge", new AtomicLong(0))
-  private final val HandshakedOutgoingPeersGauge =
+  final private val HandshakedOutgoingPeersGauge =
     metrics.registry.gauge("network.peers.outgoing.handshaked.gauge", new AtomicLong(0))
 
   final val ReceivedMessagesCounter = metrics.counter("network.messages.received.counter")

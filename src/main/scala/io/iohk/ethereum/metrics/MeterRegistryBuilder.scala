@@ -11,7 +11,7 @@ import io.micrometer.jmx.JmxMeterRegistry
 
 object MeterRegistryBuilder extends Logger {
 
-  private[this] final val StdMetricsClock = Clock.SYSTEM
+  final private[this] val StdMetricsClock = Clock.SYSTEM
 
   private[this] def onMeterAdded(m: Meter): Unit =
     log.debug(s"New ${getClassName(m)} metric: " + m.getId.getName)

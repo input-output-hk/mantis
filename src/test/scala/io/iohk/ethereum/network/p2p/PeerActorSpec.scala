@@ -80,7 +80,7 @@ class PeerActorSpec
   }
 
   it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
-    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
+    implicit override lazy val system = ActorSystem("PeerActorSpec_System")
     override def protocol: Version = ProtocolVersions.PV63
 
     val time = new VirtualTime

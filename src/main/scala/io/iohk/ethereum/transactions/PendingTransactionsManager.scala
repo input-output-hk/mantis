@@ -57,7 +57,7 @@ class PendingTransactionsManager(
   import PendingTransactionsManager._
   import akka.pattern.ask
 
-  private[this] final val TransactionsPoolSizeGauge =
+  final private[this] val TransactionsPoolSizeGauge =
     metrics.gauge(
       "transactions.pool.size.gauge",
       () => pendingTransactions.size().toDouble

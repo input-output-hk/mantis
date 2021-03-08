@@ -29,7 +29,7 @@ class EthashMinerSpec
 
   final val EthashMinerSpecTag = Tag("EthashMinerSpec")
 
-  private implicit val timeout: Duration = 10.minutes
+  implicit private val timeout: Duration = 10.minutes
 
   "EthashMiner" should "mine valid blocks" taggedAs EthashMinerSpecTag in new TestSetup {
     val parent = origin

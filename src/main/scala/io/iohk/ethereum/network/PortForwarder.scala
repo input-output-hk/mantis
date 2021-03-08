@@ -24,7 +24,7 @@ import org.jupnp.UpnpService
 import cats.implicits._
 
 private class ClientOnlyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration() {
-  private final val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping
+  final private val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping
 
   override def createDefaultExecutorService(): ExecutorService =
     QueueingThreadPoolExecutor.createInstance("mantis-jupnp", THREAD_POOL_SIZE);
@@ -47,7 +47,7 @@ private object NoStreamServer extends StreamServer[StreamServerConfiguration] {
 }
 
 object PortForwarder extends Logger {
-  private final val description = "Mantis"
+  final private val description = "Mantis"
 
   def openPorts(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Resource[Task, Unit] =
     Resource.make(startForwarding(tcpPorts, udpPorts))(stopForwarding).void

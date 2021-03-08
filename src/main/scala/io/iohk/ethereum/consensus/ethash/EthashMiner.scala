@@ -34,7 +34,7 @@ class EthashMiner(
 
   import EthashMiner._
 
-  private implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
+  implicit private val scheduler: Scheduler = Scheduler(context.dispatcher)
 
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None

@@ -9,8 +9,8 @@ import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
   * than the rate the signal is triggered.
   */
 class DeltaSpikeGauge(name: String, metrics: Metrics) {
-  private[this] final val isTriggeredRef = new AtomicBoolean(false)
-  private[this] final val valueRef = new AtomicInteger(0)
+  final private[this] val isTriggeredRef = new AtomicBoolean(false)
+  final private[this] val valueRef = new AtomicInteger(0)
 
   private[this] def getValue(): Double =
     if (isTriggeredRef.compareAndSet(true, false)) {
@@ -19,7 +19,7 @@ class DeltaSpikeGauge(name: String, metrics: Metrics) {
       valueRef.get()
     }
 
-  private[this] final val gauge = metrics.gauge(name, () => getValue())
+  final private[this] val gauge = metrics.gauge(name, () => getValue())
 
   def trigger(): Unit =
     if (isTriggeredRef.compareAndSet(false, true)) {

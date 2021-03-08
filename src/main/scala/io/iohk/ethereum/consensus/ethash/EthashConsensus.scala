@@ -39,7 +39,7 @@ class EthashConsensus private (
 
   type Config = EthashConfig
 
-  private[this] final val _blockPreparator = new BlockPreparator(
+  final private[this] val _blockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
@@ -48,7 +48,7 @@ class EthashConsensus private (
 
   @volatile private[this] var minerRef: Option[ActorRef] = None
 
-  private implicit val timeout: Timeout = 5.seconds
+  implicit private val timeout: Timeout = 5.seconds
 
   override def sendMiner(msg: MinerProtocol): Unit =
     minerRef.foreach(_ ! msg)

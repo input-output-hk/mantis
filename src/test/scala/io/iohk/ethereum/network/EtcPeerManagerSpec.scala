@@ -277,7 +277,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    override implicit lazy val system = ActorSystem("PeersInfoHolderSpec_System")
+    implicit override lazy val system = ActorSystem("PeersInfoHolderSpec_System")
 
     blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 

@@ -26,8 +26,8 @@ class FastSyncSpec
   implicit val timeout: Timeout = Timeout(30.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
-    override implicit lazy val system: ActorSystem = self.system
-    override implicit val scheduler: Scheduler = self.scheduler
+    implicit override lazy val system: ActorSystem = self.system
+    implicit override val scheduler: Scheduler = self.scheduler
 
     val blacklistMaxElems: Int = 100
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(blacklistMaxElems)

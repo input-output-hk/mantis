@@ -9,29 +9,29 @@ import scala.concurrent.duration.MILLISECONDS
 
 object FastSyncMetrics extends MetricsContainer {
 
-  private final val PivotBlockNumberGauge =
+  final private val PivotBlockNumberGauge =
     metrics.registry.gauge("fastsync.block.pivotBlock.number.gauge", new AtomicDouble(0d))
-  private final val BestFullBlockNumberGauge =
+  final private val BestFullBlockNumberGauge =
     metrics.registry.gauge("fastsync.block.bestFullBlock.number.gauge", new AtomicDouble(0d))
-  private final val BestHeaderNumberGauge =
+  final private val BestHeaderNumberGauge =
     metrics.registry.gauge("fastsync.block.bestHeader.number.gauge", new AtomicDouble(0d))
 
-  private final val MptStateTotalNodesGauge =
+  final private val MptStateTotalNodesGauge =
     metrics.registry.gauge("fastsync.state.totalNodes.gauge", new AtomicLong(0L))
-  private final val MptStateDownloadedNodesGauge =
+  final private val MptStateDownloadedNodesGauge =
     metrics.registry.gauge("fastsync.state.downloadedNodes.gauge", new AtomicLong(0L))
 
-  private final val FastSyncTotalTimeMinutesGauge =
+  final private val FastSyncTotalTimeMinutesGauge =
     metrics.registry.gauge("fastsync.totaltime.minutes.gauge", new AtomicDouble(0d))
 
-  private final val BlockHeadersDownloadedTimer =
+  final private val BlockHeadersDownloadedTimer =
     metrics.registry.timer("fastsync.block.downloadBlockHeaders.timer")
-  private final val BlockBodiesDownloadTimer =
+  final private val BlockBodiesDownloadTimer =
     metrics.registry.timer("fastsync.block.downloadBlockBodies.timer")
-  private final val BlockReceiptsDownloadTimer =
+  final private val BlockReceiptsDownloadTimer =
     metrics.registry.timer("fastsync.block.downloadBlockReceipts.timer")
 
-  private final val MptStateDownloadTimer =
+  final private val MptStateDownloadTimer =
     metrics.registry.timer("fastsync.state.downloadState.timer")
 
   def measure(syncState: SyncState): Unit = {

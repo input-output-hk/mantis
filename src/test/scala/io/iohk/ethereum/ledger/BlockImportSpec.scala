@@ -17,7 +17,7 @@ import org.scalatest.matchers.should.Matchers
 
 class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
-  override implicit val patienceConfig: PatienceConfig =
+  implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
 
   "Importing blocks" should "ignore existing block" in new ImportBlockTestSetup {

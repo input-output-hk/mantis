@@ -59,7 +59,7 @@ class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    override implicit lazy val system = ActorSystem("KnownNodesManagerSpec_System")
+    implicit override lazy val system = ActorSystem("KnownNodesManagerSpec_System")
 
     val time = new VirtualTime
     val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)

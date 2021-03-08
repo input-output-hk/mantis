@@ -31,7 +31,7 @@ class FilterManager(
   import context.system
 
   def scheduler: Scheduler = externalSchedulerOpt.getOrElse(system.scheduler)
-  private implicit val executionContext = monix.execution.Scheduler(system.dispatcher)
+  implicit private val executionContext = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
 

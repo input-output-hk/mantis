@@ -275,7 +275,7 @@ class BlockPreparator(
     *         if one of them failed
     */
   @tailrec
-  private[ledger] final def executeTransactions(
+  final private[ledger] def executeTransactions(
       signedTransactions: Seq[SignedTransaction],
       world: InMemoryWorldStateProxy,
       blockHeader: BlockHeader,
@@ -336,7 +336,7 @@ class BlockPreparator(
     }
 
   @tailrec
-  private[ledger] final def executePreparedTransactions(
+  final private[ledger] def executePreparedTransactions(
       signedTransactions: Seq[SignedTransaction],
       world: InMemoryWorldStateProxy,
       blockHeader: BlockHeader,

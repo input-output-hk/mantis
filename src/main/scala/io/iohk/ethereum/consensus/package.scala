@@ -33,7 +33,7 @@ package object consensus {
     throw new IllegalArgumentException(msg)
   }
 
-  final implicit class RichConsensus(val consensus: Consensus) extends AnyVal {
+  implicit final class RichConsensus(val consensus: Consensus) extends AnyVal {
 
     /** There are APIs that expect that the standard Ethash consensus is running and so depend
       * on either its configuration or general PoW semantics.

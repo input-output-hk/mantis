@@ -457,7 +457,7 @@ class SyncControllerSpec
     var stateDownloadStarted = false
 
     //+ cake overrides
-    override implicit lazy val system: ActorSystem =
+    implicit override lazy val system: ActorSystem =
       ActorSystem("SyncControllerSpec_System", ConfigFactory.load("explicit-scheduler"))
 
     override lazy val vm: VMImpl = new VMImpl

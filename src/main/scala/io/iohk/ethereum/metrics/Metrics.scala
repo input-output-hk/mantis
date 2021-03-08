@@ -69,9 +69,9 @@ object Metrics {
   final val MetricsPrefix = "app"
 
   //+ Metrics singleton support
-  private[this] final val metricsSentinel = Metrics(MetricsPrefix, new SimpleMeterRegistry())
+  final private[this] val metricsSentinel = Metrics(MetricsPrefix, new SimpleMeterRegistry())
 
-  private[this] final val metricsRef = new AtomicReference[Metrics](metricsSentinel)
+  final private[this] val metricsRef = new AtomicReference[Metrics](metricsSentinel)
 
   private[this] def setOnce(metrics: Metrics): Boolean = metricsRef.compareAndSet(metricsSentinel, metrics)
 

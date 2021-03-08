@@ -16,8 +16,8 @@ import org.json4s.{DefaultFormats, Formats, Serialization, native}
 
 class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
 
-  private implicit val serialization: Serialization = native.Serialization
-  private implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
+  implicit private val serialization: Serialization = native.Serialization
+  implicit private val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
   private[this] lazy val minInterval = config.minRequestInterval.toSeconds
 
