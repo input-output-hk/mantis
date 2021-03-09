@@ -18,7 +18,7 @@ import scala.util.{Failure, Success, Try}
 
 object VmServerApp extends Logger {
 
-  implicit val system = ActorSystem("EVM_System")
+  implicit val system: ActorSystem = ActorSystem("EVM_System")
 
   def main(args: Array[String]): Unit = {
     val config = ConfigFactory.load()

@@ -60,26 +60,26 @@ class DebugServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) {
-    val peerManager = TestProbe()
-    val etcPeerManager = TestProbe()
+    val peerManager: TestProbe = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
       bestBlockHash = peerStatus.bestHash
     )
-    val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
+    val peer1Probe: TestProbe = TestProbe()
+    val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
   }
 }

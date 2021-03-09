@@ -24,9 +24,11 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.time.Instant
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
+import monix.execution.schedulers.SchedulerService
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
-  implicit val testContext = Scheduler.fixedPool("block-generator-spec-pool", 4)
+  implicit val testContext: SchedulerService = Scheduler.fixedPool("block-generator-spec-pool", 4)
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
     val pendingBlock =
@@ -533,14 +535,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
-    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
+    val privateKey: BigInt = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
     lazy val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(privateKey)
     lazy val pubKey: Array[Byte] = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    lazy val address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
+    lazy val address: Address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
 
     val txGasLimit = 21000
     val txTransfer = 9000
-    val transaction = Transaction(
+    val transaction: Transaction = Transaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
@@ -549,11 +551,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       payload = ByteString.empty
     )
 
-    lazy val signedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
-    lazy val duplicatedSignedTransaction =
+    lazy val signedTransaction: SignedTransactionWithSender = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+    lazy val duplicatedSignedTransaction: SignedTransactionWithSender =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    val baseBlockchainConfig = BlockchainConfig(
+    val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
       difficultyBombPauseBlockNumber = 3000000,
@@ -593,7 +595,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
-    val bestBlock = blockchain.getBestBlock()
+    val bestBlock: Option[Block] = blockchain.getBestBlock()
 
     lazy val blockTimestampProvider = new FakeBlockTimestampProvider
 
@@ -602,10 +604,10 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     override lazy val validators: ValidatorsExecutor = ethashValidators
 
-    override lazy val consensusConfig =
+    override lazy val consensusConfig: ConsensusConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
-    lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+    lazy val blockGenerator: TestBlockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     lazy val blockExecution =

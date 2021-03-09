@@ -66,7 +66,7 @@ object PeerStatisticsActor {
   case class GetStatsForPeer(window: FiniteDuration, peerId: PeerId)
   case class StatsForPeer(peerId: PeerId, stat: PeerStat)
 
-  val ResponseCodes = Set(
+  val ResponseCodes: Set[Int] = Set(
     Codes.NewBlockCode,
     Codes.NewBlockHashesCode,
     Codes.SignedTransactionsCode,
@@ -77,14 +77,14 @@ object PeerStatisticsActor {
     Codes.ReceiptsCode
   )
 
-  val RequestCodes = Set(
+  val RequestCodes: Set[Int] = Set(
     Codes.GetBlockHeadersCode,
     Codes.GetBlockBodiesCode,
     Codes.GetNodeDataCode,
     Codes.GetReceiptsCode
   )
 
-  val MessageSubscriptionClassifier =
+  val MessageSubscriptionClassifier: SubscriptionClassifier.MessageClassifier =
     SubscriptionClassifier.MessageClassifier(
       messageCodes = RequestCodes.union(ResponseCodes),
       peerSelector = PeerSelector.AllPeers

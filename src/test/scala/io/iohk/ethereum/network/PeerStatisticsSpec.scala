@@ -20,7 +20,7 @@ class PeerStatisticsSpec
   import PeerStatisticsActor._
 
   val TICK: Long = 50
-  val mockClock = new MockClock(0L) {
+  val mockClock: MockClock = new MockClock(0L) {
     override def millis(): Long = {
       windByMillis(TICK)
       super.millis()
@@ -70,11 +70,11 @@ class PeerStatisticsSpec
   }
 
   trait Fixture {
-    val sender = TestProbe()
-    implicit val senderRef = sender.ref
+    val sender: TestProbe = TestProbe()
+    implicit val senderRef: ActorRef = sender.ref
 
-    val peerEventBus = TestProbe()
-    val peerStatistics =
+    val peerEventBus: TestProbe = TestProbe()
+    val peerStatistics: ActorRef =
       system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, slotDuration = 1.minute, slotCount = 30)(mockClock))
   }
 }

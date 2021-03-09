@@ -248,7 +248,7 @@ class PeerActor[R <: HandshakeResult](
   // The actor logs incoming messages, which can be quite verbose even for DEBUG mode.
   // ActorLogging doesn't support TRACE, but we can push more details if trace is enabled using the normal logging facilites.
   object MessageLogger extends Logger {
-    val isTraceEnabled = {
+    val isTraceEnabled: Boolean = {
       var enabled = false
       log.whenTraceEnabled { enabled = true }
       enabled

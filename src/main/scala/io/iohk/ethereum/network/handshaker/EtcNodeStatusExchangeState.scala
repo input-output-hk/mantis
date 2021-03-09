@@ -6,6 +6,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.domain.BlockHeader
 
 trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo] with Logger {
 
@@ -41,7 +42,7 @@ trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo]
       DisconnectedState(Reasons.DisconnectRequested)
   }
 
-  protected def getBestBlockHeader() = {
+  protected def getBestBlockHeader(): BlockHeader = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchain.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
   }

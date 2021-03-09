@@ -7,6 +7,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scalapb.GeneratedMessageCompanion
+import io.iohk.ethereum.extvm.msg.{ EthereumConfig, Hello }
 
 class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -100,7 +101,7 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   trait TestSetup {
     val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
-    val ethereumConfig = msg.EthereumConfig(
+    val ethereumConfig: EthereumConfig = msg.EthereumConfig(
       frontierBlockNumber = blockchainConfig.frontierBlockNumber,
       homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
@@ -109,10 +110,10 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       maxCodeSize = ByteString(),
       accountStartNonce = blockchainConfig.accountStartNonce
     )
-    val ethereumConfigMsg = msg.Hello.Config.EthereumConfig(ethereumConfig)
-    val helloMsg = msg.Hello(version = "2.0", config = ethereumConfigMsg)
+    val ethereumConfigMsg: Hello.Config.EthereumConfig = msg.Hello.Config.EthereumConfig(ethereumConfig)
+    val helloMsg: Hello = msg.Hello(version = "2.0", config = ethereumConfigMsg)
 
-    val messageHandler = mock[MessageHandler]
+    val messageHandler: MessageHandler = mock[MessageHandler]
     val vmServer = new VMServer(messageHandler)
 
     def expectAccountQuery(address: Address, response: Account): Unit = {

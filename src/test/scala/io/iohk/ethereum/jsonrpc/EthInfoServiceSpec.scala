@@ -140,16 +140,16 @@ class EthServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[EthashBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
-    val keyStore = mock[KeyStore]
-    override lazy val ledger = mock[Ledger]
-    override lazy val stxLedger = mock[StxLedger]
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val keyStore: KeyStore = mock[KeyStore]
+    override lazy val ledger: Ledger = mock[Ledger]
+    override lazy val stxLedger: StxLedger = mock[StxLedger]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
-    val syncingController = TestProbe()
+    val syncingController: TestProbe = TestProbe()
 
     val currentProtocolVersion = 11
 
@@ -164,8 +164,8 @@ class EthServiceSpec
       Timeouts.shortTimeout
     )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
-    val txSender = SignedTransaction.getSender(txToRequest).get
+    val txSender: Address = SignedTransaction.getSender(txToRequest).get
   }
 }

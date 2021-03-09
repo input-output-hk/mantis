@@ -251,18 +251,18 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
-    val genesisBlock = Block(
+    val genesisBlock: Block = Block(
       Fixtures.Blocks.Genesis.header,
       Fixtures.Blocks.Genesis.body
     )
 
-    val genesisWeight = ChainWeight.zero.increase(genesisBlock.header)
+    val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesisBlock.header)
 
     val forkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
     blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
-    val nodeStatus = NodeStatus(
+    val nodeStatus: NodeStatus = NodeStatus(
       key = generateKeyPair(secureRandom),
       serverStatus = ServerStatus.NotListening,
       discoveryStatus = ServerStatus.NotListening
@@ -278,21 +278,21 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       override val protocolVersion: Int = pv
     }
 
-    val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
+    val etcHandshakerConfigurationWithResolver: MockEtcHandshakerConfiguration = new MockEtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
         new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV64))
-    val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
+    val initHandshakerWithoutResolver: EtcHandshaker = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV64))
+    val initHandshakerWithResolver: EtcHandshaker = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
-    val firstBlock =
+    val firstBlock: Block =
       genesisBlock.copy(header = genesisBlock.header.copy(parentHash = genesisBlock.header.hash, number = 1))
   }
 
   trait LocalPeerSetup extends TestSetup {
-    val localHello = Hello(
+    val localHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
       capabilities = Seq(Etc64Capability, Eth63Capability),
@@ -300,34 +300,34 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(nodeStatus.nodeId)
     )
 
-    val localGetBlockHeadersRequest =
+    val localGetBlockHeadersRequest: GetBlockHeaders =
       GetBlockHeaders(Left(forkBlockHeader.number), maxHeaders = 1, skip = 0, reverse = false)
   }
 
   trait LocalPeerPV63Setup extends LocalPeerSetup {
-    val localStatusMsg = CommonMessages.Status(
+    val localStatusMsg: CommonMessages.Status = CommonMessages.Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
       bestHash = genesisBlock.header.hash,
       genesisHash = genesisBlock.header.hash
     )
-    val localStatus = RemoteStatus(localStatusMsg)
+    val localStatus: RemoteStatus = RemoteStatus(localStatusMsg)
   }
 
   trait LocalPeerPV64Setup extends LocalPeerSetup {
-    val localStatusMsg = PV64.Status(
+    val localStatusMsg: PV64.Status = PV64.Status(
       protocolVersion = ProtocolVersions.PV64,
       networkId = Config.Network.peer.networkId,
       chainWeight = ChainWeight.zero.increase(genesisBlock.header),
       bestHash = genesisBlock.header.hash,
       genesisHash = genesisBlock.header.hash
     )
-    val localStatus = RemoteStatus(localStatusMsg)
+    val localStatus: RemoteStatus = RemoteStatus(localStatusMsg)
   }
 
   trait RemotePeerSetup extends TestSetup {
-    val remoteNodeStatus = NodeStatus(
+    val remoteNodeStatus: NodeStatus = NodeStatus(
       key = generateKeyPair(secureRandom),
       serverStatus = ServerStatus.NotListening,
       discoveryStatus = ServerStatus.NotListening
@@ -336,7 +336,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait RemotePeerPV63Setup extends RemotePeerSetup {
-    val remoteHello = Hello(
+    val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
       capabilities = Seq(Eth63Capability),
@@ -344,7 +344,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
-    val remoteStatusMsg = CommonMessages.Status(
+    val remoteStatusMsg: CommonMessages.Status = CommonMessages.Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,
@@ -352,11 +352,11 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       genesisHash = genesisBlock.header.hash
     )
 
-    val remoteStatus = RemoteStatus(remoteStatusMsg)
+    val remoteStatus: RemoteStatus = RemoteStatus(remoteStatusMsg)
   }
 
   trait RemotePeerPV64Setup extends RemotePeerSetup {
-    val remoteHello = Hello(
+    val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
       capabilities = Seq(Etc64Capability, Eth63Capability),
@@ -364,7 +364,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
-    val remoteStatusMsg =
+    val remoteStatusMsg: PV64.Status =
       PV64.Status(
         protocolVersion = ProtocolVersions.PV64,
         networkId = Config.Network.peer.networkId,

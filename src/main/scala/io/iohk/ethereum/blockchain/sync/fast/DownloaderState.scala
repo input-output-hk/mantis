@@ -14,7 +14,7 @@ final case class DownloaderState(
     activeRequests: Map[PeerId, NonEmptyList[ByteString]],
     nodesToGet: Map[ByteString, Option[PeerId]]
 ) {
-  lazy val nonDownloadedNodes = nodesToGet.collect {
+  lazy val nonDownloadedNodes: Seq[ByteString] = nodesToGet.collect {
     case (hash, maybePeer) if maybePeer.isEmpty => hash
   }.toSeq
 

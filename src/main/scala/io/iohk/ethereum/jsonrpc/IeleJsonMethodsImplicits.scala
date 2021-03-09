@@ -34,7 +34,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     )
   }
 
-  implicit val iele_call = new JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
+  implicit val iele_call: JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] = new JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, IeleCallRequest] =
       params match {
         case Some(JArray((txObj: JObject) :: (blockValue: JValue) :: Nil)) =>
@@ -93,7 +93,7 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, function, arguments, contractCode)
   }
 
-  implicit val iele_sendTransaction = new JsonMethodDecoder[SendIeleTransactionRequest] {
+  implicit val iele_sendTransaction: JsonMethodDecoder[SendIeleTransactionRequest] = new JsonMethodDecoder[SendIeleTransactionRequest] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendIeleTransactionRequest] =
       params match {
         case Some(JArray(JObject(tx) :: _)) =>

@@ -90,8 +90,8 @@ class StoreOpCodeGasPostConstantinopleSpec
 trait TestSetup {
   val vm = new TestVM
 
-  val senderAddr = Address(0xcafebabeL)
-  val senderAcc = Account(nonce = 1, balance = 1000000)
+  val senderAddr: Address = Address(0xcafebabeL)
+  val senderAcc: Account = Account(nonce = 1, balance = 1000000)
 
   val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 

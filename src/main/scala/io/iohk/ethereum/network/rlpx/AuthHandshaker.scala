@@ -31,8 +31,8 @@ class Secrets(
 )
 
 object AuthHandshaker {
-  val InitiatePacketLength = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
-  val ResponsePacketLength = AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize
+  val InitiatePacketLength: Int = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
+  val ResponsePacketLength: Int = AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize
 
   val NonceSize = 32
   val MacSize = 256

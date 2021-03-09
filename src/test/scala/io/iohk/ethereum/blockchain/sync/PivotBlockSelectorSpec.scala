@@ -424,13 +424,13 @@ class PivotBlockSelectorSpec
       case _           => false
     }
 
-    val etcPeerManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
     etcPeerManager.ignoreMsg {
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
       case EtcPeerManagerActor.GetHandshakedPeers                                   => true
     }
 
-    val peerMessageBus = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
     peerMessageBus.ignoreMsg {
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers))
           if codes == Set(Codes.NewBlockCode, Codes.NewBlockHashesCode) =>
@@ -457,7 +457,7 @@ class PivotBlockSelectorSpec
       blacklistDuration = 1.second
     )
 
-    val fastSync = TestProbe()
+    val fastSync: TestProbe = TestProbe()
     val time = new VirtualTime
 
     lazy val pivotBlockSelector: ActorRef = system.actorOf(
@@ -474,7 +474,7 @@ class PivotBlockSelectorSpec
 
     val bestBlock = 400000
     // Ask for pivot block header (the best block from the best peer - offset)
-    val expectedPivotBlock = bestBlock - syncConfig.pivotBlockOffset
+    val expectedPivotBlock: Int = bestBlock - syncConfig.pivotBlockOffset
 
     val pivotBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedPivotBlock)
     val differentBlockHeader: BlockHeader =
@@ -489,12 +489,12 @@ class PivotBlockSelectorSpec
     val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
     val peer4TestProbe: TestProbe = TestProbe("peer4")(system)
 
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
-    val peer4 = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
+    val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+    val peer2: Peer = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
+    val peer3: Peer = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
+    val peer4: Peer = Peer(new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
-    val peer1Status =
+    val peer1Status: RemoteStatus =
       RemoteStatus(
         ProtocolVersions.PV64,
         1,
@@ -502,11 +502,11 @@ class PivotBlockSelectorSpec
         ByteString("peer1_bestHash"),
         ByteString("unused")
       )
-    val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
-    val peer3Status = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
-    val peer4Status = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
+    val peer2Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
+    val peer3Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
+    val peer4Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
 
-    val allPeers = Map(
+    val allPeers: Map[Peer,PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -537,7 +537,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val threeAcceptedPeers = Map(
+    val threeAcceptedPeers: Map[Peer,PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -561,7 +561,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val singlePeer = Map(
+    val singlePeer: Map[Peer,PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -571,7 +571,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val peersFromDifferentNetworks = Map(
+    val peersFromDifferentNetworks: Map[Peer,PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,

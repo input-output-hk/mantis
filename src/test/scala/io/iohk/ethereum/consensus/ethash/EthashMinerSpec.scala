@@ -27,7 +27,7 @@ class EthashMinerSpec
     with WithActorSystemShutDown
     with Matchers {
 
-  final val EthashMinerSpecTag = Tag("EthashMinerSpec")
+  final val EthashMinerSpecTag: Tag = Tag("EthashMinerSpec")
 
   implicit private val timeout: Duration = 10.minutes
 
@@ -68,7 +68,7 @@ class EthashMinerSpec
 
   trait TestSetup extends MinerSpecSetup with MockFactory {
 
-    override val origin = Block(
+    override val origin: Block = Block(
       Fixtures.Blocks.Genesis.header.copy(
         difficulty = UInt256(Hex.decode("0400")).toBigInt,
         number = 0,
@@ -80,11 +80,11 @@ class EthashMinerSpec
 
     val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
-    val ommersPool = TestProbe()
-    val pendingTransactionsManager = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     override val blockCreator = new EthashBlockCreator(
@@ -94,7 +94,7 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
+    val miner: TestActorRef[Nothing] = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
 
   }
 }

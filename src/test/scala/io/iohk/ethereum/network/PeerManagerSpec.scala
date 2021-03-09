@@ -509,7 +509,7 @@ class PeerManagerSpec
         minPruneAge: FiniteDuration = 30.minutes
     ) extends PeerManagerActor.PeerConfiguration.ConnectionLimits
 
-    val peerConfiguration = TestConfig()
+    val peerConfiguration: TestConfig = TestConfig()
 
     implicit val arbConnectedPeers: Arbitrary[ConnectedPeers] = Arbitrary {
       genConnectedPeers(peerConfiguration.maxIncomingPeers, peerConfiguration.maxOutgoingPeers)
@@ -524,12 +524,12 @@ class PeerManagerSpec
     var createdPeers: Seq[TestPeer] = Seq.empty
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
-    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
+    val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
-    val peerDiscoveryManager = TestProbe()
-    val peerEventBus = TestProbe()
-    val knownNodesManager = TestProbe()
-    val peerStatistics = TestProbe()
+    val peerDiscoveryManager: TestProbe = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
+    val knownNodesManager: TestProbe = TestProbe()
+    val peerStatistics: TestProbe = TestProbe()
 
     val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
@@ -543,24 +543,24 @@ class PeerManagerSpec
     }
 
     val port = 30340
-    val incomingConnection1 = TestProbe()
-    val incomingNodeId1 = ByteString(1)
+    val incomingConnection1: TestProbe = TestProbe()
+    val incomingNodeId1: ByteString = ByteString(1)
     val incomingPeerAddress1 = new InetSocketAddress("127.0.0.2", port)
-    val incomingConnection2 = TestProbe()
-    val incomingNodeId2 = ByteString(2)
+    val incomingConnection2: TestProbe = TestProbe()
+    val incomingNodeId2: ByteString = ByteString(2)
     val incomingPeerAddress2 = new InetSocketAddress("127.0.0.3", port)
-    val incomingConnection3 = TestProbe()
-    val incomingNodeId3 = ByteString(3)
+    val incomingConnection3: TestProbe = TestProbe()
+    val incomingNodeId3: ByteString = ByteString(3)
     val incomingPeerAddress3 = new InetSocketAddress("127.0.0.4", port)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -614,8 +614,8 @@ class PeerManagerSpec
     )
   }
 
-  val genIncomingPeer = arbitrary[Peer].map(_.copy(incomingConnection = true))
-  val genOugoingPeer = arbitrary[Peer].map(_.copy(incomingConnection = false))
+  val genIncomingPeer: Gen[Peer] = arbitrary[Peer].map(_.copy(incomingConnection = true))
+  val genOugoingPeer: Gen[Peer] = arbitrary[Peer].map(_.copy(incomingConnection = false))
 
   def genConnectedPeers(
       maxIncomingPeers: Int,

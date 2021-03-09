@@ -15,6 +15,7 @@ import monix.eval.Task
 
 import scala.annotation.tailrec
 import scala.util.Random
+import monix.execution
 
 class FilterManager(
     blockchain: Blockchain,
@@ -32,7 +33,7 @@ class FilterManager(
   import context.system
 
   def scheduler: Scheduler = externalSchedulerOpt.getOrElse(system.scheduler)
-  implicit private val executionContext = monix.execution.Scheduler(system.dispatcher)
+  implicit private val executionContext: execution.Scheduler = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
 
@@ -44,7 +45,7 @@ class FilterManager(
 
   var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
-  implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
+  implicit val timeout: Timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) =>

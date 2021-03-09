@@ -11,6 +11,7 @@ import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
 
 import java.util.UUID
 import scala.util.Try
+import org.json4s.Formats
 
 object EncryptedKeyJsonCodec {
 
@@ -21,7 +22,7 @@ object EncryptedKeyJsonCodec {
     )
   )
 
-  implicit private val formats = DefaultFormats + byteStringSerializer
+  implicit private val formats: Formats = DefaultFormats + byteStringSerializer
 
   private def asHex(bs: ByteString): String =
     Hex.toHexString(bs.toArray)

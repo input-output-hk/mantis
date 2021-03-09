@@ -9,15 +9,15 @@ trait OpCodeTesting extends AnyFunSuiteLike {
 
   val config: EvmConfig
 
-  lazy val unaryOps = config.opCodes.collect { case op: UnaryOp => op }
-  lazy val binaryOps = config.opCodes.collect { case op: BinaryOp => op }
-  lazy val ternaryOps = config.opCodes.collect { case op: TernaryOp => op }
-  lazy val constOps = config.opCodes.collect { case op: ConstOp => op }
-  lazy val pushOps = config.opCodes.collect { case op: PushOp => op }
-  lazy val dupOps = config.opCodes.collect { case op: DupOp => op }
-  lazy val swapOps = config.opCodes.collect { case op: SwapOp => op }
-  lazy val logOps = config.opCodes.collect { case op: LogOp => op }
-  lazy val constGasOps = config.opCodes.collect { case op: ConstGas if op != INVALID => op }
+  lazy val unaryOps: List[UnaryOp] = config.opCodes.collect { case op: UnaryOp => op }
+  lazy val binaryOps: List[BinaryOp] = config.opCodes.collect { case op: BinaryOp => op }
+  lazy val ternaryOps: List[TernaryOp] = config.opCodes.collect { case op: TernaryOp => op }
+  lazy val constOps: List[ConstOp] = config.opCodes.collect { case op: ConstOp => op }
+  lazy val pushOps: List[PushOp] = config.opCodes.collect { case op: PushOp => op }
+  lazy val dupOps: List[DupOp] = config.opCodes.collect { case op: DupOp => op }
+  lazy val swapOps: List[SwapOp] = config.opCodes.collect { case op: SwapOp => op }
+  lazy val logOps: List[LogOp] = config.opCodes.collect { case op: LogOp => op }
+  lazy val constGasOps: List[OpCode with ConstGas] = config.opCodes.collect { case op: ConstGas if op != INVALID => op }
 
   def test[T <: OpCode](ops: T*)(f: T => Any): Unit =
     ops.foreach(op => test(op.toString)(f(op)))

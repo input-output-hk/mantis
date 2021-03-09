@@ -50,23 +50,23 @@ trait BlockchainConfigBuilder {
 }
 
 trait VmConfigBuilder {
-  lazy val vmConfig = VmConfig(Config.config)
+  lazy val vmConfig: VmConfig = VmConfig(Config.config)
 }
 
 trait SyncConfigBuilder {
-  lazy val syncConfig = SyncConfig(Config.config)
+  lazy val syncConfig: SyncConfig = SyncConfig(Config.config)
 }
 
 trait TxPoolConfigBuilder {
-  lazy val txPoolConfig = TxPoolConfig(Config.config)
+  lazy val txPoolConfig: TxPoolConfig = TxPoolConfig(Config.config)
 }
 
 trait FilterConfigBuilder {
-  lazy val filterConfig = FilterConfig(Config.config)
+  lazy val filterConfig: FilterConfig = FilterConfig(Config.config)
 }
 
 trait KeyStoreConfigBuilder {
-  lazy val keyStoreConfig = KeyStoreConfig(Config.config)
+  lazy val keyStoreConfig: KeyStoreConfig = KeyStoreConfig(Config.config)
 }
 
 trait NodeKeyBuilder {
@@ -75,7 +75,7 @@ trait NodeKeyBuilder {
 }
 
 trait AsyncConfigBuilder {
-  val asyncConfig = AsyncConfig(Config.config)
+  val asyncConfig: AsyncConfig = AsyncConfig(Config.config)
 }
 
 trait ActorSystemBuilder {
@@ -94,13 +94,13 @@ trait StorageBuilder {
 }
 
 trait DiscoveryConfigBuilder extends BlockchainConfigBuilder {
-  lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
+  lazy val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 }
 
 trait KnownNodesManagerBuilder {
   self: ActorSystemBuilder with StorageBuilder =>
 
-  lazy val knownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+  lazy val knownNodesManagerConfig: KnownNodesManager.KnownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
   lazy val knownNodesManager: ActorRef = system.actorOf(
     KnownNodesManager.props(knownNodesManagerConfig, storagesInstance.storages.knownNodesStorage),
@@ -194,7 +194,7 @@ trait PeerStatisticsBuilder {
   self: ActorSystemBuilder with PeerEventBusBuilder =>
 
   // TODO: a candidate to move upwards in trait hierarchy?
-  implicit val clock = Clock.systemUTC()
+  implicit val clock: Clock = Clock.systemUTC()
 
   lazy val peerStatistics: ActorRef = system.actorOf(
     PeerStatisticsActor.props(
@@ -285,7 +285,7 @@ trait Web3ServiceBuilder {
 trait NetServiceBuilder {
   this: PeerManagerActorBuilder with NodeStatusBuilder =>
 
-  lazy val netServiceConfig = NetServiceConfig(Config.config)
+  lazy val netServiceConfig: NetServiceConfig = NetServiceConfig(Config.config)
 
   lazy val netService = new NetService(nodeStatusHolder, peerManager, netServiceConfig)
 }
@@ -580,7 +580,7 @@ trait JSONRpcHttpServerBuilder {
     with JSONRpcConfigBuilder
     with SSLContextBuilder =>
 
-  lazy val maybeJsonRpcHttpServer =
+  lazy val maybeJsonRpcHttpServer: Either[String,JsonRpcHttpServer] =
     JsonRpcHttpServer(
       jsonRpcController,
       jsonRpcHealthChecker,

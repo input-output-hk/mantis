@@ -277,14 +277,14 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit override lazy val system = ActorSystem("PeersInfoHolderSpec_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("PeersInfoHolderSpec_System")
 
     blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
@@ -292,7 +292,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
 
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -300,7 +300,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       bestBlockHash = peerStatus.bestHash
     )
 
-    val initialPeerInfoPV64 = PeerInfo(
+    val initialPeerInfoPV64: PeerInfo = PeerInfo(
       remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV64),
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -308,26 +308,26 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       bestBlockHash = peerStatus.bestHash
     )
 
-    val fakeNodeId = ByteString()
+    val fakeNodeId: ByteString = ByteString()
 
-    val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
-    val peer1Info = initialPeerInfo.withForkAccepted(false)
-    val peer1InfoPV64 = initialPeerInfoPV64.withForkAccepted(false)
-    val peer2Probe = TestProbe()
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
-    val peer2Info = initialPeerInfo.withForkAccepted(false)
-    val peer3Probe = TestProbe()
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, Some(fakeNodeId))
+    val peer1Probe: TestProbe = TestProbe()
+    val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
+    val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
+    val peer1InfoPV64: PeerInfo = initialPeerInfoPV64.withForkAccepted(false)
+    val peer2Probe: TestProbe = TestProbe()
+    val peer2: Peer = Peer(new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
+    val peer2Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
+    val peer3Probe: TestProbe = TestProbe()
+    val peer3: Peer = Peer(new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, Some(fakeNodeId))
 
-    val freshPeerProbe = TestProbe()
-    val freshPeer = Peer(new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, Some(fakeNodeId))
-    val freshPeerInfo = initialPeerInfo.withForkAccepted(false)
+    val freshPeerProbe: TestProbe = TestProbe()
+    val freshPeer: Peer = Peer(new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, Some(fakeNodeId))
+    val freshPeerInfo: PeerInfo = initialPeerInfo.withForkAccepted(false)
 
-    val peerManager = TestProbe()
-    val peerEventBus = TestProbe()
+    val peerManager: TestProbe = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
 
-    val peersInfoHolder = TestActorRef(
+    val peersInfoHolder: TestActorRef[Nothing] = TestActorRef(
       Props(
         new EtcPeerManagerActor(
           peerManager.ref,
@@ -338,11 +338,11 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       )
     )
 
-    val requestSender = TestProbe()
+    val requestSender: TestProbe = TestProbe()
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
-    val baseBlockBody = BlockBody(Nil, Nil)
-    val baseBlock = Block(baseBlockHeader, baseBlockBody)
+    val baseBlockBody: BlockBody = BlockBody(Nil, Nil)
+    val baseBlock: Block = Block(baseBlockHeader, baseBlockBody)
 
     def setupNewPeer(peer: Peer, peerProbe: TestProbe, peerInfo: PeerInfo): Unit = {
 

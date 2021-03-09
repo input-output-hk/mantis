@@ -38,15 +38,15 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-  val originAddress = Address(
+  val originAddress: Address = Address(
     kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
   )
-  val receiverAddress = Address(
+  val receiverAddress: Address = Address(
     kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
   )
-  val minerAddress = Address(666)
+  val minerAddress: Address = Address(666)
 
-  val defaultBlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultBlockHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
     number = blockchainConfig.homesteadBlockNumber + 1,
     gasLimit = 1000000,
@@ -54,7 +54,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     unixTimestamp = 1486752441
   )
 
-  val defaultTx = Transaction(
+  val defaultTx: Transaction = Transaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,
@@ -63,21 +63,21 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     payload = ByteString.empty
   )
 
-  val defaultLog = TxLogEntry(
+  val defaultLog: TxLogEntry = TxLogEntry(
     loggerAddress = originAddress,
     logTopics = Seq(ByteString(Hex.decode("962cd36cf694aa154c5d3a551f19c98f356d906e96828eeb616e16fae6415738"))),
     data = ByteString(Hex.decode("1" * 128))
   )
 
-  val defaultChainWeight = ChainWeight.zero.increase(defaultBlockHeader)
+  val defaultChainWeight: ChainWeight = ChainWeight.zero.increase(defaultBlockHeader)
 
   val initialOriginBalance: UInt256 = 100000000
   val initialMinerBalance: UInt256 = 2000000
 
   val initialOriginNonce: BigInt = defaultTx.nonce
 
-  val defaultAddressesToDelete = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
-  val defaultLogs = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
+  val defaultAddressesToDelete: Set[Address] = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
+  val defaultLogs: Seq[TxLogEntry] = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
   val defaultGasPrice: UInt256 = 10
   val defaultGasLimit: UInt256 = 1000000
   val defaultValue: BigInt = 1000
@@ -278,7 +278,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 100,
     number = 1,
     gasLimit = 1000000,
@@ -322,15 +322,15 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def getChainHeadersNel(from: BigInt, to: BigInt, parent: ByteString = randomHash()): NonEmptyList[BlockHeader] =
     NonEmptyList.fromListUnsafe(getChainHeaders(from, to, parent))
 
-  val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
+  val receipts: Seq[Receipt] = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
-  val currentWeight = ChainWeight.totalDifficultyOnly(99999)
+  val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(99999)
 
-  val bestNum = BigInt(5)
+  val bestNum: BigInt = BigInt(5)
 
   val bestBlock: Block = getBlock(bestNum, currentWeight.totalDifficulty / 2)
 
-  val execError = ValidationAfterExecError("error")
+  val execError: ValidationAfterExecError = ValidationAfterExecError("error")
 
   object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator =
@@ -405,7 +405,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  val blockQueue: BlockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators) {
     override private[ledger] lazy val blockExecution = mock[BlockExecution]

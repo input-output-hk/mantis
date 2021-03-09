@@ -47,9 +47,9 @@ class RegularSyncSpec
     with RegularSyncFixtures {
   type Fixture = RegularSyncFixture
 
-  val actorSystemResource =
+  val actorSystemResource: Resource[Task,ActorSystem] =
     Resource.make(Task(ActorSystem()))(system => Task(TestKit.shutdownActorSystem(system)))
-  val fixtureResource = actorSystemResource.map(new Fixture(_))
+  val fixtureResource: Resource[Task,Fixture] = actorSystemResource.map(new Fixture(_))
 
   // Used only in sync tests
   var testSystem: ActorSystem = _

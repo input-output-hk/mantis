@@ -144,7 +144,7 @@ object SignedTransaction {
     )
   }
 
-  val byteArraySerializable = new ByteArraySerializable[SignedTransaction] {
+  val byteArraySerializable: ByteArraySerializable[SignedTransaction] = new ByteArraySerializable[SignedTransaction] {
 
     override def fromBytes(bytes: Array[Byte]): SignedTransaction = bytes.toSignedTransaction
 

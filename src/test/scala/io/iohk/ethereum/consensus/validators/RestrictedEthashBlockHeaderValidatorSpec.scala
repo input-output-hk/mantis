@@ -63,7 +63,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
   }
 
   trait TestSetup {
-    val validKey = ByteStringUtils.string2hash(
+    val validKey: ByteString = ByteStringUtils.string2hash(
       "69f6b54223c0d699c91f1f649e11dc52cb05910896b80c50137cd74a54d90782b69128d3ad5a9ba8c26e338891e33a46e317a3eeaabbf62e70a6b33ec57e00e6"
     )
     def createBlockchainConfig(allowedMiners: Set[ByteString]): BlockchainConfig =
@@ -107,7 +107,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
     /** validParent and validHeader are special headers with extended extraData field and are only useful when used
       * with RestrictedEthashBlockHeaderValidator
       */
-    val validParent = BlockHeader(
+    val validParent: BlockHeader = BlockHeader(
       parentHash = ByteStringUtils.string2hash("c12a822d0c9a1a777cd1023172ec304aca76e403355e4eb56592d299e4b86503"),
       ommersHash = ByteStringUtils.string2hash("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
       beneficiary = ByteStringUtils.string2hash("0011223344556677889900112233445566778899"),
@@ -128,7 +128,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
       nonce = ByteStringUtils.string2hash("a57246871d5c8bcc")
     )
 
-    val validHeader = BlockHeader(
+    val validHeader: BlockHeader = BlockHeader(
       parentHash = ByteStringUtils.string2hash("28aad5edd02d139bf4fcf15d04ec04c93f12e382c64983fa271a9084189b3b23"),
       ommersHash = ByteStringUtils.string2hash("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347"),
       beneficiary = ByteStringUtils.string2hash("0011223344556677889900112233445566778899"),

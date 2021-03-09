@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 class RestrictedEthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     extends EthashBlockHeaderValidator(blockchainConfig) {
 
-  val ExtraDataMaxSize = BlockHeaderValidator.MaxExtraDataSize + ECDSASignature.EncodedLength
+  val ExtraDataMaxSize: Int = BlockHeaderValidator.MaxExtraDataSize + ECDSASignature.EncodedLength
 
   private def validateSignatureAgainstAllowedMiners(
       blockHeader: BlockHeader,

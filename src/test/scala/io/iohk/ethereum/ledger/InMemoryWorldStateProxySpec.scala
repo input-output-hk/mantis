@@ -323,9 +323,9 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
+    val postEip161Config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
-    val worldState =
+    val worldState: InMemoryWorldStateProxy =
       blockchain.getWorldStateProxy(
         -1,
         UInt256.Zero,
@@ -333,7 +333,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
         noEmptyAccounts = false,
         ethCompatibleStorage = true
       )
-    val postEIP161WorldState = blockchain.getWorldStateProxy(
+    val postEIP161WorldState: InMemoryWorldStateProxy = blockchain.getWorldStateProxy(
       -1,
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
@@ -341,8 +341,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
       ethCompatibleStorage = false
     )
 
-    val address1 = Address(0x123456)
-    val address2 = Address(0xabcdef)
-    val address3 = Address(0xfedcba)
+    val address1: Address = Address(0x123456)
+    val address2: Address = Address(0xabcdef)
+    val address3: Address = Address(0xfedcba)
   }
 }

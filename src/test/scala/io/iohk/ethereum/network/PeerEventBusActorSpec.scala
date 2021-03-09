@@ -15,6 +15,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.InetSocketAddress
+import akka.actor.ActorRef
 
 class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
@@ -237,18 +238,18 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup {
-    implicit val system = ActorSystem("test-system")
+    implicit val system: ActorSystem = ActorSystem("test-system")
 
-    val peerEventBusActor = system.actorOf(PeerEventBusActor.props)
+    val peerEventBusActor: ActorRef = system.actorOf(PeerEventBusActor.props)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,

@@ -20,7 +20,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
   implicit val sigalg: SigAlg = new Secp256k1SigAlg
 
-  val localhost = InetAddress.getByName("127.0.0.1")
+  val localhost: InetAddress = InetAddress.getByName("127.0.0.1")
 
   behavior.of("RLPCodecs with the EIP8 test vectors")
 
@@ -30,7 +30,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
       data: String,
       test: Payload => Assertion
   )
-  val EIP8TestVectors = Vector(
+  val EIP8TestVectors: Vector[EIP8TestVector] = Vector(
     EIP8TestVector(
       "ping packet with version 4, additional list elements",
       """

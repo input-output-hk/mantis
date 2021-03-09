@@ -52,13 +52,13 @@ object EvmConfig {
     evmConfigBuilder(blockchainConfig)
   }
 
-  val FrontierOpCodes = OpCodeList(OpCodes.FrontierOpCodes)
-  val HomesteadOpCodes = OpCodeList(OpCodes.HomesteadOpCodes)
-  val ByzantiumOpCodes = OpCodeList(OpCodes.ByzantiumOpCodes)
+  val FrontierOpCodes: OpCodeList = OpCodeList(OpCodes.FrontierOpCodes)
+  val HomesteadOpCodes: OpCodeList = OpCodeList(OpCodes.HomesteadOpCodes)
+  val ByzantiumOpCodes: OpCodeList = OpCodeList(OpCodes.ByzantiumOpCodes)
   val AtlantisOpCodes = ByzantiumOpCodes
-  val ConstantinopleOpCodes = OpCodeList(OpCodes.ConstantinopleOpCodes)
+  val ConstantinopleOpCodes: OpCodeList = OpCodeList(OpCodes.ConstantinopleOpCodes)
   val AghartaOpCodes = ConstantinopleOpCodes
-  val PhoenixOpCodes = OpCodeList(OpCodes.PhoenixOpCodes)
+  val PhoenixOpCodes: OpCodeList = OpCodeList(OpCodes.PhoenixOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config =>
     EvmConfig(

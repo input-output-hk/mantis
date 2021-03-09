@@ -15,6 +15,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
 
@@ -169,20 +170,20 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
-    val validAccountAddress = Address(0xababab) // 11250603
-    val validAccountAddress2 = Address(0xcdcdcd) // 13487565
-    val validAccountAddress3 = Address(0xefefef) // 15724527
+    val validAccountAddress: Address = Address(0xababab) // 11250603
+    val validAccountAddress2: Address = Address(0xcdcdcd) // 13487565
+    val validAccountAddress3: Address = Address(0xefefef) // 15724527
 
-    val validAccountAddress4 = Address("0x29a2241af62c0001") // 3000000000000000001
-    val validAccountAddress5 = Address("0x29a2241af64e2223") // 3000000000002236963
-    val validAccountAddress6 = Address("0x29a2241af6704445") // 3000000000004473925
+    val validAccountAddress4: Address = Address("0x29a2241af62c0001") // 3000000000000000001
+    val validAccountAddress5: Address = Address("0x29a2241af64e2223") // 3000000000002236963
+    val validAccountAddress6: Address = Address("0x29a2241af6704445") // 3000000000004473925
 
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
-    override lazy val blockchainConfig = baseBlockchainConfig.copy(treasuryAddress = treasuryAddress)
+    override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig.copy(treasuryAddress = treasuryAddress)
 
-    val minerTwoOmmersReward = BigInt("5312500000000000000")
-    val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
+    val minerTwoOmmersReward: BigInt = BigInt("5312500000000000000")
+    val ommerFiveBlocksDifferenceReward: BigInt = BigInt("1875000000000000000")
     val afterByzantiumNewBlockReward: BigInt = BigInt(10).pow(18) * 3
 
     val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)

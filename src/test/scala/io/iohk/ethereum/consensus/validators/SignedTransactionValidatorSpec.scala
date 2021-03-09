@@ -22,7 +22,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
-  val txBeforeHomestead = Transaction(
+  val txBeforeHomestead: Transaction = Transaction(
     nonce = 81,
     gasPrice = BigInt("60000000000"),
     gasLimit = 21000,
@@ -30,7 +30,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     value = BigInt("1143962220000000000"),
     payload = ByteString.empty
   )
-  val signedTxBeforeHomestead = SignedTransaction(
+  val signedTxBeforeHomestead: SignedTransaction = SignedTransaction(
     txBeforeHomestead,
     pointSign = 0x1b.toByte,
     signatureRandom = ByteString(Hex.decode("12bfc6e767e518c50f59006556ecc9911593094cfb6f6ef78c9959e3327137a3")),
@@ -39,7 +39,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   )
 
   //From block 0xdc7874d8ea90b63aa0ba122055e514db8bb75c0e7d51a448abd12a31ca3370cf with number 1200003 (tx index 0)
-  val txAfterHomestead = Transaction(
+  val txAfterHomestead: Transaction = Transaction(
     nonce = 1631,
     gasPrice = BigInt("30000000000"),
     gasLimit = 21000,
@@ -47,7 +47,7 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     value = BigInt("1050230460000000000"),
     payload = ByteString.empty
   )
-  val signedTxAfterHomestead = SignedTransaction(
+  val signedTxAfterHomestead: SignedTransaction = SignedTransaction(
     txAfterHomestead,
     pointSign = 0x1c.toByte,
     signatureRandom = ByteString(Hex.decode("f337e8ca3306c131eabb756aa3701ec7b00bef0d6cc21fbf6a6f291463d58baf")),
@@ -57,13 +57,13 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
   val senderBalance = 100
 
-  val senderAccountBeforeHomestead = Account.empty(UInt256(txBeforeHomestead.nonce)).copy(balance = senderBalance)
+  val senderAccountBeforeHomestead: Account = Account.empty(UInt256(txBeforeHomestead.nonce)).copy(balance = senderBalance)
 
-  val senderAccountAfterHomestead = Account.empty(UInt256(txAfterHomestead.nonce)).copy(balance = senderBalance)
+  val senderAccountAfterHomestead: Account = Account.empty(UInt256(txAfterHomestead.nonce)).copy(balance = senderBalance)
 
-  val blockHeaderBeforeHomestead = Fixtures.Blocks.Block3125369.header.copy(number = 1100000, gasLimit = 4700000)
+  val blockHeaderBeforeHomestead: BlockHeader = Fixtures.Blocks.Block3125369.header.copy(number = 1100000, gasLimit = 4700000)
 
-  val blockHeaderAfterHomestead = Fixtures.Blocks.Block3125369.header.copy(number = 1200003, gasLimit = 4710000)
+  val blockHeaderAfterHomestead: BlockHeader = Fixtures.Blocks.Block3125369.header.copy(number = 1200003, gasLimit = 4710000)
 
   val accumGasUsed = 0 //Both are the first tx in the block
 

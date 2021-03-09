@@ -13,7 +13,7 @@ import NewBlock._
 
 class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
 
-  val chainId = Hex.decode("3d").head
+  val chainId: Byte = Hex.decode("3d").head
 
   test("NewBlock v63 messages are encoded and decoded properly") {
     forAll(newBlockGen(secureRandom, Some(chainId))) { newBlock =>
@@ -44,7 +44,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     assert(obtainEncoded64 == expectedEncoded64)
   }
 
-  val newBlock = NewBlock(
+  val newBlock: NewBlock = NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
@@ -68,7 +68,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     983040
   )
 
-  val newBlock64 = PV64.NewBlock(
+  val newBlock64: PV64.NewBlock = PV64.NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("98352d9c1300bd82334cb3e5034c3ec622d437963f55cf5a00a49642806c2f32")),

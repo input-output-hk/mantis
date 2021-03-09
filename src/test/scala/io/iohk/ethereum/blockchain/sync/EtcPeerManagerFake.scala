@@ -16,6 +16,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.{ReplaySubject, Subject}
+import io.iohk.ethereum.domain.BlockBody
 
 class EtcPeerManagerFake(
     syncConfig: SyncConfig,
@@ -27,7 +28,7 @@ class EtcPeerManagerFake(
   private val requestsSubject: Subject[SendMessage, SendMessage] = ReplaySubject()
   private val peersConnectedDeferred = Deferred.unsafe[Task, Unit]
 
-  val probe = TestProbe("etc_peer_manager")
+  val probe: TestProbe = TestProbe("etc_peer_manager")
   val autoPilot =
     new EtcPeerManagerFake.EtcPeerManagerAutoPilot(
       requestsSubject,
@@ -59,15 +60,15 @@ class EtcPeerManagerFake(
       }
     }
 
-  val fetchedHeaders = responses
+  val fetchedHeaders: Observable[Seq[BlockHeader]] = responses
     .collect {
       case MessageFromPeer(BlockHeaders(headers), _) if headers.size == syncConfig.blockHeadersPerRequest => headers
     }
-  val fetchedBodies = responses
+  val fetchedBodies: Observable[Seq[BlockBody]] = responses
     .collect { case MessageFromPeer(BlockBodies(bodies), _) =>
       bodies
     }
-  val requestedReceipts = requests.collect(
+  val requestedReceipts: Observable[Seq[ByteString]] = requests.collect(
     Function.unlift(msg =>
       msg.message.underlyingMsg match {
         case GetReceipts(hashes) => Some(hashes)
@@ -75,14 +76,14 @@ class EtcPeerManagerFake(
       }
     )
   )
-  val fetchedBlocks = fetchedBodies
+  val fetchedBlocks: Observable[List[Block]] = fetchedBodies
     .scan[(List[Block], List[Block])]((Nil, blocks)) { case ((_, remainingBlocks), bodies) =>
       remainingBlocks.splitAt(bodies.size)
     }
     .map(_._1)
     .combineLatestMap(requestedReceipts)((blocks, _) => blocks) // a big simplification, but should be sufficient here
 
-  val fetchedState = responses.collect { case MessageFromPeer(NodeData(values), peerId) =>
+  val fetchedState: Observable[Seq[ByteString]] = responses.collect { case MessageFromPeer(NodeData(values), peerId) =>
     values
   }
 
@@ -97,7 +98,7 @@ object EtcPeerManagerFake {
       getMptNodes: List[ByteString] => List[ByteString]
   )(implicit scheduler: Scheduler)
       extends AutoPilot {
-    def run(sender: ActorRef, msg: Any) = {
+    def run(sender: ActorRef, msg: Any): EtcPeerManagerAutoPilot = {
       msg match {
         case EtcPeerManagerActor.GetHandshakedPeers =>
           sender ! EtcPeerManagerActor.HandshakedPeers(peers)

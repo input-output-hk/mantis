@@ -23,7 +23,7 @@ class TransactionHistoryServiceSpec
     with Matchers
     with DiffMatcher {
   class Fixture extends EphemBlockchainTestSetup {
-    val pendingTransactionManager = TestProbe()
+    val pendingTransactionManager: TestProbe = TestProbe()
     pendingTransactionManager.setAutoPilot(PendingTransactionsManagerAutoPilot())
     val transactionHistoryService =
       new TransactionHistoryService(blockchain, pendingTransactionManager.ref, Timeouts.normalTimeout)

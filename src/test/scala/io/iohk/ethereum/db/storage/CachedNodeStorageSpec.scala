@@ -12,6 +12,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.{FiniteDuration, _}
+import scala.collection.mutable
 
 class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
   val iterations = 10
@@ -54,9 +55,9 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   }
 
   trait TestSetup {
-    val dataSource = EphemDataSource()
+    val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
-    val underLying = MapCache.getMap[NodeHash, NodeEncoded]
+    val underLying: mutable.Map[NodeHash,NodeEncoded] = MapCache.getMap[NodeHash, NodeEncoded]
     val mapCache: MapCache[NodeHash, NodeEncoded] =
       new MapCache[NodeHash, NodeEncoded](underLying, testCapacityCacheConfig)
     val mapCacheTime: MapCache[NodeHash, NodeEncoded] =
@@ -67,12 +68,12 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
 
     object testCapacityCacheConfig extends NodeCacheConfig {
       override val maxSize = 30
-      override val maxHoldTime = FiniteDuration(10, TimeUnit.MINUTES)
+      override val maxHoldTime: FiniteDuration = FiniteDuration(10, TimeUnit.MINUTES)
     }
 
     object testTimeCacheConfig extends NodeCacheConfig {
       override val maxSize = 30
-      override val maxHoldTime = FiniteDuration(1, TimeUnit.SECONDS)
+      override val maxHoldTime: FiniteDuration = FiniteDuration(1, TimeUnit.SECONDS)
     }
 
   }

@@ -15,9 +15,9 @@ import org.scalatest.matchers.should.Matchers
 class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
-  val syncConfig = SyncConfig(Config.config)
+  val syncConfig: SyncConfig = SyncConfig(Config.config)
 
-  val blockchain = mock[BlockchainImpl]
+  val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
   it should "delete no accounts when none of them should be deleted" in new TestSetup {
     val newWorld = InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteAccounts(Set.empty)(worldState))
@@ -59,11 +59,11 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
-    val validAccountAddress = Address(0xababab)
-    val validAccountAddress2 = Address(0xcdcdcd)
-    val validAccountAddress3 = Address(0xefefef)
+    val validAccountAddress: Address = Address(0xababab)
+    val validAccountAddress2: Address = Address(0xcdcdcd)
+    val validAccountAddress3: Address = Address(0xefefef)
 
-    val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
+    val accountAddresses: Set[Address] = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
       BlockchainImpl(storagesInstance.storages)
@@ -77,7 +77,7 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
         .saveAccount(validAccountAddress, Account(balance = 10))
         .saveAccount(validAccountAddress2, Account(balance = 20))
         .saveAccount(validAccountAddress3, Account(balance = 30))
-    val worldState = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
+    val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
   }
 
 }

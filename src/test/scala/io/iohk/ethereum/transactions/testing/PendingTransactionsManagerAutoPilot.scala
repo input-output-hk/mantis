@@ -8,7 +8,7 @@ import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedT
 
 case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingTransaction] = Set.empty)
     extends AutoPilot {
-  def run(sender: ActorRef, msg: Any) =
+  def run(sender: ActorRef, msg: Any): AutoPilot =
     msg match {
       case AddUncheckedTransactions(transactions) =>
         val validTxs = SignedTransactionWithSender.getSignedTransactions(transactions)
@@ -40,7 +40,7 @@ case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingT
         copy(pendingTransactions = Set.empty)
     }
 
-  def addTransactions(signedTransactions: Set[SignedTransactionWithSender]) = {
+  def addTransactions(signedTransactions: Set[SignedTransactionWithSender]): PendingTransactionsManagerAutoPilot = {
     val timestamp = System.currentTimeMillis()
     val stxs = pendingTransactions.map(_.stx)
     val transactionsToAdd = signedTransactions.diff(stxs).map(tx => PendingTransaction(tx, timestamp))
@@ -48,6 +48,6 @@ case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingT
     copy(pendingTransactions ++ transactionsToAdd)
   }
 
-  def removeTransactions(hashes: Set[ByteString]) =
+  def removeTransactions(hashes: Set[ByteString]): PendingTransactionsManagerAutoPilot =
     copy(pendingTransactions.filterNot(ptx => hashes.contains(ptx.stx.tx.hash)))
 }

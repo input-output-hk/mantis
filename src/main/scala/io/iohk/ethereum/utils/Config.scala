@@ -18,7 +18,7 @@ import ConfigUtils._
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("mantis")
+  val config: TypesafeConfig = ConfigFactory.load().getConfig("mantis")
 
   val testmode: Boolean = config.getBoolean("testmode")
 
@@ -40,9 +40,9 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val protocolVersion = networkConfig.getInt("protocol-version")
+    val protocolVersion: Int = networkConfig.getInt("protocol-version")
 
-    val automaticPortForwarding = networkConfig.getBoolean("automatic-port-forwarding")
+    val automaticPortForwarding: Boolean = networkConfig.getBoolean("automatic-port-forwarding")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -52,7 +52,7 @@ object Config {
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
-    val peer = new PeerConfiguration {
+    val peer: PeerConfiguration = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
       private val blockchainConfig: BlockchainConfig = blockchains.blockchainConfig
 
@@ -408,7 +408,7 @@ object VmConfig {
     val VmTypeMantis = "mantis"
     val VmTypeNone = "none"
 
-    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
+    val supportedVmTypes: Set[String] = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
   }
 
   case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)

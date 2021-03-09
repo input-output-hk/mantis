@@ -29,7 +29,7 @@ class PeerDiscoveryManager(
   // Derive a random nodes iterator on top of the service so the node can quickly ramp up its peers
   // while it has demand to connect to more, rather than wait on the periodic lookups performed in
   // the background by the DiscoveryService.
-  val discoveryResources = for {
+  val discoveryResources: Resource[Task, (v4.DiscoveryService, Iterant.Consumer[Task, Node])] = for {
     service <- discoveryServiceResource
 
     // Create an Iterant (like a pull-based Observable) that repeatedly performs a random lookup

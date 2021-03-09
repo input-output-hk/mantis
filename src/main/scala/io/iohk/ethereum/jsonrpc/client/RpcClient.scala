@@ -16,7 +16,6 @@ import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
-import java.io.{PrintWriter, StringWriter}
 import java.util.UUID
 import javax.net.ssl.SSLContext
 import scala.concurrent.ExecutionContext

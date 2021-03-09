@@ -74,7 +74,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
 
-    val helloV5 = Hello(
+    val helloV5: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
       capabilities = Seq(Eth63Capability),
@@ -82,9 +82,9 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(1)
     )
 
-    val helloV4 = helloV5.copy(p2pVersion = 4)
+    val helloV4: Hello = helloV5.copy(p2pVersion = 4)
 
-    val status = Status(
+    val status: Status = Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 1,
@@ -92,7 +92,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
       genesisHash = ByteString(1)
     )
 
-    val decoder = NetworkMessageDecoder.orElse(EthereumMessageDecoder)
+    val decoder: MessageDecoder = NetworkMessageDecoder.orElse(EthereumMessageDecoder)
 
     val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.PV63)
     val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.PV63)

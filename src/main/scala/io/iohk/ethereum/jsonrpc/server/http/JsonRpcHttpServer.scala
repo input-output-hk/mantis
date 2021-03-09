@@ -25,22 +25,23 @@ import org.json4s.{DefaultFormats, JInt, native}
 import java.security.SecureRandom
 import javax.net.ssl.SSLContext
 import scala.concurrent.duration.{FiniteDuration, _}
+import org.json4s.Formats
 
 trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcBaseController
   val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig
 
-  implicit val serialization = native.Serialization
+  implicit val serialization: Serialization.type = native.Serialization
 
-  implicit val formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
+  implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
   def corsAllowedOrigins: HttpOriginMatcher
 
   lazy val jsonRpcErrorCodes: List[Int] =
     List(JsonRpcError.InvalidRequest.code, JsonRpcError.ParseError.code, JsonRpcError.InvalidParams().code)
 
-  val corsSettings = CorsSettings.defaultSettings
+  val corsSettings: CorsSettings = CorsSettings.defaultSettings
     .withAllowGenericHttpRequests(true)
     .withAllowedOrigins(corsAllowedOrigins)
 

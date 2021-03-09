@@ -11,8 +11,8 @@ import Fixtures.blockchainConfig
 // scalastyle:off object.name
 class CallOpcodesSpecPostEip161 extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
-  val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
+  val config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  val startState: MockWorldState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
   import config.feeSchedule._
 
   val fxt = new CallOpFixture(config, startState)

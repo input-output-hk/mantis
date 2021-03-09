@@ -96,7 +96,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     }
   }
 
-  def testAggregate(f: TestState[String, Int, Assertion]) = test {
+  def testAggregate(f: TestState[String, Int, Assertion]): Unit = test {
     val setup = for {
       _ <- add("foo", 1)
       _ <- windClock(defaultSlotDuration * defaultSlotCount) // puts t0 out of scope
@@ -208,11 +208,11 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
 
 object TimeSlotStatsSpec {
 
-  implicit val clock = new MockClock()
+  implicit val clock: MockClock = new MockClock()
 
   type TestState[K, V, A] = State[(TimeSlotStats[K, V], MockClock), A]
 
-  val defaultSlotDuration = 1.minute
+  val defaultSlotDuration: FiniteDuration = 1.minute
   val defaultSlotCount = 30
 
   def getStats[K, V]: TestState[K, V, TimeSlotStats[K, V]] =

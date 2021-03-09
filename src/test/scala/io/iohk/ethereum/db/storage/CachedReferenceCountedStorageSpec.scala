@@ -194,7 +194,7 @@ class CachedReferenceCountedStorageSpec
   }
 
   trait TestSetup {
-    val dataSource = EphemDataSource()
+    val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
     val changeLog = new ChangeLog(nodeStorage)
 

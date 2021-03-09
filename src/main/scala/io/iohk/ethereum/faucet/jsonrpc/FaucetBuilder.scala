@@ -10,6 +10,7 @@ import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.concurrent.Await
+import scala.concurrent.ExecutionContextExecutor
 
 trait ActorSystemBuilder {
   def systemName: String
@@ -19,7 +20,7 @@ trait ActorSystemBuilder {
 trait FaucetControllerBuilder {
   self: FaucetConfigBuilder with ActorSystemBuilder =>
 
-  implicit val ec = system.dispatcher
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 }
 
 trait FaucetRpcServiceBuilder {
@@ -83,7 +84,7 @@ trait FaucetJsonRpcHttpServerBuilder {
     with FaucetJsonRpcControllerBuilder
     with SSLContextBuilder =>
 
-  val faucetJsonRpcHttpServer = JsonRpcHttpServer(
+  val faucetJsonRpcHttpServer: Either[String,JsonRpcHttpServer] = JsonRpcHttpServer(
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,

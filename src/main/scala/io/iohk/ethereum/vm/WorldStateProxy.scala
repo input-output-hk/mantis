@@ -36,7 +36,7 @@ trait WorldStateProxy[WS <: WorldStateProxy[WS, S], S <: Storage[S]] { self: WS 
    * */
   def keepPrecompileTouched(world: WS): WS
 
-  protected val ripmdContractAddress = Address(3)
+  protected val ripmdContractAddress: Address = Address(3)
 
   /** In certain situation an account is guaranteed to exist, e.g. the account that executes the code, the account that
     * transfer value to another. There could be no input to our application that would cause this fail, so we shouldn't

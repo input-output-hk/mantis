@@ -82,8 +82,8 @@ class CheckpointingServiceSpec
   }
 
   trait TestSetup {
-    val blockchain = mock[BlockchainImpl]
-    val syncController = TestProbe()
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    val syncController: TestProbe = TestProbe()
     val service = new CheckpointingService(blockchain, syncController.ref)
   }
 }

@@ -15,6 +15,7 @@ import org.scalatest.matchers.should.Matchers
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
+import akka.actor.ActorRef
 
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
@@ -46,13 +47,13 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
   }
 
   trait TestSetup {
-    implicit val system = ActorSystem("Testsystem")
+    implicit val system: ActorSystem = ActorSystem("Testsystem")
 
-    val testRef = TestProbe().ref
+    val testRef: ActorRef = TestProbe().ref
 
-    val peerManager = TestProbe()
+    val peerManager: TestProbe = TestProbe()
 
-    val nodeStatus = NodeStatus(
+    val nodeStatus: NodeStatus = NodeStatus(
       crypto.generateKeyPair(secureRandom),
       ServerStatus.Listening(new InetSocketAddress(9000)),
       discoveryStatus = ServerStatus.NotListening

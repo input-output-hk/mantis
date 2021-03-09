@@ -210,9 +210,9 @@ class EthProofServiceSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
 
-    val blockGenerator = mock[EthashBlockGenerator]
-    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
-    val balance = UInt256(0)
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
+    val address: Address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+    val balance: UInt256 = UInt256(0)
     val nonce = 0
 
     val key = 333
@@ -222,7 +222,7 @@ class EthProofServiceSpec
     val key2 = 335
     val value2 = 125
 
-    val storageMpt = EthereumUInt256Mpt
+    val storageMpt: MerklePatriciaTrie[BigInt,BigInt] = EthereumUInt256Mpt
       .storageMpt(
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         storagesInstance.storages.stateStorage.getBackingStorage(0)
@@ -231,31 +231,31 @@ class EthProofServiceSpec
       .put(UInt256(key1), UInt256(value1))
       .put(UInt256(key2), UInt256(value2))
 
-    val account = Account(
+    val account: Account = Account(
       nonce = nonce,
       balance = balance,
       storageRoot = ByteString(storageMpt.getRootHash)
     )
 
-    val mpt =
+    val mpt: MerklePatriciaTrie[Array[Byte],Account] =
       MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(
           crypto.kec256(address.bytes.toArray[Byte]),
           account
         )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
-    val newblock = blockToRequest.copy(header = newBlockHeader)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val newBlockHeader: BlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock: Block = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
 
-    val storageKeys = Seq(StorageProofKey(key))
+    val storageKeys: Seq[StorageProofKey] = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
 
-    override lazy val ledger = mock[Ledger]
+    override lazy val ledger: Ledger = mock[Ledger]
 
     def fetchProof(
         address: Address,

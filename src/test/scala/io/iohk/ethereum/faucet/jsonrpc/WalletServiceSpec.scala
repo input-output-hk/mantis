@@ -18,6 +18,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.security.SecureRandom
 import scala.concurrent.duration._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -74,12 +75,12 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   trait TestSetup {
-    val walletKeyPair = generateKeyPair(new SecureRandom)
+    val walletKeyPair: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
-    val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
+    val wallet: Wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val walletRpcClient = mock[WalletRpcClient]
-    val mockKeyStore = mock[KeyStore]
+    val walletRpcClient: WalletRpcClient = mock[WalletRpcClient]
+    val mockKeyStore: KeyStore = mock[KeyStore]
     val config: FaucetConfig =
       FaucetConfig(
         walletAddress = wallet.address,

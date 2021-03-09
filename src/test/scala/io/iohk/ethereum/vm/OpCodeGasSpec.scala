@@ -12,7 +12,7 @@ import Fixtures.blockchainConfig
 
 class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
-  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
+  override val config: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 

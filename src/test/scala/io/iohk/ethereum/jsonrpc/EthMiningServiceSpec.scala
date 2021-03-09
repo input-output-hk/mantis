@@ -30,6 +30,8 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class EthMiningServiceSpec
     extends TestKit(ActorSystem("EthMiningServiceSpec_ActorSystem"))
@@ -216,20 +218,20 @@ class EthMiningServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
-    val blockGenerator = mock[EthashBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    override lazy val ledger: Ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
-    val syncingController = TestProbe()
-    val pendingTransactionsManager = TestProbe()
-    val ommersPool = TestProbe()
+    val syncingController: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
 
     val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-    lazy val minerKey = crypto.keyPairFromPrvKey(
+    lazy val minerKey: AsymmetricCipherKeyPair = crypto.keyPairFromPrvKey(
       ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
     )
 
@@ -245,7 +247,7 @@ class EthMiningServiceSpec
       minerKey
     )
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
+    val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     lazy val ethMiningService = new EthMiningService(
       blockchain,
@@ -258,7 +260,7 @@ class EthMiningServiceSpec
     )
 
     val difficulty = 131072
-    val parentBlock = Block(
+    val parentBlock: Block = Block(
       header = BlockHeader(
         parentHash = ByteString.empty,
         ommersHash = ByteString.empty,
@@ -278,7 +280,7 @@ class EthMiningServiceSpec
       ),
       body = BlockBody.empty
     )
-    val block = Block(
+    val block: Block = Block(
       header = BlockHeader(
         parentHash = parentBlock.header.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -298,11 +300,11 @@ class EthMiningServiceSpec
       ),
       body = BlockBody.empty
     )
-    val seedHash = ByteString(Hex.decode("00" * 32))
-    val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
-    val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
+    val seedHash: ByteString = ByteString(Hex.decode("00" * 32))
+    val powHash: ByteString = ByteString(kec256(getEncodedWithoutNonce(block.header)))
+    val target: ByteString = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
-    val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
+    val fakeWorld: InMemoryWorldStateProxy = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
       ByteString.empty,

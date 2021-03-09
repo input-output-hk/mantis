@@ -27,7 +27,7 @@ object Fixtures {
     }
 
     object Block3125369 extends FixtureBlock {
-      val header = BlockHeader(
+      val header: BlockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("df7d7e053933b5cc24372f878c90e62dadad5d42")),
@@ -45,7 +45,7 @@ object Fixtures {
         nonce = ByteString(Hex.decode("2b0fb0c002946392"))
       )
 
-      val body = BlockBody(
+      val body: BlockBody = BlockBody(
         transactionList = Seq[SignedTransaction](
           SignedTransaction(
             tx = Transaction(
@@ -111,7 +111,7 @@ object Fixtures {
         uncleNodesList = Seq[BlockHeader]()
       )
 
-      val transactionHashes = Seq(
+      val transactionHashes: Seq[ByteString] = Seq(
         ByteString(Hex.decode("af854c57c64191827d1c80fc50f716f824508973e12e4d4c60d270520ce72edb")),
         ByteString(Hex.decode("f3e33ba2cb400221476fa4025afd95a13907734c38a4a8dff4b7d860ee5adc8f")),
         ByteString(Hex.decode("202359a4c0b0f11ca07d44fdeb3502ffe91c86ad4a9af47c27f11b23653339f2")),
@@ -122,7 +122,7 @@ object Fixtures {
     }
 
     object Genesis extends FixtureBlock {
-      val header = BlockHeader(
+      val header: BlockHeader = BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
         beneficiary = ByteString(Hex.decode("0000000000000000000000000000000000000000")),

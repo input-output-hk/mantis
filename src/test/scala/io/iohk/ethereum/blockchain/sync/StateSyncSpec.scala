@@ -39,7 +39,7 @@ class StateSyncSpec
     with WithActorSystemShutDown {
 
   // those tests are somewhat long running 3 successful evaluation should be fine
-  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
@@ -134,18 +134,18 @@ class StateSyncSpec
   }
 
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
-    implicit override lazy val system = StateSyncSpec.this.system
+    implicit override lazy val system: ActorSystem = StateSyncSpec.this.system
     type PeerConfig = Map[PeerId, PeerAction]
-    val syncInit = TestProbe()
+    val syncInit: TestProbe = TestProbe()
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -155,7 +155,7 @@ class StateSyncSpec
 
     val trieProvider = new TrieProvider(blockchain, blockchainConfig)
 
-    val peersMap = (1 to 8).map { i =>
+    val peersMap: Map[Peer,PeerInfo] = (1 to 8).map { i =>
       (
         Peer(new InetSocketAddress("127.0.0.1", i), TestProbe(i.toString).ref, incomingConnection = false),
         initialPeerInfo
@@ -190,9 +190,9 @@ class StateSyncSpec
       }
     }
 
-    val etcPeerManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
 
-    val peerEventBus = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
 
     def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit =
       etcPeerManager.setAutoPilot(new AutoPilot {
@@ -230,7 +230,7 @@ class StateSyncSpec
       syncRetryInterval = 50.milliseconds
     )
 
-    def buildBlockChain() =
+    def buildBlockChain(): BlockchainImpl =
       BlockchainImpl(getNewStorages.storages)
 
     def genRandomArray(): Array[Byte] = {
@@ -242,7 +242,7 @@ class StateSyncSpec
     def genRandomByteString(): ByteString =
       ByteString.fromArrayUnsafe(genRandomArray())
 
-    lazy val syncStateSchedulerActor = system.actorOf(
+    lazy val syncStateSchedulerActor: ActorRef = system.actorOf(
       SyncStateSchedulerActor.props(
         SyncStateScheduler(
           buildBlockChain(),

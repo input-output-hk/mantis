@@ -24,6 +24,8 @@ import scala.collection.immutable.SortedSet
 import scala.concurrent.duration._
 import scala.math.Ordering.Implicits._
 import scala.util.control.NoStackTrace
+import java.net.URI
+import scala.concurrent.Future
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
@@ -35,29 +37,29 @@ class PeerDiscoveryManagerSpec
     with ScalaFutures
     with NormalPatience {
 
-  implicit val scheduler = Scheduler.Implicits.global
+  implicit val scheduler: Scheduler = Scheduler.Implicits.global
   implicit val timeout: Timeout = 1.second
 
-  val defaultConfig = DiscoveryConfig(Config.config, bootstrapNodes = Set.empty)
+  val defaultConfig: DiscoveryConfig = DiscoveryConfig(Config.config, bootstrapNodes = Set.empty)
 
-  val sampleKnownUris = Set(
+  val sampleKnownUris: Set[URI] = Set(
     "enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:38556?discport=38556",
     "enode://651b484b652c07c72adebfaaf8bc2bd95b420b16952ef3de76a9c00ef63f07cca02a20bd2363426f9e6fe372cef96a42b0fec3c747d118f79fd5e02f2a4ebd4e@51.158.190.99:45678?discport=45678",
     "enode://9b1bf9613d859ac2071d88509ab40a111b75c1cfc51f4ad78a1fdbb429ff2405de0dc5ea8ae75e6ac88e03e51a465f0b27b517e78517f7220ae163a2e0692991@51.158.190.99:30426?discport=30426"
   ).map(new java.net.URI(_))
 
-  val sampleNodes = Set(
+  val sampleNodes: Set[Node] = Set(
     "enode://111bd28d5b2c1378d748383fd83ff59572967c317c3063a9f475a26ad3f1517642a164338fb5268d4e32ea1cc48e663bd627dec572f1d201c7198518e5a506b1@88.99.216.30:45834?discport=45834",
     "enode://2b69a3926f36a7748c9021c34050be5e0b64346225e477fe7377070f6289bd363b2be73a06010fd516e6ea3ee90778dd0399bc007bb1281923a79374f842675a@51.15.116.226:30303?discport=30303"
   ).map(new java.net.URI(_)).map(Node.fromUri)
 
   trait Fixture {
     lazy val discoveryConfig = defaultConfig
-    lazy val knownNodesStorage = mock[KnownNodesStorage]
-    lazy val discoveryService = mock[DiscoveryService]
-    lazy val discoveryServiceResource = Resource.pure[Task, DiscoveryService](discoveryService)
+    lazy val knownNodesStorage: KnownNodesStorage = mock[KnownNodesStorage]
+    lazy val discoveryService: DiscoveryService = mock[DiscoveryService]
+    lazy val discoveryServiceResource: Resource[Task,DiscoveryService] = Resource.pure[Task, DiscoveryService](discoveryService)
 
-    lazy val peerDiscoveryManager =
+    lazy val peerDiscoveryManager: TestActorRef[PeerDiscoveryManager] =
       TestActorRef[PeerDiscoveryManager](
         PeerDiscoveryManager.props(
           localNodeId = ByteString.fromString("test-node"),
@@ -67,11 +69,11 @@ class PeerDiscoveryManagerSpec
         )
       )
 
-    def getPeers =
+    def getPeers: Future[PeerDiscoveryManager.DiscoveredNodesInfo] =
       (peerDiscoveryManager ? PeerDiscoveryManager.GetDiscoveredNodesInfo)
         .mapTo[PeerDiscoveryManager.DiscoveredNodesInfo]
 
-    def getRandomPeer =
+    def getRandomPeer: Future[PeerDiscoveryManager.RandomNodeInfo] =
       (peerDiscoveryManager ? PeerDiscoveryManager.GetRandomNodeInfo)
         .mapTo[PeerDiscoveryManager.RandomNodeInfo]
 

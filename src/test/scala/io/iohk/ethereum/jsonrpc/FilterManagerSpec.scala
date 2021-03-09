@@ -467,12 +467,12 @@ class FilterManagerSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with SecureRandomBuilder {
 
-    val config = new FilterConfig {
+    val config: FilterConfig = new FilterConfig {
       override val filterTimeout = Timeouts.longTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
     }
 
-    val txPoolConfig = new TxPoolConfig {
+    val txPoolConfig: TxPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -483,13 +483,13 @@ class FilterManagerSpec
 
     val time = new VirtualTime
 
-    val blockchain = mock[BlockchainImpl]
-    val appStateStorage = mock[AppStateStorage]
-    val keyStore = mock[KeyStore]
-    val blockGenerator = mock[BlockGenerator]
-    val pendingTransactionsManager = TestProbe()
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val keyStore: KeyStore = mock[KeyStore]
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
-    val blockHeader = BlockHeader(
+    val blockHeader: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -511,7 +511,7 @@ class FilterManagerSpec
       nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
 
-    val filterManager = TestActorRef[FilterManager](
+    val filterManager: TestActorRef[FilterManager] = TestActorRef[FilterManager](
       Props(
         new FilterManager(
           blockchain,

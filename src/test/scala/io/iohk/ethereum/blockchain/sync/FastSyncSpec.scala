@@ -16,6 +16,9 @@ import monix.execution.Scheduler
 import monix.reactive.Observable
 
 import scala.concurrent.duration.DurationInt
+import akka.actor.ActorRef
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer }
 
 class FastSyncSpec
     extends TestKit(ActorSystem("FastSync_testing"))
@@ -42,16 +45,16 @@ class FastSyncSpec
       (stateRoot, trieProvider)
     }
 
-    lazy val testBlocks = BlockHelpers.generateChain(
+    lazy val testBlocks: List[Block] = BlockHelpers.generateChain(
       20,
       BlockHelpers.genesis,
       block => block.copy(header = block.header.copy(stateRoot = stateRoot))
     )
 
-    lazy val bestBlockAtStart = testBlocks(10)
-    lazy val expectedPivotBlockNumber = bestBlockAtStart.number - syncConfig.pivotBlockOffset
-    lazy val expectedTargetBlockNumber = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers = twoAcceptedPeers.map { case (k, peerInfo) =>
+    lazy val bestBlockAtStart: Block = testBlocks(10)
+    lazy val expectedPivotBlockNumber: BigInt = bestBlockAtStart.number - syncConfig.pivotBlockOffset
+    lazy val expectedTargetBlockNumber: BigInt = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
+    lazy val testPeers: Map[Peer,EtcPeerManagerActor.PeerInfo] = twoAcceptedPeers.map { case (k, peerInfo) =>
       val lastBlock = bestBlockAtStart
       k -> peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)
@@ -64,8 +67,8 @@ class FastSyncSpec
         testBlocks,
         req => trieProvider.getNodes(req).map(_.data)
       )
-    lazy val peerEventBus = TestProbe("peer_event-bus")
-    lazy val fastSync = system.actorOf(
+    lazy val peerEventBus: TestProbe = TestProbe("peer_event-bus")
+    lazy val fastSync: ActorRef = system.actorOf(
       FastSync.props(
         fastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage,
         appStateStorage = storagesInstance.storages.appStateStorage,

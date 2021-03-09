@@ -82,8 +82,8 @@ class EthFilterServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) {
-    val filterManager = TestProbe()
-    val filterConfig = new FilterConfig {
+    val filterManager: TestProbe = TestProbe()
+    val filterConfig: FilterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }

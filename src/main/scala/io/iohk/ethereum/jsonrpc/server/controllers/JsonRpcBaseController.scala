@@ -16,6 +16,7 @@ import java.time.Duration
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
+import org.json4s.native.Serialization
 
 trait ApisBase {
   def available: List[String]
@@ -37,9 +38,9 @@ trait JsonRpcBaseController {
 
   def enabledApis: Seq[String]
 
-  implicit val formats = DefaultFormats
+  implicit val formats: DefaultFormats.type = DefaultFormats
 
-  implicit val serialization = native.Serialization
+  implicit val serialization: Serialization.type = native.Serialization
 
   def handleRequest(request: JsonRpcRequest): Task[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()

@@ -240,7 +240,7 @@ trait ObjectGenerators {
     list <- Gen.listOfN(n, genMptNodeData)
   } yield list
 
-  val chainWeightGen = for {
+  val chainWeightGen: Gen[ChainWeight] = for {
     lcn <- bigIntGen
     td <- bigIntGen
   } yield ChainWeight(lcn, td)

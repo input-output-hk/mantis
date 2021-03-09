@@ -16,7 +16,7 @@ trait TestLedgerBuilder extends LedgerBuilder {
     with ConsensusBuilder
     with ActorSystemBuilder =>
 
-  val scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
+  val scheduler: Scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
 
   lazy val testLedgerWrapper: TestLedgerWrapper =
     new TestLedgerWrapper(blockchain, syncConfig, consensus, blockchainConfig, scheduler)

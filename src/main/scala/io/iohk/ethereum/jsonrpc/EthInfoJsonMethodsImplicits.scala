@@ -11,23 +11,23 @@ import org.json4s.JsonAST.{JArray, JString, JValue, _}
 import org.json4s.JsonDSL._
 
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
-  implicit val eth_chainId = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {
+  implicit val eth_chainId: NoParamsMethodDecoder[ChainIdRequest] with JsonEncoder[ChainIdResponse] = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {
     def encodeJson(t: ChainIdResponse) = encodeAsHex(t.value)
   }
 
-  implicit val eth_protocolVersion = new NoParamsMethodDecoder(ProtocolVersionRequest())
+  implicit val eth_protocolVersion: NoParamsMethodDecoder[ProtocolVersionRequest] with JsonEncoder[ProtocolVersionResponse] = new NoParamsMethodDecoder(ProtocolVersionRequest())
     with JsonEncoder[ProtocolVersionResponse] {
     def encodeJson(t: ProtocolVersionResponse): JValue = t.value
   }
 
-  implicit val eth_syncing = new NoParamsMethodDecoder(SyncingRequest()) with JsonEncoder[SyncingResponse] {
+  implicit val eth_syncing: NoParamsMethodDecoder[SyncingRequest] with JsonEncoder[SyncingResponse] = new NoParamsMethodDecoder(SyncingRequest()) with JsonEncoder[SyncingResponse] {
     def encodeJson(t: SyncingResponse): JValue = t.syncStatus match {
       case Some(syncStatus) => Extraction.decompose(syncStatus)
       case None             => false
     }
   }
 
-  implicit val eth_sendTransaction = new JsonMethodCodec[SendTransactionRequest, SendTransactionResponse] {
+  implicit val eth_sendTransaction: JsonMethodCodec[SendTransactionRequest,SendTransactionResponse] = new JsonMethodCodec[SendTransactionRequest, SendTransactionResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendTransactionRequest] =
       params match {
         case Some(JArray(JObject(tx) :: _)) =>
@@ -40,7 +40,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
       encodeAsHex(t.txHash)
   }
 
-  implicit val eth_call = new JsonMethodDecoder[CallRequest] with JsonEncoder[CallResponse] {
+  implicit val eth_call: JsonMethodDecoder[CallRequest] with JsonEncoder[CallResponse] = new JsonMethodDecoder[CallRequest] with JsonEncoder[CallResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
       params match {
         case Some(JArray((txObj: JObject) :: (blockValue: JValue) :: Nil)) =>
@@ -54,7 +54,8 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
     def encodeJson(t: CallResponse): JValue = encodeAsHex(t.returnData)
   }
 
-  implicit val eth_estimateGas = new JsonMethodDecoder[CallRequest] with JsonEncoder[EstimateGasResponse] {
+  implicit val eth_estimateGas: eth_estimateGas = new eth_estimateGas
+  class eth_estimateGas extends JsonMethodDecoder[CallRequest] with JsonEncoder[EstimateGasResponse] {
     override def encodeJson(t: EstimateGasResponse): JValue = encodeAsHex(t.gas)
 
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, CallRequest] =
@@ -67,7 +68,7 @@ object EthJsonMethodsImplicits extends JsonMethodsImplicits {
 
   }
 
-  implicit val eth_sign = new JsonMethodDecoder[SignRequest] {
+  implicit val eth_sign: JsonMethodDecoder[SignRequest] = new JsonMethodDecoder[SignRequest] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =
       params match {
         case Some(JArray(JString(addr) :: JString(message) :: _)) =>

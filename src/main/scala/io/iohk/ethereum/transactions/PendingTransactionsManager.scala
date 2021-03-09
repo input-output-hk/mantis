@@ -80,11 +80,11 @@ class PendingTransactionsManager(
     )
     .build()
 
-  implicit val timeout = Timeout(3.seconds)
+  implicit val timeout: Timeout = Timeout(3.seconds)
 
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
-  val transactionFilter = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
+  val transactionFilter: ActorRef = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
 
   // scalastyle:off method.length
   override def receive: Receive = {

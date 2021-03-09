@@ -12,7 +12,7 @@ import scala.util.Try
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
-  implicit val test_setChainParams = new JsonMethodDecoder[SetChainParamsRequest]
+  implicit val test_setChainParams: JsonMethodDecoder[SetChainParamsRequest] with JsonEncoder[SetChainParamsResponse] = new JsonMethodDecoder[SetChainParamsRequest]
     with JsonEncoder[SetChainParamsResponse] {
     private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, AccountConfig]] = {
       val accounts = accountsJson.asInstanceOf[JObject].values.collect { case (key, accObj: Map[_, _]) =>
@@ -72,7 +72,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: SetChainParamsResponse): JValue = true
   }
 
-  implicit val test_mineBlocks = new JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] {
+  implicit val test_mineBlocks: JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] = new JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] =
       params match {
         case Some(JArray(JInt(numBlocks) :: Nil)) =>
@@ -83,7 +83,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: MineBlocksResponse): JValue = true
   }
 
-  implicit val test_modifyTimestamp = new JsonMethodDecoder[ModifyTimestampRequest]
+  implicit val test_modifyTimestamp: JsonMethodDecoder[ModifyTimestampRequest] with JsonEncoder[ModifyTimestampResponse] = new JsonMethodDecoder[ModifyTimestampRequest]
     with JsonEncoder[ModifyTimestampResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ModifyTimestampRequest] =
       params match {
@@ -95,7 +95,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: ModifyTimestampResponse): JValue = true
   }
 
-  implicit val test_rewindToBlock = new JsonMethodDecoder[RewindToBlockRequest]
+  implicit val test_rewindToBlock: JsonMethodDecoder[RewindToBlockRequest] with JsonEncoder[RewindToBlockResponse] = new JsonMethodDecoder[RewindToBlockRequest]
     with JsonEncoder[RewindToBlockResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, RewindToBlockRequest] =
       params match {
@@ -107,7 +107,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: RewindToBlockResponse): JValue = true
   }
 
-  implicit val miner_setEtherbase = new JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] {
+  implicit val miner_setEtherbase: JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] = new JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetEtherbaseRequest] =
       params match {
         case Some(JArray((addressStr: JString) :: Nil)) =>

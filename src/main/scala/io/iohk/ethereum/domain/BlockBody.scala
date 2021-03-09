@@ -17,7 +17,7 @@ case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Se
 
 object BlockBody {
 
-  val empty = BlockBody(Seq.empty, Seq.empty)
+  val empty: BlockBody = BlockBody(Seq.empty, Seq.empty)
 
   def blockBodyToRlpEncodable(
       blockBody: BlockBody,

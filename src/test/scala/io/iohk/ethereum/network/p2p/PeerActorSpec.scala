@@ -41,6 +41,7 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 import scala.language.postfixOps
+import akka.actor.ActorRef
 
 class PeerActorSpec
     extends TestKit(ActorSystem("PeerActorSpec_System"))
@@ -463,7 +464,7 @@ class PeerActorSpec
 
     val etcForkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
-    val nonEtcForkBlockHeader =
+    val nonEtcForkBlockHeader: BlockHeader =
       etcForkBlockHeader.copy(
         parentHash = ByteString("this"),
         ommersHash = ByteString("is"),
@@ -476,21 +477,21 @@ class PeerActorSpec
   }
 
   trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
-    override lazy val nodeKey = crypto.generateKeyPair(secureRandom)
+    override lazy val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
 
-    val nodeStatus =
+    val nodeStatus: NodeStatus =
       NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val genesisBlock = Fixtures.Blocks.Genesis.block
-    val genesisWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
+    val genesisWeight: ChainWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
     blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
-    val peerConf = new PeerConfiguration {
+    val peerConf: PeerConfiguration = new PeerConfiguration {
       override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
         val maxBlocksHeadersPerMessage: Int = 200
         val maxBlocksBodiesPerMessage: Int = 200
@@ -528,7 +529,7 @@ class PeerActorSpec
   trait HandshakerSetup extends NodeStatusSetup { self =>
     def protocol: Version
 
-    val handshakerConfiguration = new EtcHandshakerConfiguration {
+    val handshakerConfiguration: EtcHandshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
         new ForkResolver.EtcForkResolver(self.blockchainConfig.daoForkConfig.get)
       )
@@ -539,7 +540,7 @@ class PeerActorSpec
       override val protocolVersion: Int = protocol
     }
 
-    val handshaker = EtcHandshaker(handshakerConfiguration)
+    val handshaker: EtcHandshaker = EtcHandshaker(handshakerConfiguration)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
@@ -547,17 +548,17 @@ class PeerActorSpec
 
     val genesisHash = genesisBlock.hash
 
-    val daoForkBlockChainTotalDifficulty = BigInt("39490964433395682584")
+    val daoForkBlockChainTotalDifficulty: BigInt = BigInt("39490964433395682584")
 
-    val rlpxConnection = TestProbe()
+    val rlpxConnection: TestProbe = TestProbe()
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
+    val peerMessageBus: ActorRef = system.actorOf(PeerEventBusActor.props)
 
-    val knownNodesManager = TestProbe()
+    val knownNodesManager: TestProbe = TestProbe()
 
-    val peer = TestActorRef(
+    val peer: TestActorRef[Nothing] = TestActorRef(
       Props(
         new PeerActor(
           new InetSocketAddress("127.0.0.1", 0),

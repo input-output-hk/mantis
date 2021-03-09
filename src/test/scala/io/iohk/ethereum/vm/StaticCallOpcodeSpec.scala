@@ -9,8 +9,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 // scalastyle:off object.name
 class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
-  val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
+  val config: EvmConfig = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  val startState: MockWorldState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
 
   val fxt = new CallOpFixture(config, startState)
 

@@ -87,7 +87,7 @@ class InMemorySimpleMapProxySpec extends AnyFlatSpec with Matchers {
   def assertNotContainsKey[I <: SimpleMap[Int, Int, I]](trie: I, key: Int): Unit = assert(trie.get(key).isEmpty)
 
   trait TestSetup {
-    implicit val intByteArraySerializable = new ByteArraySerializable[Int] {
+    implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
       override def toBytes(input: Int): Array[Byte] = {
         val b: ByteBuffer = ByteBuffer.allocate(4)
         b.putInt(input)
@@ -97,7 +97,7 @@ class InMemorySimpleMapProxySpec extends AnyFlatSpec with Matchers {
       override def fromBytes(bytes: Array[Byte]): Int = ByteBuffer.wrap(bytes).getInt()
     }
 
-    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
+    val stateStorage: StateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
     val mpt: MerklePatriciaTrie[Int, Int] = MerklePatriciaTrie[Int, Int](stateStorage.getReadOnlyStorage)
   }
 

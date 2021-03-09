@@ -13,7 +13,7 @@ object Namespaces {
   val FastSyncStateNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('f'.toByte)
   val TransactionMappingNamespace: IndexedSeq[Byte] = IndexedSeq[Byte]('l'.toByte)
 
-  val nsSeq = Seq(
+  val nsSeq: Seq[IndexedSeq[Byte]] = Seq(
     ReceiptsNamespace,
     HeaderNamespace,
     BodyNamespace,

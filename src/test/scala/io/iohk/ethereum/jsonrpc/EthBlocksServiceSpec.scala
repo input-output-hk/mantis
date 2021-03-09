@@ -21,6 +21,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.Duration
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 class EthBlocksServiceSpec
     extends TestKit(ActorSystem("EthBlocksServiceSpec_ActorSystem"))
@@ -409,9 +410,9 @@ class EthBlocksServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[EthashBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
+    val blockGenerator: EthashBlockGenerator = mock[EthashBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    override lazy val ledger: Ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
@@ -420,16 +421,16 @@ class EthBlocksServiceSpec
       ledger
     )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
     val blockToRequestHash = blockToRequest.header.hash
-    val blockWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty)
+    val blockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty)
 
     val uncle = Fixtures.Blocks.DaoForkBlock.header
-    val uncleWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
-    val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
+    val uncleWeight: ChainWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
+    val blockToRequestWithUncles: Block = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
-    val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
+    val fakeWorld: InMemoryWorldStateProxy = blockchain.getReadOnlyWorldStateProxy(
       None,
       UInt256.Zero,
       ByteString.empty,

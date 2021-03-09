@@ -2,7 +2,7 @@ package io.iohk.ethereum.extvm
 
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.scaladsl.{Framing, Keep, Sink, Source, Tcp}
 import akka.util.ByteString
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}

@@ -9,12 +9,12 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class StackSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks {
 
   val maxStackSize = 32
-  val stackGen = Generators.getStackGen(maxSize = maxStackSize)
-  val intGen = Gen.choose(0, maxStackSize).filter(_ >= 0)
-  val uint256Gen = Generators.getUInt256Gen()
-  val uint256ListGen = Generators.getListGen(0, 16, uint256Gen)
-  val fullStackGen = intGen.flatMap(n => Generators.getStackGen(n, n, uint256Gen, n))
-  val nonFullStackGen =
+  val stackGen: Gen[Stack] = Generators.getStackGen(maxSize = maxStackSize)
+  val intGen: Gen[Int] = Gen.choose(0, maxStackSize).filter(_ >= 0)
+  val uint256Gen: Gen[UInt256] = Generators.getUInt256Gen()
+  val uint256ListGen: Gen[List[UInt256]] = Generators.getListGen(0, 16, uint256Gen)
+  val fullStackGen: Gen[Stack] = intGen.flatMap(n => Generators.getStackGen(n, n, uint256Gen, n))
+  val nonFullStackGen: Gen[Stack] =
     Generators.getStackGen(maxElems = maxStackSize - 1, maxSize = maxStackSize, valueGen = uint256Gen)
 
   test("pop single element") {

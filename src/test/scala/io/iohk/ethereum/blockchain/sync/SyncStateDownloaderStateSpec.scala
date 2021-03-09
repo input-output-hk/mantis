@@ -16,6 +16,7 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers
 
 import java.net.InetSocketAddress
+import akka.actor.ActorRef
 
 class SyncStateDownloaderStateSpec
     extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))
@@ -225,20 +226,20 @@ class SyncStateDownloaderStateSpec
         case data @ UsefulData(_)   => data
       }
 
-    val ref1 = TestProbe().ref
-    val ref2 = TestProbe().ref
-    val ref3 = TestProbe().ref
-    val ref4 = TestProbe().ref
+    val ref1: ActorRef = TestProbe().ref
+    val ref2: ActorRef = TestProbe().ref
+    val ref3: ActorRef = TestProbe().ref
+    val ref4: ActorRef = TestProbe().ref
 
-    val initialState = DownloaderState(Map.empty, Map.empty)
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
-    val notKnownPeer = Peer(new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
-    val peers = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
-    val potentialNodes = (1 to 100).map(i => ByteString(i)).toList
-    val potentialNodesHashes = potentialNodes.map(node => kec256(node))
-    val hashNodeMap = potentialNodesHashes.zip(potentialNodes).toMap
+    val initialState: DownloaderState = DownloaderState(Map.empty, Map.empty)
+    val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
+    val peer2: Peer = Peer(new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
+    val peer3: Peer = Peer(new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
+    val notKnownPeer: Peer = Peer(new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
+    val peers: NonEmptyList[Peer] = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
+    val potentialNodes: List[ByteString] = (1 to 100).map(i => ByteString(i)).toList
+    val potentialNodesHashes: List[ByteString] = potentialNodes.map(node => kec256(node))
+    val hashNodeMap: Map[ByteString,ByteString] = potentialNodesHashes.zip(potentialNodes).toMap
   }
 
 }

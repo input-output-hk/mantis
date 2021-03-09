@@ -17,6 +17,7 @@ import java.net.{ServerSocket, Socket}
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try
+import org.json4s.Formats
 
 class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)(implicit
     system: ActorSystem
@@ -53,7 +54,7 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
   class ClientThread(jsonRpcController: JsonRpcController, clientSocket: Socket) extends Thread {
 
     native.Serialization
-    implicit private val formats = JsonSerializers.formats
+    implicit private val formats: Formats = JsonSerializers.formats
 
     private val out = clientSocket.getOutputStream
     private val in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))

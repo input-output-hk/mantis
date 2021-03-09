@@ -34,7 +34,7 @@ class KeyValueStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks wit
 
   val initialIntStorage = new IntStorage(EphemDataSource())
 
-  val dataGenerator = for {
+  val dataGenerator: Gen[(List[Int], List[Int])] = for {
     intsInStorage <- Gen.nonEmptyListOf(intGen)
     intsNotInStorage <- Gen.nonEmptyListOf(intGen.suchThat(value => !intsInStorage.contains(value)))
   } yield (intsInStorage, intsNotInStorage)

@@ -15,8 +15,8 @@ import Fixtures.blockchainConfig
 // scalastyle:off file.size.limit
 class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
-  val startState = MockWorldState(touchedAccounts = Set.empty)
+  val config: EvmConfig = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  val startState: MockWorldState = MockWorldState(touchedAccounts = Set.empty)
   import config.feeSchedule._
 
   val fxt = new CallOpFixture(config, startState)

@@ -15,7 +15,7 @@ package object mpt {
 
   trait ByteArraySerializable[T] extends ByteArrayEncoder[T] with ByteArrayDecoder[T]
 
-  implicit val byteStringSerializer = new ByteArraySerializable[ByteString] {
+  implicit val byteStringSerializer: ByteArraySerializable[ByteString] = new ByteArraySerializable[ByteString] {
     override def toBytes(input: Code): Array[Byte] = input.toArray[Byte]
     override def fromBytes(bytes: Array[Byte]): Code = ByteString(bytes)
   }

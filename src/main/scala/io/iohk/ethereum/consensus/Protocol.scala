@@ -47,13 +47,13 @@ object Protocol {
   case object RestrictedEthash extends ProtocolImpl(Names.RestrictedEthash)
 
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
-  final val KnownProtocols = Set(
+  final val KnownProtocols: Set[ProtocolImpl] = Set(
     Ethash,
     MockedPow,
     RestrictedEthash
   )
 
-  final val KnownProtocolNames = KnownProtocols.map(_.name)
+  final val KnownProtocolNames: Set[String] = KnownProtocols.map(_.name)
 
   def find(name: String): Option[Protocol] = KnownProtocols.find(_.name == name)
 

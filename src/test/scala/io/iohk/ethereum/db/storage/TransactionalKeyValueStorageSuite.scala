@@ -30,7 +30,7 @@ class TransactionalKeyValueStorageSuite extends AnyFunSuite with ScalaCheckPrope
 
   def newIntStorage(): IntStorage = new IntStorage(EphemDataSource())
 
-  val dataGenerator = for {
+  val dataGenerator: Gen[(List[Int], List[Int])] = for {
     intsInStorage <- Gen.nonEmptyListOf(intGen)
     intsNotInStorage <- Gen.nonEmptyListOf(intGen.suchThat(value => !intsInStorage.contains(value)))
   } yield (intsInStorage, intsNotInStorage)

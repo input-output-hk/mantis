@@ -140,16 +140,16 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit override lazy val system = ActorSystem("PeerActorSpec_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("PeerActorSpec_System")
 
     val time = new VirtualTime
 
     val uri = new URI(
       "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
     )
-    val rlpxConnectionProbe = TestProbe()
-    val peerMessageBus = TestProbe()
-    val knownNodesManager = TestProbe()
+    val rlpxConnectionProbe: TestProbe = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
+    val knownNodesManager: TestProbe = TestProbe()
 
     def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(
       Props(
@@ -168,18 +168,18 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
   }
 
   object DefaultValues {
-    val defaultStatusMsg = Status(
+    val defaultStatusMsg: Status = Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val defaultStatus = RemoteStatus(defaultStatusMsg)
+    val defaultStatus: RemoteStatus = RemoteStatus(defaultStatusMsg)
     val defaultBlockNumber = 1000
     val defaultForkAccepted = true
 
-    val defaultPeerInfo = PeerInfo(
+    val defaultPeerInfo: PeerInfo = PeerInfo(
       defaultStatus,
       defaultStatus.chainWeight,
       defaultForkAccepted,
@@ -189,7 +189,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     val defaultReasonDisconnect = Disconnect.Reasons.Other
 
-    val defaultHello = Hello(
+    val defaultHello: Hello = Hello(
       p2pVersion = 0,
       clientId = "notused",
       capabilities = Seq(Eth63Capability),

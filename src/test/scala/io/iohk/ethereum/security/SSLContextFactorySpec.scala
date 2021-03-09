@@ -192,7 +192,7 @@ class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory w
       fGetTrustManager: () => Either[Throwable, Array[TrustManager]]
   ) {
 
-    val sSLContextFactory = new SSLContextFactory {
+    val sSLContextFactory: SSLContextFactory = new SSLContextFactory {
 
       override def exist(pathName: String): Boolean = existingFiles.contains(pathName)
 

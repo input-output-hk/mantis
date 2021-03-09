@@ -19,10 +19,10 @@ object SyncProtocol {
   object Status {
     case class Progress(current: BigInt, target: BigInt) {
       val isEmpty: Boolean = current == 0 && target == 0
-      val nonEmpty = !isEmpty
+      val nonEmpty: Boolean = !isEmpty
     }
     object Progress {
-      val empty = Progress(0, 0)
+      val empty: Progress = Progress(0, 0)
     }
     case class Syncing(
         startingBlockNumber: BigInt,

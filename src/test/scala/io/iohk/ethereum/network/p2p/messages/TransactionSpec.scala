@@ -20,7 +20,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
   val address: Address = Address(crypto.kec256(rawPublicKey.tail).slice(12, 32))
 
-  val validTx = Transaction(
+  val validTx: Transaction = Transaction(
     nonce = 172320,
     gasPrice = BigInt("50000000000"),
     gasLimit = 90000,
@@ -29,7 +29,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
     payload = ByteString.empty
   )
 
-  val validTransactionSignatureOldSchema = SignedTransaction(
+  val validTransactionSignatureOldSchema: SignedTransaction = SignedTransaction(
     validTx,
     pointSign = 28.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
@@ -37,7 +37,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
     chainId = blockchainConfig.chainId
   )
 
-  val invalidTransactionSignatureNewSchema = SignedTransaction(
+  val invalidTransactionSignatureNewSchema: SignedTransaction = SignedTransaction(
     validTx,
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
@@ -45,7 +45,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
     chainId = blockchainConfig.chainId
   )
 
-  val invalidStx = SignedTransaction(
+  val invalidStx: SignedTransaction = SignedTransaction(
     validTx.copy(gasPrice = 0),
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
@@ -58,9 +58,9 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
       "048fc6373a74ad959fd61d10f0b35e9e0524de025cb9a2bf8e0ff60ccb3f5c5e4d566ebe3c159ad572c260719fc203d820598ee5d9c9fa8ae14ecc8d5a2d8a2af1"
     )
   val publicKeyForNewSigningScheme: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKeyForNewSigningScheme)
-  val addreesForNewSigningScheme = Address(crypto.kec256(rawPublicKeyForNewSigningScheme.tail).slice(12, 32))
+  val addreesForNewSigningScheme: Address = Address(crypto.kec256(rawPublicKeyForNewSigningScheme.tail).slice(12, 32))
 
-  val validTransactionForNewSigningScheme = Transaction(
+  val validTransactionForNewSigningScheme: Transaction = Transaction(
     nonce = 587440,
     gasPrice = BigInt("20000000000"),
     gasLimit = 90000,
@@ -69,7 +69,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
     payload = ByteString.empty
   )
 
-  val validSignedTransactionForNewSigningScheme = SignedTransaction(
+  val validSignedTransactionForNewSigningScheme: SignedTransaction = SignedTransaction(
     tx = validTransactionForNewSigningScheme,
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("1af423b3608f3b4b35e191c26f07175331de22ed8f60d1735f03210388246ade")),
@@ -77,7 +77,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
     blockchainConfig.chainId
   )
 
-  val stxWithInvalidPointSign = SignedTransaction(
+  val stxWithInvalidPointSign: SignedTransaction = SignedTransaction(
     validTx,
     pointSign = 26.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),

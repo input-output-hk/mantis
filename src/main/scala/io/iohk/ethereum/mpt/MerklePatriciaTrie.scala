@@ -14,7 +14,7 @@ import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
 
-  implicit val defaultByteArraySerializable = new ByteArraySerializable[Array[Byte]] {
+  implicit val defaultByteArraySerializable: ByteArraySerializable[Array[Byte]] = new ByteArraySerializable[Array[Byte]] {
     override def toBytes(input: Array[Byte]): Array[Byte] = input
 
     override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
@@ -29,7 +29,7 @@ object MerklePatriciaTrie {
   class MissingRootNodeException(hash: ByteString)
       extends MissingNodeException(hash, s"Root node not found ${Hex.toHexString(hash.toArray)}")
 
-  val EmptyEncoded = encodeRLP(Array.emptyByteArray)
+  val EmptyEncoded: Array[Byte] = encodeRLP(Array.emptyByteArray)
   val EmptyRootHash: Array[Byte] = Node.hashFn(EmptyEncoded)
 
   private case class NodeInsertResult(newNode: MptNode, toDeleteFromStorage: List[MptNode] = Nil)

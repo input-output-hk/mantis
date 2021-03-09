@@ -16,18 +16,19 @@ import scodec.bits.BitVector
 import java.net.InetAddress
 import scala.reflect.ClassTag
 import scala.util.Random
+import org.scalatest.Assertion
 
 class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._
   import io.iohk.ethereum.rlp.RLPImplicits._
   import RLPCodecs._
 
-  implicit val sigalg = new Secp256k1SigAlg()
+  implicit val sigalg: Secp256k1SigAlg = new Secp256k1SigAlg()
 
   implicit val packetCodec: Codec[Packet] =
     Packet.packetCodec(allowDecodeOverMaxPacketSize = false)
 
-  val localhost = InetAddress.getByName("127.0.0.1")
+  val localhost: InetAddress = InetAddress.getByName("127.0.0.1")
 
   def randomBytes(n: Int): BitVector = {
     val size = Random.nextInt(n)
@@ -114,7 +115,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     // Structrual equality checker for RLPEncodeable.
     // It has different wrappers for items based on whether it was hand crafted or generated
     // by codecs, and the RLPValue has mutable arrays inside.
-    implicit val eqRLPList = new Equality[RLPEncodeable] {
+    implicit val eqRLPList: Equality[RLPEncodeable] = new Equality[RLPEncodeable] {
       override def areEqual(a: RLPEncodeable, b: Any): Boolean =
         (a, b) match {
           case (a: RLPList, b: RLPList) =>
@@ -128,16 +129,16 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         }
     }
 
-    def name = implicitly[ClassTag[T]].runtimeClass.getSimpleName
+    def name: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName
 
     def p: T
     def e: RLPEncodeable
 
-    def testEncode = RLPEncoder.encode(p) should equal(e)
-    def testDecode = RLPDecoder.decode[T](e) should equal(p)
+    def testEncode: Assertion = RLPEncoder.encode(p) should equal(e)
+    def testDecode: Assertion = RLPDecoder.decode[T](e) should equal(p)
   }
 
-  val examples = List(
+  val examples: List[RLPFixture[_ <: Payload]] = List(
     new RLPFixture[Payload.Ping] {
       override val p = Payload.Ping(
         version = 4,

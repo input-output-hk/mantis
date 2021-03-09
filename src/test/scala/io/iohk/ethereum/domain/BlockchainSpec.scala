@@ -19,7 +19,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
+  val checkpoint: Checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
   val checkpointBlockGenerator = new CheckpointBlockGenerator
 
   "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {

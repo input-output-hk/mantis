@@ -24,8 +24,8 @@ trait SecureChannelSetup extends SecureRandomBuilder {
   val ephemeralKey: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   val nonce: ByteString = randomNonce()
 
-  val handshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom)
-  val remoteHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
+  val handshaker: AuthHandshaker = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom)
+  val remoteHandshaker: AuthHandshaker = AuthHandshaker(remoteNodeKey, remoteNonce, remoteEphemeralKey, secureRandom)
 
   val (initPacket, handshakerInitiated) = handshaker.initiate(remoteUri)
   val (responsePacket, AuthHandshakeSuccess(remoteSecrets: Secrets, _)) =

@@ -17,31 +17,31 @@ import scala.util.Try
 // scalastyle:off magic.number
 object PrecompiledContracts {
 
-  val EcDsaRecAddr = Address(1)
-  val Sha256Addr = Address(2)
-  val Rip160Addr = Address(3)
-  val IdAddr = Address(4)
-  val ModExpAddr = Address(5)
-  val Bn128AddAddr = Address(6)
-  val Bn128MulAddr = Address(7)
-  val Bn128PairingAddr = Address(8)
-  val Blake2bCompressionAddr = Address(9)
+  val EcDsaRecAddr: Address = Address(1)
+  val Sha256Addr: Address = Address(2)
+  val Rip160Addr: Address = Address(3)
+  val IdAddr: Address = Address(4)
+  val ModExpAddr: Address = Address(5)
+  val Bn128AddAddr: Address = Address(6)
+  val Bn128MulAddr: Address = Address(7)
+  val Bn128PairingAddr: Address = Address(8)
+  val Blake2bCompressionAddr: Address = Address(9)
 
-  val contracts = Map(
+  val contracts: Map[Address,PrecompiledContract] = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
     Sha256Addr -> Sha256,
     Rip160Addr -> Ripemp160,
     IdAddr -> Identity
   )
 
-  val byzantiumAtlantisContracts = contracts ++ Map(
+  val byzantiumAtlantisContracts: Map[Address,PrecompiledContract] = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
     Bn128PairingAddr -> Bn128Pairing
   )
 
-  val istanbulPhoenixContracts = byzantiumAtlantisContracts ++ Map(
+  val istanbulPhoenixContracts: Map[Address,PrecompiledContract] = byzantiumAtlantisContracts ++ Map(
     Blake2bCompressionAddr -> Blake2bCompress
   )
 
@@ -254,7 +254,7 @@ object PrecompiledContracts {
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
-    val expectedBytes = 4 * 32
+    val expectedBytes: Int = 4 * 32
 
     def exec(inputData: ByteString): Option[ByteString] = {
       val paddedInput = inputData.padToByteString(expectedBytes, 0.toByte)
@@ -286,8 +286,8 @@ object PrecompiledContracts {
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Mul extends PrecompiledContract {
-    val expectedBytes = 3 * 32
-    val maxScalar = BigInt(2).pow(256) - 1
+    val expectedBytes: Int = 3 * 32
+    val maxScalar: BigInt = BigInt(2).pow(256) - 1
 
     def exec(inputData: ByteString): Option[ByteString] = {
       val paddedInput = inputData.padToByteString(expectedBytes, 0.toByte)
@@ -324,8 +324,8 @@ object PrecompiledContracts {
     private val wordLength = 32
     private val inputLength = 6 * wordLength
 
-    val positiveResult = ByteUtils.padLeft(ByteString(1), wordLength)
-    val negativeResult = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
+    val positiveResult: ByteString = ByteUtils.padLeft(ByteString(1), wordLength)
+    val negativeResult: ByteString = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
 
     def exec(inputData: ByteString): Option[ByteString] =
       if (inputData.length % inputLength != 0) {

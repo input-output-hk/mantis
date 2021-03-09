@@ -21,6 +21,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalamock.handlers.CallHandler1
 
 class QaJRCSpec
     extends AnyWordSpec
@@ -238,20 +240,20 @@ class QaJRCSpec
       with ApisBuilder {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val appStateStorage = mock[AppStateStorage]
-    val web3Service = mock[Web3Service]
-    val netService = mock[NetService]
-    val personalService = mock[PersonalService]
-    val debugService = mock[DebugService]
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
-    val ethBlocksService = mock[EthBlocksService]
-    val ethTxService = mock[EthTxService]
-    val ethUserService = mock[EthUserService]
-    val ethFilterService = mock[EthFilterService]
-    val checkpointingService = mock[CheckpointingService]
-    val mantisService = mock[MantisService]
-    val qaService = mock[QAService]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val web3Service: Web3Service = mock[Web3Service]
+    val netService: NetService = mock[NetService]
+    val personalService: PersonalService = mock[PersonalService]
+    val debugService: DebugService = mock[DebugService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
+    val ethBlocksService: EthBlocksService = mock[EthBlocksService]
+    val ethTxService: EthTxService = mock[EthTxService]
+    val ethUserService: EthUserService = mock[EthUserService]
+    val ethFilterService: EthFilterService = mock[EthFilterService]
+    val checkpointingService: CheckpointingService = mock[CheckpointingService]
+    val mantisService: MantisService = mock[MantisService]
+    val qaService: QAService = mock[QAService]
 
     val jsonRpcController =
       new JsonRpcController(
@@ -273,9 +275,9 @@ class QaJRCSpec
         config
       )
 
-    val mineBlocksReq = MineBlocksRequest(1, withTransactions = true, None)
+    val mineBlocksReq: MineBlocksRequest = MineBlocksRequest(1, withTransactions = true, None)
 
-    val mineBlocksRpcRequest = JsonRpcRequest(
+    val mineBlocksRpcRequest: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "qa_mineBlocks",
       Some(
@@ -289,21 +291,21 @@ class QaJRCSpec
       Some(JInt(1))
     )
 
-    val blockHash = byteStringOfLengthNGen(32).sample.get
-    val blockHashAsString = ByteStringUtils.hash2string(blockHash)
-    val privateKeys = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get.toList
-    val keyPairs = privateKeys.map { key =>
+    val blockHash: ByteString = byteStringOfLengthNGen(32).sample.get
+    val blockHashAsString: String = ByteStringUtils.hash2string(blockHash)
+    val privateKeys: List[ByteString] = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get.toList
+    val keyPairs: List[AsymmetricCipherKeyPair] = privateKeys.map { key =>
       crypto.keyPairFromPrvKey(key.toArray)
     }
-    val signatures = keyPairs.map(ECDSASignature.sign(blockHash.toArray, _))
-    val checkpoint = Checkpoint(signatures)
-    val privateKeysAsJson = privateKeys.map { key =>
+    val signatures: List[ECDSASignature] = keyPairs.map(ECDSASignature.sign(blockHash.toArray, _))
+    val checkpoint: Checkpoint = Checkpoint(signatures)
+    val privateKeysAsJson: List[JString] = privateKeys.map { key =>
       JString(ByteStringUtils.hash2string(key))
     }
 
-    val generateCheckpointReq = GenerateCheckpointRequest(privateKeys, Some(blockHash))
+    val generateCheckpointReq: GenerateCheckpointRequest = GenerateCheckpointRequest(privateKeys, Some(blockHash))
 
-    val generateCheckpointRpcRequest = JsonRpcRequest(
+    val generateCheckpointRpcRequest: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "qa_generateCheckpoint",
       Some(
@@ -319,7 +321,7 @@ class QaJRCSpec
       Some(1)
     )
 
-    val getFederationMembersInfoRpcRequest = JsonRpcRequest(
+    val getFederationMembersInfoRpcRequest: JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "qa_getFederationMembersInfo",
       Some(
@@ -336,7 +338,7 @@ class QaJRCSpec
     def responseType(expectedType: MineBlocksResponse.MinerResponseType): JField =
       "responseType" -> JString(expectedType.entryName)
 
-    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse) =
+    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse): CallHandler1[MineBlocksRequest,Task[Either[JsonRpcError,MineBlocksResponse]]] =
       (qaService.mineBlocks _)
         .expects(mineBlocksReq)
         .returning(Task.now(Right(MineBlocksResponse(resp))))

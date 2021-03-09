@@ -9,7 +9,7 @@ import monix.eval.Task
 trait FaucetHandlerSelector {
   self: FaucetConfigBuilder with RetrySupport =>
 
-  val handlerPath = s"user/${FaucetSupervisor.name}/${FaucetHandler.name}"
+  val handlerPath: String = s"user/${FaucetSupervisor.name}/${FaucetHandler.name}"
   lazy val attempts = faucetConfig.supervisor.attempts
   lazy val delay = faucetConfig.supervisor.delay
 

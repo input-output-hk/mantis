@@ -3,6 +3,7 @@ package io.iohk.ethereum.network
 import io.iohk.ethereum.metrics.MetricsContainer
 
 import java.util.concurrent.atomic.AtomicLong
+import io.micrometer.core.instrument.Counter
 
 case object NetworkMetrics extends MetricsContainer {
 
@@ -11,15 +12,15 @@ case object NetworkMetrics extends MetricsContainer {
   final private val HandshakedOutgoingPeersGauge =
     metrics.registry.gauge("network.peers.outgoing.handshaked.gauge", new AtomicLong(0))
 
-  final val ReceivedMessagesCounter = metrics.counter("network.messages.received.counter")
+  final val ReceivedMessagesCounter: Counter = metrics.counter("network.messages.received.counter")
 
-  final val SentMessagesCounter = metrics.counter("network.messages.sent.counter")
+  final val SentMessagesCounter: Counter = metrics.counter("network.messages.sent.counter")
 
-  final val DiscoveredPeersSize = metrics.registry.gauge("network.discovery.foundPeers.gauge", new AtomicLong(0))
+  final val DiscoveredPeersSize: AtomicLong = metrics.registry.gauge("network.discovery.foundPeers.gauge", new AtomicLong(0))
 
-  final val BlacklistedPeersSize = metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
+  final val BlacklistedPeersSize: AtomicLong = metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
 
-  final val PendingPeersSize = metrics.registry.gauge("network.peers.pending.gauge", new AtomicLong(0))
+  final val PendingPeersSize: AtomicLong = metrics.registry.gauge("network.peers.pending.gauge", new AtomicLong(0))
 
   def registerAddHandshakedPeer(peer: Peer): Unit =
     if (peer.incomingConnection) {

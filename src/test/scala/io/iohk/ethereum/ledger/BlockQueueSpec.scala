@@ -9,6 +9,8 @@ import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import io.iohk.ethereum.domain.BlockHeader
+import org.scalamock.handlers.{ CallHandler0, CallHandler1 }
 
 class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -153,20 +155,20 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   trait TestConfig {
-    val syncConfig = SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
-    val blockchain = mock[BlockchainImpl]
-    val blockQueue = BlockQueue(blockchain, syncConfig)
+    val syncConfig: SyncConfig = SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
 
-    def setBestBlockNumber(n: BigInt) =
+    def setBestBlockNumber(n: BigInt): CallHandler0[BigInt] =
       (blockchain.getBestBlockNumber _).expects().returning(n)
 
-    def setChainWeightForParent(block: Block, weight: Option[ChainWeight] = None) =
+    def setChainWeightForParent(block: Block, weight: Option[ChainWeight] = None): CallHandler1[ByteString,Option[ChainWeight]] =
       (blockchain.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-    val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
+    val defaultHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 1000000,

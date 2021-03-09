@@ -128,7 +128,7 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
   }
 
   trait TestSetup {
-    val keyStoreConfig = KeyStoreConfig(Config.config)
+    val keyStoreConfig: KeyStoreConfig = KeyStoreConfig(Config.config)
 
     object testFailingPathConfig extends KeyStoreConfig {
 
@@ -155,12 +155,12 @@ class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter wit
     def getKeyStore(config: KeyStoreConfig): KeyStoreImpl =
       new KeyStoreImpl(config, secureRandom)
 
-    val key1 = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val addr1 = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
-    val key2 = ByteString(Hex.decode("ee9fb343c34856f3e64f6f0b5e2abd1b298aaa76d0ffc667d00eac4582cb69ca"))
-    val addr2 = Address(Hex.decode("f1c8084f32b8ef2cee7099446d9a6a185d732468"))
-    val key3 = ByteString(Hex.decode("ed341f91661a05c249c36b8c9f6d3b796aa9f629f07ddc73b04b9ffc98641a50"))
-    val addr3 = Address(Hex.decode("d2ecb1332a233d314c30fe3b53f44541b7a07a9e"))
+    val key1: ByteString = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
+    val addr1: Address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
+    val key2: ByteString = ByteString(Hex.decode("ee9fb343c34856f3e64f6f0b5e2abd1b298aaa76d0ffc667d00eac4582cb69ca"))
+    val addr2: Address = Address(Hex.decode("f1c8084f32b8ef2cee7099446d9a6a185d732468"))
+    val key3: ByteString = ByteString(Hex.decode("ed341f91661a05c249c36b8c9f6d3b796aa9f629f07ddc73b04b9ffc98641a50"))
+    val addr3: Address = Address(Hex.decode("d2ecb1332a233d314c30fe3b53f44541b7a07a9e"))
   }
 
   def clearKeyStore(): Unit =

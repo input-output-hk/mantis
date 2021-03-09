@@ -9,7 +9,7 @@ import org.bouncycastle.math.ec.ECPoint
 
 object AuthResponseMessageV4 {
 
-  implicit val rlpEncDec = new RLPEncoder[AuthResponseMessageV4] with RLPDecoder[AuthResponseMessageV4] {
+  implicit val rlpEncDec: RLPEncoder[AuthResponseMessageV4] with RLPDecoder[AuthResponseMessageV4] = new RLPEncoder[AuthResponseMessageV4] with RLPDecoder[AuthResponseMessageV4] {
     override def encode(obj: AuthResponseMessageV4): RLPEncodeable = {
       import obj._
       //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding

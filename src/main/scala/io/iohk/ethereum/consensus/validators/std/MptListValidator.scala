@@ -9,7 +9,7 @@ import io.iohk.ethereum.rlp.{decode, encode}
 
 object MptListValidator {
 
-  lazy val intByteArraySerializable = new ByteArraySerializable[Int] {
+  lazy val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def fromBytes(bytes: Array[Byte]): Int = decode[Int](bytes)
     override def toBytes(input: Int): Array[Byte] = encode(input)
   }

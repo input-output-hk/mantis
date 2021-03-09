@@ -210,9 +210,9 @@ class MockedMinerSpec
   }
 
   class MockedMinerSetup extends MinerSpecSetup {
-    val noMessageTimeOut = 3.seconds
+    val noMessageTimeOut: FiniteDuration = 3.seconds
 
-    val miner = TestActorRef(
+    val miner: TestActorRef[Nothing] = TestActorRef(
       MockedMiner.props(
         blockchain,
         blockCreator,

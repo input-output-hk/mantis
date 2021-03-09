@@ -14,6 +14,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import io.iohk.ethereum.db.cache.Cache
 
 class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
@@ -158,8 +159,8 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
   trait TestSetup {
     val minNodes = 5
     val maxNodes = 15
-    val dataSource = EphemDataSource()
-    val testCache = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val dataSource: EphemDataSource = EphemDataSource()
+    val testCache: Cache[NodeHash,NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val nodeStorage = new NodeStorage(dataSource)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, testCache)
     object TestCacheConfig extends NodeCacheConfig {
@@ -171,12 +172,12 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
 
     val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
-    val archiveStateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
+    val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
 
     val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
-    val referenceCounteStateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val referenceCounteStateStorage: StateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
 
-    val cachedStateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
     val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)
   }
 }

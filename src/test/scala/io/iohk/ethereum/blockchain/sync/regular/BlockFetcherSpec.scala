@@ -27,6 +27,8 @@ import org.scalatest.matchers.should.Matchers
 import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import akka.actor.ActorRef
+import io.iohk.ethereum.utils.Config
 
 class BlockFetcherSpec
     extends TestKit(ActorSystem("BlockFetcherSpec_System"))
@@ -509,7 +511,7 @@ class BlockFetcherSpec
 
     lazy val validators = new MockValidatorsAlwaysSucceed
 
-    override lazy val syncConfig = defaultSyncConfig.copy(
+    override lazy val syncConfig: Config.SyncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
@@ -519,9 +521,9 @@ class BlockFetcherSpec
     )
 
     val fakePeerActor: TestProbe = TestProbe()
-    val fakePeer = Peer(new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
+    val fakePeer: Peer = Peer(new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
-    lazy val blockFetcher = system.actorOf(
+    lazy val blockFetcher: ActorRef = system.actorOf(
       BlockFetcher
         .props(
           peersClient.ref,
@@ -555,13 +557,13 @@ class BlockFetcherSpec
       blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
 
-    val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+    val firstBlocksBatch: List[Block] = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
 
     // Fetcher request for headers
-    val firstGetBlockHeadersRequest =
+    val firstGetBlockHeadersRequest: GetBlockHeaders =
       GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
 
-    def handleFirstBlockBatchHeaders() = {
+    def handleFirstBlockBatchHeaders(): Unit = {
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
 
       // Respond first headers request
@@ -570,8 +572,8 @@ class BlockFetcherSpec
     }
 
     // First bodies request
-    val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
-    def handleFirstBlockBatchBodies() = {
+    val firstGetBlockBodiesRequest: GetBlockBodies = GetBlockBodies(firstBlocksBatch.map(_.hash))
+    def handleFirstBlockBatchBodies(): Unit = {
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockBodiesRequest => () }
 
       // First bodies response
@@ -579,7 +581,7 @@ class BlockFetcherSpec
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
     }
 
-    def handleFirstBlockBatch() = {
+    def handleFirstBlockBatch(): Unit = {
       handleFirstBlockBatchHeaders()
       handleFirstBlockBatchBodies()
     }

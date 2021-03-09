@@ -16,11 +16,11 @@ trait TestSyncPeers { self: TestSyncConfig =>
   val peer2TestProbe: TestProbe = TestProbe("peer2")(system)
   val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
 
-  val peer1 = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
-  val peer2 = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
-  val peer3 = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
+  val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+  val peer2: Peer = Peer(new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
+  val peer3: Peer = Peer(new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
 
-  val peer1Status =
+  val peer1Status: RemoteStatus =
     RemoteStatus(
       ProtocolVersions.PV64,
       1,
@@ -28,12 +28,12 @@ trait TestSyncPeers { self: TestSyncConfig =>
       ByteString("peer1_bestHash"),
       ByteString("unused")
     )
-  val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
+  val peer2Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
 
   val bestBlock = 400000
-  val expectedPivotBlock = bestBlock - syncConfig.pivotBlockOffset
+  val expectedPivotBlock: Int = bestBlock - syncConfig.pivotBlockOffset
 
-  val defaultPeer1Info = PeerInfo(
+  val defaultPeer1Info: PeerInfo = PeerInfo(
     peer1Status,
     forkAccepted = true,
     chainWeight = peer1Status.chainWeight,
@@ -41,7 +41,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
     bestBlockHash = peer1Status.bestHash
   )
 
-  val twoAcceptedPeers = Map(
+  val twoAcceptedPeers: Map[Peer,PeerInfo] = Map(
     peer1 -> PeerInfo(
       peer1Status,
       forkAccepted = true,
@@ -58,7 +58,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
     )
   )
 
-  val singlePeer = Map(
+  val singlePeer: Map[Peer,PeerInfo] = Map(
     peer1 -> PeerInfo(
       peer1Status,
       forkAccepted = true,

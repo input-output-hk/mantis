@@ -11,6 +11,7 @@ import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecod
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.network.p2p.MessageDecoder
 
 class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
@@ -156,7 +157,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  val messageDecoder = NetworkMessageDecoder.orElse(EthereumMessageDecoder)
+  val messageDecoder: MessageDecoder = NetworkMessageDecoder.orElse(EthereumMessageDecoder)
 
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Int): Unit =
     messageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg

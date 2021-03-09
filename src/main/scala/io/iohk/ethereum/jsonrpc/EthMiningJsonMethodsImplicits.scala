@@ -8,11 +8,11 @@ import org.json4s.JsonAST
 import org.json4s.JsonAST.{JArray, JBool, JString, JValue}
 
 object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits {
-  implicit val eth_mining = new NoParamsMethodDecoder(GetMiningRequest()) with JsonEncoder[GetMiningResponse] {
+  implicit val eth_mining: NoParamsMethodDecoder[GetMiningRequest] with JsonEncoder[GetMiningResponse] = new NoParamsMethodDecoder(GetMiningRequest()) with JsonEncoder[GetMiningResponse] {
     override def encodeJson(t: GetMiningResponse): JValue = JBool(t.isMining)
   }
 
-  implicit val eth_getWork = new NoParamsMethodDecoder(GetWorkRequest()) with JsonEncoder[GetWorkResponse] {
+  implicit val eth_getWork: NoParamsMethodDecoder[GetWorkRequest] with JsonEncoder[GetWorkResponse] = new NoParamsMethodDecoder(GetWorkRequest()) with JsonEncoder[GetWorkResponse] {
     override def encodeJson(t: GetWorkResponse): JsonAST.JValue = {
       val powHeaderHash = encodeAsHex(t.powHeaderHash)
       val dagSeed = encodeAsHex(t.dagSeed)
@@ -21,7 +21,7 @@ object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits {
     }
   }
 
-  implicit val eth_submitHashrate = new JsonMethodDecoder[SubmitHashRateRequest]
+  implicit val eth_submitHashrate: JsonMethodDecoder[SubmitHashRateRequest] with JsonEncoder[SubmitHashRateResponse] = new JsonMethodDecoder[SubmitHashRateRequest]
     with JsonEncoder[SubmitHashRateResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitHashRateRequest] =
       params match {
@@ -38,16 +38,16 @@ object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: SubmitHashRateResponse): JValue = JBool(t.success)
   }
 
-  implicit val eth_hashrate = new NoParamsMethodDecoder(GetHashRateRequest()) with JsonEncoder[GetHashRateResponse] {
+  implicit val eth_hashrate: NoParamsMethodDecoder[GetHashRateRequest] with JsonEncoder[GetHashRateResponse] = new NoParamsMethodDecoder(GetHashRateRequest()) with JsonEncoder[GetHashRateResponse] {
     override def encodeJson(t: GetHashRateResponse): JsonAST.JValue = encodeAsHex(t.hashRate)
   }
 
-  implicit val eth_coinbase = new NoParamsMethodDecoder(GetCoinbaseRequest()) with JsonEncoder[GetCoinbaseResponse] {
+  implicit val eth_coinbase: NoParamsMethodDecoder[GetCoinbaseRequest] with JsonEncoder[GetCoinbaseResponse] = new NoParamsMethodDecoder(GetCoinbaseRequest()) with JsonEncoder[GetCoinbaseResponse] {
     override def encodeJson(t: GetCoinbaseResponse): JsonAST.JValue =
       encodeAsHex(t.address.bytes)
   }
 
-  implicit val eth_submitWork = new JsonMethodDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] {
+  implicit val eth_submitWork: JsonMethodDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] = new JsonMethodDecoder[SubmitWorkRequest] with JsonEncoder[SubmitWorkResponse] {
     override def decodeJson(params: Option[JsonAST.JArray]): Either[JsonRpcError, SubmitWorkRequest] = params match {
       case Some(JArray(JString(nonce) :: JString(powHeaderHash) :: JString(mixHash) :: Nil)) =>
         for {

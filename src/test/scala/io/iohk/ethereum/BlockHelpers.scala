@@ -13,7 +13,7 @@ import scala.util.Random
 object BlockHelpers extends SecureRandomBuilder {
 
   // scalastyle:off magic.number
-  val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
     number = 1,
     gasLimit = 1000000,
@@ -21,7 +21,7 @@ object BlockHelpers extends SecureRandomBuilder {
     unixTimestamp = 0
   )
 
-  val defaultTx = Transaction(
+  val defaultTx: Transaction = Transaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,

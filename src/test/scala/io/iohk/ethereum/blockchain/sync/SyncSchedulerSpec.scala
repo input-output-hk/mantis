@@ -223,7 +223,7 @@ class SyncSchedulerSpec
     assert(result1.left.value == CannotDecodeMptNode)
   }
 
-  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them

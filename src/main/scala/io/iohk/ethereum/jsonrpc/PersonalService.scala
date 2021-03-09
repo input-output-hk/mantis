@@ -52,10 +52,10 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
-  val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
-  val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
-  val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
-  val KeyNotFound = LogicError("No key found for the given address")
+  val InvalidKey: JsonRpcError = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
+  val InvalidAddress: JsonRpcError = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
+  val InvalidPassphrase: JsonRpcError = LogicError("Could not decrypt key with given passphrase")
+  val KeyNotFound: JsonRpcError = LogicError("No key found for the given address")
   val PassPhraseTooShort: Int => JsonRpcError = minLength =>
     LogicError(s"Provided passphrase must have at least $minLength characters")
 

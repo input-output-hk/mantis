@@ -144,20 +144,20 @@ class BlockBroadcastSpec
   }
 
   class TestSetup(implicit system: ActorSystem) {
-    val etcPeerManagerProbe = TestProbe()
+    val etcPeerManagerProbe: TestProbe = TestProbe()
 
     val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref)
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV64,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -165,7 +165,7 @@ class BlockBroadcastSpec
       bestBlockHash = peerStatus.bestHash
     )
 
-    val peerProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
+    val peerProbe: TestProbe = TestProbe()
+    val peer: Peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
   }
 }

@@ -12,6 +12,7 @@ import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
@@ -83,7 +84,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     }
   }
 
-  val validBlockHeader = BlockHeader(
+  val validBlockHeader: BlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("8345d132564b3660aa5f27c9415310634b50dbc92579c65a0825d9a255227a71")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("df7d7e053933b5cc24372f878c90e62dadad5d42")),
@@ -101,7 +102,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     nonce = ByteString(Hex.decode("2b0fb0c002946392"))
   )
 
-  val validBlockBody = BlockBody(
+  val validBlockBody: BlockBody = BlockBody(
     transactionList = Seq[SignedTransaction](
       SignedTransaction(
         tx = Transaction(
@@ -163,14 +164,14 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     uncleNodesList = Seq[BlockHeader]()
   )
 
-  val keys = Seq(
+  val keys: Seq[AsymmetricCipherKeyPair] = Seq(
     crypto.generateKeyPair(secureRandom),
     crypto.generateKeyPair(secureRandom)
   )
 
-  val validCheckpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash))
+  val validCheckpoint: Checkpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash))
 
-  val validBlockHeaderWithCheckpoint =
+  val validBlockHeaderWithCheckpoint: BlockHeader =
     new CheckpointBlockGenerator()
       .generate(
         Block(validBlockHeader, validBlockBody),
@@ -178,7 +179,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
       )
       .header
 
-  val validReceipts = Seq(
+  val validReceipts: Seq[Receipt] = Seq(
     Receipt.withHashOutcome(
       postTransactionStateHash =
         ByteString(Hex.decode("ce0ac687bb90d457b6573d74e4a25ea7c012fee329eb386dbef161c847f9842d")),
@@ -209,23 +210,23 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     )
   )
 
-  val wrongTransactionsRootHeader = validBlockHeader.copy(
+  val wrongTransactionsRootHeader: BlockHeader = validBlockHeader.copy(
     transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b420"))
   )
 
-  val wrongOmmersHashHeader = validBlockHeader.copy(
+  val wrongOmmersHashHeader: BlockHeader = validBlockHeader.copy(
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d4934a"))
   )
 
-  val wrongReceiptsHeader = validBlockHeader.copy(
+  val wrongReceiptsHeader: BlockHeader = validBlockHeader.copy(
     receiptsRoot = ByteString(Hex.decode("8b472d8d4d39bae6a5570c2a42276ed2d6a56ac51a1a356d5b17c5564d01fd5a"))
   )
 
-  val wrongLogBloomBlockHeader = validBlockHeader.copy(
+  val wrongLogBloomBlockHeader: BlockHeader = validBlockHeader.copy(
     logsBloom = ByteString(Hex.decode("1" * 512))
   )
 
-  val blockWithOutReceipts = Block(
+  val blockWithOutReceipts: Block = Block(
     validBlockHeader.copy(receiptsRoot = Account.EmptyStorageRootHash, logsBloom = BloomFilter.EmptyBloomFilter),
     validBlockBody
   )

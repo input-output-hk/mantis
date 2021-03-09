@@ -28,7 +28,7 @@ class MantisServiceSpec
       with MantisServiceBuilder
       with JSONRpcConfigBuilder
       with ApisBuilder {
-    lazy val pendingTransactionsManagerProbe = TestProbe()
+    lazy val pendingTransactionsManagerProbe: TestProbe = TestProbe()
     override lazy val pendingTransactionsManager: ActorRef = pendingTransactionsManagerProbe.ref
   }
   def createFixture() = new Fixture

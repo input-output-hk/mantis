@@ -11,7 +11,7 @@ import Fixtures.blockchainConfig
 
 class OpCodeGasSpecPostEip161 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  override val config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 

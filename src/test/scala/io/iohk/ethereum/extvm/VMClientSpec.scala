@@ -11,6 +11,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scalapb.GeneratedMessageCompanion
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.extvm.msg.{ CallResult, VMQuery }
 
 class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -169,9 +171,9 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
   trait TestSetup {
     val blockHeader = Block3125369.header
 
-    val emptyWorld = MockWorldState()
+    val emptyWorld: MockWorldState = MockWorldState()
 
-    val blockchainConfigForEvm = BlockchainConfigForEvm(
+    val blockchainConfigForEvm: BlockchainConfigForEvm = BlockchainConfigForEvm(
       frontierBlockNumber = 0,
       homesteadBlockNumber = 0,
       eip150BlockNumber = 0,
@@ -188,12 +190,12 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       phoenixBlockNumber = 0,
       chainId = 0x3d.toByte
     )
-    val evmConfig = EvmConfig.FrontierConfigBuilder(blockchainConfigForEvm)
+    val evmConfig: EvmConfig = EvmConfig.FrontierConfigBuilder(blockchainConfigForEvm)
 
-    val senderAddress = Address("0x01")
-    val tx = MockVmInput.transaction(senderAddress, ByteString(""), 10, 123, 456)
+    val senderAddress: Address = Address("0x01")
+    val tx: SignedTransaction = MockVmInput.transaction(senderAddress, ByteString(""), 10, 123, 456)
 
-    val callResultMsg = msg.CallResult(
+    val callResultMsg: CallResult = msg.CallResult(
       returnData = ByteString("0011"),
       returnCode = ByteString(""),
       gasRemaining = ByteString(BigInt(99).toByteArray),
@@ -202,11 +204,11 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       modifiedAccounts = Nil
     )
 
-    val resultQueryMsg = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
+    val resultQueryMsg: VMQuery = msg.VMQuery(query = msg.VMQuery.Query.CallResult(callResultMsg))
 
-    val messageHandler = mock[MessageHandler]
+    val messageHandler: MessageHandler = mock[MessageHandler]
 
-    val externalVmConfig = VmConfig.ExternalConfig("mantis", None, "127.0.0.1", 0)
+    val externalVmConfig: VmConfig.ExternalConfig = VmConfig.ExternalConfig("mantis", None, "127.0.0.1", 0)
     val vmClient = new VMClient(externalVmConfig, messageHandler, testMode = false)
   }
 

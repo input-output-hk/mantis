@@ -5,13 +5,14 @@ import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.prop.TableFor2
 
 class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   val Modulus: BigInt = UInt256.MaxValue.toBigInt + 1
   val MaxSignedValue: BigInt = Modulus / 2 - 1
 
-  val specialNumbers =
+  val specialNumbers: Seq[BigInt] =
     Seq(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
   val pairs: Seq[(BigInt, BigInt)] = specialNumbers
@@ -19,7 +20,7 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
     .map { case Seq(n1, n2) => n1 -> n2 }
     .toSeq
 
-  val specialCases = Table(("n1", "n2"), pairs: _*)
+  val specialCases: TableFor2[BigInt,BigInt] = Table(("n1", "n2"), pairs: _*)
 
   def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
 

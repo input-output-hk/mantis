@@ -464,13 +464,13 @@ class SyncControllerSpec
     override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides
 
-    val etcPeerManager = TestProbe()
-    val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
     val checkpointBlockGenerator = new CheckpointBlockGenerator()
 
-    val ommersPool = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
 
     override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
@@ -489,7 +489,7 @@ class SyncControllerSpec
       maxPivotBlockAge = 30
     )
 
-    lazy val syncController = TestActorRef(
+    lazy val syncController: TestActorRef[Nothing] = TestActorRef(
       Props(
         new SyncController(
           storagesInstance.storages.appStateStorage,
@@ -662,29 +662,29 @@ class SyncControllerSpec
 
     val defaultSafeDownloadTarget = defaultExpectedPivotBlock
 
-    val defaultBestBlock = defaultExpectedPivotBlock - 1
+    val defaultBestBlock: Int = defaultExpectedPivotBlock - 1
 
     val defaultStateRoot = "deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc"
 
-    val defaultPivotBlockHeader =
+    val defaultPivotBlockHeader: BlockHeader =
       baseBlockHeader.copy(number = defaultExpectedPivotBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
-    val defaultState =
+    val defaultState: SyncState =
       SyncState(
         defaultPivotBlockHeader,
         safeDownloadTarget = defaultSafeDownloadTarget,
         bestBlockHeaderNumber = defaultBestBlock
       )
 
-    val defaultStateMptLeafWithAccount =
+    val defaultStateMptLeafWithAccount: ByteString =
       ByteString(
         Hex.decode(
           "f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
         )
       )
 
-    val beforeRestartPivot = defaultPivotBlockHeader.copy(number = defaultExpectedPivotBlock - 1)
-    val defaultStateBeforeNodeRestart = defaultState.copy(
+    val beforeRestartPivot: BlockHeader = defaultPivotBlockHeader.copy(number = defaultExpectedPivotBlock - 1)
+    val defaultStateBeforeNodeRestart: SyncState = defaultState.copy(
       pivotBlock = beforeRestartPivot,
       bestBlockHeaderNumber = defaultExpectedPivotBlock,
       nextBlockToFullyValidate = beforeRestartPivot.number + syncConfig.fastSyncBlockValidationX
@@ -719,10 +719,10 @@ class SyncControllerSpec
 
     private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
 
-    def littleTimePasses() =
+    def littleTimePasses(): Unit =
       testScheduler.timePasses(100.millis)
 
-    def someTimePasses() =
+    def someTimePasses(): Unit =
       testScheduler.timePasses(3000.millis)
 
     def cleanup(): Unit =

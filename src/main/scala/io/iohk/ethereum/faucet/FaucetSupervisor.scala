@@ -7,6 +7,7 @@ import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration._
+import akka.actor.Props
 
 object FaucetSupervisor {
   val name = "FaucetSupervisor"
@@ -16,14 +17,14 @@ class FaucetSupervisor(walletService: WalletService, config: FaucetConfig, shutd
     system: ActorSystem
 ) extends Logger {
 
-  val childProps = FaucetHandler.props(walletService, config)
+  val childProps: Props = FaucetHandler.props(walletService, config)
 
   val minBackoff: FiniteDuration = config.supervisor.minBackoff
   val maxBackoff: FiniteDuration = config.supervisor.maxBackoff
   val randomFactor: Double = config.supervisor.randomFactor
   val autoReset: FiniteDuration = config.supervisor.autoReset
 
-  val supervisorProps = BackoffSupervisor.props(
+  val supervisorProps: Props = BackoffSupervisor.props(
     BackoffOpts
       .onFailure(
         childProps,

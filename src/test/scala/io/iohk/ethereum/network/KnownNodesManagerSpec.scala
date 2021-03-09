@@ -10,6 +10,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import scala.concurrent.duration._
+import akka.actor.ActorRef
 
 class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 
@@ -58,16 +59,16 @@ class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit override lazy val system = ActorSystem("KnownNodesManagerSpec_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("KnownNodesManagerSpec_System")
 
     val time = new VirtualTime
-    val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
+    val config: KnownNodesManagerConfig = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
 
-    val client = TestProbe()
+    val client: TestProbe = TestProbe()
 
     def uri(n: Int): URI = new URI(s"enode://test$n@test$n.com:9000")
 
-    val knownNodesManager = system.actorOf(
+    val knownNodesManager: ActorRef = system.actorOf(
       Props(new KnownNodesManager(config, storagesInstance.storages.knownNodesStorage, Some(time.scheduler)))
     )
   }

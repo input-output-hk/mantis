@@ -72,9 +72,9 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   trait TestSetup {
-    val addr = Address("0xFF")
-    val messageHandler = mock[MessageHandler]
-    val world = World(accountStartNonce = 0, noEmptyAccountsCond = true, messageHandler = messageHandler)
+    val addr: Address = Address("0xFF")
+    val messageHandler: MessageHandler = mock[MessageHandler]
+    val world: World = World(accountStartNonce = 0, noEmptyAccountsCond = true, messageHandler = messageHandler)
   }
 
 }

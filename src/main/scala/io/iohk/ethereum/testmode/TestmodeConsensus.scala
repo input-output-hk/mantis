@@ -65,7 +65,7 @@ class TestmodeConsensus(
     blockchainConfig = blockchainConfig
   )
 
-  override val blockGenerator =
+  override val blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       blockchain,
       blockchainConfig,

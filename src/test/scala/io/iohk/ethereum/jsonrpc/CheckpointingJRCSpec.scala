@@ -17,6 +17,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class CheckpointingJRCSpec
     extends AnyFlatSpec
@@ -176,23 +177,23 @@ class CheckpointingJRCSpec
   object Req {
     val block = Fixtures.Blocks.ValidBlock.block
 
-    val keys = Seq(
+    val keys: Seq[AsymmetricCipherKeyPair] = Seq(
       crypto.generateKeyPair(secureRandom),
       crypto.generateKeyPair(secureRandom)
     )
 
     val signatures: List[ECDSASignature] = CheckpointingTestHelpers.createCheckpointSignatures(keys, block.hash).toList
 
-    def getLatestBlockRequestBuilder(json: JArray) = JsonRpcRequest(
+    def getLatestBlockRequestBuilder(json: JArray): JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "checkpointing_getLatestBlock",
       Some(json),
       Some(1)
     )
 
-    val expectedPositiveIntegerError = InvalidParams("Expected positive integer")
+    val expectedPositiveIntegerError: JsonRpcError = InvalidParams("Expected positive integer")
 
-    def pushCheckpointRequestBuilder(json: JArray) = JsonRpcRequest(
+    def pushCheckpointRequestBuilder(json: JArray): JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "checkpointing_pushCheckpoint",
       Some(json),
@@ -203,19 +204,19 @@ class CheckpointingJRCSpec
   trait TestSetup extends ApisBuilder {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val web3Service = mock[Web3Service]
-    val netService = mock[NetService]
-    val personalService = mock[PersonalService]
-    val debugService = mock[DebugService]
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
-    val ethBlocksService = mock[EthBlocksService]
-    val ethTxService = mock[EthTxService]
-    val ethUserService = mock[EthUserService]
-    val ethFilterService = mock[EthFilterService]
-    val qaService = mock[QAService]
-    val checkpointingService = mock[CheckpointingService]
-    val mantisService = mock[MantisService]
+    val web3Service: Web3Service = mock[Web3Service]
+    val netService: NetService = mock[NetService]
+    val personalService: PersonalService = mock[PersonalService]
+    val debugService: DebugService = mock[DebugService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
+    val ethBlocksService: EthBlocksService = mock[EthBlocksService]
+    val ethTxService: EthTxService = mock[EthTxService]
+    val ethUserService: EthUserService = mock[EthUserService]
+    val ethFilterService: EthFilterService = mock[EthFilterService]
+    val qaService: QAService = mock[QAService]
+    val checkpointingService: CheckpointingService = mock[CheckpointingService]
+    val mantisService: MantisService = mock[MantisService]
 
     val jsonRpcController =
       new JsonRpcController(

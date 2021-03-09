@@ -11,6 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import scala.collection.mutable
 
 class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
@@ -291,7 +292,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup {
-    val dataSource = EphemDataSource()
+    val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
 
     def insertRangeKeys(n: Int, storage: NodesKeyValueStorage): Seq[(ByteString, Array[Byte])] = {
@@ -302,10 +303,10 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
     object testCacheConfig extends NodeCacheConfig {
       override val maxSize = 10
-      override val maxHoldTime = FiniteDuration(5, TimeUnit.MINUTES)
+      override val maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)
     }
 
-    val underlying = MapCache.getMap[ByteString, Array[Byte]]
+    val underlying: mutable.Map[ByteString,Array[Byte]] = MapCache.getMap[ByteString, Array[Byte]]
     val cache = new MapCache[ByteString, Array[Byte]](underlying, testCacheConfig)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, cache)
 

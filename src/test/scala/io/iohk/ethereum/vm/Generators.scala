@@ -62,8 +62,8 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, uint256Gen: Gen[UInt256] = getUInt256Gen()): Gen[MockStorage] =
     getListGen(0, maxSize, uint256Gen).map(MockStorage.fromSeq)
 
-  val ownerAddr = Address(0x123456)
-  val callerAddr = Address(0xabcdef)
+  val ownerAddr: Address = Address(0x123456)
+  val callerAddr: Address = Address(0xabcdef)
 
   val exampleBlockHeader = BlockFixtures.ValidBlock.header
 

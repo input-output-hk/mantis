@@ -13,6 +13,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
+import io.iohk.ethereum.db.cache.Cache
 
 class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
 
@@ -57,8 +58,8 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup {
-    val newLeaf = LeafNode(ByteString(1), ByteString(1))
-    val dataSource = EphemDataSource()
+    val newLeaf: LeafNode = LeafNode(ByteString(1), ByteString(1))
+    val dataSource: EphemDataSource = EphemDataSource()
     val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
 
     object TestCacheConfig extends NodeCacheConfig {
@@ -67,9 +68,9 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     }
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
     val newNodeStorage = new NodeStorage(dataSource)
-    val testCache = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val testCache: Cache[NodeHash,NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val newCachedNodeStorage = new CachedNodeStorage(newNodeStorage, testCache)
 
-    val cachedStateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
   }
 }

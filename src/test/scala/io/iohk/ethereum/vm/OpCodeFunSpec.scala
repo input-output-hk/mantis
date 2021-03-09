@@ -16,7 +16,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
+  override val config: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
   def executeOp(op: OpCode, stateIn: PS): PS =
     // gas is not tested in this spec

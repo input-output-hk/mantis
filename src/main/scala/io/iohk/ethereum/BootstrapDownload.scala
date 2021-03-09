@@ -18,7 +18,7 @@ import java.util.zip.ZipInputStream
   */
 object BootstrapDownload extends Logger {
 
-  val bufferSize = 4 * 1024
+  val bufferSize: Int = 4 * 1024
   val leveldbFolderName = "leveldb"
 
   private def assertAndLog(cond: Boolean, msg: String): Unit = {

@@ -4,10 +4,11 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalatest.prop.TableFor2
 
 class BlakeCompressionSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   // test vectors from: https://eips.ethereum.org/EIPS/eip-152
-  val testVectors = Table[String, Option[String]](
+  val testVectors: TableFor2[String,Option[String]] = Table[String, Option[String]](
     ("value", "result"),
     (
       "00000c48c9bdf267e6096a3ba7ca8485ae67bb2bf894fe72f36e3cf1361d5f3af54fa5d182e6ad7f520e511f6c3e2b8c68059b6bbd41fbabd9831f79217e1319cde05b61626300000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000001",

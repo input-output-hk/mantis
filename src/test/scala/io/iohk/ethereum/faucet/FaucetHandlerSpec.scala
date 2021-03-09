@@ -21,6 +21,8 @@ import org.scalatest.matchers.should.Matchers
 
 import java.security.SecureRandom
 import scala.concurrent.ExecutionContext
+import akka.actor.ActorRef
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class FaucetHandlerSpec
     extends TestKit(ActorSystem("ActorSystem_DebugFaucetHandlerSpec"))
@@ -109,13 +111,13 @@ class FaucetHandlerSpec
     val walletService: WalletService = mock[WalletService]
     val paymentAddress: Address = Address("0x99")
 
-    val faucetHandler = system.actorOf(FaucetHandlerFake.props(walletService, faucetConfig))
+    val faucetHandler: ActorRef = system.actorOf(FaucetHandlerFake.props(walletService, faucetConfig))
 
-    val walletKeyPair = generateKeyPair(new SecureRandom)
+    val walletKeyPair: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
-    val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
+    val wallet: Wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val sender = TestProbe()
+    val sender: TestProbe = TestProbe()
 
     def withUnavailableFaucet(behaviour: => Unit): Unit = {
       (() => walletService.getWallet).expects().returning(Task.pure(Left(DecryptionFailed)))

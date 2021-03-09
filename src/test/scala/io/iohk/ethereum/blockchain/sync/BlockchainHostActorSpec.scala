@@ -259,11 +259,11 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    implicit override lazy val system = ActorSystem("BlockchainHostActor_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("BlockchainHostActor_System")
 
     blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
-    val peerConf = new PeerConfiguration {
+    val peerConf: PeerConfiguration = new PeerConfiguration {
       override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
         val maxBlocksHeadersPerMessage: Int = 200
         val maxBlocksBodiesPerMessage: Int = 200
@@ -297,14 +297,14 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     }
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
-    val baseBlockBody = BlockBody(Nil, Nil)
+    val baseBlockBody: BlockBody = BlockBody(Nil, Nil)
 
-    val peerId = PeerId("1")
+    val peerId: PeerId = PeerId("1")
 
-    val peerEventBus = TestProbe()
-    val etcPeerManager = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
 
-    val blockchainHost = TestActorRef(
+    val blockchainHost: TestActorRef[Nothing] = TestActorRef(
       Props(new BlockchainHostActor(blockchain, peerConf, peerEventBus.ref, etcPeerManager.ref))
     )
   }

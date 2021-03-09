@@ -21,6 +21,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import ByteStringUtils.byteStringOrdering
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalacheck.Gen
 
 class BlockWithCheckpointHeaderValidatorSpec
     extends AnyFlatSpec
@@ -261,7 +263,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     val validBlockParent = Fixtures.Blocks.ValidBlock.block
     val validBlockParentHeader = validBlockParent.header
 
-    final val checkpointPubKeys =
+    final val checkpointPubKeys: Set[ByteString] =
       Set(
         // prv ee4fd3a153f6d66918d7a54e33b8fbafcb6a786551306d1248e62bef76e8fe52
         ByteStringUtils.string2hash(
@@ -283,7 +285,7 @@ class BlockWithCheckpointHeaderValidatorSpec
       checkpointPubKeys = checkpointPubKeys
     )
 
-    val keys = Seq(
+    val keys: Seq[AsymmetricCipherKeyPair] = Seq(
       crypto.keyPairFromPrvKey(
         ByteStringUtils.string2hash("ee4fd3a153f6d66918d7a54e33b8fbafcb6a786551306d1248e62bef76e8fe52").toArray
       ),
@@ -292,7 +294,7 @@ class BlockWithCheckpointHeaderValidatorSpec
       )
     )
 
-    val validCheckpoint = Checkpoint(
+    val validCheckpoint: Checkpoint = Checkpoint(
       CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockParentHeader.hash)
     )
 
@@ -307,11 +309,11 @@ class BlockWithCheckpointHeaderValidatorSpec
         ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
       }
 
-    val blockHeaderValidator = blockHeaderValidatorBuilder(config)
+    val blockHeaderValidator: BlockHeaderValidatorSkeleton = blockHeaderValidatorBuilder(config)
 
     val checkpointBlockGenerator = new CheckpointBlockGenerator
 
-    val validBlockHeaderWithCheckpoint =
+    val validBlockHeaderWithCheckpoint: BlockHeader =
       checkpointBlockGenerator
         .generate(
           validBlockParent,
@@ -319,12 +321,12 @@ class BlockWithCheckpointHeaderValidatorSpec
         )
         .header
 
-    val randomSizeByteStringGenerator = randomSizeByteStringGen(0, 32)
+    val randomSizeByteStringGenerator: Gen[ByteString] = randomSizeByteStringGen(0, 32)
 
     def getBlockHeaderByHashMock(blockHeaders: Seq[BlockHeader])(hash: ByteString): Option[BlockHeader] =
       blockHeaders.find(_.hash == hash)
-    val getBlockHeaderWithParent = getBlockHeaderByHashMock(Seq(validBlockParentHeader)) _
-    val getBlockHeaderWithNone = getBlockHeaderByHashMock(Nil) _
+    val getBlockHeaderWithParent: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(Seq(validBlockParentHeader)) _
+    val getBlockHeaderWithNone: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(Nil) _
 
     def testOfEmptyByteString(
         invalidBlockHeaderCreator: ByteString => BlockHeader,

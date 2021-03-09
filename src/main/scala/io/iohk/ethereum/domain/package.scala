@@ -11,12 +11,12 @@ package object domain {
   type HeadersSeq = Seq[BlockHeader]
 
   object EthereumUInt256Mpt {
-    val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {
+    val byteArrayBigIntSerializer: ByteArrayEncoder[BigInt] = new ByteArrayEncoder[BigInt] {
       override def toBytes(input: BigInt): Array[Byte] =
         ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
     }
 
-    val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
+    val rlpBigIntSerializer: ByteArraySerializable[BigInt] = new ByteArraySerializable[BigInt] {
       override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
 
       override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
@@ -30,7 +30,7 @@ package object domain {
   }
 
   object ArbitraryIntegerMpt {
-    val bigIntSerializer = new ByteArraySerializable[BigInt] {
+    val bigIntSerializer: ByteArraySerializable[BigInt] = new ByteArraySerializable[BigInt] {
       override def fromBytes(bytes: Array[Byte]): BigInt = BigInt(bytes)
       override def toBytes(input: BigInt): Array[Byte] = input.toByteArray
     }

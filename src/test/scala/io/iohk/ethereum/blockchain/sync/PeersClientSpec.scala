@@ -57,11 +57,11 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   object Peers {
-    implicit val system = ActorSystem("PeersClient_System")
+    implicit val system: ActorSystem = ActorSystem("PeersClient_System")
 
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), TestProbe().ref, false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
+    val peer1: Peer = Peer(new InetSocketAddress("127.0.0.1", 1), TestProbe().ref, false)
+    val peer2: Peer = Peer(new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
+    val peer3: Peer = Peer(new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
 
     private val peerStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,

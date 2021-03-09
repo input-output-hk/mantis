@@ -18,6 +18,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
+import monix.execution.Cancelable
 
 class SyncStateSchedulerActor(
     sync: SyncStateScheduler,
@@ -31,7 +32,7 @@ class SyncStateSchedulerActor(
     with ActorLogging
     with Timers {
 
-  implicit val monixScheduler = Scheduler(context.dispatcher)
+  implicit val monixScheduler: Scheduler = Scheduler(context.dispatcher)
 
   def handleCommonMessages: Receive = handlePeerListMessages.orElse(handleBlacklistMessages)
 
@@ -73,7 +74,7 @@ class SyncStateSchedulerActor(
       self ! RequestFailed(peer, "Peer disconnected in the middle of request")
   }
 
-  val loadingCancelable = sync.loadFilterFromBlockchain.runAsync {
+  val loadingCancelable: Cancelable = sync.loadFilterFromBlockchain.runAsync {
     case Left(value) =>
       log.error(
         "Unexpected error while loading bloom filter. Starting state sync with empty bloom filter" +

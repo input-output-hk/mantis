@@ -143,13 +143,13 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val getSyncStatus: Task[SyncProtocol.Status] =
       Task.deferFuture((regularSync ? SyncProtocol.GetStatus).mapTo[SyncProtocol.Status])
 
-    def pollForStatus(predicate: SyncProtocol.Status => Boolean) = Observable
+    def pollForStatus(predicate: SyncProtocol.Status => Boolean): Task[SyncProtocol.Status] = Observable
       .repeatEvalF(getSyncStatus.delayExecution(10.millis))
       .takeWhileInclusive(predicate.andThen(!_))
       .lastL
       .timeout(remainingOrDefault)
 
-    def fishForStatus[B](picker: PartialFunction[SyncProtocol.Status, B]) = Observable
+    def fishForStatus[B](picker: PartialFunction[SyncProtocol.Status, B]): Task[B] = Observable
       .repeatEvalF(getSyncStatus.delayExecution(10.millis))
       .collect(picker)
       .firstL
@@ -157,8 +157,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     class TestLedgerImpl
         extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
-      protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
-      protected val importedBlocksSet = mutable.Set[Block]()
+      protected val results: mutable.Map[ByteString,Task[BlockImportResult]] = mutable.Map[ByteString, Task[BlockImportResult]]()
+      protected val importedBlocksSet: mutable.Set[Block] = mutable.Set[Block]()
       private val importedBlocksSubject = ReplaySubject[Block]()
 
       val importedBlocks: Observable[Block] = importedBlocksSubject

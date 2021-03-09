@@ -8,7 +8,7 @@ import org.scalatest.matchers.should.Matchers
 
 class EncryptedKeySpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
-  val gethKey =
+  val gethKey: String =
     """{
       |  "id": "033b7a63-30f2-47fc-bbbe-d22925a14ab3",
       |  "address": "932245e1c40ec2026a2c7acc80befb68816cdba4",
@@ -32,7 +32,7 @@ class EncryptedKeySpec extends AnyFlatSpec with Matchers with SecureRandomBuilde
       |}
     """.stripMargin
 
-  val parityKey =
+  val parityKey: String =
     """{
       |  "id": "20909a42-09c4-0740-02dc-a0b8cbaea688",
       |  "version": 3,

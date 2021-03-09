@@ -16,7 +16,7 @@ import org.scalatest.matchers.should.Matchers
 class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
-  val syncConfig = SyncConfig(Config.config)
+  val syncConfig: SyncConfig = SyncConfig(Config.config)
 
   // FIXME Delete
   // val blockchain = mock[BlockchainImpl]
@@ -137,21 +137,21 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
-    val conf = BlockchainConfigForEvm(blockchainConfig)
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(conf)
-    val postEip160Config = EvmConfig.PostEIP160ConfigBuilder(conf)
+    val conf: BlockchainConfigForEvm = BlockchainConfigForEvm(blockchainConfig)
+    val postEip161Config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(conf)
+    val postEip160Config: EvmConfig = EvmConfig.PostEIP160ConfigBuilder(conf)
 
-    val validAccountAddress = Address(0xababab)
+    val validAccountAddress: Address = Address(0xababab)
     val validAccountBalance = 10
 
-    val validAccountAddress2 = Address(0xcdcdcd)
-    val validAccountAddress3 = Address(0xefefef)
-    val validEmptyAccountAddress = Address(0xaaaaaa)
-    val validEmptyAccountAddress1 = Address(0xbbbbbb)
+    val validAccountAddress2: Address = Address(0xcdcdcd)
+    val validAccountAddress3: Address = Address(0xefefef)
+    val validEmptyAccountAddress: Address = Address(0xaaaaaa)
+    val validEmptyAccountAddress1: Address = Address(0xbbbbbb)
 
-    val validCreatedAccountAddress = Address(0xcccccc)
+    val validCreatedAccountAddress: Address = Address(0xcccccc)
 
-    val accountAddresses = Set(
+    val accountAddresses: Set[Address] = Set(
       validAccountAddress,
       validAccountAddress2,
       validAccountAddress3,
@@ -192,8 +192,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     val transferBalance = 5
     val zeroTransferBalance = 0
 
-    val worldStatePostEIP161 = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
-    val worldStatePreEIP161 = InMemoryWorldStateProxy.persistState(worldStateWithoutPersistPreEIP161)
+    val worldStatePostEIP161: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
+    val worldStatePreEIP161: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(worldStateWithoutPersistPreEIP161)
 
   }
 }

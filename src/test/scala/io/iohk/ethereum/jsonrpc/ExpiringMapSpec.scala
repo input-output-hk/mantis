@@ -12,10 +12,10 @@ class ExpiringMapSpec extends AnyFlatSpec with Matchers with Eventually {
 
   val testResolution = 20
   val holdTime = 100
-  val holdTimeDur = Duration.ofMillis(holdTime)
-  val waitTime = holdTime + testResolution
+  val holdTimeDur: Duration = Duration.ofMillis(holdTime)
+  val waitTime: Int = holdTime + testResolution
 
-  implicit override val patienceConfig =
+  implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(Span(waitTime, Millis)), interval = scaled(Span(testResolution, Millis)))
 
   it should "Put element in, for correct amount of time and not retain it afterwards" in new TestSetup {
@@ -122,10 +122,10 @@ class ExpiringMapSpec extends AnyFlatSpec with Matchers with Eventually {
   trait TestSetup {
     val defaultHoldTime = holdTime
     val expiringMap: ExpiringMap[Address, Account] = ExpiringMap.empty(Duration.ofMillis(defaultHoldTime))
-    val address1 = Address(0x123456)
-    val address2 = Address(0xabcdef)
+    val address1: Address = Address(0x123456)
+    val address2: Address = Address(0xabcdef)
 
-    val account1 = Account.empty()
-    val account2 = Account.empty().increaseBalance(10)
+    val account1: Account = Account.empty()
+    val account2: Account = Account.empty().increaseBalance(10)
   }
 }

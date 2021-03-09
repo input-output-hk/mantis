@@ -398,5 +398,5 @@ class BlockPreparator(
 
 object BlockPreparator {
   val TreasuryRewardPercentageAfterECIP1098 = 20
-  val MinerRewardPercentageAfterECIP1098 = 100 - TreasuryRewardPercentageAfterECIP1098
+  val MinerRewardPercentageAfterECIP1098: Int = 100 - TreasuryRewardPercentageAfterECIP1098
 }

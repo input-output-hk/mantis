@@ -136,7 +136,7 @@ class FaucetRpcServiceSpec
       shutdownTimeout = 15.seconds
     )
 
-    val faucetHandler = TestProbe()
+    val faucetHandler: TestProbe = TestProbe()
 
     val faucetRpcService: FaucetRpcService = new FaucetRpcService(config) {
       override def selectFaucetHandler()(implicit system: ActorSystem): Task[ActorRef] =

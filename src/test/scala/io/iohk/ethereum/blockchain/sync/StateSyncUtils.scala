@@ -17,7 +17,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   )
 
   class TrieProvider(bl: Blockchain, blockchainConfig: BlockchainConfig) {
-    def getNodes(hashes: List[ByteString]) =
+    def getNodes(hashes: List[ByteString]): List[SyncResponse] =
       hashes.map { hash =>
         val maybeResult = bl.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))

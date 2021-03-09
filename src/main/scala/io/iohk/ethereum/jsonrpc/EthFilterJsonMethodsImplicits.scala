@@ -9,11 +9,11 @@ import org.json4s.Extraction
 import org.json4s.JsonAST._
 
 object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
-  implicit val newFilterResponseEnc = new JsonEncoder[NewFilterResponse] {
+  implicit val newFilterResponseEnc: JsonEncoder[NewFilterResponse] = new JsonEncoder[NewFilterResponse] {
     def encodeJson(t: NewFilterResponse): JValue = encodeAsHex(t.filterId)
   }
 
-  implicit val eth_newFilter = new JsonMethodDecoder[NewFilterRequest] {
+  implicit val eth_newFilter: JsonMethodDecoder[NewFilterRequest] = new JsonMethodDecoder[NewFilterRequest] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, NewFilterRequest] =
       params match {
         case Some(JArray((filterObj: JObject) :: Nil)) =>
@@ -24,11 +24,11 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
       }
   }
 
-  implicit val eth_newBlockFilter = new NoParamsMethodDecoder(NewBlockFilterRequest()) {}
+  implicit val eth_newBlockFilter: NoParamsMethodDecoder[NewBlockFilterRequest] = new NoParamsMethodDecoder(NewBlockFilterRequest()) {}
 
-  implicit val eth_newPendingTransactionFilter = new NoParamsMethodDecoder(NewPendingTransactionFilterRequest()) {}
+  implicit val eth_newPendingTransactionFilter: NoParamsMethodDecoder[NewPendingTransactionFilterRequest] = new NoParamsMethodDecoder(NewPendingTransactionFilterRequest()) {}
 
-  implicit val eth_uninstallFilter = new JsonMethodDecoder[UninstallFilterRequest]
+  implicit val eth_uninstallFilter: JsonMethodDecoder[UninstallFilterRequest] with JsonEncoder[UninstallFilterResponse] = new JsonMethodDecoder[UninstallFilterRequest]
     with JsonEncoder[UninstallFilterResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, UninstallFilterRequest] =
       params match {
@@ -41,7 +41,7 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: UninstallFilterResponse): JValue = JBool(t.success)
   }
 
-  implicit val eth_getFilterChanges = new JsonMethodDecoder[GetFilterChangesRequest]
+  implicit val eth_getFilterChanges: JsonMethodDecoder[GetFilterChangesRequest] with JsonEncoder[GetFilterChangesResponse] = new JsonMethodDecoder[GetFilterChangesRequest]
     with JsonEncoder[GetFilterChangesResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetFilterChangesRequest] =
       params match {
@@ -59,7 +59,7 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
       }
   }
 
-  implicit val eth_getFilterLogs = new JsonMethodDecoder[GetFilterLogsRequest] with JsonEncoder[GetFilterLogsResponse] {
+  implicit val eth_getFilterLogs: JsonMethodDecoder[GetFilterLogsRequest] with JsonEncoder[GetFilterLogsResponse] = new JsonMethodDecoder[GetFilterLogsRequest] with JsonEncoder[GetFilterLogsResponse] {
     import FilterManager._
 
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetFilterLogsRequest] =
@@ -79,7 +79,7 @@ object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
       }
   }
 
-  implicit val eth_getLogs = new JsonMethodDecoder[GetLogsRequest] with JsonEncoder[GetLogsResponse] {
+  implicit val eth_getLogs: JsonMethodDecoder[GetLogsRequest] with JsonEncoder[GetLogsResponse] = new JsonMethodDecoder[GetLogsRequest] with JsonEncoder[GetLogsResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetLogsRequest] =
       params match {
         case Some(JArray((filterObj: JObject) :: Nil)) =>

@@ -22,18 +22,18 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
 
   implicit val sigalg: SigAlg = new Secp256k1SigAlg
 
-  val localhost = InetAddress.getByName("127.0.0.1")
+  val localhost: InetAddress = InetAddress.getByName("127.0.0.1")
 
   behavior.of("RLPCodecs with ENR")
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#test-vectors
-  val nodeId = Hash(hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7".toBitVector)
-  val privateKey = PrivateKey(hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".toBitVector)
-  val publicKey = sigalg.toPublicKey(privateKey)
+  val nodeId: Hash.Tagged = Hash(hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7".toBitVector)
+  val privateKey: PrivateKey.Tagged = PrivateKey(hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".toBitVector)
+  val publicKey: io.iohk.scalanet.discovery.crypto.PublicKey = sigalg.toPublicKey(privateKey)
   val enrString =
     "enr:-IS4QHCYrYZbAKWCBRlAy5zzaDZXJBGkcnh4MHcBFZntXNFrdvJjX04jRzjzCBOonrkTfj499SZuOh8R33Ls8RRcy5wBgmlkgnY0gmlwhH8AAAGJc2VjcDI1NmsxoQPKY0yuDUmstAHYpMa2_oxVtw0RW_QAdpzBQA8yWM0xOIN1ZHCCdl8"
 
-  val enrRLP = RLPList(
+  val enrRLP: RLPList = RLPList(
     hex"7098ad865b00a582051940cb9cf36836572411a47278783077011599ed5cd16b76f2635f4e234738f30813a89eb9137e3e3df5266e3a1f11df72ecf1145ccb9c",
     1L,
     "id",

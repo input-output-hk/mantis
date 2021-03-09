@@ -9,7 +9,7 @@ import io.iohk.ethereum.domain.Address
 object ConsensusConfigs {
   final val blockCacheSize = 30
   final val coinbaseAddressNum = 42
-  final val coinbase = Address(coinbaseAddressNum)
+  final val coinbase: Address = Address(coinbaseAddressNum)
 
   //noinspection ScalaStyle
   final val ethashConfig = new EthashConfig(
@@ -28,5 +28,5 @@ object ConsensusConfigs {
     treasuryOptOut = false
   )
 
-  final val fullConsensusConfig = FullConsensusConfig(consensusConfig, ethashConfig)
+  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(consensusConfig, ethashConfig)
 }

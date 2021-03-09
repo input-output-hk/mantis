@@ -369,9 +369,9 @@ class EthTxServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
-    val pendingTransactionsManager = TestProbe()
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    override lazy val ledger: Ledger = mock[Ledger]
+    val pendingTransactionsManager: TestProbe = TestProbe()
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     lazy val ethTxService = new EthTxService(
@@ -381,13 +381,13 @@ class EthTxServiceSpec
       getTransactionFromPoolTimeout
     )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
     val v: Byte = 0x1c
-    val r = ByteString(Hex.decode("b3493e863e48a8d67572910933114a4c0e49dac0cb199e01df1575f35141a881"))
-    val s = ByteString(Hex.decode("5ba423ae55087e013686f89ad71a449093745f7edb4eb39f30acd30a8964522d"))
+    val r: ByteString = ByteString(Hex.decode("b3493e863e48a8d67572910933114a4c0e49dac0cb199e01df1575f35141a881"))
+    val s: ByteString = ByteString(Hex.decode("5ba423ae55087e013686f89ad71a449093745f7edb4eb39f30acd30a8964522d"))
 
-    val payload = ByteString(
+    val payload: ByteString = ByteString(
       Hex.decode(
         "60606040526040516101e43803806101e483398101604052808051820191906020018051906020019091908051" +
           "9060200190919050505b805b83835b600060018351016001600050819055503373ffffffffffffffffffffffff" +
@@ -423,9 +423,9 @@ class EthTxServiceSpec
       0x3d.toByte
     )
 
-    val contractCreatingTransactionSender = SignedTransaction.getSender(contractCreatingTransaction).get
+    val contractCreatingTransactionSender: Address = SignedTransaction.getSender(contractCreatingTransaction).get
 
-    val fakeReceipt = Receipt.withHashOutcome(
+    val fakeReceipt: Receipt = Receipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),
@@ -433,8 +433,8 @@ class EthTxServiceSpec
     )
 
     val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
-    val txSender = SignedTransaction.getSender(txToRequest).get
-    val txToRequestWithSender = SignedTransactionWithSender(txToRequest, txSender)
+    val txSender: Address = SignedTransaction.getSender(txToRequest).get
+    val txToRequestWithSender: SignedTransactionWithSender = SignedTransactionWithSender(txToRequest, txSender)
 
     val txToRequestHash = txToRequest.hash
   }

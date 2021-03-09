@@ -33,13 +33,13 @@ object ConsensusConfig extends Logger {
     final val TreasuryOptOut = "treasury-opt-out"
   }
 
-  final val AllowedProtocols = Set(
+  final val AllowedProtocols: Set[String] = Set(
     Protocol.Names.Ethash,
     Protocol.Names.MockedPow,
     Protocol.Names.RestrictedEthash
   )
 
-  final val AllowedProtocolsError = (s: String) =>
+  final val AllowedProtocolsError: String => String = (s: String) =>
     Keys.Consensus +
       " is configured as '" + s + "'" +
       " but it should be one of " +

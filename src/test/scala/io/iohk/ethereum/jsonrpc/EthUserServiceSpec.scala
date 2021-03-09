@@ -136,13 +136,13 @@ class EthUserServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    override lazy val ledger = mock[Ledger]
+    override lazy val ledger: Ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
       ledger,
       blockchainConfig
     )
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
   }
 
 }

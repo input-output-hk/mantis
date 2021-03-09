@@ -221,7 +221,7 @@ object HeapEntry {
   def fromBytes(asbytes: Array[Byte]): HeapEntry =
     Unpickle[HeapEntry].fromBytes(ByteBuffer.wrap(asbytes))
 
-  implicit val heapEntrySerializer = new ByteArraySerializable[HeapEntry] {
+  implicit val heapEntrySerializer: ByteArraySerializable[HeapEntry] = new ByteArraySerializable[HeapEntry] {
     override def toBytes(input: HeapEntry): Array[Byte] = HeapEntry.toBytes(input)
     override def fromBytes(bytes: Array[Byte]): HeapEntry = HeapEntry.fromBytes(bytes)
   }

@@ -16,15 +16,16 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
+import org.scalamock.handlers.CallHandler3
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
 
   def miner: TestActorRef[Nothing]
 
-  val origin =
+  val origin: Block =
     Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
-  val sync = TestProbe()
+  val sync: TestProbe = TestProbe()
 
   def waitForMinedBlock(implicit timeout: Duration): Block =
     sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
@@ -47,13 +48,13 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
   override lazy val vm: VMImpl = new VMImpl
   override lazy val consensus: EthashConsensus = buildEthashConsensus().withBlockGenerator(blockGenerator)
 
-  val blockCreator = mock[EthashBlockCreator]
+  val blockCreator: EthashBlockCreator = mock[EthashBlockCreator]
 
   val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
-  val blockForMiningTimestamp = System.currentTimeMillis()
+  val blockForMiningTimestamp: Long = System.currentTimeMillis()
 
-  val txToMine = SignedTransaction(
+  val txToMine: SignedTransaction = SignedTransaction(
     tx = Transaction(
       nonce = BigInt("438553"),
       gasPrice = BigInt("20000000000"),
@@ -90,11 +91,11 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       BlockBody(transactions, Nil)
     )
 
-  val parentActor = TestProbe()
+  val parentActor: TestProbe = TestProbe()
 
-  val fakeWorld = mock[InMemoryWorldStateProxy]
+  val fakeWorld: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
 
-  def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) =
+  def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block): CallHandler3[Block,Boolean,Option[InMemoryWorldStateProxy],Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(parentBlock, withTransactions, *)
@@ -103,7 +104,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       )
       .atLeastOnce()
 
-  def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) =
+  def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block): CallHandler3[Block,Boolean,Option[InMemoryWorldStateProxy],Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(where { (parent, withTxs, _) =>
@@ -114,7 +115,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       )
       .atLeastOnce()
 
-  def withStartedMiner(behaviour: => Unit) = {
+  def withStartedMiner(behaviour: => Unit): Unit = {
     miner ! MinerProtocol.StartMining
 
     behaviour
@@ -122,7 +123,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
     miner ! MinerProtocol.StopMining
   }
 
-  def sendToMiner(msg: MinerProtocol) =
+  def sendToMiner(msg: MinerProtocol): Unit =
     miner.tell(msg, parentActor.ref)
 
 }
