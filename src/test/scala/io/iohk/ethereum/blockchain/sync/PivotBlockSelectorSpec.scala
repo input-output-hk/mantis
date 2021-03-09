@@ -1,35 +1,23 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.actor.{ActorRef, ActorSystem}
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector
-import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.Result
-import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.SelectPivotBlock
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.{Result, SelectPivotBlock}
+import io.iohk.ethereum.domain.{BlockHeader, ChainWeight}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.{Codes, ProtocolVersions}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

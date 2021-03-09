@@ -6,13 +6,10 @@ import cats.implicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTxChecker
-import io.iohk.ethereum.transactions.TransactionHistoryService.PendingTxChecker
+import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTxChecker, PendingTxChecker}
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
-import monix.reactive.Observable
-import monix.reactive.OverflowStrategy
+import monix.reactive.{Observable, OverflowStrategy}
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration

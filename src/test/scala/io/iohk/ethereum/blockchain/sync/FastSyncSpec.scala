@@ -2,20 +2,15 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.Timeout
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.FreeSpecBase
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.SpecFixtures
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.GenOps.GenOps
+import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, ObjectGenerators, SpecFixtures, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable

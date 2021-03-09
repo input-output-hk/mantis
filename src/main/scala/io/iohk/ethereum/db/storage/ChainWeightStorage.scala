@@ -5,8 +5,7 @@ import boopickle.Default._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ChainWeightStorage._
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 
 /** This class is used to store the ChainWeight of blocks, by using:
   *   Key: hash of the block

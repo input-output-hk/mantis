@@ -1,12 +1,9 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.dataSource.DataSourceUpdate
-import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate, EphemDataSource}
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode => rlpDecode}
-import io.iohk.ethereum.rlp.{encode => rlpEncode}
+import io.iohk.ethereum.rlp.{decode => rlpDecode, encode => rlpEncode}
 import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

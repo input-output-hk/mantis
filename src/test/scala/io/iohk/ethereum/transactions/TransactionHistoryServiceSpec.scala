@@ -1,17 +1,14 @@
 package io.iohk.ethereum.transactions
 
 import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
 import io.iohk.ethereum.transactions.testing.PendingTransactionsManagerAutoPilot
 import io.iohk.ethereum.{blockchain => _, _}
 import monix.eval.Task

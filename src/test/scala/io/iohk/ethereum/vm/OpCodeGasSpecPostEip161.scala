@@ -1,8 +1,7 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.domain.{Account, Address}
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers

@@ -2,16 +2,13 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.ActorSystem
 import akka.pattern._
-import akka.testkit.TestActorRef
-import akka.testkit.TestKit
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
+import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers

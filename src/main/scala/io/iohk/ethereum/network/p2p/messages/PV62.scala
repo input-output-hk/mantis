@@ -1,16 +1,13 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockBody._
-import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.{RLPList, _}
 import org.bouncycastle.util.encoders.Hex
 
 object PV62 {

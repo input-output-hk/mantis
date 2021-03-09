@@ -2,8 +2,7 @@ package io.iohk.ethereum.network
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 import io.iohk.ethereum.blockchain.sync.BlacklistSupport
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
@@ -11,23 +10,19 @@ import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.DiscoveryConfig
-import io.iohk.ethereum.network.discovery.Node
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.MessageDecoder
-import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
 
-import java.net.InetSocketAddress
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 import java.util.Collections.newSetFromMap
 import scala.collection.mutable
 import scala.concurrent.duration._

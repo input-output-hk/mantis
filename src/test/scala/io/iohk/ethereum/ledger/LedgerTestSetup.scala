@@ -3,41 +3,27 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
-import io.iohk.ethereum.consensus.ethash.validators.StdOmmersValidator
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
+import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.Ledger.PC
-import io.iohk.ethereum.ledger.Ledger.PR
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.DaoForkConfig
-import io.iohk.ethereum.vm.ProgramError
-import io.iohk.ethereum.vm.ProgramResult
+import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
+import io.iohk.ethereum.vm.{ProgramError, ProgramResult}
+import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators}
 import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.handlers.CallHandler0
-import org.scalamock.handlers.CallHandler1
-import org.scalamock.handlers.CallHandler4
+import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
 import org.scalamock.scalatest.MockFactory
 
 // scalastyle:off magic.number

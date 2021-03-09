@@ -1,15 +1,13 @@
 package io.iohk.ethereum.consensus.ethash.blocks
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.{ConsensusConfig, ConsensusMetrics}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockPreparator
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 
 import java.util.function.UnaryOperator

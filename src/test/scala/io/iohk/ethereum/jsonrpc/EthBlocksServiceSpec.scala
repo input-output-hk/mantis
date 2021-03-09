@@ -3,22 +3,15 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
-import io.iohk.ethereum.consensus.blocks.PendingBlock
-import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory

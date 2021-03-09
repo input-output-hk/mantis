@@ -1,39 +1,26 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
 import akka.actor.Status.Failure
-import akka.pattern.ask
-import akka.pattern.pipe
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.pattern.{ask, pipe}
+import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
 import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.PeersClient._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingBodiesToBeIgnored
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingHeadersToBeIgnored
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.ImportNewBlock
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NotOnTop
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.OnTop
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{AwaitingBodiesToBeIgnored, AwaitingHeadersToBeIgnored}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.p2p.messages.PV64
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._

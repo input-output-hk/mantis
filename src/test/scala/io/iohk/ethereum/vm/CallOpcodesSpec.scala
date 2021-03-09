@@ -2,9 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.matchers.should.Matchers
@@ -688,7 +686,7 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
     */
   "gas cost bigger than available gas DELEGATECALL" should {
 
-    val memCost = 0
+    
     val c_extra = config.feeSchedule.G_call
     val startGas = c_extra - 1
     val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]

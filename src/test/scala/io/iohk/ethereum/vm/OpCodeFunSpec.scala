@@ -2,11 +2,8 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.TxLogEntry
-import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
 import io.iohk.ethereum.vm.Generators._
 import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite

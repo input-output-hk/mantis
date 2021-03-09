@@ -11,13 +11,9 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RestartRequested
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StartSyncingTo
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFinished
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{RestartRequested, StartSyncingTo, StateSyncFinished, WaitingForNewTargetBlock}
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.db.storage.FastSyncStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo

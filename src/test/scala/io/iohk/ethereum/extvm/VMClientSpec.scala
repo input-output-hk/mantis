@@ -1,9 +1,7 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
 import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.vm._

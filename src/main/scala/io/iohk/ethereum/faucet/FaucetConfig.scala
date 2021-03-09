@@ -1,11 +1,9 @@
 package io.iohk.ethereum.faucet
 
-import com.typesafe.config.Config
-import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config, ConfigFactory}
 import io.iohk.ethereum.domain.Address
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 
 trait FaucetConfigBuilder {
   lazy val rawConfig: Config = ConfigFactory.load()

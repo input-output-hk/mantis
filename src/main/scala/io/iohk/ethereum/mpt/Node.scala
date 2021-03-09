@@ -2,8 +2,7 @@ package io.iohk.ethereum.mpt
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.rlp.RLPEncodeable
-import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
 
 import java.util
 

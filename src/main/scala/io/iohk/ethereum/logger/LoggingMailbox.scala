@@ -1,7 +1,6 @@
 package io.iohk.ethereum.logger
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.dispatch._
 import akka.event.Logging
 import com.typesafe.config.Config
@@ -35,7 +34,7 @@ class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int) exten
 
   private val interval = 1000000000L // 1 s, in nanoseconds
   private lazy val log = Logging(system, classOf[LoggingMailbox])
-  private val path = owner.path.toString
+  owner.path.toString
   @volatile private var logTime: Long = System.nanoTime()
   private val queueSize = new AtomicInteger
   private val dequeueCount = new AtomicInteger
@@ -61,7 +60,7 @@ class LoggingMailbox(owner: ActorRef, system: ActorSystem, sizeLimit: Int) exten
       val now = System.nanoTime()
       if (now - logTime > interval) {
         val msgPerSecond = dequeueCount.get.toDouble / ((now - logTime).toDouble / interval)
-        val actorName = owner.path.name
+        owner.path.name
         logTime = now
         dequeueCount.set(0)
         log.info("Mailbox size for [{}] is [{}], processing [{}] msg/s", owner, size, f"$msgPerSecond%2.2f")

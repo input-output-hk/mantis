@@ -4,11 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcError
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.CustomSerializer
-import org.json4s.DefaultFormats
-import org.json4s.Formats
-import org.json4s.JNull
-import org.json4s.JString
+import org.json4s.{CustomSerializer, DefaultFormats, Formats, JNull, JString}
 
 object JsonSerializers {
   implicit val formats: Formats =

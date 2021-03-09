@@ -5,8 +5,7 @@ import cats.implicits._
 
 import java.time.Clock
 import scala.annotation.tailrec
-import scala.concurrent.duration.Duration
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{Duration, FiniteDuration}
 
 /** Track statistics over time a fixed size timewindow. */
 class TimeSlotStats[K, V: Monoid] private (

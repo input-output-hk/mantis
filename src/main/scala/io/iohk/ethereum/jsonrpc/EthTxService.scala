@@ -3,20 +3,14 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.{Block, Blockchain, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionPicker}
 import monix.eval.Task
 
 import scala.concurrent.duration.FiniteDuration
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object EthTxService {
   case class GetTransactionByHashRequest(txHash: ByteString) //rename to match request

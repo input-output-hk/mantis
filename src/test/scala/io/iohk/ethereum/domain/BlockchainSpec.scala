@@ -1,19 +1,16 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.ObjectGenerators._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.HashNode
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie}
 import io.iohk.ethereum.proof.MptProofVerifier
 import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
+import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -124,7 +121,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
-    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
+    StateStorage.createTestStateStorage(EphemDataSource())._1
     val emptyMpt = MerklePatriciaTrie[Address, Account](
       storagesInstance.storages.stateStorage.getBackingStorage(0)
     )

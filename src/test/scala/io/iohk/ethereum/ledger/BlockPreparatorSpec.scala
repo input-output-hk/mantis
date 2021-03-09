@@ -3,29 +3,18 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed}
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.SignedTransactionValid
-import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
-import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
+import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.BlockResult
-import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.vm.InvalidJump
-import io.iohk.ethereum.vm.InvalidOpCode
-import io.iohk.ethereum.vm.OutOfGas
-import io.iohk.ethereum.vm.ProgramError
-import io.iohk.ethereum.vm.RevertOccurs
-import io.iohk.ethereum.vm.StackOverflow
-import io.iohk.ethereum.vm.StackUnderflow
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.vm.{InvalidJump, InvalidOpCode, OutOfGas, ProgramError, RevertOccurs, StackOverflow, StackUnderflow}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.TableFor2
-import org.scalatest.prop.TableFor4
+import org.scalatest.prop.{TableFor2, TableFor4}
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
@@ -254,8 +243,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
   "remember executed transaction in case of many failures in the middle" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress =
-      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) =>
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
@@ -296,8 +284,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
   "produce empty block if all txs fail" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress =
-      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
     override lazy val vm = new MockVM((pc: Ledger.PC) =>
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)

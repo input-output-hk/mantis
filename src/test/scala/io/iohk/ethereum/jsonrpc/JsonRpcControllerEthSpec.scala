@@ -3,45 +3,31 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.LongPatience
-import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.consensus.blocks.PendingBlock
-import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthBlocksService.GetUncleCountByBlockHashResponse
-import io.iohk.ethereum.jsonrpc.EthBlocksService.GetUncleCountByBlockNumberResponse
+import io.iohk.ethereum.jsonrpc.EthBlocksService.{GetUncleCountByBlockHashResponse, GetUncleCountByBlockNumberResponse}
 import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
-import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
-import io.iohk.ethereum.jsonrpc.ProofService.ProofAccount
-import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
-import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProofKey, StorageValueProof}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.{Fixtures, LongPatience, Timeouts, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.ScalaFutures
+import org.json4s.{DefaultFormats, Extraction, Formats}
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 

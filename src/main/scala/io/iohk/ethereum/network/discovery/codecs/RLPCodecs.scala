@@ -1,26 +1,17 @@
 package io.iohk.ethereum.network.discovery.codecs
 
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPCodec
 import io.iohk.ethereum.rlp.RLPCodec.Ops
-import io.iohk.ethereum.rlp.RLPEncodeable
-import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toEncodeable
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.scalanet.discovery.crypto.PublicKey
-import io.iohk.scalanet.discovery.crypto.Signature
-import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
-import io.iohk.scalanet.discovery.ethereum.Node
+import io.iohk.ethereum.rlp.{RLPCodec, RLPEncodeable, RLPEncoder, RLPList}
+import io.iohk.scalanet.discovery.crypto.{PublicKey, Signature}
 import io.iohk.scalanet.discovery.ethereum.v4.Payload
+import io.iohk.scalanet.discovery.ethereum.{EthereumNodeRecord, Node}
 import io.iohk.scalanet.discovery.hash.Hash
-import scodec.Attempt
-import scodec.Codec
-import scodec.DecodeResult
-import scodec.Err
-import scodec.bits.BitVector
-import scodec.bits.ByteVector
+import scodec.bits.{BitVector, ByteVector}
+import scodec.{Attempt, Codec, DecodeResult, Err}
 
 import java.net.InetAddress
 import scala.util.Try
@@ -140,8 +131,7 @@ trait ContentCodecs {
 
 trait PayloadCodecs { self: ContentCodecs =>
 
-  implicit private val payloadDerivationPolicy =
-    DerivationPolicy.default.copy(omitTrailingOptionals = true)
+  DerivationPolicy.default.copy(omitTrailingOptionals = true)
 
   implicit val pingRLPCodec: RLPCodec[Payload.Ping] =
     deriveLabelledGenericRLPCodec

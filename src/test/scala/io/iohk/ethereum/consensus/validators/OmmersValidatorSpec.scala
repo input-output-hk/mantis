@@ -3,12 +3,9 @@ package io.iohk.ethereum.consensus.validators
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError._
-import io.iohk.ethereum.consensus.ethash.validators.StdOmmersValidator
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.consensus.ethash.validators.{EthashBlockHeaderValidator, StdOmmersValidator}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -1,16 +1,12 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import boopickle.Default.Pickle
-import boopickle.Default.Unpickle
+import boopickle.Default.{Pickle, Unpickle}
 import boopickle.DefaultBasic._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.SuccessOutcome
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.domain.{Address, SuccessOutcome, _}
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 
 /** This class is used to store the Receipts, by using:
   * Key: hash of the block to which the list of receipts belong

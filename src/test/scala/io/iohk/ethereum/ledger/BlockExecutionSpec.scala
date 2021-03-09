@@ -1,18 +1,14 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.Mocks.MockValidatorsFailOnSpecificBlockNumber
-import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed, MockValidatorsFailOnSpecificBlockNumber}
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import io.iohk.ethereum.vm.OutOfGas
+import io.iohk.ethereum.{BlockHelpers, Mocks, ObjectGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor4
 import org.scalatest.wordspec.AnyWordSpec

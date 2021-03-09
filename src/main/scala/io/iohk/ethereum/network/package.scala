@@ -6,10 +6,8 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex
 
-import java.io.File
-import java.io.PrintWriter
-import java.net.Inet6Address
-import java.net.InetAddress
+import java.io.{File, PrintWriter}
+import java.net.{Inet6Address, InetAddress}
 import java.security.SecureRandom
 import scala.io.Source
 

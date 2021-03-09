@@ -2,8 +2,7 @@ package io.iohk.ethereum.faucet
 
 import com.typesafe.config.Config
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 
 case class SupervisorConfig(
     minBackoff: FiniteDuration,

@@ -4,8 +4,7 @@ import cats.data.State
 import cats.implicits._
 import cats.kernel.Monoid
 import io.iohk.ethereum.utils.MockClock
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Inspectors
 import org.scalatest.compatible.Assertion
 import org.scalatest.flatspec.AnyFlatSpec

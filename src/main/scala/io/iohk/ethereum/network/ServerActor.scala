@@ -1,17 +1,9 @@
 package io.iohk.ethereum.network
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.io.IO
-import akka.io.Tcp
-import akka.io.Tcp.Bind
-import akka.io.Tcp.Bound
-import akka.io.Tcp.CommandFailed
-import akka.io.Tcp.Connected
-import io.iohk.ethereum.utils.NodeStatus
-import io.iohk.ethereum.utils.ServerStatus
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
+import akka.io.{IO, Tcp}
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import org.bouncycastle.util.encoders.Hex
 
 import java.net.InetSocketAddress

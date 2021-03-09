@@ -2,11 +2,7 @@ package io.iohk.ethereum.extvm
 
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Keep
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.SinkQueueWithCancel
-import akka.stream.scaladsl.Source
-import akka.stream.scaladsl.SourceQueueWithComplete
+import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.google.protobuf.CodedOutputStream
@@ -16,10 +12,8 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import scalapb.GeneratedMessage
-import scalapb.GeneratedMessageCompanion
-import scalapb.descriptors.FieldDescriptor
-import scalapb.descriptors.PValue
+import scalapb.descriptors.{FieldDescriptor, PValue}
+import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
 
 import java.math.BigInteger
 import scala.concurrent.ExecutionContext.Implicits.global

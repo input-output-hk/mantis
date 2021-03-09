@@ -3,12 +3,9 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 
 import Fixtures.blockchainConfig
 

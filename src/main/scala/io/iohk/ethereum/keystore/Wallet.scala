@@ -2,10 +2,7 @@ package io.iohk.ethereum.keystore
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.SignedTransactionWithSender
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 case class Wallet(address: Address, prvKey: ByteString) {

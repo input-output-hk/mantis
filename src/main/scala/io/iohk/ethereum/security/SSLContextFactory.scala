@@ -1,8 +1,7 @@
 package io.iohk.ethereum.security
 
 import java.io.FileInputStream
-import java.security.KeyStore
-import java.security.SecureRandom
+import java.security.{KeyStore, SecureRandom}
 import javax.net.ssl.SSLContext
 import scala.util.Try
 

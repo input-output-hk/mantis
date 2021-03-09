@@ -1,15 +1,10 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.cache.LruCache
-import io.iohk.ethereum.db.cache.MapCache
-import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
-import io.iohk.ethereum.db.storage.StateStorage.FlushSituation
-import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
-import io.iohk.ethereum.db.storage.pruning.ArchivePruning
-import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.db.cache.{LruCache, MapCache}
+import io.iohk.ethereum.db.dataSource.{DataSource, EphemDataSource}
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.StateStorage.{FlushSituation, GenesisDataLoad}
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.utils.Config.NodeCacheConfig

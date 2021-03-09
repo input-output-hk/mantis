@@ -1,16 +1,9 @@
 package io.iohk.ethereum.mpt.MptVisitors
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
-import io.iohk.ethereum.mpt.BranchNode
-import io.iohk.ethereum.mpt.ExtensionNode
-import io.iohk.ethereum.mpt.HashNode
-import io.iohk.ethereum.mpt.LeafNode
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.mpt.Node
-import io.iohk.ethereum.rlp.RLPEncodeable
-import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, Node}
+import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
 
 class NodeCapper(withUpdates: Boolean) {
   private var nodesToUpdate = List.empty[(NodeHash, NodeEncoded)]

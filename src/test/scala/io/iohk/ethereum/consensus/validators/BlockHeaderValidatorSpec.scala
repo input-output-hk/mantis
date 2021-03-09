@@ -1,9 +1,6 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.SuperSlow
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
@@ -11,10 +8,9 @@ import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.domain.UInt256
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.DaoForkConfig
+import io.iohk.ethereum.domain.{UInt256, _}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, SuperSlow}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -306,7 +302,7 @@ class BlockHeaderValidatorSpec
       * extraDifficulty = 134217728
       * difficultyWithoutBomb = 3480699544328087 + 1699560324378,95 * 0,33 = 3481260399235132
       */
-    val blockDifficultyAfterRewardReduction = BigInt("3484099629090779")
+    BigInt("3484099629090779")
 
     difficulty shouldBe afterRewardReductionBlockHeader.difficulty
   }

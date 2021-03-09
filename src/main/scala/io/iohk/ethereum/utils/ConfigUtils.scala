@@ -2,8 +2,7 @@ package io.iohk.ethereum.utils
 
 import akka.http.scaladsl.model.headers.HttpOrigin
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import com.typesafe.config.ConfigValue
-import com.typesafe.config.{Config => TypesafeConfig}
+import com.typesafe.config.{Config => TypesafeConfig, ConfigValue}
 
 import java.util.Map.Entry
 import scala.jdk.CollectionConverters._

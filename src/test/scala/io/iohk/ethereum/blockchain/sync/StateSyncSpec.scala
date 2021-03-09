@@ -1,35 +1,22 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RestartRequested
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StartSyncingTo
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFinished
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncStats
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{RestartRequested, StartSyncingTo, StateSyncFinished, StateSyncStats, WaitingForNewTargetBlock}
+import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import org.scalactic.anyvals.PosInt

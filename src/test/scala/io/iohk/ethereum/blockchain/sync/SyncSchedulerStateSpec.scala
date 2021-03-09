@@ -1,9 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.StateNode
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.StateNodeRequest
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{SchedulerState, StateNode, StateNodeRequest}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 

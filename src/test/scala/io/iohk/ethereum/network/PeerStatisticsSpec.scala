@@ -1,8 +1,7 @@
 package io.iohk.ethereum.network
 
 import akka.actor._
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.network.PeerEventBusActor._
 import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes

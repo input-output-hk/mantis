@@ -1,12 +1,10 @@
 package io.iohk.ethereum
 
 import io.iohk.ethereum.cli.CliLauncher
-import io.iohk.ethereum.crypto.EcKeyGen
-import io.iohk.ethereum.crypto.SignatureValidator
+import io.iohk.ethereum.crypto.{EcKeyGen, SignatureValidator}
 import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.faucet.Faucet
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{Config, Logger}
 
 object App extends Logger {
 

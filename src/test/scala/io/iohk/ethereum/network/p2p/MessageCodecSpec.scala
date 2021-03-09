@@ -6,8 +6,7 @@ import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
-import io.iohk.ethereum.network.rlpx.FrameCodec
-import io.iohk.ethereum.network.rlpx.MessageCodec
+import io.iohk.ethereum.network.rlpx.{FrameCodec, MessageCodec}
 import io.iohk.ethereum.utils.Config
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -16,7 +15,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
   it should "not compress messages when remote side advertises p2p version less than 5" in new TestSetup {
     val remoteHello = remoteMessageCodec.encodeMessage(helloV4)
-    val localReceivedRemoteHello = messageCodec.readMessages(remoteHello)
+    messageCodec.readMessages(remoteHello)
 
     val localNextMessageAfterHello = messageCodec.encodeMessage(status)
     val remoteReadNotCompressedStatus = remoteMessageCodec.readMessages(localNextMessageAfterHello)
@@ -28,7 +27,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
   it should "compress messages when remote side advertises p2p version larger or equal 5" in new TestSetup {
     val remoteHello = remoteMessageCodec.encodeMessage(helloV5)
-    val localReceivedRemoteHello = messageCodec.readMessages(remoteHello)
+    messageCodec.readMessages(remoteHello)
 
     val localNextMessageAfterHello = messageCodec.encodeMessage(status)
     val remoteReadNotCompressedStatus = remoteMessageCodec.readMessages(localNextMessageAfterHello)
@@ -41,10 +40,10 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
   it should "compress messages when both sides advertises p2p version larger or equal 5" in new TestSetup {
     val remoteHello = remoteMessageCodec.encodeMessage(helloV5)
-    val localReceivedRemoteHello = messageCodec.readMessages(remoteHello)
+    messageCodec.readMessages(remoteHello)
 
     val localHello = messageCodec.encodeMessage(helloV5)
-    val remoteReceivedLocalHello = remoteMessageCodec.readMessages(localHello)
+    remoteMessageCodec.readMessages(localHello)
 
     val localNextMessageAfterHello = messageCodec.encodeMessage(status)
     val remoteReadNextMessageAfterHello = remoteMessageCodec.readMessages(localNextMessageAfterHello)
@@ -56,7 +55,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
   it should "compress and decompress first message after hello when receiving 2 frames" in new TestSetup {
     val remoteHello = remoteMessageCodec.encodeMessage(helloV5)
-    val localReceivedRemoteHello = messageCodec.readMessages(remoteHello)
+    messageCodec.readMessages(remoteHello)
 
     // hello won't be compressed as per spec it never is, and status will be compressed as remote peer advertised proper versions
     val localHello = messageCodec.encodeMessage(helloV5)

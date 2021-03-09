@@ -2,9 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.{Address, SignedTransaction, Transaction}
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex

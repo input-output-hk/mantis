@@ -2,8 +2,7 @@ package io.iohk.ethereum.network.discovery
 
 import io.iohk.ethereum.utils.ConfigUtils
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 
 case class DiscoveryConfig(
     discoveryEnabled: Boolean,

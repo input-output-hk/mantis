@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -206,7 +205,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
     val newWeight2 = weight1.increase(newBlock2.header)
-    val newWeight3 = newWeight2.increase(newBlock3.header)
+    newWeight2.increase(newBlock3.header)
     val oldWeight2 = weight1.increase(oldBlock2.header)
     val oldWeight3 = oldWeight2.increase(oldBlock3.header)
 

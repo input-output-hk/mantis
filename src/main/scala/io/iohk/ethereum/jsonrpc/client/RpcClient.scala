@@ -1,27 +1,22 @@
 package io.iohk.ethereum.jsonrpc.client
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.ConnectionContext
-import akka.http.scaladsl.Http
-import akka.http.scaladsl.HttpsConnectionContext
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.settings.ClientConnectionSettings
-import akka.http.scaladsl.settings.ConnectionPoolSettings
+import akka.http.scaladsl.settings.{ClientConnectionSettings, ConnectionPoolSettings}
 import akka.http.scaladsl.unmarshalling.Unmarshal
+import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import akka.stream.StreamTcpException
 import akka.stream.scaladsl.TcpIdleTimeoutException
-import io.circe.Decoder
-import io.circe.Json
 import io.circe.generic.auto._
 import io.circe.parser.parse
 import io.circe.syntax._
+import io.circe.{Decoder, Json}
 import io.iohk.ethereum.jsonrpc.JsonRpcError
 import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
-import java.io.PrintWriter
-import java.io.StringWriter
+import java.io.{PrintWriter, StringWriter}
 import java.util.UUID
 import javax.net.ssl.SSLContext
 import scala.concurrent.ExecutionContext
@@ -98,12 +93,7 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
       "id" -> s"${UUID.randomUUID()}".asJson
     ).asJson
 
-  private def exceptionToString(ex: Throwable): String = {
-    val sw = new StringWriter()
-    sw.append(ex.getMessage + "\n")
-    ex.printStackTrace(new PrintWriter(sw))
-    sw.toString
-  }
+  
 
 }
 

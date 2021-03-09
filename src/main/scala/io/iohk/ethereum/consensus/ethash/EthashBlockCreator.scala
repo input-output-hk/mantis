@@ -4,8 +4,7 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.{Address, Block}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool

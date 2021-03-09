@@ -1,14 +1,12 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, rlp}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.freespec.AnyFreeSpec
 import org.scalatest.matchers.should.Matchers

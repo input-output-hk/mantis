@@ -217,24 +217,24 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
     val storage = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 1)
 
-    val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage)
+    insertRangeKeys(1, storage)
 
     val storage2 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 2)
 
-    val inserted2: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage2)
+    insertRangeKeys(1, storage2)
 
     val storage3 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 3)
 
-    val inserted3: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage3)
+    insertRangeKeys(1, storage3)
 
     // we are still in memory as cache size = 7 < 10
     cachedNodeStorage.persist() shouldEqual false
     dataSource.storage.size shouldEqual 0
     underlying.size shouldEqual 7 // 1 key + 3 block indexex + 3 snapshots
 
-    val storage4 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 4)
+    new ReferenceCountNodeStorage(cachedNodeStorage, bn = 4)
 
-    val inserted4: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage3)
+    insertRangeKeys(4, storage3)
     ReferenceCountNodeStorage.prune(1, cachedNodeStorage, inMemory = true)
 
     // Number of nodes in cache > maxsize, so everything goes to data source, including unpruned blocks 2,3,4
@@ -243,8 +243,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     underlying.size shouldEqual 0
 
     // Now as our block to prune(2) is <= best saved block(4), we need to prune junk from disk
-    val storage5 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 5)
-    val inserted5: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage3)
+    new ReferenceCountNodeStorage(cachedNodeStorage, bn = 5)
+    insertRangeKeys(4, storage3)
     ReferenceCountNodeStorage.prune(2, cachedNodeStorage, inMemory = false)
 
     cachedNodeStorage.persist() shouldEqual false //

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.metrics
 
-import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
 
 /** A gauge that starts at `0` and can be triggered to go to `1`.
   * Next time it is sampled, it goes back to `0`.
@@ -20,7 +19,7 @@ class DeltaSpikeGauge(name: String, metrics: Metrics) {
       valueRef.get()
     }
 
-  final private[this] val gauge = metrics.gauge(name, () => getValue())
+  metrics.gauge(name, () => getValue())
 
   def trigger(): Unit =
     if (isTriggeredRef.compareAndSet(false, true)) {

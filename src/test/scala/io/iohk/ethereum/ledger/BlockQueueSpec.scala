@@ -1,15 +1,11 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

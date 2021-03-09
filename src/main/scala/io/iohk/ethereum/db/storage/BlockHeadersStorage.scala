@@ -1,13 +1,11 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import boopickle.Default.Pickle
-import boopickle.Default.Unpickle
+import boopickle.Default.{Pickle, Unpickle}
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
 import io.iohk.ethereum.utils.Picklers._
 
 /** This class is used to store the BlockHeader, by using:

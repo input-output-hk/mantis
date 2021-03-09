@@ -1,16 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.EthashUtils
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.ledger.Ledger
@@ -21,8 +18,7 @@ import monix.eval.Task
 import java.time.Duration
 import java.util.Date
 import java.util.concurrent.atomic.AtomicReference
-import scala.collection.concurrent.TrieMap
-import scala.collection.concurrent.{Map => ConcurrentMap}
+import scala.collection.concurrent.{Map => ConcurrentMap, TrieMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 

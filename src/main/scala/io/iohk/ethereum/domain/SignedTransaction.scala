@@ -1,11 +1,9 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import com.google.common.cache.Cache
-import com.google.common.cache.CacheBuilder
+import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._

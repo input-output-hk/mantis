@@ -3,21 +3,14 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.mpt.BranchNode
-import io.iohk.ethereum.mpt.ExtensionNode
-import io.iohk.ethereum.mpt.HashNode
-import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.mpt.HexPrefix.{encode => hpEncode}
-import io.iohk.ethereum.mpt.LeafNode
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.mpt.NullNode
+import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
+import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, NullNode}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
 import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.rlp.encode
+import io.iohk.ethereum.rlp.{encode, _}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

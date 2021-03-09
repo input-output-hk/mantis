@@ -1,8 +1,6 @@
 package io.iohk.ethereum.db.dataSource
 
-import io.iohk.ethereum.db.dataSource.DataSource.Key
-import io.iohk.ethereum.db.dataSource.DataSource.Namespace
-import io.iohk.ethereum.db.dataSource.DataSource.Value
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 
 sealed trait DataUpdate
 

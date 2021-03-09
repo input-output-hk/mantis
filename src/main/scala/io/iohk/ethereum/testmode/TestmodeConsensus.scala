@@ -2,25 +2,15 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
-import io.iohk.ethereum.consensus.blocks.NoOmmersBlockGenerator
-import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.MinerProtocol
-import io.iohk.ethereum.consensus.ethash.MinerResponse
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
+import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.ledger.BlockExecutionError
-import io.iohk.ethereum.ledger.BlockExecutionSuccess
-import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task

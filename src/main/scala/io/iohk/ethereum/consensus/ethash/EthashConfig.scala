@@ -4,8 +4,7 @@ package ethash
 
 import com.typesafe.config.{Config => TypesafeConfig}
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 
 final case class EthashConfig(
     ommersPoolSize: Int,

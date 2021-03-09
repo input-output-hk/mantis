@@ -1,8 +1,7 @@
 package io.iohk.ethereum.utils
 
 import com.typesafe.scalalogging
-import org.slf4j.LoggerFactory
-import org.slf4j.MDC
+import org.slf4j.{LoggerFactory, MDC}
 
 trait Logger {
   val log: scalalogging.Logger = com.typesafe.scalalogging.Logger(LoggerFactory.getLogger(getClass))

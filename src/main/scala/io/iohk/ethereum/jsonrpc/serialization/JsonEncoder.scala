@@ -1,13 +1,7 @@
 package io.iohk.ethereum.jsonrpc.serialization
 
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
-import org.json4s.JArray
-import org.json4s.JBool
-import org.json4s.JInt
-import org.json4s.JLong
-import org.json4s.JNull
-import org.json4s.JString
-import org.json4s.JValue
+import org.json4s.{JArray, JBool, JInt, JLong, JNull, JString, JValue}
 
 trait JsonEncoder[T] {
   def encodeJson(t: T): JValue

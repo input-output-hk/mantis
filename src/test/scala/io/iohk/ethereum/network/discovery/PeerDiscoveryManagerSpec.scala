@@ -1,17 +1,13 @@
 package io.iohk.ethereum.network.discovery
 
 import akka.actor.ActorSystem
-import akka.pattern.AskTimeoutException
-import akka.pattern.ask
-import akka.testkit.TestActorRef
-import akka.testkit.TestKit
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.pattern.{AskTimeoutException, ask}
+import akka.testkit.{TestActorRef, TestKit}
+import akka.util.{ByteString, Timeout}
 import cats.effect.Resource
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown}
 import io.iohk.scalanet.discovery.crypto.PublicKey
 import io.iohk.scalanet.discovery.ethereum.v4.DiscoveryService
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
@@ -19,8 +15,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.execution.atomic.AtomicInt
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
@@ -258,7 +253,7 @@ class PeerDiscoveryManagerSpec
         eventually {
           val n0 = getRandomPeer.futureValue.node
           val n1 = getRandomPeer.futureValue.node
-          val n2 = getRandomPeer.futureValue.node
+          getRandomPeer.futureValue.node
 
           Set(n0, n1) shouldBe randomNodes
         }

@@ -3,16 +3,10 @@ package io.iohk.ethereum.proof
 import akka.util.ByteString
 import cats.syntax.either._
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage
-import io.iohk.ethereum.db.storage.SerializingMptStorage
-import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.db.storage.{NodeStorage, SerializingMptStorage, StateStorage}
 import io.iohk.ethereum.jsonrpc.ProofService.MptProofError
-import io.iohk.ethereum.mpt.ByteArrayEncoder
-import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.proof.ProofVerifyResult.InvalidProof
-import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
+import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.proof.ProofVerifyResult.{InvalidProof, ValidProof}
 
 sealed trait ProofVerifyResult
 object ProofVerifyResult {

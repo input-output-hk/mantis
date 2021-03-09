@@ -2,27 +2,19 @@ package io.iohk.ethereum.blockchain.data
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.{crypto, rlp}
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.CustomSerializer
-import org.json4s.DefaultFormats
-import org.json4s.Formats
-import org.json4s.JString
-import org.json4s.JValue
+import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
 
 import java.io.FileNotFoundException
 import scala.io.Source
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConfig) extends Logger {
 

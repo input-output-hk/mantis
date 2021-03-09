@@ -6,15 +6,9 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.Web3Service.ClientVersionRequest
-import io.iohk.ethereum.jsonrpc.Web3Service.ClientVersionResponse
-import io.iohk.ethereum.jsonrpc.Web3Service.Sha3Request
-import io.iohk.ethereum.jsonrpc.Web3Service.Sha3Response
-import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
+import io.iohk.ethereum.jsonrpc.Web3Service.{ClientVersionRequest, ClientVersionResponse, Sha3Request, Sha3Response}
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder, JsonSerializers}
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST._

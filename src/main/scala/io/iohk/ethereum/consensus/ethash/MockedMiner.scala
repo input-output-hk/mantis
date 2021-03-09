@@ -1,22 +1,15 @@
 package io.iohk.ethereum.consensus.ethash
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
 import akka.actor.Status.Failure
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
-import io.iohk.ethereum.consensus.ethash.MinerProtocol.StartMining
-import io.iohk.ethereum.consensus.ethash.MinerProtocol.StopMining
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerIsWorking
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningError
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningOrdered
+import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
+import io.iohk.ethereum.consensus.ethash.MinerResponses.{MinerIsWorking, MiningError, MiningOrdered}
 import io.iohk.ethereum.consensus.ethash.MockedMiner.MineBlock
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.wrongConsensusArgument
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils

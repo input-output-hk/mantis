@@ -2,12 +2,9 @@ package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.VmConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 import io.iohk.ethereum.vm
-import io.iohk.ethereum.vm.WorldStateProxy
-import io.iohk.ethereum.vm._
+import io.iohk.ethereum.vm.{WorldStateProxy, _}
 import scalapb.UnknownFieldSet
 
 import scala.annotation.tailrec

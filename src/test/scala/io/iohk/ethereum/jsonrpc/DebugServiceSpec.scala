@@ -1,21 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.WithActorSystemShutDown
+import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 
 import java.net.URI
 import scala.collection.immutable.ArraySeq

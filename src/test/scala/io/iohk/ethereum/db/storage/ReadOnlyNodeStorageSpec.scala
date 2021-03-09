@@ -1,11 +1,9 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.cache.LruCache
-import io.iohk.ethereum.db.cache.MapCache
+import io.iohk.ethereum.db.cache.{LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
 import io.iohk.ethereum.mpt.LeafNode

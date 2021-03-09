@@ -1,30 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.ActorRef
-import akka.actor.Props
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 
 /** BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.

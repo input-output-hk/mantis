@@ -2,8 +2,7 @@ package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Address, UInt256}
 
 import language.implicitConversions
 

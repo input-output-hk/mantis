@@ -1,13 +1,10 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.FilterManager.FilterChanges
-import io.iohk.ethereum.jsonrpc.FilterManager.FilterLogs
-import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
+import io.iohk.ethereum.jsonrpc.FilterManager.{FilterChanges, FilterLogs, LogFilterLogs}
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
 import io.iohk.ethereum.utils._
 

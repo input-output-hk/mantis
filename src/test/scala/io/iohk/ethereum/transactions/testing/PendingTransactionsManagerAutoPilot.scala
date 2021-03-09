@@ -2,8 +2,7 @@ package io.iohk.ethereum.transactions.testing
 import akka.actor.ActorRef
 import akka.testkit.TestActor.AutoPilot
 import akka.util.ByteString
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.SignedTransactionWithSender
+import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 

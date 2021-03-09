@@ -2,10 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
 class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: BlockQueue) {

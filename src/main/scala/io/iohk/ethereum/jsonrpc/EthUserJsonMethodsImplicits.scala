@@ -2,8 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import org.json4s.JsonAST._
 
 object EthUserJsonMethodsImplicits extends JsonMethodsImplicits {

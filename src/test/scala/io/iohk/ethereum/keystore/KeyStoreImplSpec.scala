@@ -2,13 +2,9 @@ package io.iohk.ethereum.keystore
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
-import io.iohk.ethereum.keystore.KeyStore.IOError
-import io.iohk.ethereum.keystore.KeyStore.KeyNotFound
-import io.iohk.ethereum.keystore.KeyStore.PassPhraseTooShort
+import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError, KeyNotFound, PassPhraseTooShort}
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.KeyStoreConfig
+import io.iohk.ethereum.utils.{Config, KeyStoreConfig}
 import org.apache.commons.io.FileUtils
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.BeforeAndAfter
@@ -16,10 +12,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.File
-import java.nio.file.FileSystemException
-import java.nio.file.FileSystems
-import java.nio.file.Files
-import java.nio.file.Path
+import java.nio.file.{FileSystemException, FileSystems, Files, Path}
 import scala.util.Try
 
 class KeyStoreImplSpec extends AnyFlatSpec with Matchers with BeforeAndAfter with SecureRandomBuilder {

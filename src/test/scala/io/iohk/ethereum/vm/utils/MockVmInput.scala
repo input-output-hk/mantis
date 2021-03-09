@@ -3,10 +3,7 @@ package io.iohk.ethereum.vm.utils
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.{Address, BlockHeader, SignedTransaction, Transaction}
 
 object MockVmInput {
 

@@ -3,8 +3,7 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 

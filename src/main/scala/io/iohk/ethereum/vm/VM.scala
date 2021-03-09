@@ -1,8 +1,7 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.Logger
 
 import scala.annotation.tailrec

@@ -3,30 +3,18 @@ package io.iohk.ethereum.extvm
 import akka.NotUsed
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.Flow
-import akka.stream.scaladsl.Framing
-import akka.stream.scaladsl.Keep
-import akka.stream.scaladsl.Sink
-import akka.stream.scaladsl.Source
-import akka.stream.scaladsl.Tcp
+import akka.stream.scaladsl.{Flow, Framing, Keep, Sink, Source, Tcp}
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
 import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Address, BlockHeader}
 import io.iohk.ethereum.extvm.Implicits._
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm.BlockchainConfigForEvm
-import io.iohk.ethereum.vm.EvmConfig
-import io.iohk.ethereum.vm.ProgramContext
-import io.iohk.ethereum.vm.ProgramResult
-import io.iohk.ethereum.vm.VM
+import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig, ProgramContext, ProgramResult, VM}
 
 import java.nio.ByteOrder
 import scala.annotation.tailrec
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object VmServerApp extends Logger {
 

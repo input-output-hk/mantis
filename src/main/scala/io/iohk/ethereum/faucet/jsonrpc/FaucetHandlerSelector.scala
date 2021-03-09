@@ -1,12 +1,9 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.RetrySupport
 import akka.util.Timeout
-import io.iohk.ethereum.faucet.FaucetConfigBuilder
-import io.iohk.ethereum.faucet.FaucetHandler
-import io.iohk.ethereum.faucet.FaucetSupervisor
+import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetHandler, FaucetSupervisor}
 import monix.eval.Task
 
 trait FaucetHandlerSelector {

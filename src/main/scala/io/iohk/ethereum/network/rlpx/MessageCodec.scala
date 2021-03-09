@@ -2,16 +2,12 @@ package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.MessageDecoder
-import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import org.xerial.snappy.Snappy
 
 import java.util.concurrent.atomic.AtomicInteger
-import scala.util.Failure
-import scala.util.Success
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
 

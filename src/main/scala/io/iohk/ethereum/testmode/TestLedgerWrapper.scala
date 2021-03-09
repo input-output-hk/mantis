@@ -2,9 +2,7 @@ package io.iohk.ethereum.testmode
 
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.ledger.LedgerImpl
-import io.iohk.ethereum.ledger.StxLedger
+import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler

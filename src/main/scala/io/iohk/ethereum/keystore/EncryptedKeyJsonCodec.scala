@@ -4,15 +4,10 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.CustomSerializer
-import org.json4s.DefaultFormats
-import org.json4s.Extraction
-import org.json4s.JField
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
+import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
 
 import java.util.UUID
 import scala.util.Try

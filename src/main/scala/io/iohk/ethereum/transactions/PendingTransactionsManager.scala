@@ -1,25 +1,14 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.util.ByteString
-import akka.util.Timeout
-import com.google.common.cache.Cache
-import com.google.common.cache.CacheBuilder
-import com.google.common.cache.RemovalNotification
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.SignedTransactionWithSender
+import akka.actor.{Actor, ActorRef, Props}
+import akka.util.{ByteString, Timeout}
+import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
+import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
 import io.iohk.ethereum.metrics.MetricsContainer
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier
-import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
 
@@ -69,8 +58,7 @@ class PendingTransactionsManager(
   import PendingTransactionsManager._
   import akka.pattern.ask
 
-  final private[this] val TransactionsPoolSizeGauge =
-    metrics.gauge(
+  metrics.gauge(
       "transactions.pool.size.gauge",
       () => pendingTransactions.size().toDouble
     )

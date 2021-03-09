@@ -3,16 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.Timeout
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfoResponse
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, PeerInfoResponse}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
 import monix.eval.Task
 
 import scala.concurrent.duration._

@@ -1,14 +1,10 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
-import akka.actor.PoisonPill
+import akka.actor.{ActorRef, ActorSystem, PoisonPill}
 import akka.pattern.ask
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.TestKitBase
-import akka.testkit.TestProbe
-import akka.util.ByteString
-import akka.util.Timeout
+import akka.testkit.{TestKitBase, TestProbe}
+import akka.util.{ByteString, Timeout}
 import cats.Eq
 import cats.implicits._
 import io.iohk.ethereum.BlockHelpers
@@ -18,18 +14,15 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
-import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
@@ -41,8 +34,7 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.InetSocketAddress
 import scala.collection.mutable
-import scala.concurrent.duration.DurationInt
-import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigInt
 import scala.reflect.ClassTag
 

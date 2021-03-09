@@ -1,12 +1,10 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.{Account, Address}
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.Millis
-import org.scalatest.time.Span
+import org.scalatest.time.{Millis, Span}
 
 import java.time.Duration
 

@@ -4,8 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1098}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._

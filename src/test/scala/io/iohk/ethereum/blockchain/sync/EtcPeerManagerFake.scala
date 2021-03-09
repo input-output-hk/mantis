@@ -1,30 +1,21 @@
 package io.iohk.ethereum.blockchain.sync
-import akka.actor.ActorRef
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import cats.effect.concurrent.Deferred
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
-import monix.reactive.subjects.ReplaySubject
-import monix.reactive.subjects.Subject
+import monix.reactive.subjects.{ReplaySubject, Subject}
 
 class EtcPeerManagerFake(
     syncConfig: SyncConfig,

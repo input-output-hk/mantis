@@ -4,12 +4,10 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionS
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.StateBeforeFailure
-import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger._
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.vm.{PC => _, _}
 
 import scala.annotation.tailrec

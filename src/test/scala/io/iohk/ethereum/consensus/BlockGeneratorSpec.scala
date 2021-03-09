@@ -9,14 +9,10 @@ import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecution
-import io.iohk.ethereum.ledger.BlockQueue
-import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
 import monix.execution.Scheduler
@@ -105,7 +101,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    val res = ledger.importBlock(fullBlock).runSyncUnsafe()
+    ledger.importBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(

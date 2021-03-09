@@ -1,9 +1,7 @@
 package io.iohk.ethereum.db.dataSource
 
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.DataSource.Key
-import io.iohk.ethereum.db.dataSource.DataSource.Namespace
-import io.iohk.ethereum.db.dataSource.DataSource.Value
+import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.RocksDbDataSourceClosedException
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

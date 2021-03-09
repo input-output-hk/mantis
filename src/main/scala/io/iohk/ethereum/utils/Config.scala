@@ -1,17 +1,11 @@
 package io.iohk.ethereum.utils
 
-import akka.util.ByteString
-import akka.util.Timeout
-import com.typesafe.config.ConfigFactory
-import com.typesafe.config.{Config => TypesafeConfig}
+import akka.util.{ByteString, Timeout}
+import com.typesafe.config.{Config => TypesafeConfig, ConfigFactory}
 import io.iohk.ethereum.db.dataSource.RocksDbConfig
-import io.iohk.ethereum.db.storage.pruning.ArchivePruning
-import io.iohk.ethereum.db.storage.pruning.BasicPruning
-import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
-import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.VmConfig.VmMode
 

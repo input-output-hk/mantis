@@ -2,16 +2,10 @@ package io.iohk.ethereum.network.discovery.codecs
 
 import _root_.io.iohk.ethereum.rlp.RLPException
 import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
-import io.iohk.ethereum.rlp.RLPDecoder
-import io.iohk.ethereum.rlp.RLPEncodeable
-import io.iohk.ethereum.rlp.RLPEncoder
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList, RLPValue}
 import io.iohk.scalanet.discovery.crypto.PublicKey
-import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
-import io.iohk.scalanet.discovery.ethereum.Node
-import io.iohk.scalanet.discovery.ethereum.v4.Packet
-import io.iohk.scalanet.discovery.ethereum.v4.Payload
+import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
+import io.iohk.scalanet.discovery.ethereum.{EthereumNodeRecord, Node}
 import io.iohk.scalanet.discovery.hash.Hash
 import org.scalactic.Equality
 import org.scalatest.flatspec.AnyFlatSpec

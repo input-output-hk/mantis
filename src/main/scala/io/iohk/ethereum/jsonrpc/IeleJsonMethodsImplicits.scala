@@ -3,14 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.PersonalService.InvalidAddress
-import io.iohk.ethereum.jsonrpc.PersonalService.SendIeleTransactionRequest
-import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
-import org.json4s.JsonAST.JArray
-import org.json4s.JsonAST.JObject
-import org.json4s.JsonAST.JString
-import org.json4s.JsonAST.JValue
+import io.iohk.ethereum.jsonrpc.PersonalService.{InvalidAddress, SendIeleTransactionRequest}
+import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
+import org.json4s.JsonAST.{JArray, JObject, JString, JValue}
 
 object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
 

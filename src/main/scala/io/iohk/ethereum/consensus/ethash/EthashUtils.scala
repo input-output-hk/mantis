@@ -2,8 +2,7 @@ package io.iohk.ethereum.consensus
 package ethash
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.crypto.kec512
+import io.iohk.ethereum.crypto.{kec256, kec512}
 import io.iohk.ethereum.utils.ByteUtils._
 import org.bouncycastle.util.BigIntegers
 import org.bouncycastle.util.encoders.Hex

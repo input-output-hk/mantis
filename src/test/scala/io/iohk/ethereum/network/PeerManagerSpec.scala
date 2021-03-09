@@ -1,49 +1,31 @@
 package io.iohk.ethereum.network
 
 import akka.actor._
-import akka.testkit.TestActorRef
-import akka.testkit.TestKit
-import akka.testkit.TestProbe
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.PeerActor.ConnectTo
-import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.network.PeerActor.{ConnectTo, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.Publish
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
-import io.iohk.ethereum.network.PeerManagerActor.GetPeers
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.PeerManagerActor.SendMessage
-import io.iohk.ethereum.network.discovery.DiscoveryConfig
-import io.iohk.ethereum.network.discovery.Node
-import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
+import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
-import org.scalacheck.Arbitrary
-import org.scalacheck.Gen
+import org.scalacheck.{Arbitrary, Gen}
 import org.scalatest.Inspectors
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
 
-import java.net.InetSocketAddress
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 import scala.concurrent.duration._
 
 import Arbitrary.arbitrary

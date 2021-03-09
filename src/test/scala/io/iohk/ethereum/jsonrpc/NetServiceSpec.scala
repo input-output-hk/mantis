@@ -2,15 +2,11 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.NetService._
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerActor
-import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.NodeStatus
-import io.iohk.ethereum.utils.ServerStatus
+import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
+import io.iohk.ethereum.{NormalPatience, crypto}
 import monix.execution.Scheduler.Implicits.global
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec

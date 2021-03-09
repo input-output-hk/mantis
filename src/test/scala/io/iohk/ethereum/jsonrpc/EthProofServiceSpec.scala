@@ -8,12 +8,8 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
-import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
-import io.iohk.ethereum.jsonrpc.EthUserService.GetStorageAtRequest
-import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest
-import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
-import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
+import io.iohk.ethereum.jsonrpc.EthUserService.{GetBalanceRequest, GetBalanceResponse, GetStorageAtRequest, GetTransactionCountRequest}
+import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable

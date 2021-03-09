@@ -2,10 +2,7 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockBody
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex

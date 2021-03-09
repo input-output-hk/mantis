@@ -1,15 +1,10 @@
 package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.ActorSystem
-import akka.testkit.TestActorRef
-import akka.testkit.TestKit
+import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerIsWorking
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotSupport
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningError
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningOrdered
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.consensus.ethash.MinerResponses.{MinerIsWorking, MinerNotSupport, MiningError, MiningOrdered}
+import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.ByteStringUtils
 import monix.eval.Task

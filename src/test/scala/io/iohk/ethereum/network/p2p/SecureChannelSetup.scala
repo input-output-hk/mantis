@@ -4,9 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
-import io.iohk.ethereum.network.rlpx.AuthHandshakeSuccess
-import io.iohk.ethereum.network.rlpx.AuthHandshaker
-import io.iohk.ethereum.network.rlpx.Secrets
+import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, Secrets}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters

@@ -5,22 +5,17 @@ import cats.instances.option._
 import cats.syntax.flatMap._
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.utils.ByteStringUtils
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.vm.Storage
-import io.iohk.ethereum.vm.WorldStateProxy
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
 import monix.reactive.Observable
 
 import java.util.concurrent.atomic.AtomicReference

@@ -1,13 +1,11 @@
 package io.iohk.ethereum.blockchain.sync
 
-import com.github.blemale.scaffeine.Cache
-import com.github.blemale.scaffeine.Scaffeine
+import com.github.blemale.scaffeine.{Cache, Scaffeine}
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
 import io.iohk.ethereum.utils.Logger
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.jdk.CollectionConverters._
 import scala.jdk.DurationConverters._
 import scala.jdk.OptionConverters._

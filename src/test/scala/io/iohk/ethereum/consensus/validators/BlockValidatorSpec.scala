@@ -78,7 +78,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
 
   "Block" should "correctly handle the case where a block has no receipts" in {
     StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
-      case Right(validated) => succeed
+      case Right(_) => succeed
       case _                => fail()
     }
   }

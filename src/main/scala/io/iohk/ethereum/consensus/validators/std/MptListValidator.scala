@@ -3,11 +3,9 @@ package std
 
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.decode
-import io.iohk.ethereum.rlp.encode
+import io.iohk.ethereum.rlp.{decode, encode}
 
 object MptListValidator {
 

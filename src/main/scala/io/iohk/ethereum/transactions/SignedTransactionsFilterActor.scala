@@ -1,15 +1,11 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.Actor
-import akka.actor.ActorRef
-import akka.actor.Props
-import akka.dispatch.BoundedMessageQueueSemantics
-import akka.dispatch.RequiresMessageQueue
+import akka.actor.{Actor, ActorRef, Props}
+import akka.dispatch.{BoundedMessageQueueSemantics, RequiresMessageQueue}
 import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
-import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions

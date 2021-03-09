@@ -4,21 +4,13 @@ import cats.effect.Resource
 import cats.implicits._
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
-import org.jupnp.DefaultUpnpServiceConfiguration
-import org.jupnp.QueueingThreadPoolExecutor
-import org.jupnp.UpnpService
-import org.jupnp.UpnpServiceImpl
 import org.jupnp.support.igd.PortMappingListener
 import org.jupnp.support.model.PortMapping
-import org.jupnp.support.model.PortMapping.Protocol.TCP
-import org.jupnp.support.model.PortMapping.Protocol.UDP
+import org.jupnp.support.model.PortMapping.Protocol.{TCP, UDP}
 import org.jupnp.tool.transport.JDKTransportConfiguration
 import org.jupnp.transport.Router
-import org.jupnp.transport.spi.NetworkAddressFactory
-import org.jupnp.transport.spi.StreamClient
-import org.jupnp.transport.spi.StreamClientConfiguration
-import org.jupnp.transport.spi.StreamServer
-import org.jupnp.transport.spi.StreamServerConfiguration
+import org.jupnp.transport.spi.{NetworkAddressFactory, StreamClient, StreamClientConfiguration, StreamServer, StreamServerConfiguration}
+import org.jupnp.{DefaultUpnpServiceConfiguration, QueueingThreadPoolExecutor, UpnpService, UpnpServiceImpl}
 
 import java.net.InetAddress
 import java.util.concurrent.ExecutorService

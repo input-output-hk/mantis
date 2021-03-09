@@ -1,10 +1,8 @@
 package io.iohk.ethereum.network.discovery.codecs
 
 import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
-import io.iohk.scalanet.discovery.crypto.PrivateKey
-import io.iohk.scalanet.discovery.crypto.SigAlg
-import io.iohk.scalanet.discovery.ethereum.v4.Packet
-import io.iohk.scalanet.discovery.ethereum.v4.Payload
+import io.iohk.scalanet.discovery.crypto.{PrivateKey, SigAlg}
+import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
 import org.scalatest.compatible.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -143,7 +141,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
       // See if it survives a roundtrip.
       val bits2 = Codec[Packet].encode(Packet.pack(payload, privateKey).require).require
-      val packet2 = Codec[Packet].decodeValue(bits2).require
+      Codec[Packet].decodeValue(bits2).require
       val (payload2, publicKey2) = Packet.unpack(packet).require
 
       payload2 shouldBe payload

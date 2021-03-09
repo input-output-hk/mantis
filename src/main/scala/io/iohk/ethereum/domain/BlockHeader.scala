@@ -1,18 +1,12 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPDecoder
-import io.iohk.ethereum.rlp.RLPEncodeable
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.rlp.RLPSerializable
-import io.iohk.ethereum.rlp.rawDecode
-import io.iohk.ethereum.rlp.{encode => rlpEncode}
+import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPList, RLPSerializable, encode => rlpEncode, rawDecode}
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.{crypto, rlp}
 
 import BlockHeaderImplicits._
 

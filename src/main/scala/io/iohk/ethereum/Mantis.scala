@@ -1,9 +1,7 @@
 package io.iohk.ethereum
 
-import io.iohk.ethereum.nodebuilder.StdNode
-import io.iohk.ethereum.nodebuilder.TestNode
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
+import io.iohk.ethereum.utils.{Config, Logger}
 
 object Mantis extends Logger {
   def main(args: Array[String]): Unit = {

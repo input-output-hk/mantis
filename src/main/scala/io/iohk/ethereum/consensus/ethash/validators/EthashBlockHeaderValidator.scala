@@ -3,15 +3,12 @@ package validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.BlockHeaderValid
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorSkeleton
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
-import monix.execution.atomic.Atomic
-import monix.execution.atomic.AtomicAny
+import monix.execution.atomic.{Atomic, AtomicAny}
 
 /** A block header validator for Ethash.
   */

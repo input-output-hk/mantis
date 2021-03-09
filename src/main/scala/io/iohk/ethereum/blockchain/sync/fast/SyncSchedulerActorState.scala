@@ -3,12 +3,9 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.ProcessingStatistics
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.PeerRequest
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RequestResult
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{ProcessingStatistics, SchedulerState}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{PeerRequest, RequestResult}
+import io.iohk.ethereum.network.{Peer, PeerId}
 
 import scala.collection.immutable.Queue
 

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.vm.MockWorldState._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

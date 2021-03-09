@@ -1,9 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.Actor
-import akka.actor.ActorLogging
-import akka.actor.Props
-import akka.actor.Scheduler
+import akka.actor.{Actor, ActorLogging, Props, Scheduler}
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 

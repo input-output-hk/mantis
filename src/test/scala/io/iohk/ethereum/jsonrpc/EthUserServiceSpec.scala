@@ -3,15 +3,13 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils._
+import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory

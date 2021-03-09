@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.ActorSystem
-import akka.actor.Props
+import akka.actor.{ActorSystem, Props}
 import akka.testkit.TestProbe
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup

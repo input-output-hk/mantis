@@ -7,8 +7,7 @@ import org.bouncycastle.crypto.StreamCipher
 import org.bouncycastle.crypto.digests.KeccakDigest
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.KeyParameter
-import org.bouncycastle.crypto.params.ParametersWithIV
+import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
 
 import java.io.IOException
 import scala.annotation.tailrec

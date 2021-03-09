@@ -3,8 +3,7 @@ package io.iohk.ethereum.mpt
 import akka.util.ByteString
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.mpt
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
@@ -202,7 +201,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
               nodeStorage.updateNodesInStorage(newRoot = Some(newRoot), toRemove = nodesToRemoveFromStorage)
             new MerklePatriciaTrie(newRootNode, nodeStorage)(kSerializer, vSerializer)
           case NodeRemoveResult(true, None, nodesToRemoveFromStorage) =>
-            val newRootNode = nodeStorage.updateNodesInStorage(newRoot = None, toRemove = nodesToRemoveFromStorage)
+            nodeStorage.updateNodesInStorage(newRoot = None, toRemove = nodesToRemoveFromStorage)
             new MerklePatriciaTrie(None, nodeStorage)(kSerializer, vSerializer)
           case NodeRemoveResult(false, _, _) => this
         }

@@ -4,10 +4,7 @@ import io.iohk.ethereum.utils.Logger
 
 import java.io.FileInputStream
 import java.security.KeyStore
-import javax.net.ssl.KeyManager
-import javax.net.ssl.KeyManagerFactory
-import javax.net.ssl.TrustManager
-import javax.net.ssl.TrustManagerFactory
+import javax.net.ssl.{KeyManager, KeyManagerFactory, TrustManager, TrustManagerFactory}
 import scala.util.Try
 
 trait KeyStoreUtils extends Logger {

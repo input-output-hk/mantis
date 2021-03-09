@@ -2,33 +2,20 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.LongPatience
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
-import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
-import io.iohk.ethereum.jsonrpc.NetService.ListeningResponse
-import io.iohk.ethereum.jsonrpc.NetService.PeerCountResponse
-import io.iohk.ethereum.jsonrpc.NetService.VersionResponse
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.NetService.{ListeningResponse, PeerCountResponse, VersionResponse}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
-import org.json4s.DefaultFormats
-import org.json4s.Formats
-import org.json4s.JArray
-import org.json4s.JObject
-import org.json4s.JString
-import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.ScalaFutures
+import org.json4s.{DefaultFormats, Formats, JArray, JObject, JString}
+import org.scalatest.concurrent.{Eventually, ScalaFutures}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

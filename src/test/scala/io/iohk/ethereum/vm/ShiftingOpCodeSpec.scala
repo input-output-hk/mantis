@@ -4,12 +4,9 @@ import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
-import io.iohk.ethereum.vm.MockWorldState.PC
-import io.iohk.ethereum.vm.MockWorldState.TestVM
+import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor5
