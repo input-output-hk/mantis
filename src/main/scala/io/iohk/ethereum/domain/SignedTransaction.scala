@@ -1,20 +1,23 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import com.google.common.cache.{Cache, CacheBuilder}
+import com.google.common.cache.Cache
+import com.google.common.cache.CacheBuilder
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
-import java.math.BigInteger
-import java.util.concurrent.Executors
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
+
+import java.math.BigInteger
+import java.util.concurrent.Executors
 import scala.util.Try
 
 object SignedTransaction {

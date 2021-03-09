@@ -1,11 +1,13 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.vm.MockWorldState._
-import Fixtures.blockchainConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import Fixtures.blockchainConfig
 
 // scalastyle:off object.name
 class CallOpcodesSpecPostEip161 extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

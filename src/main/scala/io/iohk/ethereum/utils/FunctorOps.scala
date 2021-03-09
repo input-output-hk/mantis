@@ -2,7 +2,8 @@ package io.iohk.ethereum.utils
 
 import cats.Functor
 
-import scala.language.{higherKinds, implicitConversions}
+import scala.language.higherKinds
+import scala.language.implicitConversions
 
 class FunctorOps[A, F[_]: Functor](f: F[A]) {
   def tap[B](cb: A => Unit): F[A] =

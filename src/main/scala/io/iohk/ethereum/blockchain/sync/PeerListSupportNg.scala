@@ -1,11 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Scheduler
+import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext

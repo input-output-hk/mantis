@@ -4,8 +4,11 @@ import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.DaoForkConfig
 
 /** A block header validator that does everything Ethereum prescribes except from:
   *  - PoW validation

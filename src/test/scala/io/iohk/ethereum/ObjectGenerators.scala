@@ -1,20 +1,26 @@
 package io.iohk.ethereum
 
-import java.math.BigInteger
-import java.security.SecureRandom
-
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.MptTraversals
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV64
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalacheck.{Arbitrary, Gen, Shrink}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+
+import java.math.BigInteger
+import java.security.SecureRandom
 
 // scalastyle:off number.of.methods
 trait ObjectGenerators {

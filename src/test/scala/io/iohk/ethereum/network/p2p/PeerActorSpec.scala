@@ -1,11 +1,12 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.{InetSocketAddress, URI}
-import java.security.SecureRandom
-import java.util.concurrent.atomic.AtomicReference
-
-import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.actor.ActorSystem
+import akka.actor.PoisonPill
+import akka.actor.Props
+import akka.actor.Terminated
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum._
@@ -14,32 +15,45 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.ForkResolver
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerActor.GetStatus
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
+import io.iohk.ethereum.network.PeerActor.StatusResponse
+import io.iohk.ethereum.network.PeerEventBusActor
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.handshaker.EtcHandshaker
+import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.PV64
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.net.InetSocketAddress
+import java.net.URI
+import java.security.SecureRandom
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 import scala.language.postfixOps
 

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.metrics.MetricsContainer
-import java.util.concurrent.TimeUnit
+
 import java.time.Duration
 
 case object JsonRpcControllerMetrics extends MetricsContainer {

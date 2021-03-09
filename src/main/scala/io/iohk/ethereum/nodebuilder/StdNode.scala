@@ -2,14 +2,20 @@ package io.iohk.ethereum.nodebuilder
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.StdConsensusBuilder
-import io.iohk.ethereum.metrics.{Metrics, MetricsConfig}
+import io.iohk.ethereum.metrics.Metrics
+import io.iohk.ethereum.metrics.MetricsConfig
+import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor}
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.testmode.TestLedgerBuilder
+import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
 import io.iohk.ethereum.utils.Config
-import scala.concurrent.ExecutionContext.Implicits.global
+
 import scala.concurrent.Await
-import scala.util.{Failure, Success, Try}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 /** A standard node is everything Ethereum prescribes except the consensus algorithm,
   * which is plugged in dynamically.

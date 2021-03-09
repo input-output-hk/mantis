@@ -1,10 +1,11 @@
 package io.iohk.ethereum.mpt
 
-import java.util
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPValue
+
+import java.util
 
 /** Trie elements
   */

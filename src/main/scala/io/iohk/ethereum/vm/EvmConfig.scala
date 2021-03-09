@@ -1,11 +1,12 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+import io.iohk.ethereum
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
-import EvmConfig._
-import io.iohk.ethereum
 import io.iohk.ethereum.vm
+
+import EvmConfig._
 
 // scalastyle:off magic.number
 object EvmConfig {

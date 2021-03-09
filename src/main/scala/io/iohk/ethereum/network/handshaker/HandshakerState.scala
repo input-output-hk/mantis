@@ -1,7 +1,9 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
 
 sealed trait HandshakerState[T <: HandshakeResult]
 

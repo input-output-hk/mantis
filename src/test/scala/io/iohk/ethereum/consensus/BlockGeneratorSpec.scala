@@ -9,13 +9,16 @@ import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
-import java.time.Instant
 import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
@@ -23,6 +26,8 @@ import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import java.time.Instant
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
   implicit val testContext = Scheduler.fixedPool("block-generator-spec-pool", 4)

@@ -1,11 +1,16 @@
 package io.iohk.ethereum.mpt.MptVisitors
 
-import java.util
-
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, HexPrefix, LeafNode}
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue}
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.HexPrefix
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
 
+import java.util
 import scala.collection.immutable.ArraySeq
 
 class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor[RLPEncodeable] {

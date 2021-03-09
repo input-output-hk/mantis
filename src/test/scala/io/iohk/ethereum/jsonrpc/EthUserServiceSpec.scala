@@ -3,7 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthUserService._

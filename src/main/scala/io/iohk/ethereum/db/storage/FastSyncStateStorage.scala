@@ -1,7 +1,5 @@
 package io.iohk.ethereum.db.storage
 
-import java.nio.ByteBuffer
-
 import akka.util.ByteString
 import boopickle.CompositePickler
 import boopickle.Default._
@@ -9,6 +7,7 @@ import io.iohk.ethereum.blockchain.sync.fast.FastSync._
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
+import java.nio.ByteBuffer
 import scala.collection.immutable.ArraySeq
 
 object FastSyncStateStorage {

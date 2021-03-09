@@ -1,21 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
 
 class DebugServiceSpec
     extends TestKit(ActorSystem("ActorSystem_DebugServiceSpec"))

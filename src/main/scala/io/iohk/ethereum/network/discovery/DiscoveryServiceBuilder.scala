@@ -4,19 +4,25 @@ import cats.effect.Resource
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.discovery.codecs.RLPCodecs
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg}
-import io.iohk.scalanet.discovery.ethereum.{Node => ENode, EthereumNodeRecord}
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
+import io.iohk.scalanet.discovery.crypto.PrivateKey
+import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.crypto.SigAlg
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
 import io.iohk.scalanet.discovery.ethereum.v4
-import io.iohk.scalanet.peergroup.{InetMultiAddress, ExternalAddressResolver}
+import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
+import io.iohk.scalanet.peergroup.ExternalAddressResolver
+import io.iohk.scalanet.peergroup.InetMultiAddress
 import io.iohk.scalanet.peergroup.udp.StaticUDPPeerGroup
+import monix.eval.Task
+import monix.execution.Scheduler
+import scodec.Codec
+import scodec.bits.BitVector
+
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
-import monix.eval.Task
-import monix.execution.Scheduler
-import scodec.bits.BitVector
-import scodec.Codec
 
 trait DiscoveryServiceBuilder {
 

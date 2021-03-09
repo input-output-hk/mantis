@@ -4,11 +4,15 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.scalanet.discovery.crypto.{PrivateKey, PublicKey, SigAlg, Signature}
+import io.iohk.scalanet.discovery.crypto.PrivateKey
+import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.crypto.SigAlg
+import io.iohk.scalanet.discovery.crypto.Signature
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import scodec.Attempt
+import scodec.Err
 import scodec.bits.BitVector
-import scodec.{Attempt, Err}
 
 import scala.collection.concurrent.TrieMap
 

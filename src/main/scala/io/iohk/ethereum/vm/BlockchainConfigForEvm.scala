@@ -2,14 +2,16 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.{Agharta, Atlantis, BeforeAtlantis, EtcFork, Phoenix}
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.{
-  BeforeByzantium,
-  Byzantium,
-  Constantinople,
-  Istanbul,
-  Petersburg
-}
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Agharta
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Atlantis
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.BeforeAtlantis
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Phoenix
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.BeforeByzantium
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Byzantium
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Constantinople
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Istanbul
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Petersburg
 
 /** A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used

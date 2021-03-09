@@ -1,6 +1,8 @@
 package io.iohk.ethereum.faucet
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetHandler.WalletException

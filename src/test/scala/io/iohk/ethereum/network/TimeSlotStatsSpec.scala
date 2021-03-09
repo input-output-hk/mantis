@@ -1,18 +1,21 @@
 package io.iohk.ethereum.network
 
-import cats._
-import cats.implicits._
 import cats.data.State
+import cats.implicits._
 import cats.kernel.Monoid
-import java.time.Clock
+import io.iohk.ethereum.utils.MockClock
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalatest.Inspectors
+import org.scalatest.compatible.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.Inspectors
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
+
+import java.time.Clock
 import scala.concurrent.duration._
-import org.scalatest.compatible.Assertion
-import io.iohk.ethereum.utils.MockClock
+
+import Arbitrary.arbitrary
 
 class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
   import TimeSlotStatsSpec._

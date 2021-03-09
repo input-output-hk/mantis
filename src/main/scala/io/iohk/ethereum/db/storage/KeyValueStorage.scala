@@ -1,8 +1,9 @@
 package io.iohk.ethereum.db.storage
 
 import io.iohk.ethereum.common.SimpleMap
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceUpdate
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
 import monix.reactive.Observable
 
 import scala.collection.immutable.ArraySeq

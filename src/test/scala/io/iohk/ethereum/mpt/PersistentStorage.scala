@@ -1,10 +1,10 @@
 package io.iohk.ethereum.mpt
 
-import java.io.File
-import java.nio.file.Files
-
 import io.iohk.ethereum.db.dataSource._
 import io.iohk.ethereum.db.storage._
+
+import java.io.File
+import java.nio.file.Files
 
 trait PersistentStorage {
 

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
 import io.iohk.ethereum.metrics.MetricsContainer
+
 import java.util.concurrent.atomic.AtomicLong
 
 case object NetworkMetrics extends MetricsContainer {

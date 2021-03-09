@@ -1,11 +1,10 @@
 package io.iohk.ethereum.db.storage
 
-import java.math.BigInteger
-
 import akka.util.ByteString
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 
+import java.math.BigInteger
 import scala.collection.immutable.ArraySeq
 
 class BlockNumberMappingStorage(val dataSource: DataSource)

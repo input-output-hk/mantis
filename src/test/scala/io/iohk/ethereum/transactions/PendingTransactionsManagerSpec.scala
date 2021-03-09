@@ -1,29 +1,36 @@
 package io.iohk.ethereum.transactions
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}
-import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SignedTransactionWithSender
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
-import org.scalatest.concurrent.ScalaFutures
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
-import scala.concurrent.duration._
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
+import scala.concurrent.duration._
 
 class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 

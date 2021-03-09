@@ -3,11 +3,12 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.NetworkMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

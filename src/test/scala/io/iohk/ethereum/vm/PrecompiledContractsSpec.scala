@@ -1,17 +1,20 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import MockWorldState._
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
-import Fixtures.blockchainConfig
-import io.iohk.ethereum.security.SecureRandomBuilder
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import MockWorldState._
+import Fixtures.blockchainConfig
 
 class PrecompiledContractsSpec
     extends AnyFunSuite

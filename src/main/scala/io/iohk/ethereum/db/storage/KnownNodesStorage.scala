@@ -1,9 +1,9 @@
 package io.iohk.ethereum.db.storage
 
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+
 import java.net.URI
-
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
-
 import scala.collection.immutable.ArraySeq
 
 /** This class is used to store discovered nodes

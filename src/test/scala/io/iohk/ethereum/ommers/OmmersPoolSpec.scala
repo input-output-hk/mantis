@@ -1,12 +1,15 @@
 package io.iohk.ethereum.ommers
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestProbe, TestKit, ImplicitSender}
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
 import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
+import io.iohk.ethereum.ommers.OmmersPool.GetOmmers
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers

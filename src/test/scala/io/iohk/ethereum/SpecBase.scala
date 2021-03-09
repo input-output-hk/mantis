@@ -1,7 +1,9 @@
 package io.iohk.ethereum
 
+import cats.effect.Bracket
+import cats.effect.Effect
+import cats.effect.Resource
 import cats.effect.implicits._
-import cats.effect.{Bracket, Effect, Resource}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.scalactic.TypeCheckedTripleEquals
@@ -12,8 +14,8 @@ import org.scalatest.freespec.AsyncFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpecLike
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.higherKinds
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
 
 trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { self: AsyncTestSuite =>
 

@@ -4,8 +4,8 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class TransactionMappingStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("TransactionMappingStorage insert") {

@@ -7,7 +7,8 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import io.iohk.ethereum.vm.Storage
+import io.iohk.ethereum.vm.WorldStateProxy
 
 object InMemoryWorldStateProxy {
 

@@ -1,10 +1,12 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import com.google.common.hash.{BloomFilter, Funnel}
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnel
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.eval.Task
-import monix.reactive.{Consumer, Observable}
+import monix.reactive.Consumer
+import monix.reactive.Observable
 
 class LoadableBloomFilter[A](bloomFilter: BloomFilter[A], source: Observable[Either[IterationError, A]]) {
   val loadFromSource: Task[BloomFilterLoadingResult] =

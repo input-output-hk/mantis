@@ -1,17 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.ByteGenerators
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.consensus.ethash.MinerResponse
+import io.iohk.ethereum.consensus.ethash.MinerResponses
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
-import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType._
 import io.iohk.ethereum.jsonrpc.QAService._
-import io.iohk.ethereum.nodebuilder.{ApisBuilder, BlockchainConfigBuilder}
-import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.Extraction

@@ -1,25 +1,27 @@
 package io.iohk.ethereum.jsonrpc.server.controllers
 
-import java.util.concurrent.TimeUnit
-
 import cats.syntax.all._
 import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.jsonrpc.JsonRpcError.{InternalError, MethodNotFound}
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
+import io.iohk.ethereum.jsonrpc.JsonRpcControllerMetrics
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InternalError
+import io.iohk.ethereum.jsonrpc.JsonRpcError.MethodNotFound
+import io.iohk.ethereum.jsonrpc.JsonRpcRequest
+import io.iohk.ethereum.jsonrpc.JsonRpcResponse
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
+import org.json4s.DefaultFormats
 import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, native}
+import org.json4s.native
 
+import java.time.Duration
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import io.micrometer.core.instrument.Timer
-import io.micrometer.core.annotation.Timed
-import java.time.Duration
 
 trait ApisBase {
   def available: List[String]

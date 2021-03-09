@@ -1,20 +1,26 @@
 package io.iohk.ethereum.utils
 
-import java.net.InetSocketAddress
-
-import akka.util.{ByteString, Timeout}
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import akka.util.ByteString
+import akka.util.Timeout
+import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config => TypesafeConfig}
 import io.iohk.ethereum.db.dataSource.RocksDbConfig
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.BasicPruning
+import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.VmConfig.VmMode
-import ConfigUtils._
 
-import scala.jdk.CollectionConverters._
+import java.net.InetSocketAddress
 import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
 import scala.util.Try
+
+import ConfigUtils._
 
 object Config {
 

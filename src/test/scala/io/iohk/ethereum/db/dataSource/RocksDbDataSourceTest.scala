@@ -1,9 +1,9 @@
 package io.iohk.ethereum.db.dataSource
 
-import java.nio.file.Files
-
 import io.iohk.ethereum.db.storage.Namespaces
 import org.scalatest.flatspec.AnyFlatSpec
+
+import java.nio.file.Files
 
 class RocksDbDataSourceTest extends AnyFlatSpec with DataSourceTestBehavior {
 

@@ -3,8 +3,8 @@ package io.iohk.ethereum.db.dataSource
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class EphemDataSourceSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 

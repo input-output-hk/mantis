@@ -3,11 +3,17 @@ package io.iohk.ethereum.faucet.jsonrpc
 import akka.actor.ActorSystem
 import akka.pattern.RetrySupport
 import akka.util.Timeout
-import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
-import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, SendFundsResponse, StatusRequest, StatusResponse}
-import io.iohk.ethereum.faucet.{FaucetConfig, FaucetConfigBuilder}
+import io.iohk.ethereum.faucet.FaucetConfig
+import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerMsg
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse
+import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.SendFundsRequest
+import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.SendFundsResponse
+import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.StatusRequest
+import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.StatusResponse
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.{JsonRpcError, ServiceResponse}
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.jsonrpc.ServiceResponse
 import io.iohk.ethereum.utils.Logger
 
 class FaucetRpcService(config: FaucetConfig)(implicit system: ActorSystem)

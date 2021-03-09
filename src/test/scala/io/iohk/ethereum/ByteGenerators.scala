@@ -1,7 +1,8 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 
 trait ByteGenerators {
   def randomSizeByteArrayGen(minSize: Int, maxSize: Int): Gen[Array[Byte]] =

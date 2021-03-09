@@ -1,20 +1,29 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
 
 class BlockBroadcastSpec
     extends TestKit(ActorSystem("BlockBroadcastSpec_System"))

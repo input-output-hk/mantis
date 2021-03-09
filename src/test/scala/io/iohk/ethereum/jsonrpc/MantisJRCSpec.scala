@@ -1,13 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.FreeSpecBase
+import io.iohk.ethereum.SpecFixtures
 import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, FreeSpecBase, SpecFixtures}
 import monix.eval.Task
-import org.json4s.{Extraction, JArray, JBool, JInt, JLong, JObject, JString}
+import org.json4s.Extraction
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JInt
+import org.json4s.JLong
+import org.json4s.JObject
+import org.json4s.JString
 import org.scalamock.scalatest.AsyncMockFactory
 
 class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory with JRCMatchers {

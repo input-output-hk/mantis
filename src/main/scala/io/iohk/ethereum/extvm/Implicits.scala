@@ -1,10 +1,11 @@
 package io.iohk.ethereum.extvm
 
-import language.implicitConversions
-
 import akka.util.ByteString
 import com.google.protobuf.{ByteString => GByteString}
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+
+import language.implicitConversions
 
 object Implicits {
   implicit def byteString2GByteString(b: ByteString): GByteString =

@@ -1,14 +1,15 @@
 package io.iohk.ethereum.network
 
-import java.io.File
-import java.nio.file.Files
-
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.network
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.io.File
+import java.nio.file.Files
 
 class AsymmetricCipherKeyPairLoaderSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 

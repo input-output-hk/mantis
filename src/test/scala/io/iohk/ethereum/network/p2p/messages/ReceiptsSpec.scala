@@ -2,7 +2,9 @@ package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._

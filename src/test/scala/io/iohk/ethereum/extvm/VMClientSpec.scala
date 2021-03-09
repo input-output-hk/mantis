@@ -1,16 +1,18 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import scalapb.GeneratedMessageCompanion
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.extvm.msg.CallContext.Config
 import io.iohk.ethereum.utils.VmConfig
-import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
-import org.scalamock.scalatest.MockFactory
+import io.iohk.ethereum.vm.utils.MockVmInput
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
 
 class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 

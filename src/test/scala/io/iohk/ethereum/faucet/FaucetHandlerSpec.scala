@@ -1,19 +1,25 @@
 package io.iohk.ethereum.faucet
 
-import java.security.SecureRandom
-
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.pattern.gracefulStop
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.{generateKeyPair, keyPairToByteStrings}
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.keyPairToByteStrings
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerMsg
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
-import io.iohk.ethereum.jsonrpc.client.RpcClient.{ParserError, RpcClientError}
+import io.iohk.ethereum.jsonrpc.client.RpcClient.ParserError
+import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcClientError
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.Wallet
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -21,6 +27,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import java.security.SecureRandom
 import scala.concurrent.ExecutionContext
 
 class FaucetHandlerSpec

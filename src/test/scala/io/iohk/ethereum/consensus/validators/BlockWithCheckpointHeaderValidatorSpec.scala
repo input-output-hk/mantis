@@ -1,24 +1,28 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators, crypto}
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import ByteStringUtils.byteStringOrdering
 
 class BlockWithCheckpointHeaderValidatorSpec
@@ -222,7 +226,6 @@ class BlockWithCheckpointHeaderValidatorSpec
     val invalidCheckpoint = Checkpoint((sameSignerSig +: validCheckpoint.signatures).sorted)
 
     // verify that we have 2 signatures from the same signer
-    import Ordering.Implicits._
     val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParent.hash)).sortBy(_.toSeq)
     val duplicatedSigner = ByteString(crypto.pubKeyFromKeyPair(keys.head))
     val expectedSigners = (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner).sorted

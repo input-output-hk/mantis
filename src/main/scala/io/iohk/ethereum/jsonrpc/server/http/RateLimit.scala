@@ -1,18 +1,23 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.time.Duration
-
 import akka.NotUsed
-import akka.http.scaladsl.model.{RemoteAddress, StatusCodes}
-import akka.http.scaladsl.server.{Directive0, Route}
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.RateLimitConfig
+import akka.http.scaladsl.model.RemoteAddress
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
 import com.google.common.base.Ticker
 import com.google.common.cache.CacheBuilder
-import io.iohk.ethereum.jsonrpc.JsonRpcError
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import io.iohk.ethereum.jsonrpc.JsonRpcError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
-import org.json4s.{DefaultFormats, Formats, Serialization, native}
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.RateLimitConfig
+import org.json4s.DefaultFormats
+import org.json4s.Formats
+import org.json4s.Serialization
+import org.json4s.native
+
+import java.time.Duration
 
 class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
 

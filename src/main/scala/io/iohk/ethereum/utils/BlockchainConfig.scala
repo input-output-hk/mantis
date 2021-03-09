@@ -2,7 +2,8 @@ package io.iohk.ethereum.utils
 
 import akka.util.ByteString
 import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.domain.{Address, UInt256}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.jdk.CollectionConverters._

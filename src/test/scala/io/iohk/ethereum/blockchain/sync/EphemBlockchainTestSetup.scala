@@ -1,7 +1,9 @@
 package io.iohk.ethereum.blockchain.sync
 
-import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
+import io.iohk.ethereum.db.components.EphemDataSourceComponent
+import io.iohk.ethereum.db.components.Storages
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 

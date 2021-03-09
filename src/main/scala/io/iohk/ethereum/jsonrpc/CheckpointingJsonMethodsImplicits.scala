@@ -6,8 +6,9 @@ import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
+import org.json4s.Extraction
+import org.json4s.JsonAST
 import org.json4s.JsonAST._
-import org.json4s.{Extraction, JsonAST}
 
 object CheckpointingJsonMethodsImplicits extends JsonMethodsImplicits {
 

@@ -1,11 +1,13 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import encoding._
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Logger
+
+import encoding._
 
 /** This class helps to deal with two problems regarding MptNodes storage:
   * 1) Define a way to delete ones that are no longer needed but allow rollbacks to be performed

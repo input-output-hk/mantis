@@ -1,43 +1,52 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.testkit.ExplicitlyTriggeredScheduler
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.domain.{Account, BlockBody, BlockHeader, ChainWeight, Receipt}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
+import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies.GetBlockBodiesEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts.GetReceiptsEnc
-import io.iohk.ethereum.network.p2p.messages.PV63.{NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
+import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{Fixtures, Mocks}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
 import org.scalatest.concurrent.Eventually
-import org.scalatest.concurrent.PatienceConfiguration.Timeout
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.time.{Seconds, Span}
 
 import scala.concurrent.Await
 import scala.concurrent.duration._
-import com.typesafe.config.ConfigFactory
-import akka.testkit.ExplicitlyTriggeredScheduler
-import io.iohk.ethereum.NormalPatience
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec

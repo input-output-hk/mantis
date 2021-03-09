@@ -1,9 +1,9 @@
 package io.iohk.ethereum.db.cache
 
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-
-import io.iohk.ethereum.utils.Config.NodeCacheConfig
 import scala.collection.mutable
 import scala.concurrent.duration.FiniteDuration
 

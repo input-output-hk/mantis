@@ -1,12 +1,15 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.lang.ProcessBuilder.Redirect
-
 import akka.actor.ActorSystem
-import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
+import io.iohk.ethereum.extvm.ExtVMInterface
+import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.utils.VmConfig.ExternalConfig
+
+import java.lang.ProcessBuilder.Redirect
 
 object VmSetup extends Logger {
 

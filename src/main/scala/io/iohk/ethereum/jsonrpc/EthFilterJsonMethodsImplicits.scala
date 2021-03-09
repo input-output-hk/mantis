@@ -1,15 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull._
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import org.json4s.Extraction
-import akka.util.ByteString
+import org.json4s.JsonAST._
 
 object EthFilterJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val newFilterResponseEnc = new JsonEncoder[NewFilterResponse] {

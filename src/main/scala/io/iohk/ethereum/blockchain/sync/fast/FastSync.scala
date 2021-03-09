@@ -1,29 +1,27 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import java.time.Instant
 import akka.actor._
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
+import io.iohk.ethereum.blockchain.sync.Blacklist._
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.blockchain.sync.Blacklist._
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
 import io.iohk.ethereum.blockchain.sync.fast.ReceiptsValidator.ReceiptsValidationResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncBlocksValidator.BlockBodyValidationResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  RestartRequested,
-  StartSyncingTo,
-  StateSyncFinished,
-  WaitingForNewTargetBlock
-}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RestartRequested
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StartSyncingTo
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFinished
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.{Peer, PeerId}
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63._
@@ -31,6 +29,7 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import org.bouncycastle.util.encoders.Hex
 
+import java.time.Instant
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global

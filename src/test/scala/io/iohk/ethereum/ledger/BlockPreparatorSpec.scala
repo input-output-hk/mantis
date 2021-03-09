@@ -3,28 +3,31 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed}
+import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
-import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
+import io.iohk.ethereum.consensus.validators.SignedTransactionValid
+import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
-import io.iohk.ethereum.vm.{
-  InvalidJump,
-  InvalidOpCode,
-  OutOfGas,
-  ProgramError,
-  RevertOccurs,
-  StackOverflow,
-  StackUnderflow
-}
+import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.vm.InvalidJump
+import io.iohk.ethereum.vm.InvalidOpCode
+import io.iohk.ethereum.vm.OutOfGas
+import io.iohk.ethereum.vm.ProgramError
+import io.iohk.ethereum.vm.RevertOccurs
+import io.iohk.ethereum.vm.StackOverflow
+import io.iohk.ethereum.vm.StackUnderflow
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.scalatest.prop.{TableFor2, TableFor4}
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableFor2
+import org.scalatest.prop.TableFor4
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off magic.number
 class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

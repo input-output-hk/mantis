@@ -1,8 +1,12 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeComplete, HandshakeResult, NextMessage}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeFailure
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
 
 import scala.concurrent.duration.FiniteDuration
 

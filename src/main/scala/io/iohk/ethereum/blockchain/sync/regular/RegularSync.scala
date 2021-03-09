@@ -1,12 +1,21 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.AllForOneStrategy
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
+import akka.actor.SupervisorStrategy
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto.ECDSASignature

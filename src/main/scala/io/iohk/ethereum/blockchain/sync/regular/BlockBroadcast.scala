@@ -2,12 +2,17 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorRef
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.network.p2p.messages.PV62
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, PV64, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.p2p.messages.PV64
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 import scala.util.Random
 

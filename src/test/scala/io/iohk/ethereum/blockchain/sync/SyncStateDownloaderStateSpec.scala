@@ -1,26 +1,25 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  NoUsefulDataInResponse,
-  ResponseProcessingResult,
-  UnrequestedResponse,
-  UsefulData
-}
 import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.NoUsefulDataInResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.ResponseProcessingResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.UnrequestedResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.UsefulData
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers
+
+import java.net.InetSocketAddress
 
 class SyncStateDownloaderStateSpec
     extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))

@@ -9,7 +9,8 @@ import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerC
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.util.Failure
+import scala.util.Success
 
 class InsecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,

@@ -1,14 +1,18 @@
 package io.iohk.ethereum.security
 
-import java.io.{ByteArrayInputStream, File, FileInputStream, FileOutputStream}
-import java.security.{KeyStore, SecureRandom}
-
-import javax.net.ssl.{KeyManager, TrustManager}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.io.ByteArrayInputStream
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.security.KeyStore
+import java.security.SecureRandom
+import javax.net.ssl.KeyManager
+import javax.net.ssl.TrustManager
 import scala.io.BufferedSource
 
 class SSLContextFactorySpec extends AnyFlatSpec with Matchers with MockFactory with BeforeAndAfterAll {

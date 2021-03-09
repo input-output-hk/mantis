@@ -1,6 +1,5 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.security.SecureRandom
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
 import akka.http.scaladsl.server.Directives._
@@ -17,13 +16,20 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.utils.{BuildInfo, ConfigUtils, Logger}
-import javax.net.ssl.SSLContext
+import io.iohk.ethereum.utils.BuildInfo
+import io.iohk.ethereum.utils.ConfigUtils
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import org.json4s.DefaultFormats
+import org.json4s.JInt
+import org.json4s.native
 import org.json4s.native.Serialization
-import org.json4s.{DefaultFormats, JInt, native}
-import scala.concurrent.duration.{FiniteDuration, _}
+
+import java.security.SecureRandom
+import javax.net.ssl.SSLContext
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
 trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcBaseController

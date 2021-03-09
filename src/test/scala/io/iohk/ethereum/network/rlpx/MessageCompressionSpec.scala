@@ -1,14 +1,14 @@
 package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.Block._
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.xerial.snappy.Snappy
-import io.iohk.ethereum.domain.Block._
-
-import scala.io.Source
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.xerial.snappy.Snappy
+
+import scala.io.Source
 
 class MessageCompressionSpec extends AnyFlatSpec with Matchers with MockFactory {
 

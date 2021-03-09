@@ -1,7 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.Logger
 
 class BranchResolution(blockchain: Blockchain) extends Logger {

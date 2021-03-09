@@ -1,16 +1,17 @@
 package io.iohk.ethereum.extvm
 
-import java.math.BigInteger
-
-import akka.stream.scaladsl.{SinkQueueWithCancel, SourceQueueWithComplete}
+import akka.stream.scaladsl.SinkQueueWithCancel
+import akka.stream.scaladsl.SourceQueueWithComplete
 import akka.util.ByteString
-import com.google.protobuf.{CodedInputStream, Message}
+import com.google.protobuf.CodedInputStream
 import org.bouncycastle.util.BigIntegers
-import scalapb.{GeneratedMessage, GeneratedMessageCompanion, LiteParser}
+import scalapb.GeneratedMessage
+import scalapb.GeneratedMessageCompanion
 
-import scala.concurrent.duration._
+import java.math.BigInteger
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 import scala.util.Try
 
 class MessageHandler(in: SinkQueueWithCancel[ByteString], out: SourceQueueWithComplete[ByteString]) {

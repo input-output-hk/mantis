@@ -1,8 +1,8 @@
 package io.iohk.ethereum.mpt
 
 import io.iohk.ethereum.ObjectGenerators
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class HexPrefixSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 

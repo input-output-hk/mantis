@@ -5,20 +5,19 @@ import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.utils.FilterConfig
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
+import io.iohk.ethereum.utils.FilterConfig
+import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues
+
 import scala.concurrent.duration.FiniteDuration
-import monix.execution.Scheduler.Implicits.global
-import io.iohk.ethereum.jsonrpc.FilterManager.UninstallFilter
-import io.iohk.ethereum.jsonrpc.FilterManager.FilterChanges
 
 class EthFilterServiceSpec
     extends TestKit(ActorSystem("EthFilterServiceSpec_ActorSystem"))

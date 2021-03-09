@@ -1,14 +1,21 @@
 package io.iohk.ethereum.consensus
 package ethash
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestActor, TestActorRef, TestKit, TestProbe}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.testkit.TestActor
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
+import io.iohk.ethereum.jsonrpc.EthInfoService
+import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -16,10 +23,10 @@ import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Tag
-
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
 
 class EthashMinerSpec
     extends TestKit(ActorSystem("EthashMinerSpec_System"))

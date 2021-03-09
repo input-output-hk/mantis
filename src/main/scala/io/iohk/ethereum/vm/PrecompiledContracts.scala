@@ -1,16 +1,19 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.crypto.zksnark.BN128.{BN128G1, BN128G2}
-import io.iohk.ethereum.crypto.zksnark.{BN128Fp, PairingCheck}
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G1
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G2
+import io.iohk.ethereum.crypto.zksnark.BN128Fp
+import io.iohk.ethereum.crypto.zksnark.PairingCheck
 import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
 
 import scala.util.Try
 

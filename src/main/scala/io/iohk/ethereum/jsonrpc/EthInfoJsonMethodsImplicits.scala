@@ -3,14 +3,19 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.PersonalService.{SendTransactionRequest, SendTransactionResponse, SignRequest}
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, StorageProofKey}
-import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.OptionToNull._
+import io.iohk.ethereum.jsonrpc.PersonalService.SendTransactionRequest
+import io.iohk.ethereum.jsonrpc.PersonalService.SendTransactionResponse
+import io.iohk.ethereum.jsonrpc.PersonalService.SignRequest
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
-import org.json4s.JsonAST.{JArray, JString, JValue, _}
-import org.json4s.JsonDSL._
 import org.json4s.Extraction
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST._
+import org.json4s.JsonDSL._
 
 object EthJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_chainId = new NoParamsMethodDecoder(ChainIdRequest()) with JsonEncoder[ChainIdResponse] {

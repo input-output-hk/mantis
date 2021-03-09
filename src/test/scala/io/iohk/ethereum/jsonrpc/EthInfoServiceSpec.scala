@@ -1,19 +1,26 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockchainImpl, UInt256, _}
-import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthInfoService.ProtocolVersionRequest
+import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.Ledger.TxResult
-import io.iohk.ethereum.ledger.{Ledger, StxLedger}
+import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex

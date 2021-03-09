@@ -6,7 +6,10 @@ import cats.data.NonEmptyList
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
 import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.HeadersSeq
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 import io.iohk.ethereum.utils.ByteStringUtils

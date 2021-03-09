@@ -5,7 +5,8 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex

@@ -1,13 +1,15 @@
 package io.iohk.ethereum.network.discovery
 
-import java.net.{InetSocketAddress, _}
-
 import akka.util.ByteString
 import io.iohk.ethereum.network
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 
-import scala.util.{Failure, Success, Try}
+import java.net.InetSocketAddress
+import java.net._
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 case class Node(id: ByteString, addr: InetAddress, tcpPort: Int, udpPort: Int) {
 

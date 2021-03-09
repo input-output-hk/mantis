@@ -2,7 +2,9 @@ package io.iohk.ethereum.consensus.ethash
 
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable}
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPSerializable
 
 package object blocks {
 

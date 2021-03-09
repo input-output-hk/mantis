@@ -2,12 +2,13 @@ package io.iohk.ethereum.metrics
 
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.LoggingUtils.getClassName
+import io.micrometer.core.instrument._
 import io.micrometer.core.instrument.composite.CompositeMeterRegistry
 import io.micrometer.core.instrument.config.MeterFilter
-import io.micrometer.core.instrument._
-import io.micrometer.prometheus.{PrometheusMeterRegistry, PrometheusConfig}
-import io.prometheus.client.CollectorRegistry
 import io.micrometer.jmx.JmxMeterRegistry
+import io.micrometer.prometheus.PrometheusConfig
+import io.micrometer.prometheus.PrometheusMeterRegistry
+import io.prometheus.client.CollectorRegistry
 
 object MeterRegistryBuilder extends Logger {
 

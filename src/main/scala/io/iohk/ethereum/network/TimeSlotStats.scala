@@ -2,9 +2,11 @@ package io.iohk.ethereum.network
 
 import cats._
 import cats.implicits._
+
 import java.time.Clock
-import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.annotation.tailrec
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 /** Track statistics over time a fixed size timewindow. */
 class TimeSlotStats[K, V: Monoid] private (

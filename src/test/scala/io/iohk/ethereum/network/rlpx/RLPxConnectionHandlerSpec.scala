@@ -1,23 +1,29 @@
 package io.iohk.ethereum.network.rlpx
 
-import java.net.{InetSocketAddress, URI}
-
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.io.Tcp
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
+import io.iohk.ethereum.network.p2p.MessageDecoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
-
-import scala.concurrent.duration.FiniteDuration
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
+import java.net.URI
+import scala.concurrent.duration.FiniteDuration
 
 class RLPxConnectionHandlerSpec
     extends TestKit(ActorSystem("RLPxConnectionHandlerSpec_System"))

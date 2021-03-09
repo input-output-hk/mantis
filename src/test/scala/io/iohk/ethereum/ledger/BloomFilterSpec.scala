@@ -1,7 +1,9 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.TxLogEntry
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

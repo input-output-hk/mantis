@@ -1,10 +1,10 @@
 package io.iohk.ethereum.db.storage
 
-import java.math.BigInteger
-
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage._
 
+import java.math.BigInteger
 import scala.collection.immutable.ArraySeq
 
 /** This class is used to store app state variables

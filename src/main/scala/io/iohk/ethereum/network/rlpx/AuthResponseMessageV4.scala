@@ -2,9 +2,12 @@ package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPEncoder, RLPList}
+import io.iohk.ethereum.rlp.RLPList
 import org.bouncycastle.math.ec.ECPoint
 
 object AuthResponseMessageV4 {

@@ -1,11 +1,14 @@
 package io.iohk.ethereum.consensus.ethash
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.blockchain.sync.ScenarioSetup
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.domain._
@@ -14,7 +17,9 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import scala.concurrent.duration.{Duration, FiniteDuration}
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
 

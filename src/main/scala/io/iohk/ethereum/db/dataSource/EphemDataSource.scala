@@ -1,10 +1,10 @@
 package io.iohk.ethereum.db.dataSource
 
-import java.nio.ByteBuffer
-
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.reactive.Observable
+
+import java.nio.ByteBuffer
 
 class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSource {
 

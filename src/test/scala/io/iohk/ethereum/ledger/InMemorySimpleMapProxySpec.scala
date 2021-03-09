@@ -1,13 +1,14 @@
 package io.iohk.ethereum.ledger
 
-import java.nio.ByteBuffer
-
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.nio.ByteBuffer
 
 class InMemorySimpleMapProxySpec extends AnyFlatSpec with Matchers {
 

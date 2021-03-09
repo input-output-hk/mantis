@@ -1,7 +1,5 @@
 package io.iohk.ethereum.network.rlpx
 
-import java.io.IOException
-
 import akka.util.ByteString
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -9,8 +7,10 @@ import org.bouncycastle.crypto.StreamCipher
 import org.bouncycastle.crypto.digests.KeccakDigest
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
 
+import java.io.IOException
 import scala.annotation.tailrec
 import scala.collection.mutable.ArrayBuffer
 

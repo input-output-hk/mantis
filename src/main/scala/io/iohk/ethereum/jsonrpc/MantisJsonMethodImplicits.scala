@@ -2,12 +2,16 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthTxJsonMethodsImplicits.transactionResponseJsonEncoder
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder.Ops._
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder}
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import org.json4s.JsonAST._
 import org.json4s.Merge
+
 import JsonEncoder.OptionToNull._
 
 object MantisJsonMethodImplicits extends JsonMethodsImplicits {

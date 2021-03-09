@@ -1,7 +1,12 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
+import akka.actor.Actor
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.NotInfluenceReceiveTimeout
+import akka.actor.Props
+import akka.actor.ReceiveTimeout
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.implicits._
@@ -9,14 +14,16 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddUncheckedTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager.RemoveTransactions
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._

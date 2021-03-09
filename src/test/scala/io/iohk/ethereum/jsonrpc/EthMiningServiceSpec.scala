@@ -1,27 +1,38 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, RestrictedEthashBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.blocks.RestrictedEthashBlockGeneratorImpl
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
-import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.{Ledger, StxLedger}
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -29,7 +40,8 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
 
 class EthMiningServiceSpec
     extends TestKit(ActorSystem("EthMiningServiceSpec_ActorSystem"))

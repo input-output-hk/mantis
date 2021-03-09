@@ -1,17 +1,24 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import java.util.Comparator
-
 import akka.util.ByteString
-import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnel
+import com.google.common.hash.PrimitiveSink
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
-import io.iohk.ethereum.domain.{Account, Blockchain}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders.MptNodeDec
 import io.vavr.collection.PriorityQueue
 import monix.eval.Task
 
+import java.util.Comparator
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 import scala.util.Try

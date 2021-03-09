@@ -2,11 +2,15 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.utils.ByteStringUtils.Padding
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 
 // scalastyle:off magic.number

@@ -1,13 +1,16 @@
 package io.iohk.ethereum
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import java.net.URL
-import java.nio.file._
-import java.security.{DigestInputStream, MessageDigest}
-import java.util.zip.ZipInputStream
-
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
+
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.net.URL
+import java.nio.file._
+import java.security.DigestInputStream
+import java.security.MessageDigest
+import java.util.zip.ZipInputStream
 
 /** A facility to
   * - check the download location for a minimum amount of free space

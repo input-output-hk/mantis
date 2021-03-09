@@ -1,8 +1,11 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.PV64
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 case class EtcNodeStatus64ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration

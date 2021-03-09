@@ -1,14 +1,16 @@
 package io.iohk.ethereum.ledger
 
+import cats.implicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.Ledger.BlockResult
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.DaoForkConfig
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.EvmConfig
 
 import scala.annotation.tailrec
-import cats.implicits._
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,

@@ -2,14 +2,25 @@ package io.iohk.ethereum.extvm
 
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.scaladsl.Framing
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.SinkQueueWithCancel
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.SourceQueueWithComplete
+import akka.stream.scaladsl.Tcp
 import akka.util.ByteString
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.vm._
+
 import java.nio.ByteOrder
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(
     implicit system: ActorSystem

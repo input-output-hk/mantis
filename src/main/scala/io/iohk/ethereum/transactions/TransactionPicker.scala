@@ -7,6 +7,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
+
 import scala.concurrent.duration.FiniteDuration
 
 trait TransactionPicker extends Logger {

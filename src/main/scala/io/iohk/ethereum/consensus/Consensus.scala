@@ -1,8 +1,10 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
+import io.iohk.ethereum.consensus.ethash.MinerProtocol
+import io.iohk.ethereum.consensus.ethash.MinerResponse
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl

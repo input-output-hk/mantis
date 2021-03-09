@@ -2,7 +2,8 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.StatusRequest
 import io.iohk.ethereum.healthcheck.HealthcheckResponse
-import io.iohk.ethereum.jsonrpc.{JsonRpcHealthChecker, JsonRpcHealthcheck}
+import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
+import io.iohk.ethereum.jsonrpc.JsonRpcHealthcheck
 import monix.eval.Task
 
 class FaucetJsonRpcHealthCheck(faucetRpcService: FaucetRpcService) extends JsonRpcHealthChecker {

@@ -1,19 +1,24 @@
 package io.iohk.ethereum.network.rlpx
 
-import java.net.{InetSocketAddress, URI}
-
 import akka.actor._
+import akka.io.IO
+import akka.io.Tcp
 import akka.io.Tcp._
-import akka.io.{IO, Tcp}
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageDecoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 
+import java.net.InetSocketAddress
+import java.net.URI
 import scala.collection.immutable.Queue
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 /** This actors takes care of initiating a secure connection (auth handshake) between peers.
   * Once such connection is established it allows to send/receive frames (messages) over it.

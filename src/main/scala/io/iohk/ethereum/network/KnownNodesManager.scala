@@ -1,13 +1,15 @@
 package io.iohk.ethereum.network
 
-import java.net.URI
-
-import akka.actor.{Actor, ActorLogging, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
+import akka.actor.Scheduler
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
-import scala.concurrent.duration._
+import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
 
 class KnownNodesManager(
     config: KnownNodesManagerConfig,

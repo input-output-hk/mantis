@@ -1,13 +1,17 @@
 package io.iohk.ethereum.network
 
+import cats.effect.Resource
+import cats.implicits._
 import io.iohk.ethereum.utils.Logger
-import java.net.InetAddress
-import java.util.concurrent.ExecutorService
 import monix.eval.Task
 import org.jupnp.DefaultUpnpServiceConfiguration
+import org.jupnp.QueueingThreadPoolExecutor
+import org.jupnp.UpnpService
+import org.jupnp.UpnpServiceImpl
 import org.jupnp.support.igd.PortMappingListener
 import org.jupnp.support.model.PortMapping
-import org.jupnp.support.model.PortMapping.Protocol.{TCP, UDP}
+import org.jupnp.support.model.PortMapping.Protocol.TCP
+import org.jupnp.support.model.PortMapping.Protocol.UDP
 import org.jupnp.tool.transport.JDKTransportConfiguration
 import org.jupnp.transport.Router
 import org.jupnp.transport.spi.NetworkAddressFactory
@@ -15,13 +19,11 @@ import org.jupnp.transport.spi.StreamClient
 import org.jupnp.transport.spi.StreamClientConfiguration
 import org.jupnp.transport.spi.StreamServer
 import org.jupnp.transport.spi.StreamServerConfiguration
-import org.jupnp.UpnpServiceImpl
+
+import java.net.InetAddress
+import java.util.concurrent.ExecutorService
 import scala.jdk.CollectionConverters._
 import scala.util.chaining._
-import org.jupnp.QueueingThreadPoolExecutor
-import cats.effect.Resource
-import org.jupnp.UpnpService
-import cats.implicits._
 
 private class ClientOnlyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration() {
   final private val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping

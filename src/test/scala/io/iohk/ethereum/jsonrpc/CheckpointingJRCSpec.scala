@@ -1,14 +1,17 @@
 package io.iohk.ethereum.jsonrpc
 
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{Fixtures, NormalPatience, crypto}
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST._

@@ -2,11 +2,10 @@ package io.iohk.ethereum.network
 
 import akka.actor._
 import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.p2p.messages.Codes
-import java.time.Clock
-
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Codes
 
+import java.time.Clock
 import scala.concurrent.duration.FiniteDuration
 
 class PeerStatisticsActor(

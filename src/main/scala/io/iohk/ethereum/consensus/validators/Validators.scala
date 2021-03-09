@@ -1,10 +1,13 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
 
 trait Validators {
   def blockValidator: BlockValidator

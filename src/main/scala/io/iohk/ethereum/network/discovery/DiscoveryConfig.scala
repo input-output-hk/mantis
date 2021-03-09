@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network.discovery
 
 import io.iohk.ethereum.utils.ConfigUtils
+
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 

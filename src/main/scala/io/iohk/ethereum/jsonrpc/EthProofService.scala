@@ -3,17 +3,19 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
-import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
+import io.iohk.ethereum.jsonrpc.ProofService.ProofAccount
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof.asRlpSerializedNode
-import io.iohk.ethereum.jsonrpc.ProofService.{
-  GetProofRequest,
-  GetProofResponse,
-  ProofAccount,
-  StorageProof,
-  StorageProofKey,
-  StorageValueProof
-}
-import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.MptTraversals
 import monix.eval.Task
 
 object ProofService {

@@ -2,20 +2,18 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{
-  Address,
-  BlockHeader,
-  FailureOutcome,
-  HashOutcome,
-  Receipt,
-  SignedTransaction,
-  SuccessOutcome,
-  UInt256
-}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.FailureOutcome
+import io.iohk.ethereum.domain.HashOutcome
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SuccessOutcome
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
 /**  Params docs copied from - https://eth.wiki/json-rpc/API

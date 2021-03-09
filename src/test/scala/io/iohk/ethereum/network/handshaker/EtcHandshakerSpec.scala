@@ -1,29 +1,36 @@
 package io.iohk.ethereum.network.handshaker
 
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeFailure
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.PV64
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
-import io.iohk.ethereum.utils._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.utils._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.util.concurrent.atomic.AtomicReference
 
 class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 

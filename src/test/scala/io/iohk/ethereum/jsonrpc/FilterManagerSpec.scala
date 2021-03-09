@@ -1,30 +1,38 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.pattern.ask
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.keystore.KeyStore
-import org.scalamock.scalatest.MockFactory
-import org.bouncycastle.util.encoders.Hex
-import akka.pattern.ask
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
-import io.iohk.ethereum.{NormalPatience, Timeouts, WithActorSystemShutDown}
-import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
 import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
-
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
 
 class FilterManagerSpec
     extends TestKit(ActorSystem("FilterManagerSpec_System"))

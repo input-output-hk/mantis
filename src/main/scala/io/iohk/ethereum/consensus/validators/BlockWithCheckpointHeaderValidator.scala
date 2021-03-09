@@ -3,7 +3,8 @@ package io.iohk.ethereum.consensus.validators
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
 
 /** Validator specialized for the block with checkpoint
   *

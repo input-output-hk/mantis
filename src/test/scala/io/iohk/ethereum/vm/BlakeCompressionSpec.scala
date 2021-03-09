@@ -1,9 +1,9 @@
 package io.iohk.ethereum.vm
 
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class BlakeCompressionSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   // test vectors from: https://eips.ethereum.org/EIPS/eip-152

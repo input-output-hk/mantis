@@ -1,20 +1,31 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.PeerActor.{DisconnectPeer, SendMessage}
+import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerActor.SendMessage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
+import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.PV64
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
 /** EtcPeerManager actor is in charge of keeping updated information about each peer, while also being able to

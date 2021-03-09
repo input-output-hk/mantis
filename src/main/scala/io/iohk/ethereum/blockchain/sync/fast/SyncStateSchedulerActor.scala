@@ -1,22 +1,27 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Timers
 import akka.pattern.pipe
 import akka.util.ByteString
 import cats.data.NonEmptyList
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport
+import io.iohk.ethereum.blockchain.sync.PeerListSupport
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
-  CriticalError,
-  ProcessingStatistics,
-  SchedulerState,
-  SyncResponse
-}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.CriticalError
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.ProcessingStatistics
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task

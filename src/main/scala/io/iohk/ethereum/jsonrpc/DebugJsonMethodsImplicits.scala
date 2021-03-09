@@ -1,9 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec}
-import org.json4s.JsonAST.{JArray, JString, JValue}
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
 
 object DebugJsonMethodsImplicits extends JsonMethodsImplicits {
 

@@ -1,13 +1,13 @@
 package io.iohk.ethereum.network.handshaker
 
-import java.util.concurrent.atomic.AtomicReference
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.utils.NodeStatus
+
+import java.util.concurrent.atomic.AtomicReference
 
 case class EtcHandshaker private (
     handshakerState: HandshakerState[PeerInfo],

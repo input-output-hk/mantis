@@ -1,41 +1,57 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.effect.Resource
 import cats.syntax.traverse._
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.ResourceFixtures
+import io.iohk.ethereum.WordSpecBase
+import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo}
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.GetHandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.CommonMessages
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{BlockHelpers, ObjectGenerators, ResourceFixtures, WordSpecBase}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.Assertion
+import org.scalatest.BeforeAndAfterEach
 import org.scalatest.diagrams.Diagrams
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.{Assertion, BeforeAndAfterEach}
 
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.Promise
 import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
 
 class RegularSyncSpec
     extends WordSpecBase

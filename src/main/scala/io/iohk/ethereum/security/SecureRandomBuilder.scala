@@ -1,11 +1,13 @@
 package io.iohk.ethereum.security
 
-import java.security.SecureRandom
-
-import com.typesafe.config.{Config, ConfigFactory}
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.utils.Logger
 
-import scala.util.{Failure, Success, Try}
+import java.security.SecureRandom
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 trait SecureRandomBuilder extends Logger {
 

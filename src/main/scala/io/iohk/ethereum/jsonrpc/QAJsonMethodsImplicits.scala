@@ -2,8 +2,11 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse, _}
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec}
+import io.iohk.ethereum.jsonrpc.QAService.MineBlocksRequest
+import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse
+import io.iohk.ethereum.jsonrpc.QAService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 import org.json4s.Extraction
 import org.json4s.JsonAST._

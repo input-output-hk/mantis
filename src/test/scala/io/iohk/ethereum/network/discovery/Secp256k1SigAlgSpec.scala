@@ -3,6 +3,7 @@ package io.iohk.ethereum.network.discovery
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
+
 import scala.util.Random
 
 class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {

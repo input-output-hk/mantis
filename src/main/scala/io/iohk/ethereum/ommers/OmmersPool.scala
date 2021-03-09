@@ -1,10 +1,15 @@
 package io.iohk.ethereum.ommers
 
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
 import akka.util.ByteString
-import akka.actor.{Actor, ActorLogging, Props}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
+import io.iohk.ethereum.ommers.OmmersPool.GetOmmers
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
+
 import scala.annotation.tailrec
 
 class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int, returnedOmmersSizeLimit: Int)

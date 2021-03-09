@@ -3,12 +3,16 @@ package io.iohk.ethereum.consensus.validators
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
 import io.iohk.ethereum.consensus.ethash.validators.RestrictedEthashBlockHeaderValidator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderPoWError, RestrictedEthashHeaderExtraDataError}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.RestrictedEthashHeaderExtraDataError
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

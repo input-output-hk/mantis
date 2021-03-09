@@ -1,23 +1,24 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
+import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.EthInfoService._
+import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.jsonrpc.EthFilterService._
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
-import io.iohk.ethereum.jsonrpc.EthMiningService._
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse}
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GenerateCheckpointRequest,
-  GenerateCheckpointResponse,
-  GetFederationMembersInfoRequest,
-  GetFederationMembersInfoResponse
-}
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
+import io.iohk.ethereum.jsonrpc.QAService.GenerateCheckpointRequest
+import io.iohk.ethereum.jsonrpc.QAService.GenerateCheckpointResponse
+import io.iohk.ethereum.jsonrpc.QAService.GetFederationMembersInfoRequest
+import io.iohk.ethereum.jsonrpc.QAService.GetFederationMembersInfoResponse
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController

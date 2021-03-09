@@ -4,7 +4,11 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, Receipt, SignedTransaction}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.utils.ByteUtils.or
 

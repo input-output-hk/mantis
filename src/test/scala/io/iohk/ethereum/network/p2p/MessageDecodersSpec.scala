@@ -1,7 +1,8 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions

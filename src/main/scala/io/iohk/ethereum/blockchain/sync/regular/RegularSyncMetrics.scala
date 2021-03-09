@@ -2,7 +2,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import io.iohk.ethereum.metrics.MetricsContainer
 
-import scala.concurrent.duration.{MILLISECONDS, NANOSECONDS}
+import scala.concurrent.duration.NANOSECONDS
 
 object RegularSyncMetrics extends MetricsContainer {
   final private val blockPropagationTimer = "regularsync.blocks.propagation.timer"

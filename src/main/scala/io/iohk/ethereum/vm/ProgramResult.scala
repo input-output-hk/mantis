@@ -1,7 +1,8 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, TxLogEntry}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.TxLogEntry
 
 /** Represenation of the result of execution of a contract
   *

@@ -4,16 +4,18 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import org.scalatest.concurrent.ScalaFutures
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 

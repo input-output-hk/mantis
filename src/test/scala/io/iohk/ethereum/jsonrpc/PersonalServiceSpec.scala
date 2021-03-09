@@ -1,30 +1,39 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.Duration
-
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{UInt256, _}
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
+import io.iohk.ethereum.keystore.KeyStore.IOError
+import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.matchers.MatcherBase
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import java.time.Duration
 import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
 

@@ -1,16 +1,27 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
+import io.iohk.ethereum.blockchain.sync.BlacklistSupport
+import io.iohk.ethereum.blockchain.sync.PeerListSupport
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
+import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global

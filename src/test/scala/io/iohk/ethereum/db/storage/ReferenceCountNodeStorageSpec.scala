@@ -1,16 +1,16 @@
 package io.iohk.ethereum.db.storage
 
-import java.util.concurrent.TimeUnit
-
 import akka.util.ByteString
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import io.iohk.ethereum.crypto.kec256
-import scala.concurrent.duration.FiniteDuration
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.util.concurrent.TimeUnit
+import scala.concurrent.duration.FiniteDuration
 
 class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 

@@ -1,13 +1,13 @@
 package io.iohk.ethereum.keystore
 
-import java.security.SecureRandom
-import java.util.UUID
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.SymmetricCipher
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.keystore.EncryptedKey._
+
+import java.security.SecureRandom
+import java.util.UUID
 
 object EncryptedKey {
   val AES128CTR = "aes-128-ctr"

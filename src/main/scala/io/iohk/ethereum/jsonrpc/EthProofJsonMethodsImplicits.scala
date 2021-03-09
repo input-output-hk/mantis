@@ -1,10 +1,15 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, StorageProofKey}
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
-import org.json4s.JsonAST.{JArray, JString, JValue, _}
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonAST._
 
 object EthProofJsonMethodsImplicits extends JsonMethodsImplicits {
   def extractStorageKeys(input: JValue): Either[JsonRpcError, Seq[StorageProofKey]] = {

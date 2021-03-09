@@ -1,28 +1,35 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import java.net.InetAddress
-import java.util.concurrent.TimeUnit
-
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.model.headers.{HttpOrigin, Origin, _}
+import akka.http.scaladsl.model.headers.HttpOrigin
+import akka.http.scaladsl.model.headers.Origin
+import akka.http.scaladsl.model.headers._
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
+import io.iohk.ethereum.healthcheck.HealthcheckResponse
+import io.iohk.ethereum.healthcheck.HealthcheckResult
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.{JsonRpcHttpServerConfig, RateLimitConfig}
-import io.iohk.ethereum.utils.{BuildInfo, Logger}
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.RateLimitConfig
+import io.iohk.ethereum.utils.BuildInfo
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
-import org.json4s.JsonAST.{JInt, JNothing, JString}
+import org.json4s.DefaultFormats
+import org.json4s.Extraction
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JNothing
+import org.json4s.JsonAST.JString
 import org.json4s.native.JsonMethods
-import org.json4s.{DefaultFormats, Extraction}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.net.InetAddress
+import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 
 class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRouteTest {

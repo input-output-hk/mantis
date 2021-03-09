@@ -1,11 +1,11 @@
 package io.iohk.ethereum
 
-import java.io.File
-import java.nio.file.Paths
-
-import scala.io.Source
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.io.File
+import java.nio.file.Paths
+import scala.io.Source
 
 class BootstrapDownloadSpec extends AnyFlatSpec with Matchers {
 

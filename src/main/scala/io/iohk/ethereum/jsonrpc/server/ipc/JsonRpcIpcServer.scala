@@ -1,20 +1,23 @@
 package io.iohk.ethereum.jsonrpc.server.ipc
 
-import java.io.{BufferedReader, File, InputStreamReader}
-import java.net.{ServerSocket, Socket}
-
 import akka.actor.ActorSystem
+import io.iohk.ethereum.jsonrpc.JsonRpcController
+import io.iohk.ethereum.jsonrpc.JsonRpcRequest
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
 import io.iohk.ethereum.utils.Logger
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST.JValue
+import org.json4s.native
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
-import org.json4s.native
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.net.ServerSocket
+import java.net.Socket
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.utils
 
-import java.net.InetSocketAddress
-
 import io.iohk.ethereum.network._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
+
+import java.net.InetSocketAddress
 
 sealed trait ServerStatus
 object ServerStatus {

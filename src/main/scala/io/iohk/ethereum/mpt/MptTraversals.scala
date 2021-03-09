@@ -5,8 +5,11 @@ import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.mpt.MptVisitors._
+import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue, rawDecode}
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.ethereum.rlp.rawDecode
 
 object MptTraversals {
 

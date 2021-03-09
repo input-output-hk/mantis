@@ -2,14 +2,17 @@ package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
 import cats.data.EitherT
-import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Transaction
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
+import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 
 class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {

@@ -1,11 +1,12 @@
 package io.iohk.ethereum.logger
 
-import java.util.concurrent.atomic.AtomicInteger
-
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.dispatch._
 import akka.event.Logging
 import com.typesafe.config.Config
+
+import java.util.concurrent.atomic.AtomicInteger
 
 /** Logs the mailbox size when exceeding the configured limit. It logs at most once per second
   * when the messages are enqueued or dequeued.

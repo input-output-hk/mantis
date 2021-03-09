@@ -6,22 +6,29 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.validators.{Validators, _}
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockTransactionsHashError
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
-import io.iohk.ethereum.vm.{OutOfGas, RevertOccurs}
+import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.vm.OutOfGas
+import io.iohk.ethereum.vm.RevertOccurs
 import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.prop.{TableFor2, TableFor3, TableFor4}
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.iohk.ethereum.utils.ByteStringUtils._
+import org.scalatest.prop.TableFor2
+import org.scalatest.prop.TableFor3
+import org.scalatest.prop.TableFor4
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off magic.number
 class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers with ScalaFutures {

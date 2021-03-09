@@ -2,10 +2,14 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
 import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import org.json4s.JsonAST
-import org.json4s.JsonAST.{JArray, JBool, JString, JValue}
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JBool
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
 
 object EthMiningJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val eth_mining = new NoParamsMethodDecoder(GetMiningRequest()) with JsonEncoder[GetMiningResponse] {

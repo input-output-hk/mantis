@@ -3,23 +3,35 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
-import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.utils.{Config, FilterConfig}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.FilterConfig
 import org.bouncycastle.util.encoders.Hex
-import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JInt
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._

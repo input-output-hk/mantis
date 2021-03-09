@@ -1,20 +1,29 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import io.iohk.scalanet.discovery.crypto.{PublicKey, Signature}
-import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.ethereum.v4.Payload
-import io.iohk.scalanet.discovery.hash.Hash
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.{RLPCodec, RLPList, RLPEncoder}
+import io.iohk.ethereum.rlp.RLPCodec
 import io.iohk.ethereum.rlp.RLPCodec.Ops
-import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPEncoder
 import io.iohk.ethereum.rlp.RLPImplicitConversions.toEncodeable
 import io.iohk.ethereum.rlp.RLPImplicitDerivations._
-import scodec.{Codec, Attempt, Err, DecodeResult}
-import scodec.bits.{BitVector, ByteVector}
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.crypto.Signature
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
+import io.iohk.scalanet.discovery.ethereum.Node
+import io.iohk.scalanet.discovery.ethereum.v4.Payload
+import io.iohk.scalanet.discovery.hash.Hash
+import scodec.Attempt
+import scodec.Codec
+import scodec.DecodeResult
+import scodec.Err
+import scodec.bits.BitVector
+import scodec.bits.ByteVector
+
 import java.net.InetAddress
 import scala.util.Try
-import io.iohk.ethereum.rlp.RLPEncodeable
 
 /** RLP codecs based on https://github.com/ethereum/devp2p/blob/master/discv4.md */
 object RLPCodecs extends ContentCodecs with PayloadCodecs {

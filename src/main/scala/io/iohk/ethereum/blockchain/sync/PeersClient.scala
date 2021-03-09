@@ -1,12 +1,20 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
+import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext

@@ -3,6 +3,9 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.LongPatience
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthBlocksService.GetBlockTransactionCountByNumberResponse
@@ -10,20 +13,20 @@ import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.{Fixtures, LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.DefaultFormats
+import org.json4s.Extraction
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, Extraction, Formats}
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks

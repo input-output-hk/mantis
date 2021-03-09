@@ -1,10 +1,10 @@
 package io.iohk.ethereum.vm
 
-import org.scalacheck.Gen
 import io.iohk.ethereum.domain.UInt256
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class StackSpec extends AnyFunSuite with Matchers with ScalaCheckPropertyChecks {
 

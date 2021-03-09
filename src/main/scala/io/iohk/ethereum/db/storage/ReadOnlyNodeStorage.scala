@@ -1,7 +1,9 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
+
 import scala.collection.mutable
 
 /** This storage allows to read from another NodesKeyValueStorage but doesn't remove or upsert into database.

@@ -4,8 +4,9 @@ import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm._
 import monix.eval.Task
 import monix.execution.Scheduler

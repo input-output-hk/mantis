@@ -4,13 +4,15 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.domain.{Address, Block}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.transactions.TransactionPicker
 import monix.eval.Task
+
 import scala.concurrent.duration.FiniteDuration
 
 class EthashBlockCreator(

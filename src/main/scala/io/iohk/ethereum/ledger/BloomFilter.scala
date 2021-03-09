@@ -1,8 +1,8 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.ByteUtils.or
 

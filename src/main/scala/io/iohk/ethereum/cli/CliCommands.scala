@@ -1,15 +1,18 @@
 package io.iohk.ethereum.cli
 
 import cats.implicits._
-import com.monovore.decline.{Command, Opts}
+import com.monovore.decline.Command
+import com.monovore.decline.Opts
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.{EncryptedKey, EncryptedKeyJsonCodec}
-import io.iohk.ethereum.utils.ByteStringUtils
-import java.security.SecureRandom
+import io.iohk.ethereum.keystore.EncryptedKey
+import io.iohk.ethereum.keystore.EncryptedKeyJsonCodec
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteStringUtils
 import org.bouncycastle.util.encoders.Hex
+
+import java.security.SecureRandom
 
 object CliCommands extends SecureRandomBuilder {
 

@@ -1,15 +1,16 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.util.Timeout
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.network.PeerManagerActor
-import io.iohk.ethereum.utils.ServerStatus.{Listening, NotListening}
-import io.iohk.ethereum.utils.{Config, NodeStatus}
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus.Listening
+import io.iohk.ethereum.utils.ServerStatus.NotListening
 import monix.eval.Task
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 
 object NetService {

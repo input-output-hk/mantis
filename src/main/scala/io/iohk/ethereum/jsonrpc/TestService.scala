@@ -1,19 +1,26 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
-import cats.syntax.functor._
-import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
+import akka.util.ByteString
+import akka.util.Timeout
+import io.iohk.ethereum.blockchain.data.AllocAccount
+import io.iohk.ethereum.blockchain.data.GenesisData
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
-import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.testmode.TestLedgerWrapper
+import io.iohk.ethereum.testmode.TestmodeConsensus
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+
 import scala.concurrent.duration._
 import scala.util.Try
 

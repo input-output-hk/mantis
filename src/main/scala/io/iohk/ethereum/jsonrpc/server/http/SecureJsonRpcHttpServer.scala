@@ -1,19 +1,20 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
 import akka.actor.ActorSystem
-import akka.http.scaladsl.{ConnectionContext, Http}
+import akka.http.scaladsl.ConnectionContext
+import akka.http.scaladsl.Http
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
 import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
-import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import java.security.SecureRandom
-
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
-import javax.net.ssl.SSLContext
 
+import java.security.SecureRandom
+import javax.net.ssl.SSLContext
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.util.Failure
+import scala.util.Success
 
 class SecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,

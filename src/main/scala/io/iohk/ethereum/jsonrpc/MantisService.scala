@@ -1,11 +1,12 @@
 package io.iohk.ethereum.jsonrpc
+import cats.implicits._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import monix.eval.Task
-import cats.implicits._
 
 import scala.collection.immutable.NumericRange
 

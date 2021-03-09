@@ -1,28 +1,38 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
-
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Mocks.{MockHandshakerAlwaysFails, MockHandshakerAlwaysSucceeds}
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks.MockHandshakerAlwaysFails
+import io.iohk.ethereum.Mocks.MockHandshakerAlwaysSucceeds
+import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.PeerActor.ConnectTo
+import io.iohk.ethereum.network.PeerActor.GetStatus
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{ConnectTo, GetStatus, StatusResponse}
+import io.iohk.ethereum.network.PeerActor.StatusResponse
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, Timeouts}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.InetSocketAddress
+import java.net.URI
 
 class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 

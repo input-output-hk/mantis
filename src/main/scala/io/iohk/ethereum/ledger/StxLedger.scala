@@ -1,6 +1,9 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, SignedTransactionWithSender}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig

@@ -8,11 +8,9 @@ import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.blocks.{
-  EthashBlockGenerator,
-  EthashBlockGeneratorImpl,
-  RestrictedEthashBlockGeneratorImpl
-}
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGeneratorImpl
+import io.iohk.ethereum.consensus.ethash.blocks.RestrictedEthashBlockGeneratorImpl
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -20,8 +18,10 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
+
 import scala.concurrent.duration._
 
 /** Implements standard Ethereum consensus (ethash PoW).

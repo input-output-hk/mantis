@@ -1,16 +1,19 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
-import java.security.SecureRandom
-
 import akka.util.ByteString
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Address, Transaction}
-import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.faucet.FaucetConfig
+import io.iohk.ethereum.faucet.RpcClientConfig
+import io.iohk.ethereum.faucet.SupervisorConfig
 import io.iohk.ethereum.jsonrpc.client.RpcClient.ConnectionError
+import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
-import io.iohk.ethereum.{crypto, rlp}
+import io.iohk.ethereum.rlp
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
@@ -18,6 +21,7 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
+import java.security.SecureRandom
 import scala.concurrent.duration._
 
 class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {

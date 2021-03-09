@@ -1,26 +1,39 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import cats.data.NonEmptyList
 import com.miguno.akka.testing.VirtualTime
+import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
-import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.Mocks.MockValidatorsFailingOnBlockBodies
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
-import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
+import io.iohk.ethereum.blockchain.sync.TestSyncConfig
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InvalidateBlocksFrom
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.PickBlocks
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.domain.{Block, ChainWeight, Checkpoint, HeadersSeq}
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.Checkpoint
+import io.iohk.ethereum.domain.HeadersSeq
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.{Codes, PV64}
+import io.iohk.ethereum.network.p2p.messages.PV64
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.{BlockHelpers, Timeouts, WithActorSystemShutDown, crypto}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 

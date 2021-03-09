@@ -1,16 +1,16 @@
 package io.iohk.ethereum.network
 
-import java.net.URI
-
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.testkit.TestProbe
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
-
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.net.URI
+import scala.concurrent.duration._
 
 class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 

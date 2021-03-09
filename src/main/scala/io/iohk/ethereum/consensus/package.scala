@@ -4,7 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
 
 import scala.reflect.ClassTag
 

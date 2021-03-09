@@ -6,7 +6,8 @@ import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
-import io.iohk.ethereum.network.rlpx.{FrameCodec, MessageCodec}
+import io.iohk.ethereum.network.rlpx.FrameCodec
+import io.iohk.ethereum.network.rlpx.MessageCodec
 import io.iohk.ethereum.utils.Config
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

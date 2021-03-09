@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
-import org.json4s.JsonAST.{JArray, JValue}
+import org.json4s.JsonAST.JArray
+import org.json4s.JsonAST.JValue
 
 //TODO: work on a more elegant solution
 trait SensitiveInformationToString {

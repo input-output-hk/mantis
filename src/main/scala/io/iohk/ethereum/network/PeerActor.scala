@@ -1,24 +1,29 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
-
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import akka.util.ByteString
 import io.iohk.ethereum.network.PeerActor.Status._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
 import io.iohk.ethereum.network.PeerEventBusActor.Publish
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
-import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeFailure
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.HandshakeSuccess
+import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
+import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
 import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
+
+import java.net.InetSocketAddress
+import java.net.URI
 
 /** Peer actor is responsible for initiating and handling high-level connection with peer.
   * It creates child RLPxConnectionActor for handling underlying RLPx communication.

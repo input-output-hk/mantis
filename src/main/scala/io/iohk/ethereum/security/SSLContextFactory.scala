@@ -1,10 +1,9 @@
 package io.iohk.ethereum.security
 
 import java.io.FileInputStream
-import java.security.{KeyStore, SecureRandom}
-
+import java.security.KeyStore
+import java.security.SecureRandom
 import javax.net.ssl.SSLContext
-
 import scala.util.Try
 
 case class SSLContextFactory() extends FileUtils with KeyStoreUtils {

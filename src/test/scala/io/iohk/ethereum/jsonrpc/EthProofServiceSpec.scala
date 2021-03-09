@@ -8,16 +8,17 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService.{
-  GetBalanceRequest,
-  GetBalanceResponse,
-  GetStorageAtRequest,
-  GetTransactionCountRequest
-}
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
+import io.iohk.ethereum.jsonrpc.EthUserService.GetStorageAtRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.rlp.RLPValue
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
@@ -26,8 +27,6 @@ import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
-import io.iohk.ethereum.rlp.RLPValue
 
 class EthProofServiceSpec
     extends TestKit(ActorSystem("EthGetProofSpec_ActorSystem"))

@@ -1,10 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.temporal.ChronoUnit
-import java.time.Duration
-
 import io.iohk.ethereum.jsonrpc.ExpiringMap.ValueWithDuration
 
+import java.time.Duration
+import java.time.temporal.ChronoUnit
 import scala.collection.mutable
 import scala.util.Try
 

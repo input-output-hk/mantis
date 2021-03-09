@@ -1,9 +1,9 @@
 package io.iohk.ethereum.network
 
-import java.net.InetSocketAddress
-
 import akka.actor.ActorRef
 import akka.util.ByteString
+
+import java.net.InetSocketAddress
 import scala.concurrent.duration.FiniteDuration
 
 case class ConnectedPeers(

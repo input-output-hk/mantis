@@ -1,10 +1,11 @@
 package io.iohk.ethereum.security
 
-import java.io.{File, FileInputStream}
-
 import io.iohk.ethereum.utils.Logger
 
-import scala.io.{BufferedSource, Source}
+import java.io.File
+import java.io.FileInputStream
+import scala.io.BufferedSource
+import scala.io.Source
 import scala.util.Try
 
 trait FileUtils extends Logger {

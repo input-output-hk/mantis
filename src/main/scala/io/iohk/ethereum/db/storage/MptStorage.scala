@@ -3,7 +3,9 @@ package io.iohk.ethereum.db.storage
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingRootNodeException
-import io.iohk.ethereum.mpt.{MptNode, MptTraversals, NodesKeyValueStorage}
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.MptTraversals
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 trait MptStorage {
   def get(nodeId: Array[Byte]): MptNode

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.ledger
 
-import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off magic.number
 class BlockRewardCalculatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {

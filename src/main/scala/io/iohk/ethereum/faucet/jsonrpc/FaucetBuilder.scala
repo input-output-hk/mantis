@@ -1,13 +1,16 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
+import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.FaucetSupervisor
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
-import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
+import io.iohk.ethereum.security.SSLContextBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.KeyStoreConfig
+import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.Await
 

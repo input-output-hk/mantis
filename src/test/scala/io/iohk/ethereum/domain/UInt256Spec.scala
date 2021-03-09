@@ -1,10 +1,10 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.Generators._
 import io.iohk.ethereum.domain.UInt256._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.vm.Generators._
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 

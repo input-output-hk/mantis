@@ -1,19 +1,26 @@
 package io.iohk.ethereum.network.discovery
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.db.storage.KnownNodesStorage
+import io.iohk.scalanet.discovery.crypto.PublicKey
 import io.iohk.scalanet.discovery.ethereum.v4
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
-import io.iohk.scalanet.discovery.crypto.PublicKey
-import monix.eval.Task
-import monix.execution.{Scheduler, BufferCapacity}
-import monix.tail.Iterant
 import monix.catnap.ConsumerF
-import scala.util.{Failure, Success, Random}
+import monix.eval.Task
+import monix.execution.BufferCapacity
+import monix.execution.Scheduler
+import monix.tail.Iterant
 import scodec.bits.BitVector
+
+import scala.util.Failure
+import scala.util.Random
+import scala.util.Success
 
 class PeerDiscoveryManager(
     localNodeId: ByteString,

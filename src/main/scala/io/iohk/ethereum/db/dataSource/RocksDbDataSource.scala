@@ -1,16 +1,15 @@
 package io.iohk.ethereum.db.dataSource
 
-import java.util.concurrent.locks.ReentrantReadWriteLock
-
-import io.iohk.ethereum.utils.Logger
 import cats.effect.Resource
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource._
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.TryWithResources.withResources
 import monix.eval.Task
 import monix.reactive.Observable
 import org.rocksdb._
 
+import java.util.concurrent.locks.ReentrantReadWriteLock
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal

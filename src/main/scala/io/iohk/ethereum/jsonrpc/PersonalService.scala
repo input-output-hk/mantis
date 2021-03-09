@@ -1,26 +1,31 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.Duration
-
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import akka.util.Timeout
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddOrOverrideTransaction
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 import monix.eval.Task
 
+import java.time.Duration
 import scala.util.Try
 
 object PersonalService {

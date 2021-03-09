@@ -1,22 +1,25 @@
 package io.iohk.ethereum.mpt
 
-import java.nio.ByteBuffer
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
+import io.iohk.ethereum.db.dataSource.DataSourceUpdate
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
 import io.iohk.ethereum.proof.MptProofVerifier
 import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
-import org.scalacheck.{Arbitrary, Gen}
 import org.bouncycastle.util.encoders.Hex
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.util.{Random, Try}
-import org.scalatest.funsuite.AnyFunSuite
-
+import java.nio.ByteBuffer
 import scala.collection.immutable.ArraySeq
+import scala.util.Random
+import scala.util.Try
 
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 

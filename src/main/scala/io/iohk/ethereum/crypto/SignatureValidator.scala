@@ -6,7 +6,9 @@ import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
 
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 // scalastyle:off regex
 object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsImplicits {

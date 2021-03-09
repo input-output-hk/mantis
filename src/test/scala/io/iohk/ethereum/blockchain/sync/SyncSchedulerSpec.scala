@@ -2,24 +2,26 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
+import io.iohk.ethereum.SuperSlow
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.checkAllDataExists
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
-  AlreadyProcessedItem,
-  CannotDecodeMptNode,
-  NotRequestedItem,
-  SchedulerState,
-  SyncResponse
-}
-import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.AlreadyProcessedItem
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.CannotDecodeMptNode
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.NotRequestedItem
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.db.components.EphemDataSourceComponent
+import io.iohk.ethereum.db.components.Storages
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 import org.scalactic.anyvals.PosInt
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import io.iohk.ethereum.SuperSlow
 
 class SyncSchedulerSpec
     extends AnyFlatSpec

@@ -1,27 +1,40 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
-import io.iohk.ethereum.mpt.{ExtensionNode, HashNode, HexPrefix, MptNode}
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.HexPrefix
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.PV63._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
-import io.iohk.ethereum.{Fixtures, Timeouts, crypto}
 import org.bouncycastle.util.encoders.Hex
-
-import scala.concurrent.duration.{FiniteDuration, _}
-import scala.language.postfixOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 

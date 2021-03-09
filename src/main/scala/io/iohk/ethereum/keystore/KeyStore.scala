@@ -1,17 +1,19 @@
 package io.iohk.ethereum.keystore
 
-import java.io.File
-import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
-import java.security.SecureRandom
-import java.time.format.DateTimeFormatter
-import java.time.{ZoneOffset, ZonedDateTime}
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
+import io.iohk.ethereum.utils.KeyStoreConfig
+import io.iohk.ethereum.utils.Logger
 
+import java.io.File
+import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.Paths
+import java.security.SecureRandom
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import scala.util.Try
 
 object KeyStore {

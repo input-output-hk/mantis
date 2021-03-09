@@ -1,23 +1,31 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestKit, TestProbe}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.FreeSpecBase
+import io.iohk.ethereum.SpecFixtures
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Address, BlockBody, SignedTransactionWithSender, Transaction}
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
-import io.iohk.ethereum.nodebuilder.{
-  ApisBuilder,
-  JSONRpcConfigBuilder,
-  MantisServiceBuilder,
-  PendingTransactionsManagerBuilder,
-  TransactionHistoryServiceBuilder,
-  TxPoolConfigBuilder
-}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.SignedTransactionWithSender
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
+import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.nodebuilder.JSONRpcConfigBuilder
+import io.iohk.ethereum.nodebuilder.MantisServiceBuilder
+import io.iohk.ethereum.nodebuilder.PendingTransactionsManagerBuilder
+import io.iohk.ethereum.nodebuilder.TransactionHistoryServiceBuilder
+import io.iohk.ethereum.nodebuilder.TxPoolConfigBuilder
 import io.iohk.ethereum.transactions.TransactionHistoryService
-import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
-import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, SpecFixtures, WithActorSystemShutDown}
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
 import monix.eval.Task
 
 import scala.collection.immutable.NumericRange

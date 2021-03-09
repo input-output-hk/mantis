@@ -1,13 +1,17 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging}
+import akka.actor.Actor
+import akka.actor.ActorLogging
 import akka.pattern.pipe
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
 import io.iohk.ethereum.blockchain.sync.fast.StateStorageActor.GetStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import monix.eval.Task
 import monix.execution.Scheduler
-import scala.util.{Failure, Success, Try}
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 /** Persists current state of fast sync to a storage. Can save only one state at a time.
   * If during persisting new state is received then it will be saved immediately after current state

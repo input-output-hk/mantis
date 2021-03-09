@@ -1,19 +1,21 @@
 package io.iohk.ethereum.consensus.validators
 
-import java.math.BigInteger
-import java.security.SecureRandom
-
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.SignedTransactionError.{TransactionSignatureError, _}
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
+import io.iohk.ethereum.consensus.validators.SignedTransactionError._
 import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
-import io.iohk.ethereum.{Fixtures, crypto}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import java.math.BigInteger
+import java.security.SecureRandom
 
 class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 

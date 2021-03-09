@@ -2,9 +2,11 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceUpdateOptimized
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdateOptimized}
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import monix.reactive.Observable
 
 sealed trait NodesStorage extends {

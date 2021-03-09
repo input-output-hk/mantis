@@ -1,11 +1,14 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.time.Clock
-
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.util.ByteString
+import cats.implicits._
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
+import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -13,38 +16,47 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
-import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryServiceBuilder, PeerDiscoveryManager}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
+import io.iohk.ethereum.network.ServerActor
+import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.discovery.DiscoveryConfig
+import io.iohk.ethereum.network.discovery.DiscoveryServiceBuilder
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.network.handshaker.EtcHandshaker
+import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
+import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
-import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
-import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
+import io.iohk.ethereum.security.SSLContextBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.testmode.TestLedgerBuilder
+import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import java.util.concurrent.atomic.AtomicReference
-
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
+import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Future
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
-import akka.util.ByteString
-import monix.execution.Scheduler
-import cats.implicits._
-import monix.eval.Task
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {

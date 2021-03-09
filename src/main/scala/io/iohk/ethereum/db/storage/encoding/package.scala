@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.{StoredNode, StoredNodeSnapshot}
+import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.StoredNode
+import io.iohk.ethereum.db.storage.ReferenceCountNodeStorage.StoredNodeSnapshot
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}

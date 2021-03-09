@@ -1,20 +1,28 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.flatspec.AnyFlatSpec
-import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.ethereum.v4.Payload.ENRResponse
-import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey, PublicKey}
-import io.iohk.scalanet.discovery.hash.{Hash, Keccak256}
 import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.{RLPList, RLPEncoder, RLPValue}
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import scodec.bits.{ByteVector, HexStringSyntax}
-import java.net.InetAddress
-import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.scalanet.discovery.crypto.PrivateKey
+import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.crypto.SigAlg
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
+import io.iohk.scalanet.discovery.ethereum.Node
+import io.iohk.scalanet.discovery.ethereum.v4.Payload.ENRResponse
+import io.iohk.scalanet.discovery.hash.Hash
+import io.iohk.scalanet.discovery.hash.Keccak256
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import scodec.bits.ByteVector
+import scodec.bits.HexStringSyntax
+
+import java.net.InetAddress
 import scala.language.implicitConversions
 
 class ENRCodecsSpec extends AnyFlatSpec with Matchers {

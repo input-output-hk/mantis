@@ -1,7 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
-import akka.util.{ByteString, Timeout}
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
+import akka.util.ByteString
+import akka.util.Timeout
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
@@ -10,8 +15,10 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 import monix.eval.Task
+
 import scala.annotation.tailrec
 import scala.util.Random
 

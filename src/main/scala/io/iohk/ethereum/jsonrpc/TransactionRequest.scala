@@ -1,7 +1,8 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, Transaction}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Transaction
 import io.iohk.ethereum.utils.Config
 
 case class TransactionRequest(

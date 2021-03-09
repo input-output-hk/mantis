@@ -1,6 +1,7 @@
 package io.iohk.ethereum.metrics
 
-import java.util.concurrent.atomic.{AtomicBoolean, AtomicInteger}
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /** A gauge that starts at `0` and can be triggered to go to `1`.
   * Next time it is sampled, it goes back to `0`.

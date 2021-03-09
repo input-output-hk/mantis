@@ -2,10 +2,14 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.vm.{EvmConfig, Generators}
+import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.vm.Generators
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers

@@ -2,9 +2,9 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off object.name
 class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

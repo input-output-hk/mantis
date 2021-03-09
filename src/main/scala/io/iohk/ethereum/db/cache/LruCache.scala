@@ -1,10 +1,12 @@
 package io.iohk.ethereum.db.cache
 
+import com.google.common.cache
+import com.google.common.cache.CacheBuilder
+import com.google.common.cache.RemovalNotification
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
+
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import com.google.common.cache
-import com.google.common.cache.{CacheBuilder, RemovalNotification}
 import scala.concurrent.duration.FiniteDuration
 
 class LruCache[K <: AnyRef, V <: AnyRef](

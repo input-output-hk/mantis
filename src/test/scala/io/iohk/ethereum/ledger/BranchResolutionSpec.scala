@@ -3,7 +3,10 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
 import org.scalacheck.Gen
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.matchers.should.Matchers

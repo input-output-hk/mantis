@@ -1,25 +1,38 @@
 package io.iohk.ethereum.consensus
 package ethash
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.ethash.EthashUtils.ProofOfWork
-import io.iohk.ethereum.consensus.ethash.MinerProtocol.{StartMining, StopMining}
+import io.iohk.ethereum.consensus.ethash.MinerProtocol.StartMining
+import io.iohk.ethereum.consensus.ethash.MinerProtocol.StopMining
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
-import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.jsonrpc.EthInfoService
+import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.ByteUtils
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import scala.concurrent.duration._
-import scala.util.{Failure, Random, Success, Try}
+import scala.util.Failure
+import scala.util.Random
+import scala.util.Success
+import scala.util.Try
 
 /** Implementation of Ethash CPU mining worker.
   * Could be started by switching configuration flag "consensus.mining-enabled" to true

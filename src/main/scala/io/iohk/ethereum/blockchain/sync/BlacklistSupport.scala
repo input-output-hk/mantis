@@ -1,11 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, Cancellable, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Cancellable
+import akka.actor.Scheduler
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 
 import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration.{Duration, FiniteDuration}
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
 
 // will be removed once regular sync is switched to new blacklist implementation
 trait BlacklistSupport {

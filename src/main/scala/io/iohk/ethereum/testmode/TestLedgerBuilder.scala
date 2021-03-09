@@ -2,10 +2,12 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder}
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusBuilder
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, _}
+import io.iohk.ethereum.nodebuilder.ActorSystemBuilder
+import io.iohk.ethereum.nodebuilder._
 import monix.eval.Task
 import monix.execution.Scheduler
 

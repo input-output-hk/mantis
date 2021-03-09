@@ -1,20 +1,27 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.flatspec.AnyFlatSpec
-import io.iohk.scalanet.discovery.crypto.PublicKey
-import io.iohk.scalanet.discovery.hash.Hash
-import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
+import _root_.io.iohk.ethereum.rlp.RLPException
 import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
-import io.iohk.ethereum.rlp.{RLPList, RLPEncoder, RLPDecoder, RLPValue, RLPEncodeable}
+import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
+import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
+import io.iohk.scalanet.discovery.ethereum.Node
+import io.iohk.scalanet.discovery.ethereum.v4.Packet
+import io.iohk.scalanet.discovery.ethereum.v4.Payload
+import io.iohk.scalanet.discovery.hash.Hash
+import org.scalactic.Equality
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import scodec.Codec
 import scodec.bits.BitVector
+
 import java.net.InetAddress
-import scala.util.Random
-import org.scalactic.Equality
 import scala.reflect.ClassTag
-import _root_.io.iohk.ethereum.rlp.RLPException
+import scala.util.Random
 
 class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._

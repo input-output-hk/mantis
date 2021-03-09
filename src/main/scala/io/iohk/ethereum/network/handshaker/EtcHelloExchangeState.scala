@@ -7,8 +7,11 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.ServerStatus
 
 case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
     extends InProgressState[PeerInfo]

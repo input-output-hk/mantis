@@ -1,6 +1,8 @@
 package io.iohk.ethereum.consensus.blocks
 
-import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 /** We use a `BlockGenerator` to create the next block.

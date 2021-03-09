@@ -1,12 +1,14 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import scalapb.GeneratedMessageCompanion
-import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.extvm.msg.{CallContext, VMQuery}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.extvm.msg.CallContext
+import io.iohk.ethereum.extvm.msg.VMQuery
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
 
 class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 

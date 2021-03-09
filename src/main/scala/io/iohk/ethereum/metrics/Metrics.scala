@@ -1,13 +1,12 @@
 package io.iohk.ethereum.metrics
 
-import java.util.concurrent.atomic.AtomicReference
-
 import io.micrometer.core.instrument._
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.prometheus.client.exporter.HTTPServer
 import io.prometheus.client.hotspot.DefaultExports
 import kamon.Kamon
 
+import java.util.concurrent.atomic.AtomicReference
 import scala.util.Try
 
 case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: Int = 0) {
