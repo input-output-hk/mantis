@@ -1,10 +1,11 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorRef, ActorSystem, Props}
+import akka.actor.{Actor, ActorRef, Props}
 import akka.pattern.{ask, pipe}
-import akka.stream.OverflowStrategy
+import akka.stream.Attributes.InputBuffer
 import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.{Attributes, DelayOverflowStrategy, OverflowStrategy}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
@@ -53,8 +54,8 @@ class BlockFetcher(
   val cap = 1000
   val queue = Source
     .queue[BlockFetcherState](cap, OverflowStrategy.backpressure)
-    .groupedWithin(Int.MaxValue, 10.seconds)
-    .mapConcat(_.lastOption.toList)
+    .delay(10.seconds, DelayOverflowStrategy.dropHead)
+    .addAttributes(Attributes(InputBuffer(1, 1)))
     .map { s =>
       log.debug("Resuming fetching with the latest state")
       fetchBlocks(s.withResumedFetching)
