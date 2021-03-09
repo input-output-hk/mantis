@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
@@ -21,7 +21,6 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.Duration
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 class EthBlocksServiceSpec
     extends TestKit(ActorSystem("EthBlocksServiceSpec_ActorSystem"))

@@ -10,8 +10,8 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.FiniteDuration
 import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
 
 class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 

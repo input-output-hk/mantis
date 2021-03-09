@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.p2p
 
-import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
+import akka.actor.{ActorRef, ActorSystem, PoisonPill, Props, Terminated}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import com.miguno.akka.testing.VirtualTime
@@ -41,7 +41,6 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import akka.actor.ActorRef
 
 class PeerActorSpec
     extends TestKit(ActorSystem("PeerActorSpec_System"))

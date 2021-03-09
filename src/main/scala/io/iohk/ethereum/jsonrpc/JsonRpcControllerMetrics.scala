@@ -1,9 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.metrics.MetricsContainer
+import io.micrometer.core.instrument.Counter
 
 import java.time.Duration
-import io.micrometer.core.instrument.Counter
 
 case object JsonRpcControllerMetrics extends MetricsContainer {
 

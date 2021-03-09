@@ -5,7 +5,7 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import cats.effect.concurrent.Deferred
 import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
-import io.iohk.ethereum.domain.{Block, BlockHeader}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -16,7 +16,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
 import monix.reactive.subjects.{ReplaySubject, Subject}
-import io.iohk.ethereum.domain.BlockBody
 
 class EtcPeerManagerFake(
     syncConfig: SyncConfig,

@@ -9,10 +9,10 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.security.SecureRandomBuilder
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 

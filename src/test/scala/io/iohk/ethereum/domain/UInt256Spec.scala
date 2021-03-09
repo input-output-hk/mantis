@@ -4,8 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm.Generators._
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.prop.TableFor2
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 

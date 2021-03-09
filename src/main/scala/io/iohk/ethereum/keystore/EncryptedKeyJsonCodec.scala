@@ -7,11 +7,10 @@ import org.bouncycastle.util.encoders.Hex
 import org.json4s.JsonAST.{JObject, JString, JValue}
 import org.json4s.JsonDSL._
 import org.json4s.native.JsonMethods._
-import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
+import org.json4s.{CustomSerializer, DefaultFormats, Extraction, Formats, JField}
 
 import java.util.UUID
 import scala.util.Try
-import org.json4s.Formats
 
 object EncryptedKeyJsonCodec {
 

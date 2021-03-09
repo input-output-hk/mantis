@@ -3,10 +3,9 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.vm.MockWorldState._
-import io.iohk.ethereum.domain.BlockHeader
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   import config.feeSchedule._

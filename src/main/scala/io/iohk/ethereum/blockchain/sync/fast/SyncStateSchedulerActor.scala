@@ -15,10 +15,9 @@ import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
-import monix.execution.Scheduler
+import monix.execution.{Cancelable, Scheduler}
 
 import scala.concurrent.duration._
-import monix.execution.Cancelable
 
 class SyncStateSchedulerActor(
     sync: SyncStateScheduler,

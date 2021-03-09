@@ -1,6 +1,6 @@
 package io.iohk.ethereum.faucet
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.pattern.gracefulStop
 import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import akka.util.ByteString
@@ -13,6 +13,7 @@ import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.eval.Task
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -21,8 +22,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.security.SecureRandom
 import scala.concurrent.ExecutionContext
-import akka.actor.ActorRef
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class FaucetHandlerSpec
     extends TestKit(ActorSystem("ActorSystem_DebugFaucetHandlerSpec"))

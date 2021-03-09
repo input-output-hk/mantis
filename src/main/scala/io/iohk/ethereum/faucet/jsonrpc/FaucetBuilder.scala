@@ -9,8 +9,7 @@ import io.iohk.ethereum.keystore.KeyStoreImpl
 import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
-import scala.concurrent.Await
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{Await, ExecutionContextExecutor}
 
 trait ActorSystemBuilder {
   def systemName: String

@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
+import akka.util.ByteString
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
@@ -14,7 +15,6 @@ import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import monix.eval.Task
 import org.scalamock.scalatest.AsyncMockFactory
-import akka.util.ByteString
 
 class QAServiceSpec
     extends TestKit(ActorSystem("QAServiceSpec_ActorSystem"))

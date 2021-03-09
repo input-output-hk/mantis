@@ -1,6 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
@@ -15,7 +15,6 @@ import org.scalatest.matchers.should.Matchers
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration._
-import akka.actor.ActorRef
 
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 

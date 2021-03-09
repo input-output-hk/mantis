@@ -1,6 +1,6 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -23,7 +23,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.InetSocketAddress
 import scala.concurrent.duration._
-import akka.actor.ActorRef
 
 class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 

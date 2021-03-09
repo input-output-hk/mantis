@@ -4,10 +4,9 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.io.File
-import java.nio.file.Paths
-import scala.io.Source
 import java.net.URL
-import java.nio.file.Path
+import java.nio.file.{Path, Paths}
+import scala.io.Source
 
 class BootstrapDownloadSpec extends AnyFlatSpec with Matchers {
 

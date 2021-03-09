@@ -13,10 +13,10 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.handlers.CallHandler3
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
-import org.scalamock.handlers.CallHandler3
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
 

@@ -12,10 +12,10 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
 import monix.eval.Task
+import monix.execution
 
 import scala.annotation.tailrec
 import scala.util.Random
-import monix.execution
 
 class FilterManager(
     blockchain: Blockchain,

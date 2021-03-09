@@ -10,13 +10,13 @@ import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpc
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import org.json4s.JsonDSL._
+import org.json4s.native.Serialization
 import org.json4s.{DefaultFormats, native}
 
 import java.time.Duration
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import org.json4s.native.Serialization
 
 trait ApisBase {
   def available: List[String]

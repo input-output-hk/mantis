@@ -1,12 +1,12 @@
 package io.iohk.ethereum.network.handshaker
 
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.domain.BlockHeader
 
 trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo] with Logger {
 

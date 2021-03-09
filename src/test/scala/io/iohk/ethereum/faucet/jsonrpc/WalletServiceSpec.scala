@@ -11,6 +11,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.S
 import io.iohk.ethereum.{crypto, rlp}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -18,7 +19,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.security.SecureRandom
 import scala.concurrent.duration._
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
 

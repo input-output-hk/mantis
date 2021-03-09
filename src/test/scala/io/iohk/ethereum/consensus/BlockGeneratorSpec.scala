@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
+import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, TestBlockGenerator}
 import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
@@ -16,6 +16,7 @@ import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
 import monix.execution.Scheduler
+import monix.execution.schedulers.SchedulerService
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -24,8 +25,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.time.Instant
-import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
-import monix.execution.schedulers.SchedulerService
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
   implicit val testContext: SchedulerService = Scheduler.fixedPool("block-generator-spec-pool", 4)

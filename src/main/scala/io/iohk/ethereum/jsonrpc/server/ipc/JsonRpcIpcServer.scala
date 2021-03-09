@@ -7,9 +7,9 @@ import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
 import io.iohk.ethereum.utils.Logger
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.JsonAST.JValue
-import org.json4s.native
 import org.json4s.native.JsonMethods._
 import org.json4s.native.Serialization
+import org.json4s.{Formats, native}
 import org.scalasbt.ipcsocket.UnixDomainServerSocket
 
 import java.io.{BufferedReader, File, InputStreamReader}
@@ -17,7 +17,6 @@ import java.net.{ServerSocket, Socket}
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try
-import org.json4s.Formats
 
 class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)(implicit
     system: ActorSystem

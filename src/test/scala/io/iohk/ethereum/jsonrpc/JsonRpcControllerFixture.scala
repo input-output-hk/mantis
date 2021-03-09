@@ -11,10 +11,10 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
-import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, Checkpoint, SignedTransaction, UInt256}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{BloomFilter, InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{Config, FilterConfig}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, Timeouts}
@@ -23,8 +23,6 @@ import org.json4s.JsonAST.{JArray, JInt, JString, JValue}
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
-import io.iohk.ethereum.domain.{ BlockHeader, Checkpoint }
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 class JsonRpcControllerFixture(implicit system: ActorSystem)
     extends MockFactory

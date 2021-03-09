@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.TestProbe
 import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -10,7 +10,6 @@ import org.scalatest.matchers.should.Matchers
 
 import java.net.URI
 import scala.concurrent.duration._
-import akka.actor.ActorRef
 
 class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 

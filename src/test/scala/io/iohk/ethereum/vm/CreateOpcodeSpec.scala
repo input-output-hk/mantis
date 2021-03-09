@@ -3,7 +3,7 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -11,7 +11,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import MockWorldState._
 import Fixtures.blockchainConfig
-import io.iohk.ethereum.domain.BlockHeader
 
 // scalastyle:off method.length
 class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

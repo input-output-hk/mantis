@@ -1,9 +1,9 @@
 package io.iohk.ethereum.network
 
 import io.iohk.ethereum.metrics.MetricsContainer
+import io.micrometer.core.instrument.Counter
 
 import java.util.concurrent.atomic.AtomicLong
-import io.micrometer.core.instrument.Counter
 
 case object NetworkMetrics extends MetricsContainer {
 

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
@@ -16,7 +16,6 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers
 
 import java.net.InetSocketAddress
-import akka.actor.ActorRef
 
 class SyncStateDownloaderStateSpec
     extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))

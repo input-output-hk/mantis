@@ -7,11 +7,10 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
+import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, MessageDecoder, NetworkMessageDecoder}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import io.iohk.ethereum.network.p2p.MessageDecoder
 
 class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 

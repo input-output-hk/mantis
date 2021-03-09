@@ -4,7 +4,7 @@ import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockHeader, UInt256}
 import io.iohk.ethereum.vm.Fixtures.blockchainConfig
 import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import org.bouncycastle.util.encoders.Hex
@@ -12,7 +12,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor5
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import io.iohk.ethereum.domain.BlockHeader
 
 // scalastyle:off magic.number
 class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

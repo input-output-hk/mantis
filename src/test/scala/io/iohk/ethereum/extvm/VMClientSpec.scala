@@ -1,8 +1,9 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, SignedTransaction, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
+import io.iohk.ethereum.extvm.msg.{ CallResult, VMQuery }
 import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.vm._
 import io.iohk.ethereum.vm.utils.MockVmInput
@@ -11,8 +12,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scalapb.GeneratedMessageCompanion
-import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.extvm.msg.{ CallResult, VMQuery }
 
 class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 

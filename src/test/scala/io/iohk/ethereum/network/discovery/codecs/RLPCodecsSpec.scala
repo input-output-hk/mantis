@@ -8,6 +8,7 @@ import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
 import io.iohk.scalanet.discovery.ethereum.{EthereumNodeRecord, Node}
 import io.iohk.scalanet.discovery.hash.Hash
 import org.scalactic.Equality
+import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scodec.Codec
@@ -16,7 +17,6 @@ import scodec.bits.BitVector
 import java.net.InetAddress
 import scala.reflect.ClassTag
 import scala.util.Random
-import org.scalatest.Assertion
 
 class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._

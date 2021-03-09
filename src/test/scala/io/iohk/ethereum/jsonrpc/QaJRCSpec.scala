@@ -14,15 +14,15 @@ import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{ByteGenerators, NormalPatience, crypto}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.json4s.Extraction
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
+import org.scalamock.handlers.CallHandler1
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.PatienceConfiguration
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalamock.handlers.CallHandler1
 
 class QaJRCSpec
     extends AnyWordSpec

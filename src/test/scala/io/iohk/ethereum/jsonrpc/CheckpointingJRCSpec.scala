@@ -11,13 +11,13 @@ import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{Fixtures, NormalPatience, crypto}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class CheckpointingJRCSpec
     extends AnyFlatSpec

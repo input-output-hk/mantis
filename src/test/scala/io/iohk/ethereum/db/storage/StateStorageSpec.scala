@@ -2,7 +2,7 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.cache.{LruCache, MapCache}
+import io.iohk.ethereum.db.cache.{Cache, LruCache, MapCache}
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning}
@@ -14,7 +14,6 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
-import io.iohk.ethereum.db.cache.Cache
 
 class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 

@@ -20,12 +20,11 @@ import io.iohk.ethereum.utils.{BuildInfo, ConfigUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 import org.json4s.native.Serialization
-import org.json4s.{DefaultFormats, JInt, native}
+import org.json4s.{DefaultFormats, Formats, JInt, native}
 
 import java.security.SecureRandom
 import javax.net.ssl.SSLContext
 import scala.concurrent.duration.{FiniteDuration, _}
-import org.json4s.Formats
 
 trait JsonRpcHttpServer extends Json4sSupport with Logger {
   val jsonRpcController: JsonRpcBaseController

@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
@@ -15,7 +15,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import java.net.InetSocketAddress
-import akka.actor.ActorRef
 
 class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 

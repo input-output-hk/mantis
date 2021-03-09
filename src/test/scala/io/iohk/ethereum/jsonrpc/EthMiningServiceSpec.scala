@@ -15,7 +15,7 @@ import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.Ledger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
@@ -23,6 +23,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.{ByteStringUtils, Config}
 import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
 import monix.execution.Scheduler.Implicits.global
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
@@ -30,8 +31,6 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 class EthMiningServiceSpec
     extends TestKit(ActorSystem("EthMiningServiceSpec_ActorSystem"))

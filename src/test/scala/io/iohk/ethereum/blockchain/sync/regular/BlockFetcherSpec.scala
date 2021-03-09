@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestKit, TestProbe}
 import cats.data.NonEmptyList
 import com.miguno.akka.testing.VirtualTime
@@ -20,6 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.{Codes, PV64}
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{BlockHelpers, Timeouts, WithActorSystemShutDown, crypto}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -27,8 +28,6 @@ import org.scalatest.matchers.should.Matchers
 import java.net.InetSocketAddress
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import akka.actor.ActorRef
-import io.iohk.ethereum.utils.Config
 
 class BlockFetcherSpec
     extends TestKit(ActorSystem("BlockFetcherSpec_System"))

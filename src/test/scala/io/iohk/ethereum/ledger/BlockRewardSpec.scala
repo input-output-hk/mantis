@@ -10,12 +10,11 @@ import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
 

@@ -1,13 +1,14 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorRef, ActorSystem}
 import akka.pattern.ask
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.Timeout
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
-import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer }
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.GenOps.GenOps
 import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, ObjectGenerators, SpecFixtures, WithActorSystemShutDown}
@@ -16,9 +17,6 @@ import monix.execution.Scheduler
 import monix.reactive.Observable
 
 import scala.concurrent.duration.DurationInt
-import akka.actor.ActorRef
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer }
 
 class FastSyncSpec
     extends TestKit(ActorSystem("FastSync_testing"))

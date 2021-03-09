@@ -13,8 +13,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import monix.execution.Scheduler
 
 import java.util.concurrent.Executors
-import scala.concurrent.ExecutionContext
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContext, ExecutionContextExecutor}
 
 /** Provides a standard setup for the test suites.
   * The reference to "cake" is about the "Cake Pattern" used in Mantis.

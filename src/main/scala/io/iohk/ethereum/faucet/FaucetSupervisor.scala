@@ -1,13 +1,12 @@
 package io.iohk.ethereum.faucet
 
-import akka.actor.{ActorRef, ActorSystem, OneForOneStrategy, SupervisorStrategy}
+import akka.actor.{ActorRef, ActorSystem, OneForOneStrategy, Props, SupervisorStrategy}
 import akka.pattern.{BackoffOpts, BackoffSupervisor}
 import io.iohk.ethereum.faucet.FaucetHandler.WalletException
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.utils.Logger
 
 import scala.concurrent.duration._
-import akka.actor.Props
 
 object FaucetSupervisor {
   val name = "FaucetSupervisor"

@@ -11,12 +11,12 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDe
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder, JsonSerializers}
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 
 import java.time.Duration
 import scala.util.Try
-import org.json4s.Formats
 
 trait JsonMethodsImplicits {
   implicit val formats: Formats = JsonSerializers.formats

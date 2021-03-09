@@ -11,8 +11,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import java.util.concurrent.TimeUnit
-import scala.concurrent.duration.{FiniteDuration, _}
 import scala.collection.mutable
+import scala.concurrent.duration.{FiniteDuration, _}
 
 class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
   val iterations = 10

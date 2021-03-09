@@ -14,6 +14,8 @@ import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, crypto}
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
@@ -21,8 +23,6 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import ByteStringUtils.byteStringOrdering
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalacheck.Gen
 
 class BlockWithCheckpointHeaderValidatorSpec
     extends AnyFlatSpec

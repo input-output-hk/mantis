@@ -20,12 +20,12 @@ import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
 
+import java.net.URI
 import scala.collection.immutable.SortedSet
+import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.math.Ordering.Implicits._
 import scala.util.control.NoStackTrace
-import java.net.URI
-import scala.concurrent.Future
 
 class PeerDiscoveryManagerSpec
     extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
