@@ -57,7 +57,7 @@ class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   trait TestSetup {
     val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
-    val underLying: mutable.Map[NodeHash,NodeEncoded] = MapCache.getMap[NodeHash, NodeEncoded]
+    val underLying: mutable.Map[NodeHash, NodeEncoded] = MapCache.getMap[NodeHash, NodeEncoded]
     val mapCache: MapCache[NodeHash, NodeEncoded] =
       new MapCache[NodeHash, NodeEncoded](underLying, testCapacityCacheConfig)
     val mapCacheTime: MapCache[NodeHash, NodeEncoded] =

@@ -12,8 +12,10 @@ class NodeJsonRpcHealthChecker(
 
   protected def mainService: String = "node health"
 
-  final val listeningHC: JsonRpcHealthcheck.T[ListeningResponse] = JsonRpcHealthcheck("listening", netService.listening(NetService.ListeningRequest()))
-  final val peerCountHC: JsonRpcHealthcheck.T[PeerCountResponse] = JsonRpcHealthcheck("peerCount", netService.peerCount(PeerCountRequest()))
+  final val listeningHC: JsonRpcHealthcheck.T[ListeningResponse] =
+    JsonRpcHealthcheck("listening", netService.listening(NetService.ListeningRequest()))
+  final val peerCountHC: JsonRpcHealthcheck.T[PeerCountResponse] =
+    JsonRpcHealthcheck("peerCount", netService.peerCount(PeerCountRequest()))
   final val earliestBlockHC: JsonRpcHealthcheck.T[EthBlocksService.BlockByNumberResponse] = JsonRpcHealthcheck(
     "earliestBlock",
     ethBlocksService.getBlockByNumber(BlockByNumberRequest(BlockParam.Earliest, fullTxs = true))

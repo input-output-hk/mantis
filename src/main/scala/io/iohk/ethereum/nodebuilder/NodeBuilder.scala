@@ -100,7 +100,8 @@ trait DiscoveryConfigBuilder extends BlockchainConfigBuilder {
 trait KnownNodesManagerBuilder {
   self: ActorSystemBuilder with StorageBuilder =>
 
-  lazy val knownNodesManagerConfig: KnownNodesManager.KnownNodesManagerConfig = KnownNodesManager.KnownNodesManagerConfig(Config.config)
+  lazy val knownNodesManagerConfig: KnownNodesManager.KnownNodesManagerConfig =
+    KnownNodesManager.KnownNodesManagerConfig(Config.config)
 
   lazy val knownNodesManager: ActorRef = system.actorOf(
     KnownNodesManager.props(knownNodesManagerConfig, storagesInstance.storages.knownNodesStorage),
@@ -580,7 +581,7 @@ trait JSONRpcHttpServerBuilder {
     with JSONRpcConfigBuilder
     with SSLContextBuilder =>
 
-  lazy val maybeJsonRpcHttpServer: Either[String,JsonRpcHttpServer] =
+  lazy val maybeJsonRpcHttpServer: Either[String, JsonRpcHttpServer] =
     JsonRpcHttpServer(
       jsonRpcController,
       jsonRpcHealthChecker,

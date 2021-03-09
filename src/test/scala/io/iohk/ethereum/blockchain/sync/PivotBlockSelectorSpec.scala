@@ -506,7 +506,7 @@ class PivotBlockSelectorSpec
     val peer3Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
     val peer4Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
 
-    val allPeers: Map[Peer,PeerInfo] = Map(
+    val allPeers: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -537,7 +537,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val threeAcceptedPeers: Map[Peer,PeerInfo] = Map(
+    val threeAcceptedPeers: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -561,7 +561,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val singlePeer: Map[Peer,PeerInfo] = Map(
+    val singlePeer: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -571,7 +571,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val peersFromDifferentNetworks: Map[Peer,PeerInfo] = Map(
+    val peersFromDifferentNetworks: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,

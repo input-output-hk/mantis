@@ -5,7 +5,13 @@ import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
 import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof.asRlpSerializedNode
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount, StorageProof, StorageProofKey}
+import io.iohk.ethereum.jsonrpc.ProofService.{
+  GetProofRequest,
+  GetProofResponse,
+  ProofAccount,
+  StorageProof,
+  StorageProofKey
+}
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
 

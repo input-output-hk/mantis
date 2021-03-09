@@ -94,7 +94,9 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner: TestActorRef[Nothing] = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
+    val miner: TestActorRef[Nothing] = TestActorRef(
+      EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService)
+    )
 
   }
 }

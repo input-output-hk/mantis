@@ -9,7 +9,7 @@ import scala.collection.mutable
   * To do so, it uses an internal in memory cache to apply all the changes.
   */
 class ReadOnlyNodeStorage private (wrapped: NodesKeyValueStorage) extends NodesKeyValueStorage {
-  val buffer: mutable.Map[NodeHash,Option[NodeEncoded]] = mutable.Map.empty[NodeHash, Option[NodeEncoded]]
+  val buffer: mutable.Map[NodeHash, Option[NodeEncoded]] = mutable.Map.empty[NodeHash, Option[NodeEncoded]]
 
   private def changes: (Seq[NodeHash], Seq[(NodeHash, NodeEncoded)]) =
     buffer.foldLeft(Seq.empty[NodeHash] -> Seq.empty[(NodeHash, NodeEncoded)]) { (acc, cachedItem) =>

@@ -9,7 +9,8 @@ class FaucetJsonRpcHealthCheck(faucetRpcService: FaucetRpcService) extends JsonR
 
   protected def mainService: String = "faucet health"
 
-  final val statusHC: JsonRpcHealthcheck.T[FaucetDomain.StatusResponse] = JsonRpcHealthcheck("status", faucetRpcService.status(StatusRequest()))
+  final val statusHC: JsonRpcHealthcheck.T[FaucetDomain.StatusResponse] =
+    JsonRpcHealthcheck("status", faucetRpcService.status(StatusRequest()))
 
   override def healthCheck(): Task[HealthcheckResponse] = {
     val statusF = statusHC()

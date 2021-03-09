@@ -8,7 +8,12 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService.{GetBalanceRequest, GetBalanceResponse, GetStorageAtRequest, GetTransactionCountRequest}
+import io.iohk.ethereum.jsonrpc.EthUserService.{
+  GetBalanceRequest,
+  GetBalanceResponse,
+  GetStorageAtRequest,
+  GetTransactionCountRequest
+}
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -222,7 +227,7 @@ class EthProofServiceSpec
     val key2 = 335
     val value2 = 125
 
-    val storageMpt: MerklePatriciaTrie[BigInt,BigInt] = EthereumUInt256Mpt
+    val storageMpt: MerklePatriciaTrie[BigInt, BigInt] = EthereumUInt256Mpt
       .storageMpt(
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         storagesInstance.storages.stateStorage.getBackingStorage(0)
@@ -237,7 +242,7 @@ class EthProofServiceSpec
       storageRoot = ByteString(storageMpt.getRootHash)
     )
 
-    val mpt: MerklePatriciaTrie[Array[Byte],Account] =
+    val mpt: MerklePatriciaTrie[Array[Byte], Account] =
       MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(
           crypto.kec256(address.bytes.toArray[Byte]),

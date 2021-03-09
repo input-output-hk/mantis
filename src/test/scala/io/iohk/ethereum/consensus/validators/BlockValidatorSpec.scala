@@ -80,7 +80,7 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
   "Block" should "correctly handle the case where a block has no receipts" in {
     StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
       case Right(_) => succeed
-      case _                => fail()
+      case _        => fail()
     }
   }
 
@@ -169,7 +169,9 @@ class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     crypto.generateKeyPair(secureRandom)
   )
 
-  val validCheckpoint: Checkpoint = Checkpoint(CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash))
+  val validCheckpoint: Checkpoint = Checkpoint(
+    CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockHeader.hash)
+  )
 
   val validBlockHeaderWithCheckpoint: BlockHeader =
     new CheckpointBlockGenerator()

@@ -98,8 +98,6 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       _ <- overwrite(keyFileName, newEncKey)
     } yield ()
 
-  
-
   private def init(): Unit = {
     val dir = new File(keyStoreConfig.keyStoreDir)
     val res = Try(dir.isDirectory || dir.mkdirs()).filter(identity)

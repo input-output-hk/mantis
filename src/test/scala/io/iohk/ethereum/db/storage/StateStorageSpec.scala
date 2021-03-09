@@ -159,7 +159,7 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val minNodes = 5
     val maxNodes = 15
     val dataSource: EphemDataSource = EphemDataSource()
-    val testCache: Cache[NodeHash,NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val testCache: Cache[NodeHash, NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val nodeStorage = new NodeStorage(dataSource)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, testCache)
     object TestCacheConfig extends NodeCacheConfig {
@@ -174,7 +174,8 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
 
     val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
-    val referenceCounteStateStorage: StateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val referenceCounteStateStorage: StateStorage =
+      StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
 
     val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
     val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)

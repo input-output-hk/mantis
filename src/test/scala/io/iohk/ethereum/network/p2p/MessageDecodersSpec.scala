@@ -15,7 +15,9 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
 
   val decode: (Int, Array[Byte], Message.Version) => Message = EthereumMessageDecoder.fromBytes _
 
-  val exampleHash: ByteString = ByteString(Hex.decode("fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef6"))
+  val exampleHash: ByteString = ByteString(
+    Hex.decode("fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef6")
+  )
 
   val blockHashesFromNumberBytes: Array[Byte] = Hex.decode("c20c28")
 

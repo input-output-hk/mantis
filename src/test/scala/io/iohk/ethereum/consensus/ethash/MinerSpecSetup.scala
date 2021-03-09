@@ -95,7 +95,11 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
 
   val fakeWorld: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
 
-  def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block): CallHandler3[Block,Boolean,Option[InMemoryWorldStateProxy],Task[PendingBlockAndState]] =
+  def blockCreatorBehaviour(
+      parentBlock: Block,
+      withTransactions: Boolean,
+      resultBlock: Block
+  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(parentBlock, withTransactions, *)
@@ -104,7 +108,11 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       )
       .atLeastOnce()
 
-  def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block): CallHandler3[Block,Boolean,Option[InMemoryWorldStateProxy],Task[PendingBlockAndState]] =
+  def blockCreatorBehaviourExpectingInitialWorld(
+      parentBlock: Block,
+      withTransactions: Boolean,
+      resultBlock: Block
+  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(where { (parent, withTxs, _) =>

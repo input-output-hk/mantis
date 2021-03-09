@@ -5,7 +5,12 @@ import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerMsg
-import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse.{FaucetIsUnavailable, StatusResponse, TransactionSent, WalletRpcClientError}
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse.{
+  FaucetIsUnavailable,
+  StatusResponse,
+  TransactionSent,
+  WalletRpcClientError
+}
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain.{SendFundsRequest, StatusRequest}
 import io.iohk.ethereum.faucet.{FaucetConfig, RpcClientConfig, SupervisorConfig}

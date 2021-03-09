@@ -92,8 +92,6 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
       "id" -> s"${UUID.randomUUID()}".asJson
     ).asJson
 
-  
-
 }
 
 object RpcClient {

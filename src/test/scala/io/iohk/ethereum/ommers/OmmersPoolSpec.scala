@@ -153,16 +153,22 @@ class OmmersPoolSpec
     val block0: BlockHeader = Block3125369.header.copy(number = 0, difficulty = 0)
 
     val block1Chain1: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 11)
-    val block2Chain1: BlockHeader = Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 21)
-    val block3Chain1: BlockHeader = Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 31)
+    val block2Chain1: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 21)
+    val block3Chain1: BlockHeader =
+      Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 31)
 
-    val block2Chain2: BlockHeader = Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 22)
-    val block3Chain2: BlockHeader = Block3125369.header.copy(number = 2, parentHash = block2Chain2.hash, difficulty = 32)
+    val block2Chain2: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 22)
+    val block3Chain2: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block2Chain2.hash, difficulty = 32)
 
-    val block3Chain3: BlockHeader = Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 33)
+    val block3Chain3: BlockHeader =
+      Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 33)
 
     val block1Chain4: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 14)
-    val block2Chain4: BlockHeader = Block3125369.header.copy(number = 2, parentHash = block1Chain4.hash, difficulty = 24)
+    val block2Chain4: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain4.hash, difficulty = 24)
 
     val block1Chain5: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 15)
 

@@ -41,7 +41,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
     bestBlockHash = peer1Status.bestHash
   )
 
-  val twoAcceptedPeers: Map[Peer,PeerInfo] = Map(
+  val twoAcceptedPeers: Map[Peer, PeerInfo] = Map(
     peer1 -> PeerInfo(
       peer1Status,
       forkAccepted = true,
@@ -58,7 +58,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
     )
   )
 
-  val singlePeer: Map[Peer,PeerInfo] = Map(
+  val singlePeer: Map[Peer, PeerInfo] = Map(
     peer1 -> PeerInfo(
       peer1Status,
       forkAccepted = true,

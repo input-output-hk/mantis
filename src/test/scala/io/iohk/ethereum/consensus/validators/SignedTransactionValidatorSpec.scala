@@ -57,13 +57,17 @@ class SignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
   val senderBalance = 100
 
-  val senderAccountBeforeHomestead: Account = Account.empty(UInt256(txBeforeHomestead.nonce)).copy(balance = senderBalance)
+  val senderAccountBeforeHomestead: Account =
+    Account.empty(UInt256(txBeforeHomestead.nonce)).copy(balance = senderBalance)
 
-  val senderAccountAfterHomestead: Account = Account.empty(UInt256(txAfterHomestead.nonce)).copy(balance = senderBalance)
+  val senderAccountAfterHomestead: Account =
+    Account.empty(UInt256(txAfterHomestead.nonce)).copy(balance = senderBalance)
 
-  val blockHeaderBeforeHomestead: BlockHeader = Fixtures.Blocks.Block3125369.header.copy(number = 1100000, gasLimit = 4700000)
+  val blockHeaderBeforeHomestead: BlockHeader =
+    Fixtures.Blocks.Block3125369.header.copy(number = 1100000, gasLimit = 4700000)
 
-  val blockHeaderAfterHomestead: BlockHeader = Fixtures.Blocks.Block3125369.header.copy(number = 1200003, gasLimit = 4710000)
+  val blockHeaderAfterHomestead: BlockHeader =
+    Fixtures.Blocks.Block3125369.header.copy(number = 1200003, gasLimit = 4710000)
 
   val accumGasUsed = 0 //Both are the first tx in the block
 

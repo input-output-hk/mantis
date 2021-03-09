@@ -2,7 +2,16 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, BlockHeader, FailureOutcome, HashOutcome, Receipt, SignedTransaction, SuccessOutcome, UInt256}
+import io.iohk.ethereum.domain.{
+  Address,
+  BlockHeader,
+  FailureOutcome,
+  HashOutcome,
+  Receipt,
+  SignedTransaction,
+  SuccessOutcome,
+  UInt256
+}
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._

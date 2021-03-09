@@ -7,7 +7,12 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{NoUsefulDataInResponse, ResponseProcessingResult, UnrequestedResponse, UsefulData}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
+  NoUsefulDataInResponse,
+  ResponseProcessingResult,
+  UnrequestedResponse,
+  UsefulData
+}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
@@ -238,7 +243,7 @@ class SyncStateDownloaderStateSpec
     val peers: NonEmptyList[Peer] = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
     val potentialNodes: List[ByteString] = (1 to 100).map(i => ByteString(i)).toList
     val potentialNodesHashes: List[ByteString] = potentialNodes.map(node => kec256(node))
-    val hashNodeMap: Map[ByteString,ByteString] = potentialNodesHashes.zip(potentialNodes).toMap
+    val hashNodeMap: Map[ByteString, ByteString] = potentialNodesHashes.zip(potentialNodes).toMap
   }
 
 }

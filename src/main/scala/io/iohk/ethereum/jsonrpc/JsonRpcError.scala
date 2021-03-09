@@ -27,7 +27,8 @@ object JsonRpcError extends JsonMethodsImplicits {
   case class RateLimitInformation(backoffSeconds: Long)
   def RateLimitError(backoffSeconds: Long): JsonRpcError =
     JsonRpcError(-32005, "request rate exceeded", RateLimitInformation(backoffSeconds))
-  val ParseError: JsonRpcError = JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
+  val ParseError: JsonRpcError =
+    JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
   val InvalidRequest: JsonRpcError = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
   val MethodNotFound: JsonRpcError = JsonRpcError(-32601, "The method does not exist / is not available", None)
   def InvalidParams(msg: String = "Invalid method parameters"): JsonRpcError = JsonRpcError(-32602, msg, None)
@@ -39,7 +40,8 @@ object JsonRpcError extends JsonMethodsImplicits {
   //
   // Note Error Code "2", "Action not allowed" could be a candidate here, but the description they provide
   //      probably does not match this use-case.
-  final val ConsensusIsNotEthash: JsonRpcError = JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.Ethash}", None)
+  final val ConsensusIsNotEthash: JsonRpcError =
+    JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.Ethash}", None)
 
   def executionError(reasons: List[EthCustomError]): JsonRpcError = JsonRpcError(3, "Execution error", reasons)
   val NodeNotFound: JsonRpcError = executionError(List(EthCustomError.DoesntExist("State node")))

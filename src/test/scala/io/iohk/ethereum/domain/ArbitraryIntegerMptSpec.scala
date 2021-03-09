@@ -47,7 +47,7 @@ class ArbitraryIntegerMptSpec extends AnyFlatSpec with Matchers with ScalaCheckP
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val emptyMpt: MerklePatriciaTrie[BigInt,BigInt] = ArbitraryIntegerMpt.storageMpt(
+    val emptyMpt: MerklePatriciaTrie[BigInt, BigInt] = ArbitraryIntegerMpt.storageMpt(
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       storagesInstance.storages.stateStorage.getReadOnlyStorage
     )

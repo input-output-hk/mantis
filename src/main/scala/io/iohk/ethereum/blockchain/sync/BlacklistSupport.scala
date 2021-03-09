@@ -17,7 +17,8 @@ trait BlacklistSupport {
 
   protected val maxBlacklistedNodes = 1000
 
-  val blacklistedPeers: mutable.LinkedHashMap[BlacklistId,Cancellable] = mutable.LinkedHashMap.empty[BlacklistId, Cancellable]
+  val blacklistedPeers: mutable.LinkedHashMap[BlacklistId, Cancellable] =
+    mutable.LinkedHashMap.empty[BlacklistId, Cancellable]
 
   def blacklist(blacklistId: BlacklistId, duration: FiniteDuration, reason: String): Unit =
     if (duration > Duration.Zero) {

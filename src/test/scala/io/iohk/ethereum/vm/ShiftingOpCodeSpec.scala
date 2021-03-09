@@ -24,15 +24,33 @@ class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckProper
   val byteCode_0xfe: Array[Byte] = Array.fill(255)(1.toByte) ++ array_0x00
   val byteCode_0x7f: Array[Byte] = Array.fill(255)(1.toByte)
 
-  val byteString_0x40: ByteString = ByteString(Hex.decode("4000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0x07f: ByteString = ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000007f"))
-  val byteString_0xfe: ByteString = ByteString(Hex.decode("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"))
-  val byteString_0x7f: ByteString = ByteString(Hex.decode("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
-  val byteString_0x80: ByteString = ByteString(Hex.decode("8000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0xff: ByteString = ByteString(Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
-  val byteString_0xc0: ByteString = ByteString(Hex.decode("c000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0x01: ByteString = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000001"))
-  val byteString_0x00: ByteString = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000"))
+  val byteString_0x40: ByteString = ByteString(
+    Hex.decode("4000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0x07f: ByteString = ByteString(
+    Hex.decode("000000000000000000000000000000000000000000000000000000000000007f")
+  )
+  val byteString_0xfe: ByteString = ByteString(
+    Hex.decode("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
+  )
+  val byteString_0x7f: ByteString = ByteString(
+    Hex.decode("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+  )
+  val byteString_0x80: ByteString = ByteString(
+    Hex.decode("8000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0xff: ByteString = ByteString(
+    Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+  )
+  val byteString_0xc0: ByteString = ByteString(
+    Hex.decode("c000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0x01: ByteString = ByteString(
+    Hex.decode("0000000000000000000000000000000000000000000000000000000000000001")
+  )
+  val byteString_0x00: ByteString = ByteString(
+    Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")
+  )
 
   val array_0x80: Array[Byte] = byteString_0x80.toArray
   val array_0xff: Array[Byte] = byteString_0xff.toArray

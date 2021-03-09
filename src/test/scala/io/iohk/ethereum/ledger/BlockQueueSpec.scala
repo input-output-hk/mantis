@@ -6,7 +6,7 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
-import org.scalamock.handlers.{ CallHandler0, CallHandler1 }
+import org.scalamock.handlers.{CallHandler0, CallHandler1}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -154,14 +154,18 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   trait TestConfig {
-    val syncConfig: SyncConfig = SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
+    val syncConfig: SyncConfig =
+      SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
 
     def setBestBlockNumber(n: BigInt): CallHandler0[BigInt] =
       (blockchain.getBestBlockNumber _).expects().returning(n)
 
-    def setChainWeightForParent(block: Block, weight: Option[ChainWeight] = None): CallHandler1[ByteString,Option[ChainWeight]] =
+    def setChainWeightForParent(
+        block: Block,
+        weight: Option[ChainWeight] = None
+    ): CallHandler1[ByteString, Option[ChainWeight]] =
       (blockchain.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)
 
     def randomHash(): ByteString =

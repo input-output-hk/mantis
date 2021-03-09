@@ -193,7 +193,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     val zeroTransferBalance = 0
 
     val worldStatePostEIP161: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(worldStateWithoutPersist)
-    val worldStatePreEIP161: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(worldStateWithoutPersistPreEIP161)
+    val worldStatePreEIP161: InMemoryWorldStateProxy =
+      InMemoryWorldStateProxy.persistState(worldStateWithoutPersistPreEIP161)
 
   }
 }

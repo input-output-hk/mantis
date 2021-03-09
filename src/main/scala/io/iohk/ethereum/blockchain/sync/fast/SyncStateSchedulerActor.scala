@@ -6,7 +6,12 @@ import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{CriticalError, ProcessingStatistics, SchedulerState, SyncResponse}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
+  CriticalError,
+  ProcessingStatistics,
+  SchedulerState,
+  SyncResponse
+}
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport, PeerRequestHandler}
 import io.iohk.ethereum.network.Peer

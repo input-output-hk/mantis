@@ -16,9 +16,11 @@ case object NetworkMetrics extends MetricsContainer {
 
   final val SentMessagesCounter: Counter = metrics.counter("network.messages.sent.counter")
 
-  final val DiscoveredPeersSize: AtomicLong = metrics.registry.gauge("network.discovery.foundPeers.gauge", new AtomicLong(0))
+  final val DiscoveredPeersSize: AtomicLong =
+    metrics.registry.gauge("network.discovery.foundPeers.gauge", new AtomicLong(0))
 
-  final val BlacklistedPeersSize: AtomicLong = metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
+  final val BlacklistedPeersSize: AtomicLong =
+    metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
 
   final val PendingPeersSize: AtomicLong = metrics.registry.gauge("network.peers.pending.gauge", new AtomicLong(0))
 

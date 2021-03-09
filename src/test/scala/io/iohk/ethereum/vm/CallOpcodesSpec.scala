@@ -686,7 +686,6 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
     */
   "gas cost bigger than available gas DELEGATECALL" should {
 
-    
     val c_extra = config.feeSchedule.G_call
     val startGas = c_extra - 1
     val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]

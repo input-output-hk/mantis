@@ -524,7 +524,8 @@ class PeerManagerSpec
     var createdPeers: Seq[TestPeer] = Seq.empty
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
-    val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
+    val discoveryConfig: DiscoveryConfig =
+      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
     val peerDiscoveryManager: TestProbe = TestProbe()
     val peerEventBus: TestProbe = TestProbe()

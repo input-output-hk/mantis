@@ -5,7 +5,13 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{RestartRequested, StartSyncingTo, StateSyncFinished, StateSyncStats, WaitingForNewTargetBlock}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
+  RestartRequested,
+  StartSyncingTo,
+  StateSyncFinished,
+  StateSyncStats,
+  WaitingForNewTargetBlock
+}
 import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
@@ -39,7 +45,8 @@ class StateSyncSpec
     with WithActorSystemShutDown {
 
   // those tests are somewhat long running 3 successful evaluation should be fine
-  implicit override val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+    PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
@@ -155,7 +162,7 @@ class StateSyncSpec
 
     val trieProvider = new TrieProvider(blockchain, blockchainConfig)
 
-    val peersMap: Map[Peer,PeerInfo] = (1 to 8).map { i =>
+    val peersMap: Map[Peer, PeerInfo] = (1 to 8).map { i =>
       (
         Peer(new InetSocketAddress("127.0.0.1", i), TestProbe(i.toString).ref, incomingConnection = false),
         initialPeerInfo

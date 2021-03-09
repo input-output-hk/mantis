@@ -34,19 +34,20 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     )
   }
 
-  implicit val iele_call: JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] = new JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, IeleCallRequest] =
-      params match {
-        case Some(JArray((txObj: JObject) :: (blockValue: JValue) :: Nil)) =>
-          for {
-            blockParam <- extractBlockParam(blockValue)
-            tx <- extractIeleCall(txObj)
-          } yield IeleCallRequest(tx, blockParam)
-        case _ => Left(InvalidParams())
-      }
+  implicit val iele_call: JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] =
+    new JsonMethodDecoder[IeleCallRequest] with JsonEncoder[IeleCallResponse] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, IeleCallRequest] =
+        params match {
+          case Some(JArray((txObj: JObject) :: (blockValue: JValue) :: Nil)) =>
+            for {
+              blockParam <- extractBlockParam(blockValue)
+              tx <- extractIeleCall(txObj)
+            } yield IeleCallRequest(tx, blockParam)
+          case _ => Left(InvalidParams())
+        }
 
-    override def encodeJson(t: IeleCallResponse): JValue = JArray(t.returnData.map(encodeAsHex).toList)
-  }
+      override def encodeJson(t: IeleCallResponse): JValue = JArray(t.returnData.map(encodeAsHex).toList)
+    }
 
   protected def extractIeleTx(input: Map[String, JValue]): Either[JsonRpcError, IeleTransactionRequest] = {
     def optionalQuantity(name: String): Either[JsonRpcError, Option[BigInt]] = input.get(name) match {
@@ -93,14 +94,15 @@ object IeleJsonMethodsImplicits extends JsonMethodsImplicits {
     } yield IeleTransactionRequest(from, to, value, gas, gasPrice, nonce, function, arguments, contractCode)
   }
 
-  implicit val iele_sendTransaction: JsonMethodDecoder[SendIeleTransactionRequest] = new JsonMethodDecoder[SendIeleTransactionRequest] {
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendIeleTransactionRequest] =
-      params match {
-        case Some(JArray(JObject(tx) :: _)) =>
-          extractIeleTx(tx.toMap).map(SendIeleTransactionRequest)
-        case _ =>
-          Left(InvalidParams())
-      }
-  }
+  implicit val iele_sendTransaction: JsonMethodDecoder[SendIeleTransactionRequest] =
+    new JsonMethodDecoder[SendIeleTransactionRequest] {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, SendIeleTransactionRequest] =
+        params match {
+          case Some(JArray(JObject(tx) :: _)) =>
+            extractIeleTx(tx.toMap).map(SendIeleTransactionRequest)
+          case _ =>
+            Left(InvalidParams())
+        }
+    }
 
 }

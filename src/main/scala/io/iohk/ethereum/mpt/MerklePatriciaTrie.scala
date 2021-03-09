@@ -14,11 +14,12 @@ import scala.annotation.tailrec
 
 object MerklePatriciaTrie {
 
-  implicit val defaultByteArraySerializable: ByteArraySerializable[Array[Byte]] = new ByteArraySerializable[Array[Byte]] {
-    override def toBytes(input: Array[Byte]): Array[Byte] = input
+  implicit val defaultByteArraySerializable: ByteArraySerializable[Array[Byte]] =
+    new ByteArraySerializable[Array[Byte]] {
+      override def toBytes(input: Array[Byte]): Array[Byte] = input
 
-    override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
-  }
+      override def fromBytes(bytes: Array[Byte]): Array[Byte] = bytes
+    }
 
   class MPTException(val message: String) extends RuntimeException(message)
 

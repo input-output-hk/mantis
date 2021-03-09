@@ -28,7 +28,9 @@ class ENRCodecsSpec extends AnyFlatSpec with Matchers {
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#test-vectors
   val nodeId: Hash.Tagged = Hash(hex"a448f24c6d18e575453db13171562b71999873db5b286df957af199ec94617f7".toBitVector)
-  val privateKey: PrivateKey.Tagged = PrivateKey(hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".toBitVector)
+  val privateKey: PrivateKey.Tagged = PrivateKey(
+    hex"b71c71a67e1177ad4e901695e1b4b9ee17ae16c6668d313eac2f96dbcda3f291".toBitVector
+  )
   val publicKey: io.iohk.scalanet.discovery.crypto.PublicKey = sigalg.toPublicKey(privateKey)
   val enrString =
     "enr:-IS4QHCYrYZbAKWCBRlAy5zzaDZXJBGkcnh4MHcBFZntXNFrdvJjX04jRzjzCBOonrkTfj499SZuOh8R33Ls8RRcy5wBgmlkgnY0gmlwhH8AAAGJc2VjcDI1NmsxoQPKY0yuDUmstAHYpMa2_oxVtw0RW_QAdpzBQA8yWM0xOIN1ZHCCdl8"

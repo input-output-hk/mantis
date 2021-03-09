@@ -325,7 +325,9 @@ class BlockWithCheckpointHeaderValidatorSpec
 
     def getBlockHeaderByHashMock(blockHeaders: Seq[BlockHeader])(hash: ByteString): Option[BlockHeader] =
       blockHeaders.find(_.hash == hash)
-    val getBlockHeaderWithParent: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(Seq(validBlockParentHeader)) _
+    val getBlockHeaderWithParent: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(
+      Seq(validBlockParentHeader)
+    ) _
     val getBlockHeaderWithNone: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(Nil) _
 
     def testOfEmptyByteString(

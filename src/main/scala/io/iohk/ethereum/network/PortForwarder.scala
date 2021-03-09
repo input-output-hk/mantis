@@ -9,7 +9,13 @@ import org.jupnp.support.model.PortMapping
 import org.jupnp.support.model.PortMapping.Protocol.{TCP, UDP}
 import org.jupnp.tool.transport.JDKTransportConfiguration
 import org.jupnp.transport.Router
-import org.jupnp.transport.spi.{NetworkAddressFactory, StreamClient, StreamClientConfiguration, StreamServer, StreamServerConfiguration}
+import org.jupnp.transport.spi.{
+  NetworkAddressFactory,
+  StreamClient,
+  StreamClientConfiguration,
+  StreamServer,
+  StreamServerConfiguration
+}
 import org.jupnp.{DefaultUpnpServiceConfiguration, QueueingThreadPoolExecutor, UpnpService, UpnpServiceImpl}
 
 import java.net.InetAddress

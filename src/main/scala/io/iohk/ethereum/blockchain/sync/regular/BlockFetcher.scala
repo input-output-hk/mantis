@@ -8,7 +8,10 @@ import cats.data.NonEmptyList
 import cats.instances.option._
 import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.PeersClient._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{AwaitingBodiesToBeIgnored, AwaitingHeadersToBeIgnored}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
+  AwaitingBodiesToBeIgnored,
+  AwaitingHeadersToBeIgnored
+}
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.validators.BlockValidator

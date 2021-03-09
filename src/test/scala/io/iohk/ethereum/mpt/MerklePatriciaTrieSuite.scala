@@ -22,7 +22,8 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
   val dataSource: EphemDataSource = EphemDataSource()
   val (stateStorage, emptyNodeStorage, _) = StateStorage.createTestStateStorage(dataSource)
   val emptyEphemNodeStorage: MptStorage = stateStorage.getBackingStorage(0)
-  val emptyMpt: MerklePatriciaTrie[Array[Byte],Array[Byte]] = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
+  val emptyMpt: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+    MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
 
   implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {

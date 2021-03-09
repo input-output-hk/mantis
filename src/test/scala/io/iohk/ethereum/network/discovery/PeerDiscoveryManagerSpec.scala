@@ -57,7 +57,8 @@ class PeerDiscoveryManagerSpec
     lazy val discoveryConfig = defaultConfig
     lazy val knownNodesStorage: KnownNodesStorage = mock[KnownNodesStorage]
     lazy val discoveryService: DiscoveryService = mock[DiscoveryService]
-    lazy val discoveryServiceResource: Resource[Task,DiscoveryService] = Resource.pure[Task, DiscoveryService](discoveryService)
+    lazy val discoveryServiceResource: Resource[Task, DiscoveryService] =
+      Resource.pure[Task, DiscoveryService](discoveryService)
 
     lazy val peerDiscoveryManager: TestActorRef[PeerDiscoveryManager] =
       TestActorRef[PeerDiscoveryManager](

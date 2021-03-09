@@ -27,21 +27,21 @@ object PrecompiledContracts {
   val Bn128PairingAddr: Address = Address(8)
   val Blake2bCompressionAddr: Address = Address(9)
 
-  val contracts: Map[Address,PrecompiledContract] = Map(
+  val contracts: Map[Address, PrecompiledContract] = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
     Sha256Addr -> Sha256,
     Rip160Addr -> Ripemp160,
     IdAddr -> Identity
   )
 
-  val byzantiumAtlantisContracts: Map[Address,PrecompiledContract] = contracts ++ Map(
+  val byzantiumAtlantisContracts: Map[Address, PrecompiledContract] = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
     Bn128PairingAddr -> Bn128Pairing
   )
 
-  val istanbulPhoenixContracts: Map[Address,PrecompiledContract] = byzantiumAtlantisContracts ++ Map(
+  val istanbulPhoenixContracts: Map[Address, PrecompiledContract] = byzantiumAtlantisContracts ++ Map(
     Blake2bCompressionAddr -> Blake2bCompress
   )
 

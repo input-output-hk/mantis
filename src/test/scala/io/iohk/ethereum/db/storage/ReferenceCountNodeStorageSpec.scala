@@ -306,7 +306,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
       override val maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)
     }
 
-    val underlying: mutable.Map[ByteString,Array[Byte]] = MapCache.getMap[ByteString, Array[Byte]]
+    val underlying: mutable.Map[ByteString, Array[Byte]] = MapCache.getMap[ByteString, Array[Byte]]
     val cache = new MapCache[ByteString, Array[Byte]](underlying, testCacheConfig)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, cache)
 

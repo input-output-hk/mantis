@@ -7,7 +7,14 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockBody, SignedTransactionWithSender, Transaction}
 import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
-import io.iohk.ethereum.nodebuilder.{ApisBuilder, JSONRpcConfigBuilder, MantisServiceBuilder, PendingTransactionsManagerBuilder, TransactionHistoryServiceBuilder, TxPoolConfigBuilder}
+import io.iohk.ethereum.nodebuilder.{
+  ApisBuilder,
+  JSONRpcConfigBuilder,
+  MantisServiceBuilder,
+  PendingTransactionsManagerBuilder,
+  TransactionHistoryServiceBuilder,
+  TxPoolConfigBuilder
+}
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
 import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, SpecFixtures, WithActorSystemShutDown}

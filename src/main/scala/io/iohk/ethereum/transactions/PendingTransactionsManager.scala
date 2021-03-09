@@ -59,9 +59,9 @@ class PendingTransactionsManager(
   import akka.pattern.ask
 
   metrics.gauge(
-      "transactions.pool.size.gauge",
-      () => pendingTransactions.size().toDouble
-    )
+    "transactions.pool.size.gauge",
+    () => pendingTransactions.size().toDouble
+  )
 
   /** stores information which tx hashes are "known" by which peers
     */

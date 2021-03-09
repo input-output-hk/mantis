@@ -5,7 +5,11 @@ import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{OptionNoneToJNullSerializer, QuantitiesSerializer, UnformattedDataJsonSerializer}
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
+  OptionNoneToJNullSerializer,
+  QuantitiesSerializer,
+  UnformattedDataJsonSerializer
+}
 import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
@@ -68,7 +72,6 @@ class JsonRpcControllerPersonalSpec
 
   it should "personal_listAccounts" in new JsonRpcControllerFixture {
     val addresses = List(34, 12391, 123).map(Address(_))
-    
 
     (personalService.listAccounts _)
       .expects(ListAccountsRequest())

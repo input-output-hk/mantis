@@ -556,7 +556,8 @@ class BlockFetcherSpec
       blockFetcher ! MessageFromPeer(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
 
-    val firstBlocksBatch: List[Block] = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+    val firstBlocksBatch: List[Block] =
+      BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
 
     // Fetcher request for headers
     val firstGetBlockHeadersRequest: GetBlockHeaders =

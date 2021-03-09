@@ -550,7 +550,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       payload = ByteString.empty
     )
 
-    lazy val signedTransaction: SignedTransactionWithSender = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+    lazy val signedTransaction: SignedTransactionWithSender =
+      SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     lazy val duplicatedSignedTransaction: SignedTransactionWithSender =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
@@ -606,7 +607,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     override lazy val consensusConfig: ConsensusConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
-    lazy val blockGenerator: TestBlockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+    lazy val blockGenerator: TestBlockGenerator =
+      consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     lazy val blockExecution =

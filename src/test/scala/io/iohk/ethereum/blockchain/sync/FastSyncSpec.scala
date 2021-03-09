@@ -8,7 +8,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.domain.{Block, ChainWeight}
-import io.iohk.ethereum.network.{ EtcPeerManagerActor, Peer }
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.GenOps.GenOps
 import io.iohk.ethereum.{BlockHelpers, FreeSpecBase, ObjectGenerators, SpecFixtures, WithActorSystemShutDown}
@@ -52,7 +52,7 @@ class FastSyncSpec
     lazy val bestBlockAtStart: Block = testBlocks(10)
     lazy val expectedPivotBlockNumber: BigInt = bestBlockAtStart.number - syncConfig.pivotBlockOffset
     lazy val expectedTargetBlockNumber: BigInt = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers: Map[Peer,EtcPeerManagerActor.PeerInfo] = twoAcceptedPeers.map { case (k, peerInfo) =>
+    lazy val testPeers: Map[Peer, EtcPeerManagerActor.PeerInfo] = twoAcceptedPeers.map { case (k, peerInfo) =>
       val lastBlock = bestBlockAtStart
       k -> peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)

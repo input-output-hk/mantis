@@ -3,7 +3,13 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{AlreadyProcessedItem, CannotDecodeMptNode, NotRequestedItem, SchedulerState, SyncResponse}
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
+  AlreadyProcessedItem,
+  CannotDecodeMptNode,
+  NotRequestedItem,
+  SchedulerState,
+  SyncResponse
+}
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
 import io.iohk.ethereum.domain.{Address, BlockchainImpl}
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
@@ -223,7 +229,8 @@ class SyncSchedulerSpec
     assert(result1.left.value == CannotDecodeMptNode)
   }
 
-  implicit override val generatorDrivenConfig: PropertyCheckConfiguration = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+    PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them

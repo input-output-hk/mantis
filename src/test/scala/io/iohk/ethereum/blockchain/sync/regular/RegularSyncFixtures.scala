@@ -157,7 +157,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     class TestLedgerImpl
         extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
-      protected val results: mutable.Map[ByteString,Task[BlockImportResult]] = mutable.Map[ByteString, Task[BlockImportResult]]()
+      protected val results: mutable.Map[ByteString, Task[BlockImportResult]] =
+        mutable.Map[ByteString, Task[BlockImportResult]]()
       protected val importedBlocksSet: mutable.Set[Block] = mutable.Set[Block]()
       private val importedBlocksSubject = ReplaySubject[Block]()
 

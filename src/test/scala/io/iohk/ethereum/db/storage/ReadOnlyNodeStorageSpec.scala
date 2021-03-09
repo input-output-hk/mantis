@@ -67,9 +67,10 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     }
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
     val newNodeStorage = new NodeStorage(dataSource)
-    val testCache: Cache[NodeHash,NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val testCache: Cache[NodeHash, NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val newCachedNodeStorage = new CachedNodeStorage(newNodeStorage, testCache)
 
-    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage =
+      StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
   }
 }

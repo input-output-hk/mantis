@@ -20,7 +20,7 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
     .map { case Seq(n1, n2) => n1 -> n2 }
     .toSeq
 
-  val specialCases: TableFor2[BigInt,BigInt] = Table(("n1", "n2"), pairs: _*)
+  val specialCases: TableFor2[BigInt, BigInt] = Table(("n1", "n2"), pairs: _*)
 
   def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
 

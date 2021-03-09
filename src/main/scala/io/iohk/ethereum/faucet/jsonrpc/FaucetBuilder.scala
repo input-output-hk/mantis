@@ -83,7 +83,7 @@ trait FaucetJsonRpcHttpServerBuilder {
     with FaucetJsonRpcControllerBuilder
     with SSLContextBuilder =>
 
-  val faucetJsonRpcHttpServer: Either[String,JsonRpcHttpServer] = JsonRpcHttpServer(
+  val faucetJsonRpcHttpServer: Either[String, JsonRpcHttpServer] = JsonRpcHttpServer(
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,

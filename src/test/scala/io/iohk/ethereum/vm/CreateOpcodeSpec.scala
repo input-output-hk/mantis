@@ -21,7 +21,8 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
 
   // scalastyle:off
   object fxt {
-    val fakeHeader: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
+    val fakeHeader: BlockHeader =
+      BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
     val addresWithRevert: Address = Address(10)
     val creatorAddr: Address = Address(0xcafe)
     val salt = UInt256.Zero
@@ -136,7 +137,8 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
     val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
     val endowment: UInt256 = 123
-    val initWorld: MockWorldState = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
+    val initWorld: MockWorldState =
+      MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
     val newAddr: Address = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
     val worldWithRevertProgram: MockWorldState = initWorld
@@ -145,7 +147,8 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
 
     val createCode: Assembly = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
-    val copyCodeGas: BigInt = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
+    val copyCodeGas: BigInt =
+      G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
     def gasRequiredForInit(withHashCost: Boolean): BigInt = initPart(contractCode.code.size).linearConstGas(
       config

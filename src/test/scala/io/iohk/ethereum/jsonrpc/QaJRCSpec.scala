@@ -338,7 +338,9 @@ class QaJRCSpec
     def responseType(expectedType: MineBlocksResponse.MinerResponseType): JField =
       "responseType" -> JString(expectedType.entryName)
 
-    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse): CallHandler1[MineBlocksRequest,Task[Either[JsonRpcError,MineBlocksResponse]]] =
+    def mockSuccessfulMineBlocksBehaviour(
+        resp: MinerResponse
+    ): CallHandler1[MineBlocksRequest, Task[Either[JsonRpcError, MineBlocksResponse]]] =
       (qaService.mineBlocks _)
         .expects(mineBlocksReq)
         .returning(Task.now(Right(MineBlocksResponse(resp))))

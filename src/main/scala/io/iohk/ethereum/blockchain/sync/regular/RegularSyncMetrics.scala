@@ -8,11 +8,13 @@ import scala.concurrent.duration.NANOSECONDS
 object RegularSyncMetrics extends MetricsContainer {
   final private val blockPropagationTimer = "regularsync.blocks.propagation.timer"
 
-  final val MinedBlockPropagationTimer: Timer = metrics.timer(blockPropagationTimer, "blocktype", "MinedBlockPropagation")
+  final val MinedBlockPropagationTimer: Timer =
+    metrics.timer(blockPropagationTimer, "blocktype", "MinedBlockPropagation")
   final val CheckpointBlockPropagationTimer: Timer =
     metrics.timer(blockPropagationTimer, "blocktype", "CheckpointBlockPropagation")
   final val NewBlockPropagationTimer: Timer = metrics.timer(blockPropagationTimer, "blocktype", "NewBlockPropagation")
-  final val DefaultBlockPropagationTimer: Timer = metrics.timer(blockPropagationTimer, "blocktype", "DefaultBlockPropagation")
+  final val DefaultBlockPropagationTimer: Timer =
+    metrics.timer(blockPropagationTimer, "blocktype", "DefaultBlockPropagation")
 
   def recordMinedBlockPropagationTimer(nanos: Long): Unit = MinedBlockPropagationTimer.record(nanos, NANOSECONDS)
   def recordImportCheckpointPropagationTimer(nanos: Long): Unit =

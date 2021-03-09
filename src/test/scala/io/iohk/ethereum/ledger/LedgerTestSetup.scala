@@ -76,7 +76,8 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
   val initialOriginNonce: BigInt = defaultTx.nonce
 
-  val defaultAddressesToDelete: Set[Address] = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
+  val defaultAddressesToDelete: Set[Address] =
+    Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
   val defaultLogs: Seq[TxLogEntry] = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
   val defaultGasPrice: UInt256 = 10
   val defaultGasLimit: UInt256 = 1000000
