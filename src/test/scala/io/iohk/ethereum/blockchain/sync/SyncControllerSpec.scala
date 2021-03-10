@@ -235,7 +235,7 @@ class SyncControllerSpec
     val futureHeaders = Seq(defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20))
     val futureHeadersMessage = PeerRequestHandler.ResponseReceived(peer2, BlockHeaders(futureHeaders), 2L)
     implicit val ec = system.dispatcher
-    system.scheduler.scheduleAtFixedRate(0.seconds, 0.1.second, fast, futureHeadersMessage)
+    system.scheduler.scheduleAtFixedRate(0.seconds, 0.5.seconds, fast, futureHeadersMessage)
 
     eventually {
       someTimePasses()
