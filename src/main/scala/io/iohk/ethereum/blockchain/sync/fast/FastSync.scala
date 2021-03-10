@@ -239,7 +239,7 @@ class FastSync(
     ): Unit = {
       def validateDownloadedHeaders = blockHeaders.toList.traverse_(validateHeaderOnly)
 
-      log.debug("Handling new received skeleton from peer [{}].", peer.id)
+      log.debug("Handling new received skeleton from peer [{}].", peer.id.value)
 
       removeRequestHandler(sender())
 
@@ -250,9 +250,9 @@ class FastSync(
         case Right(_) =>
           currentSkeleton.setSkeletonHeaders(blockHeaders) match {
             case Left(error) =>
-              log.warning(s"Received invalid skeleton data from master peer $peer: $error")
-            //currentSkeletonState = None
-            //blockHeadersError(peer, BlacklistReason.WrongBlockHeaders)
+              log.warning("Failed to set skeleton headers from peer [{}]: [{}]", peer.id.value, error.msg)
+              currentSkeletonState = None
+              processSyncing() // TODO ETCM-701 if this error keeps happening, switch master peer
             case Right(updatedSkeleton) =>
               log.debug("Updated current skeleton header to [{}]", updatedSkeleton)
               currentSkeletonState = Some(updatedSkeleton)
@@ -268,22 +268,26 @@ class FastSync(
         blockHeaders: Seq[BlockHeader],
         currentSkeleton: HeaderSkeleton
     ): Unit = {
+      def validHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt): Boolean = {
+        headers.nonEmpty && headers.size <= requestedNum && checkHeadersChain(headers)
+      }
+
       removeRequestHandler(sender())
       requestedHeaders.get(peer) match {
         case Some(requested) =>
-          log.debug("Validating [{}] received block headers from peer [{}]", blockHeaders.size, peer.id)
+          log.debug("Validating [{}] received block headers from peer [{}]", blockHeaders.size, peer.id.value)
           requestedHeaders -= peer
           if (validHeadersChain(blockHeaders, requested.limit))
             fillSkeletonGap(peer, requested, blockHeaders, currentSkeleton)
           else {
-            handleDownloadedBatchError(
+            handleHeaderResponseError(
               InvalidDownloadedChain(blockHeaders),
               requested,
               peer,
               BlacklistReason.WrongBlockHeaders
             )
           }
-        case None => log.warning("Received block headers from peer [{}] but weren't expecting any.", peer.id)
+        case None => log.warning("Received block headers from peer [{}] but weren't expecting any.", peer.id.value)
       }
     }
 
@@ -300,28 +304,41 @@ class FastSync(
       )
       currentSkeleton.addBatch(blockHeaders) match {
         case Right(skeleton) =>
-          log.debug("Successfully added headers from peer [{}] to current skeleton.", peer.id, skeleton)
+          log.debug("Successfully added headers from peer [{}] to current skeleton.", peer.id.value, skeleton)
           skeleton.fullChain match {
             case Some(fullChain) =>
-              log.debug("Current skeleton completed.")
+              log.debug("Current header skeleton completed. Starting to request bodies and receipts.")
               handleBlockHeadersChain(peer, fullChain)
               currentSkeletonState = None
             case None =>
-              log.debug("Skeleton is still incomplete. Waiting for further data.")
+              log.debug("Skeleton is still incomplete. Waiting for remaining headers.")
               currentSkeletonState = Some(skeleton)
           }
         case Left(error) =>
-          log.warning(s"Failed to add headers from peer [{}] to current skeleton. Error: [{}]", peer.id, error.msg)
-          handleDownloadedBatchError(error, request, peer, BlacklistReason.BlockHeaderValidationFailed)
+          log.warning("Failed to add headers from peer [{}] to current skeleton. Error: [{}]", peer.id.value, error.msg)
+          handleHeaderResponseError(error, request, peer, BlacklistReason.BlockHeaderValidationFailed)
       }
     }
 
-    private def handleDownloadedBatchError(
+    private def handleHeaderResponseError(
         error: HeaderSkeletonError,
         request: HeaderRange,
         peer: Peer,
         reason: BlacklistReason
     ): Unit = {
+      def handleMasterPeerFailure(header: BlockHeader): Unit = {
+        batchFailuresCount += 1
+        if (batchFailuresCount > fastSyncMaxBatchRetries) {
+          log.info("Max skeleton batch failures reached. Master peer must be wrong.")
+          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+
+          // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
+          context become waitingForBranchResolution
+          branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
+          currentSkeletonState = None
+        }
+      }
+
       blockHeadersQueue :+= request
       error match {
         // These are the reasons that make the master peer suspicious
@@ -331,19 +348,6 @@ class FastSync(
         case _ =>
           log.info(error.msg)
           blockHeadersError(peer, reason)
-      }
-    }
-
-    private def handleMasterPeerFailure(header: BlockHeader): Unit = {
-      batchFailuresCount += 1
-      if (batchFailuresCount > fastSyncMaxBatchRetries) {
-        log.info("Max skeleton batch failures reached. Master peer must be wrong.")
-        handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
-
-        // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
-        context become waitingForBranchResolution
-        branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
-        currentSkeletonState = None
       }
     }
 
@@ -379,26 +383,14 @@ class FastSync(
       context become waitingForPivotBlockUpdate(updateReason)
     }
 
-    def reScheduleAskForNewPivot(updateReason: PivotBlockUpdateReason): Unit = {
-      syncState = syncState.copy(pivotBlockUpdateFailures = syncState.pivotBlockUpdateFailures + 1)
-      scheduler
-        .scheduleOnce(syncConfig.pivotBlockReScheduleInterval, self, UpdatePivotBlock(updateReason))
-    }
-
-    private def stalePivotAfterRestart(
-        newPivot: BlockHeader,
-        currentState: SyncState,
-        updateReason: PivotBlockUpdateReason
-    ): Boolean = {
-      newPivot.number == currentState.pivotBlock.number && updateReason.isSyncRestart
-    }
-
     private def newPivotIsGoodEnough(
         newPivot: BlockHeader,
         currentState: SyncState,
         updateReason: PivotBlockUpdateReason
     ): Boolean = {
-      newPivot.number >= currentState.pivotBlock.number && !stalePivotAfterRestart(newPivot, currentState, updateReason)
+      def stalePivotAfterRestart: Boolean =
+        newPivot.number == currentState.pivotBlock.number && updateReason.isSyncRestart
+      newPivot.number >= currentState.pivotBlock.number && !stalePivotAfterRestart
     }
 
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
@@ -419,6 +411,12 @@ class FastSync(
 
         case UpdatePivotBlock(state) => updatePivotBlock(state)
       }
+
+    private def reScheduleAskForNewPivot(updateReason: PivotBlockUpdateReason): Unit = {
+      syncState = syncState.copy(pivotBlockUpdateFailures = syncState.pivotBlockUpdateFailures + 1)
+      scheduler
+        .scheduleOnce(syncConfig.pivotBlockReScheduleInterval, self, UpdatePivotBlock(updateReason))
+    }
 
     def currentSyncingStatus: SyncProtocol.Status =
       SyncProtocol.Status.Syncing(
@@ -510,24 +508,6 @@ class FastSync(
       appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1) max 0).commit()
     }
 
-    @tailrec
-    private def processHeaders(peer: Peer, headers: Seq[BlockHeader]): HeaderProcessingResult = {
-      if (headers.nonEmpty) {
-        val header = headers.head
-        processHeader(header, peer) match {
-          case Left(result) => result
-          case Right((header, weight)) =>
-            updateSyncState(header, weight)
-            if (header.number == syncState.safeDownloadTarget) {
-              ImportedPivotBlock
-            } else {
-              processHeaders(peer, headers.tail)
-            }
-        }
-      } else
-        HeadersProcessingFinished
-    }
-
     private def validateHeader(header: BlockHeader, peer: Peer): Either[HeaderProcessingResult, BlockHeader] = {
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
 
@@ -566,19 +546,6 @@ class FastSync(
       syncState = syncState.updateNextBlockToValidate(header, K, X)
     }
 
-    private def processHeader(
-        header: BlockHeader,
-        peer: Peer
-    ): Either[HeaderProcessingResult, (BlockHeader, ChainWeight)] =
-      for {
-        validatedHeader <- validateHeader(header, peer)
-        parentWeight <- getParentChainWeight(header)
-      } yield (validatedHeader, parentWeight)
-
-    private def getParentChainWeight(header: BlockHeader) = {
-      blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
-    }
-
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
       blacklist.add(peer.id, duration, BlockHeaderValidationFailed)
       if (header.number <= syncState.safeDownloadTarget) {
@@ -594,8 +561,37 @@ class FastSync(
       }
     }
 
+    // scalastyle:off method.length
     private def handleBlockHeadersChain(peer: Peer, headers: Seq[BlockHeader]): Unit = {
-      processHeaders(peer, headers) match {
+      def processHeader(header: BlockHeader): Either[HeaderProcessingResult, (BlockHeader, ChainWeight)] =
+        for {
+          validatedHeader <- validateHeader(header, peer)
+          parentWeight <- getParentChainWeight(header)
+        } yield (validatedHeader, parentWeight)
+
+      def getParentChainWeight(header: BlockHeader) = {
+        blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
+      }
+
+      @tailrec
+      def processHeaders(headers: Seq[BlockHeader]): HeaderProcessingResult = {
+        if (headers.nonEmpty) {
+          val header = headers.head
+          processHeader(header) match {
+            case Left(result) => result
+            case Right((header, weight)) =>
+              updateSyncState(header, weight)
+              if (header.number == syncState.safeDownloadTarget) {
+                ImportedPivotBlock
+              } else {
+                processHeaders(headers.tail)
+              }
+          }
+        } else
+          HeadersProcessingFinished
+      }
+
+      processHeaders(headers) match {
         case ParentChainWeightNotFound(header) =>
           // We could end in wrong fork and get blocked so we should rewind our state a little
           // we blacklist peer just in case we got malicious peer which would send us bad blocks, forcing us to rollback
@@ -616,10 +612,6 @@ class FastSync(
             syncConfig.criticalBlacklistDuration
           )
       }
-    }
-
-    def validHeadersChain(headers: Seq[BlockHeader], requestedNum: BigInt): Boolean = {
-      headers.nonEmpty && headers.size <= requestedNum && checkHeadersChain(headers)
     }
 
     private def handleBlockBodies(peer: Peer, requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): Unit = {
@@ -871,7 +863,7 @@ class FastSync(
 
     def assignBlockchainWork(peerWithInfo: PeerWithInfo): Unit = {
       val PeerWithInfo(peer, peerInfo) = peerWithInfo
-      log.debug(s"Assigning blockchain work for peer [{}]", peer.id)
+      log.debug(s"Assigning blockchain work for peer [{}]", peer.id.value)
       if (syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer)
       } else if (syncState.blockBodiesQueue.nonEmpty) {
@@ -894,7 +886,7 @@ class FastSync(
     def requestReceipts(peer: Peer): Unit = {
       val (receiptsToGet, remainingReceipts) = syncState.receiptsQueue.splitAt(receiptsPerRequest)
 
-      log.debug("Requesting receipts from peer [{}]", peer.id)
+      log.debug("Requesting receipts from peer [{}]", peer.id.value)
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetReceipts, Receipts](
@@ -917,7 +909,7 @@ class FastSync(
     def requestBlockBodies(peer: Peer): Unit = {
       val (blockBodiesToGet, remainingBlockBodies) = syncState.blockBodiesQueue.splitAt(blockBodiesPerRequest)
 
-      log.debug("Requesting block bodies from peer [{}]", peer.id)
+      log.debug("Requesting block bodies from peer [{}]", peer.id.value)
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockBodies, BlockBodies](
@@ -940,7 +932,7 @@ class FastSync(
     def requestBlockHeaders(peer: Peer): Unit = {
       val (request, remaining) = (blockHeadersQueue.head, blockHeadersQueue.tail)
 
-      log.debug("Requesting block headers from peer [{}]", peer.id)
+      log.debug("Requesting block headers from peer [{}]", peer.id.value)
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
@@ -964,7 +956,7 @@ class FastSync(
       val skeleton =
         HeaderSkeleton(syncState.bestBlockHeaderNumber + 1, syncState.safeDownloadTarget, blockHeadersPerRequest)
 
-      log.debug("Requesting header skeleton [{}] from master peer [{}]", skeleton, peer.id)
+      log.debug("Requesting header skeleton [{}] from master peer [{}]", skeleton, peer.id.value)
 
       val msg = GetBlockHeaders(
         Left(skeleton.firstSkeletonHeaderNumber),
