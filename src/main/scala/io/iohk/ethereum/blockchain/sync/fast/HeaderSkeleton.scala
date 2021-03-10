@@ -36,7 +36,7 @@ import io.iohk.ethereum.domain.BlockHeader
   *                        by using `setSkeletonHeaders`
   * @param batches The currently downloaded batches. This is filled in by using `addBatch`
   */
-case class HeaderSkeleton(
+final case class HeaderSkeleton(
     from: BigInt,
     to: BigInt,
     maxSkeletonHeaders: Int,
@@ -72,6 +72,12 @@ case class HeaderSkeleton(
   private val lastSkeletonHeaderNumber: BigInt = from + (batchSize * limit) - 1
   private val skeletonHeaderNumbers: Seq[BigInt] =
     firstSkeletonHeaderNumber to lastSkeletonHeaderNumber by batchSize
+
+  def validateAndSetSkeletonHeaders(headers: Seq[BlockHeader]): Either[HeaderSkeletonError, HeaderSkeleton] =
+    for {
+      _ <- checkSkeletonHeadersTotal(headers)
+      _ <- checkSkeletonHeaderNumbers(headers)
+    } yield copy(skeletonHeaders = headers)
 
   /**
     * Use this method to update this state with the downloaded skeleton
@@ -167,33 +173,36 @@ object HeaderSkeleton {
   sealed trait HeaderSkeletonError {
     def msg: String
   }
-  case class InvalidTotalHeaders(downloaded: Int, expected: Int) extends HeaderSkeletonError {
+  final case class NoCurrentHeaderSkeleton(downloaded: Int, expected: Int) extends HeaderSkeletonError {
     override def msg: String = s"Invalid downloaded total headers. Expected $expected but was $downloaded"
   }
-  case class InvalidHeaderNumber(downloaded: Seq[BigInt], expected: Seq[BigInt]) extends HeaderSkeletonError {
+  final case class InvalidTotalHeaders(downloaded: Int, expected: Int) extends HeaderSkeletonError {
+    override def msg: String = s"Invalid downloaded total headers. Expected $expected but was $downloaded"
+  }
+  final case class InvalidHeaderNumber(downloaded: Seq[BigInt], expected: Seq[BigInt]) extends HeaderSkeletonError {
     override def msg: String =
       s"Invalid sequence of skeleton headers. Expected [${expected.mkString(",")}] but was [${downloaded.mkString(",")}]"
   }
 
   sealed trait HeaderBatchError extends HeaderSkeletonError
-  case class InvalidBatchLastNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
+  final case class InvalidBatchLastNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Invalid batch last number. $downloaded wasn't found in [${expected.mkString(",")}]"
   }
-  case class InvalidBatchHash(downloaded: BlockHeader, expected: BlockHeader) extends HeaderBatchError {
+  final case class InvalidBatchHash(downloaded: BlockHeader, expected: BlockHeader) extends HeaderBatchError {
     override def msg: String = s"Invalid batch last block hash. Expected $expected but was $downloaded"
   }
-  case class EmptyDownloadedBatch(expected: Seq[BigInt]) extends HeaderBatchError {
+  final case class EmptyDownloadedBatch(expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Downloaded empty headers batch. Expected [${expected.mkString(",")}]"
   }
-  case class InvalidPenultimateHeader(penultimateBatchHeader: BlockHeader, skeletonHeader: BlockHeader)
+  final case class InvalidPenultimateHeader(penultimateBatchHeader: BlockHeader, skeletonHeader: BlockHeader)
       extends HeaderBatchError {
     override def msg: String =
       s"Invalid batch penultimate header. $penultimateBatchHeader isn't parent of $skeletonHeader"
   }
-  case class InvalidBatchFirstNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
+  final case class InvalidBatchFirstNumber(downloaded: BigInt, expected: Seq[BigInt]) extends HeaderBatchError {
     override def msg: String = s"Invalid batch first number. $downloaded wasn't found in [${expected.mkString(",")}]"
   }
-  case class InvalidDownloadedChain(downloaded: Seq[BlockHeader]) extends HeaderBatchError {
+  final case class InvalidDownloadedChain(downloaded: Seq[BlockHeader]) extends HeaderBatchError {
     override def msg: String = s"Invalid downloaded batch: ${downloaded.map(h => h.number -> h.hash).mkString(", ")}"
   }
 }
