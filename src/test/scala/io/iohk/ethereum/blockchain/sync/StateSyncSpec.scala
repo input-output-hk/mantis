@@ -10,13 +10,6 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
 import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  RestartRequested,
-  StartSyncingTo,
-  StateSyncFinished,
-  StateSyncStats,
-  WaitingForNewTargetBlock
-}
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
@@ -171,12 +164,11 @@ class StateSyncSpec
       )
     }.toMap
 
+    val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
+
     sealed trait PeerAction
-
     case object FullResponse extends PeerAction
-
     case object PartialResponse extends PeerAction
-
     case object NoResponse extends PeerAction
 
     val defaultPeerConfig: PeerConfig = peersMap.map { case (peer, _) =>
@@ -264,6 +256,7 @@ class StateSyncSpec
         syncConfig,
         etcPeerManager.ref,
         peerEventBus.ref,
+        blacklist,
         system.scheduler
       )
     )

@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
+import io.iohk.ethereum.network.p2p.messages.{Codes, PV60, PV64}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -159,7 +159,7 @@ class EtcPeerManagerActor(
     */
   private def updateChainWeight(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
     message match {
-      case newBlock: CommonMessages.NewBlock =>
+      case newBlock: PV60.NewBlock =>
         initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
       case newBlock: PV64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
       case _ => initialPeerInfo
@@ -220,7 +220,7 @@ class EtcPeerManagerActor(
     message match {
       case m: BlockHeaders =>
         update(m.headers.map(header => (header.number, header.hash)))
-      case m: CommonMessages.NewBlock =>
+      case m: PV60.NewBlock =>
         update(Seq((m.block.header.number, m.block.header.hash)))
       case m: NewBlock =>
         update(Seq((m.block.header.number, m.block.header.hash)))
@@ -263,7 +263,7 @@ object EtcPeerManagerActor {
       RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
     }
 
-    def apply(status: CommonMessages.Status): RemoteStatus = {
+    def apply(status: PV60.Status): RemoteStatus = {
       RemoteStatus(
         status.protocolVersion,
         status.networkId,

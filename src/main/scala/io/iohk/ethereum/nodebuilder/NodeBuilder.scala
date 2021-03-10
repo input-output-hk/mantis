@@ -1,11 +1,12 @@
 package io.iohk.ethereum.nodebuilder
 
-import java.time.Clock
-
 import akka.actor.{ActorRef, ActorSystem}
+import akka.util.ByteString
+import cats.implicits._
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, SyncController}
+import io.iohk.ethereum.blockchain.sync.{Blacklist, BlockchainHostActor, CacheBasedBlacklist, SyncController}
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -13,7 +14,6 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
-import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
@@ -26,25 +26,25 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryServiceBuilder, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.Message.Version
+import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
 import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
-import java.util.concurrent.atomic.AtomicReference
-
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
+import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
-import akka.util.ByteString
-import monix.execution.Scheduler
-import cats.implicits._
-import monix.eval.Task
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
@@ -136,6 +136,11 @@ trait PeerDiscoveryManagerBuilder {
   )
 }
 
+trait BlacklistBuilder {
+  private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
+  val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
+}
+
 trait NodeStatusBuilder {
 
   self: NodeKeyBuilder =>
@@ -160,12 +165,19 @@ trait ForkResolverBuilder {
 
 }
 
+trait ProtocolNegotiatorBuilder {
+  self: BlockchainConfigBuilder =>
+  val protocolNegotiator = new ProtocolNegotiator(blockchainConfig.protocolVersion)
+}
+
 trait HandshakerBuilder {
   self: BlockchainBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with PeerManagerActorBuilder
-    with ForkResolverBuilder =>
+    with ForkResolverBuilder
+    with ProtocolNegotiatorBuilder
+    with BlockchainConfigBuilder =>
 
   private val handshakerConfiguration: EtcHandshakerConfiguration =
     new EtcHandshakerConfiguration {
@@ -174,10 +186,10 @@ trait HandshakerBuilder {
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = Config.Network.protocolVersion
+      override val protocolVersion: Version = blockchainConfig.protocolVersion
     }
 
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration, protocolNegotiator)
 }
 
 trait AuthHandshakerBuilder {
@@ -220,7 +232,8 @@ trait PeerManagerActorBuilder {
     with DiscoveryConfigBuilder
     with StorageBuilder
     with KnownNodesManagerBuilder
-    with PeerStatisticsBuilder =>
+    with PeerStatisticsBuilder
+    with ProtocolNegotiatorBuilder =>
 
   lazy val peerConfiguration: PeerConfiguration = Config.Network.peer
 
@@ -235,7 +248,7 @@ trait PeerManagerActorBuilder {
       authHandshaker,
       EthereumMessageDecoder,
       discoveryConfig,
-      Config.Network.protocolVersion
+      protocolNegotiator
     ),
     "peer-manager"
   )
@@ -389,7 +402,7 @@ trait EthInfoServiceBuilder {
     stxLedger,
     keyStore,
     syncController,
-    Config.Network.protocolVersion,
+    blockchainConfig.protocolVersion,
     asyncConfig.askTimeout
   )
 }
@@ -658,7 +671,8 @@ trait SyncControllerBuilder {
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
     with ShutdownHookBuilder
-    with ConsensusBuilder =>
+    with ConsensusBuilder
+    with BlacklistBuilder =>
 
   lazy val syncController: ActorRef = system.actorOf(
     SyncController.props(
@@ -672,6 +686,7 @@ trait SyncControllerBuilder {
       checkpointBlockGenerator,
       ommersPool,
       etcPeerManager,
+      blacklist,
       syncConfig
     ),
     "sync-controller"
@@ -751,8 +766,10 @@ trait Node
     with ActorSystemBuilder
     with StorageBuilder
     with BlockchainBuilder
+    with BlockchainConfigBuilder
     with NodeStatusBuilder
     with ForkResolverBuilder
+    with ProtocolNegotiatorBuilder
     with HandshakerBuilder
     with PeerStatisticsBuilder
     with PeerManagerActorBuilder
@@ -783,7 +800,6 @@ trait Node
     with ShutdownHookBuilder
     with Logger
     with GenesisDataLoaderBuilder
-    with BlockchainConfigBuilder
     with VmConfigBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder.Default
@@ -809,3 +825,4 @@ trait Node
     with CheckpointBlockGeneratorBuilder
     with TransactionHistoryServiceBuilder.Default
     with PortForwardingBuilder
+    with BlacklistBuilder

@@ -271,11 +271,11 @@ class SyncControllerSpec
 
     syncController ! SyncProtocol.Start
 
-    val handshakedPeers = HandshakedPeers(singlePeer)
+    val handshakedPeers = HandshakedPeers(twoAcceptedPeers.filter(_._1 == peer2))
 
     val newPivot = defaultPivotBlockHeader.copy(number = defaultPivotBlockHeader.number + 20)
     val peerWithNewPivot = defaultPeer1Info.copy(maxBlockNumber = bestBlock + 20)
-    val newHandShakedPeer = HandshakedPeers(Map(peer2 -> peerWithNewPivot))
+    val newHandshaked = HandshakedPeers(Map(peer1 -> peerWithNewPivot))
 
     val newBest = 399500 + 9
 
@@ -287,9 +287,10 @@ class SyncControllerSpec
     eventually {
       littleTimePasses()
       storagesInstance.storages.fastSyncStateStorage.getSyncState().get.pivotBlock shouldBe defaultPivotBlockHeader
+      assert(blacklist.isBlacklisted(peer2.id))
     }
 
-    autopilot.updateAutoPilot(newHandShakedPeer, newPivot, BlockchainData(newBlocks))
+    autopilot.updateAutoPilot(newHandshaked, newPivot, BlockchainData(newBlocks))
 
     val watcher = TestProbe()
     watcher.watch(syncController)
@@ -511,6 +512,8 @@ class SyncControllerSpec
 
     val ommersPool = TestProbe()
 
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
+
     override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
       branchResolutionRequestSize = 20,
@@ -541,6 +544,7 @@ class SyncControllerSpec
           checkpointBlockGenerator,
           ommersPool.ref,
           etcPeerManager.ref,
+          blacklist,
           syncConfig,
           externalSchedulerOpt = Some(system.scheduler)
         )

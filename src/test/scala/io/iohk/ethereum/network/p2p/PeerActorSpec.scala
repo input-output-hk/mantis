@@ -20,11 +20,11 @@ import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, Pee
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.PV60.Status
+import io.iohk.ethereum.network.p2p.messages.PV60.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolNegotiator, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
@@ -540,7 +540,9 @@ class PeerActorSpec
       override val protocolVersion: Int = protocol
     }
 
-    val handshaker = EtcHandshaker(handshakerConfiguration)
+    val protocolNegotiator = new ProtocolNegotiator(protocol)
+
+    val handshaker = EtcHandshaker(handshakerConfiguration, protocolNegotiator)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {

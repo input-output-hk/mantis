@@ -7,7 +7,7 @@ import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task

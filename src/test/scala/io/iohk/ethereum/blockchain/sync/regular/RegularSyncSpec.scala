@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, Handsha
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{Codes, PV60, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
@@ -603,12 +603,12 @@ class RegularSyncSpec
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(Map(peerWithPV63._1 -> peerWithPV63._2)))
 
-          blockFetcher ! MessageFromPeer(CommonMessages.NewBlock(newBlock, newBlock.number), defaultPeer.id)
+          blockFetcher ! MessageFromPeer(PV60.NewBlock(newBlock, newBlock.number), defaultPeer.id)
 
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
-                case CommonMessages.NewBlock(`newBlock`, _) => true
+                case PV60.NewBlock(`newBlock`, _) => true
                 case _ => false
               }
             case _ => false

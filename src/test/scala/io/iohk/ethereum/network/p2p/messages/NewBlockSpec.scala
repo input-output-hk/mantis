@@ -3,7 +3,7 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV60.NewBlock
 import org.bouncycastle.util.encoders.Hex
 import NewBlock._
 import io.iohk.ethereum.security.SecureRandomBuilder
@@ -14,8 +14,8 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   val chainId = Hex.decode("3d").head
 
-  test("NewBlock v63 messages are encoded and decoded properly") {
-    forAll(newBlockGen(secureRandom, Some(chainId))) { newBlock =>
+  test("NewBlock v60 messages are encoded and decoded properly") {
+    forAll(newBlock60Gen(secureRandom, Some(chainId))) { newBlock =>
       val encoded: Array[Byte] = newBlock.toBytes
       val decoded: NewBlock = encoded.toNewBlock
       assert(decoded == newBlock)
@@ -32,10 +32,10 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
   }
 
   test("NewBlock messages are properly encoded") {
-    val obtainEncoded = Hex.toHexString(newBlock.toBytes)
-    val expectedEncoded =
+    val obtainEncoded60 = Hex.toHexString(newBlock60.toBytes)
+    val expectedEncoded60 =
       "f90200f901f9f901f4a00000000000000000000000000000000000000000000000000000000000000000a01dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347943333333333333333333333333333333333333333a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421b9010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000830f0000808408000000808000a0000000000000000000000000000000000000000000000000000000000000000088deadbeefdeadbeefc0c0830f0000"
-    assert(obtainEncoded == expectedEncoded)
+    assert(obtainEncoded60 == expectedEncoded60)
 
     val obtainEncoded64 = Hex.toHexString(newBlock64.toBytes)
     val expectedEncoded64 =
@@ -43,7 +43,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     assert(obtainEncoded64 == expectedEncoded64)
   }
 
-  val newBlock = NewBlock(
+  val newBlock60 = NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),

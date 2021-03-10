@@ -31,7 +31,7 @@ object BlockBody {
 
   implicit class BlockBodyEnc(msg: BlockBody) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions._
 
       blockBodyToRlpEncodable(
         msg,
@@ -61,7 +61,7 @@ object BlockBody {
 
   implicit class BlockBodyRLPEncodableDec(val rlpEncodeable: RLPEncodeable) {
     def toBlockBody: BlockBody = {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions._
 
       rlpEncodableToBlockBody(
         rlpEncodeable,

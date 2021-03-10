@@ -2,7 +2,7 @@ package io.iohk.ethereum.network.p2p
 
 import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders._
@@ -28,7 +28,7 @@ object NetworkMessageDecoder extends MessageDecoder {
       case Ping.code => payload.toPing
       case Pong.code => payload.toPong
       case Hello.code => payload.toHello
-      case _ => throw new RuntimeException(s"Unknown message type: ${msgCode}")
+      case _ => throw new RuntimeException("Unknown message type: " + msgCode)
     }
 
 }
@@ -46,13 +46,13 @@ object EthereumMessageDecoder extends MessageDecoder {
     }
   }
 
-  private def handleCommonMessages(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV60(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.StatusCode =>
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status._
+        import io.iohk.ethereum.network.p2p.messages.PV60.Status._
         payload.toStatus
       case Codes.NewBlockCode =>
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock._
+        import io.iohk.ethereum.network.p2p.messages.PV60.NewBlock._
         payload.toNewBlock
       case Codes.SignedTransactionsCode =>
         payload.toSignedTransactions
@@ -68,7 +68,7 @@ object EthereumMessageDecoder extends MessageDecoder {
         payload.toNewBlockHashes
       case Codes.BlockHashesFromNumberCode =>
         payload.toBlockHashesFromNumber
-      case _ => handleCommonMessages(msgCode, payload)
+      case _ => handlePV60(msgCode, payload)
     }
   }
 
@@ -79,7 +79,7 @@ object EthereumMessageDecoder extends MessageDecoder {
       case Codes.BlockHeadersCode => payload.toBlockHeaders
       case Codes.GetBlockBodiesCode => payload.toGetBlockBodies
       case Codes.BlockBodiesCode => payload.toBlockBodies
-      case _ => handleCommonMessages(msgCode, payload)
+      case _ => handlePV60(msgCode, payload)
     }
   }
 

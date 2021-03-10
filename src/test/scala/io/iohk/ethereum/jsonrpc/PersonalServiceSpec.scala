@@ -401,6 +401,7 @@ class PersonalServiceSpec
       chainId = 0x03.toByte,
       //unused
       networkId = 1,
+      protocolVersion = 63,
       maxCodeSize = None,
       eip161BlockNumber = 0,
       frontierBlockNumber = 0,

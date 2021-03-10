@@ -1,22 +1,17 @@
 package io.iohk.ethereum.sync.util
 
-import java.nio.file.Files
-import java.time.Clock
-import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
+import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
 import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, TestSyncConfig}
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
 import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, ChainWeight}
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -25,18 +20,13 @@ import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveredNodesIn
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.Message.Version
+import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{
-  EtcPeerManagerActor,
-  ForkResolver,
-  KnownNodesManager,
-  PeerEventBusActor,
-  PeerManagerActor,
-  PeerStatisticsActor,
-  ServerActor
-}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, PeerStatisticsActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.utils.ServerStatus.Listening
@@ -45,6 +35,9 @@ import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.{Fixtures, Timeouts}
 import monix.eval.Task
 
+import java.nio.file.Files
+import java.time.Clock
+import java.util.concurrent.atomic.AtomicReference
 import scala.concurrent.duration.{FiniteDuration, _}
 
 abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
@@ -169,10 +162,12 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val peerConfiguration: PeerConfiguration = peerConf
       override val blockchain: Blockchain = bl
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = Config.Network.protocolVersion
+      override val protocolVersion: Version = blockchainConfig.protocolVersion
     }
 
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+  val protocolNegotiator = new ProtocolNegotiator(handshakerConfiguration.protocolVersion)
+
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration, protocolNegotiator)
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
@@ -190,7 +185,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       authHandshaker,
       EthereumMessageDecoder,
       discoveryConfig,
-      Config.Network.protocolVersion
+      protocolNegotiator
     ),
     "peer-manager"
   )
