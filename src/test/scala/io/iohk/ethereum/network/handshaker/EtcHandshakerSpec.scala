@@ -269,7 +269,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
     lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
-    class MockEtcHandshakerConfiguration(pv: Int = Config.blockchains.blockchainConfig.protocolVersion) extends EtcHandshakerConfiguration {
+    class MockEtcHandshakerConfiguration(pv: Int = Config.blockchains.blockchainConfig.protocolVersion)
+        extends EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = None
       override val nodeStatusHolder: AtomicReference[NodeStatus] = TestSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = Config.Network.peer

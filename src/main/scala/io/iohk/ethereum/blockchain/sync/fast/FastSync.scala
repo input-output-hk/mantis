@@ -196,40 +196,40 @@ class FastSync(
 
     // TODO ETCM-701 will be moved to separate actor and refactored
     private def handleResponses: Receive = {
-        case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
-          log.info(
-            "*** Received {} block headers from peer [{}] in {} ms ***",
-            blockHeaders.size,
-            peer.id,
-            timeTaken
-          )
-          FastSyncMetrics.setBlockHeadersDownloadTime(timeTaken)
-          currentSkeletonState match {
-            case Some(currentSkeleton) =>
-              if (masterPeer.contains(peer)) handleSkeletonResponse(peer, blockHeaders, currentSkeleton)
-              handleHeaderBatchResponse(peer, blockHeaders, currentSkeleton)
-            case None =>
-              log.warning(
-                s"Received response to fill in header skeleton, but current header skeleton is not defined."
-              )
-              processSyncing()
-          }
-        case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-          log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
-          FastSyncMetrics.setBlockBodiesDownloadTime(timeTaken)
+      case ResponseReceived(peer, BlockHeaders(blockHeaders), timeTaken) =>
+        log.info(
+          "*** Received {} block headers from peer [{}] in {} ms ***",
+          blockHeaders.size,
+          peer.id,
+          timeTaken
+        )
+        FastSyncMetrics.setBlockHeadersDownloadTime(timeTaken)
+        currentSkeletonState match {
+          case Some(currentSkeleton) =>
+            if (masterPeer.contains(peer)) handleSkeletonResponse(peer, blockHeaders, currentSkeleton)
+            handleHeaderBatchResponse(peer, blockHeaders, currentSkeleton)
+          case None =>
+            log.warning(
+              s"Received response to fill in header skeleton, but current header skeleton is not defined."
+            )
+            processSyncing()
+        }
+      case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
+        log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+        FastSyncMetrics.setBlockBodiesDownloadTime(timeTaken)
 
-          val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
-          requestedBlockBodies -= sender()
-          removeRequestHandler(sender())
-          handleBlockBodies(peer, requestedBodies, blockBodies)
-        case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
-          log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
-          FastSyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
+        val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
+        requestedBlockBodies -= sender()
+        removeRequestHandler(sender())
+        handleBlockBodies(peer, requestedBodies, blockBodies)
+      case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
+        log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
+        FastSyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
 
-          val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
-          requestedReceipts -= sender()
-          removeRequestHandler(sender())
-          handleReceipts(peer, requestedHashes, receipts)
+        val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
+        requestedReceipts -= sender()
+        removeRequestHandler(sender())
+        handleReceipts(peer, requestedHashes, receipts)
     }
 
     private def handleSkeletonResponse(
@@ -251,12 +251,14 @@ class FastSync(
           currentSkeleton.setSkeletonHeaders(blockHeaders) match {
             case Left(error) =>
               log.warning(s"Received invalid skeleton data from master peer $peer: $error")
-              //currentSkeletonState = None
-              //blockHeadersError(peer, BlacklistReason.WrongBlockHeaders)
+            //currentSkeletonState = None
+            //blockHeadersError(peer, BlacklistReason.WrongBlockHeaders)
             case Right(updatedSkeleton) =>
               log.debug("Updated current skeleton header to [{}]", updatedSkeleton)
               currentSkeletonState = Some(updatedSkeleton)
-              blockHeadersQueue ++= updatedSkeleton.batchStartingHeaderNumbers.map(from => HeaderRange(from, updatedSkeleton.batchSize))
+              blockHeadersQueue ++= updatedSkeleton.batchStartingHeaderNumbers.map(from =>
+                HeaderRange(from, updatedSkeleton.batchSize)
+              )
           }
       }
     }
@@ -271,7 +273,8 @@ class FastSync(
         case Some(requested) =>
           log.debug("Validating [{}] received block headers from peer [{}]", blockHeaders.size, peer.id)
           requestedHeaders -= peer
-          if (validHeadersChain(blockHeaders, requested.limit)) fillSkeletonGap(peer, requested, blockHeaders, currentSkeleton)
+          if (validHeadersChain(blockHeaders, requested.limit))
+            fillSkeletonGap(peer, requested, blockHeaders, currentSkeleton)
           else {
             handleDownloadedBatchError(
               InvalidDownloadedChain(blockHeaders),
@@ -290,10 +293,14 @@ class FastSync(
         blockHeaders: Seq[BlockHeader],
         currentSkeleton: HeaderSkeleton
     ): Unit = {
-      log.debug("Attempting to use [{}] block headers from peer [{}] to fill in header skeleton.", blockHeaders.size, peer.id)
+      log.debug(
+        "Attempting to use [{}] block headers from peer [{}] to fill in header skeleton.",
+        blockHeaders.size,
+        peer.id
+      )
       currentSkeleton.addBatch(blockHeaders) match {
         case Right(skeleton) =>
-          log.debug("Successfully added headers from peer [{}] to current skeleton: [{}]", peer.id, skeleton)
+          log.debug("Successfully added headers from peer [{}] to current skeleton.", peer.id, skeleton)
           skeleton.fullChain match {
             case Some(fullChain) =>
               log.debug("Current skeleton completed.")
