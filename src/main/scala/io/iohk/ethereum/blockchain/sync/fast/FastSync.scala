@@ -250,9 +250,8 @@ class FastSync(
         case Right(_) =>
           currentSkeleton.setSkeletonHeaders(blockHeaders) match {
             case Left(error) =>
+              // TODO ETCM-701 if this error keeps happening, switch master peer
               log.warning("Failed to set skeleton headers from peer [{}]: [{}]", peer.id.value, error.msg)
-              currentSkeletonState = None
-              processSyncing() // TODO ETCM-701 if this error keeps happening, switch master peer
             case Right(updatedSkeleton) =>
               log.debug("Updated current skeleton header to [{}]", updatedSkeleton)
               currentSkeletonState = Some(updatedSkeleton)
