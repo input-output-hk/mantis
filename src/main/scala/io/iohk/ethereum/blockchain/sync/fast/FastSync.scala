@@ -244,12 +244,6 @@ class FastSync(
         }
     }
 
-    private def handleBlockHeadersResponse(
-        peer: Peer,
-        blockHeaders: Seq[BlockHeader],
-        currentSkeleton: HeaderSkeleton
-    ): Unit = {}
-
     private def handleDownloadedSkeleton(
         peer: Peer,
         blockHeaders: Seq[BlockHeader],
