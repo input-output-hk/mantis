@@ -10,7 +10,7 @@ import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{PV60, PV62, ProtocolVersions}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -48,7 +48,7 @@ class BlockBroadcastSpec
       .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63))
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
-      CommonMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
+      PV60.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
 
     //when
     blockBroadcast.broadcastBlock(

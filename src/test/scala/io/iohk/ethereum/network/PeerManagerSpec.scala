@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHan
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV60.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config

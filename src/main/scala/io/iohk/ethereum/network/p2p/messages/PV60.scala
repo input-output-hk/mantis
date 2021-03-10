@@ -10,7 +10,7 @@ import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
-object CommonMessages {
+object PV60 {
   object Status {
     implicit class StatusEnc(val underlyingMsg: Status)
         extends MessageSerializableImplicit[Status](underlyingMsg)

@@ -22,6 +22,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       maxCodeSize = None,
       chainId = 0x3d.toByte,
       networkId = 1,
+      protocolVersion = 63,
       frontierBlockNumber = 0,
       homesteadBlockNumber = 1150000,
       eip106BlockNumber = Long.MaxValue,

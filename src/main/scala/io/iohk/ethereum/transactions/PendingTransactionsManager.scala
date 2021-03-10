@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
 import io.iohk.ethereum.metrics.MetricsContainer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Subscribe, SubscriptionClassifier}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig

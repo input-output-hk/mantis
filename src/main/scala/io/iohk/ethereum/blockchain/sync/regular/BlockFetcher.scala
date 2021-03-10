@@ -21,7 +21,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
+import io.iohk.ethereum.network.p2p.messages.{Codes, PV60, PV64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -197,7 +197,8 @@ class BlockFetcher(
       }
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       fetchBlocks(newState)
-    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) =>
+    // Remember to always add match for every new version of NewBlock message
+    case MessageFromPeer(PV60.NewBlock(block, _), peerId) =>
       handleNewBlock(block, peerId, state)
     case MessageFromPeer(PV64.NewBlock(block, _), peerId) =>
       handleNewBlock(block, peerId, state)

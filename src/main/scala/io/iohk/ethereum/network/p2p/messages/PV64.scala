@@ -83,7 +83,7 @@ object PV64 {
     implicit class NewBlockEnc(val underlyingMsg: NewBlock)
         extends MessageSerializableImplicit[NewBlock](underlyingMsg)
         with RLPSerializable {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions._
 
       override def code: Int = Codes.NewBlockCode
 
@@ -102,7 +102,7 @@ object PV64 {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.PV60.SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
         case RLPList(

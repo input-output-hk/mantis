@@ -14,7 +14,7 @@ import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV60.NewBlock
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.{Codes, PV64, ProtocolVersions}
@@ -43,7 +43,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     requestSender.expectMsg(HandshakedPeers(Map(peer1 -> peer1Info, peer2 -> peer2Info)))
   }
 
-  it should "update max peer when receiving new block PV63" in new TestSetup {
+  it should "update max peer when receiving new block PV60-PV63" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
@@ -127,7 +127,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "update the peer total difficulty when receiving a NewBlock" in new TestSetup {
+  it should "update the peer total difficulty when receiving a PV60.NewBlock" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     setupNewPeer(peer1, peer1Probe, peer1Info)
 

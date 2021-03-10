@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
+import io.iohk.ethereum.network.p2p.messages.PV60.Status
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler

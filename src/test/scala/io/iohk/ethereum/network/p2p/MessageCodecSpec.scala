@@ -3,8 +3,8 @@ package io.iohk.ethereum.network.p2p
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.PV60.Status
+import io.iohk.ethereum.network.p2p.messages.{ProtocolNegotiator, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.rlpx.{FrameCodec, MessageCodec}
 import io.iohk.ethereum.utils.Config
@@ -73,6 +73,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
   trait TestSetup extends SecureChannelSetup {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
+    val protocolNegotiator = new ProtocolNegotiator(ProtocolVersions.PV63)
 
     val helloV5 = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
@@ -94,8 +95,8 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     val decoder = NetworkMessageDecoder orElse EthereumMessageDecoder
 
-    val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.PV63)
-    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.PV63)
+    val messageCodec = new MessageCodec(frameCodec, decoder, protocolNegotiator)
+    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, protocolNegotiator)
 
   }
 
