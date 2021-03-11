@@ -116,7 +116,6 @@ class FastSync(
   // scalastyle:off number.of.methods
   private class SyncingHandler(initialSyncState: SyncState) {
 
-    private val SkeletonHandlerName = "skeleton-request-handler"
     //not part of syncstate as we do not want to persist is.
     private var stateSyncRestartRequested = false
 
@@ -880,7 +879,7 @@ class FastSync(
 
     private def shouldRequestNewSkeleton(peerInfo: PeerInfo): Boolean =
       currentSkeletonState.isEmpty &&
-        context.child(SkeletonHandlerName).isEmpty &&
+        skeletonHandler.isEmpty &&
         syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget &&
         peerInfo.maxBlockNumber >= syncState.pivotBlock.number
 
@@ -981,8 +980,7 @@ class FastSync(
           peerEventBus,
           requestMsg = msg,
           responseMsgCode = Codes.BlockHeadersCode
-        ),
-        SkeletonHandlerName
+        )
       )
 
       context watch handler
