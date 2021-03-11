@@ -6,7 +6,6 @@ import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
@@ -29,9 +28,9 @@ import scala.util.{Failure, Success, Try}
   */
 class RLPxConnectionHandler(
     messageDecoder: MessageDecoder,
-    protocolNegotiator: ProtocolNegotiator,
+    protocolVersion: Message.Version,
     authHandshaker: AuthHandshaker,
-    messageCodecFactory: (Secrets, MessageDecoder, ProtocolNegotiator) => MessageCodec,
+    messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
     rlpxConfiguration: RLPxConfiguration
 ) extends Actor
     with ActorLogging {
@@ -149,7 +148,7 @@ class RLPxConnectionHandler(
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.debug(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished(remotePubKey)
-          val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolNegotiator)
+          val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
           messagesSoFar foreach processMessage
           context become handshaked(messageCodec)
@@ -280,26 +279,20 @@ class RLPxConnectionHandler(
 object RLPxConnectionHandler {
   def props(
       messageDecoder: MessageDecoder,
-      protocolNegotiator: ProtocolNegotiator,
+      protocolVersion: Int,
       authHandshaker: AuthHandshaker,
       rlpxConfiguration: RLPxConfiguration
   ): Props =
     Props(
-      new RLPxConnectionHandler(
-        messageDecoder,
-        protocolNegotiator,
-        authHandshaker,
-        messageCodecFactory,
-        rlpxConfiguration
-      )
+      new RLPxConnectionHandler(messageDecoder, protocolVersion, authHandshaker, messageCodecFactory, rlpxConfiguration)
     )
 
   def messageCodecFactory(
       secrets: Secrets,
       messageDecoder: MessageDecoder,
-      protocolNegotiator: ProtocolNegotiator
+      protocolVersion: Message.Version
   ): MessageCodec =
-    new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolNegotiator)
+    new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
 
   case class ConnectTo(uri: URI)
 

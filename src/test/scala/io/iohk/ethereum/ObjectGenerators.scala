@@ -11,7 +11,8 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
-import io.iohk.ethereum.network.p2p.messages.{PV60, PV64}
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV64
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalacheck.{Arbitrary, Gen, Shrink}
 
@@ -147,12 +148,12 @@ trait ObjectGenerators {
     }
   }
 
-  def newBlock60Gen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[PV60.NewBlock] = for {
+  def newBlockGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[NewBlock] = for {
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
     td <- bigIntGen
-  } yield PV60.NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
+  } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
 
   def newBlock64Gen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[PV64.NewBlock] = for {
     blockHeader <- blockHeaderGen
