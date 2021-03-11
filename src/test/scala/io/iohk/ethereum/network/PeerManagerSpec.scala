@@ -45,12 +45,11 @@ class PeerManagerSpec
     handleInitialNodesDiscovery()
   }
 
-  it should "blacklist peer that fail to establish tcp connection" in new TestSetup {
+  it should "blacklist peer that fails to establish tcp connection" in new TestSetup {
     start()
     handleInitialNodesDiscovery()
 
     val probe: TestProbe = createdPeers(1).probe
-
     probe.expectMsgClass(classOf[PeerActor.ConnectTo])
 
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
@@ -93,6 +92,7 @@ class PeerManagerSpec
 
     probe.ref ! PoisonPill
 
+    peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
     peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetRandomNodeInfo)
     peerDiscoveryManager.reply(PeerDiscoveryManager.RandomNodeInfo(bootstrapNodes.head))
   }
@@ -288,12 +288,12 @@ class PeerManagerSpec
 
   it should "try to connect to discovered nodes if there's an outgoing demand: new nodes first, retried last" in new TestSetup {
     start()
-    val discoveredNodes: Set[Node] = Set(
+    val newNodes: Set[Node] = Set(
       "enode://111bd28d5b2c1378d748383fd83ff59572967c317c3063a9f475a26ad3f1517642a164338fb5268d4e32ea1cc48e663bd627dec572f1d201c7198518e5a506b1@88.99.216.30:45834?discport=45834",
       "enode://2b69a3926f36a7748c9021c34050be5e0b64346225e477fe7377070f6289bd363b2be73a06010fd516e6ea3ee90778dd0399bc007bb1281923a79374f842675a@51.15.116.226:30303?discport=30303"
     ).map(new java.net.URI(_)).map(Node.fromUri)
 
-    peerManager ! PeerDiscoveryManager.DiscoveredNodesInfo(discoveredNodes)
+    peerManager ! PeerDiscoveryManager.DiscoveredNodesInfo(newNodes)
 
     peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetRandomNodeInfo)
 
@@ -303,14 +303,14 @@ class PeerManagerSpec
     val probe2: TestProbe = createdPeers(1).probe
     probe2.expectMsgClass(classOf[PeerActor.ConnectTo])
 
-    peerManager ! PeerClosedConnection(discoveredNodes.head.addr.getHostAddress, Disconnect.Reasons.TooManyPeers)
+    peerManager ! PeerClosedConnection(newNodes.head.addr.getHostAddress, Disconnect.Reasons.TooManyPeers)
 
     peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
     peerManager.underlyingActor.triedNodes.size shouldEqual 2
 
     time.advance(360000) // wait till the peer is out of the blacklist
 
-    val newRoundDiscoveredNodes = discoveredNodes + Node.fromUri(
+    val newRoundDiscoveredNodes = newNodes + Node.fromUri(
       new java.net.URI(
         "enode://a59e33ccd2b3e52d578f1fbd70c6f9babda2650f0760d6ff3b37742fdcdfdb3defba5d56d315b40c46b70198c7621e63ffa3f987389c7118634b0fefbbdfa7fd@51.158.191.43:38556?discport=38556"
       )
@@ -521,18 +521,17 @@ class PeerManagerSpec
     case class TestPeer(peer: Peer, probe: TestProbe)
     var createdPeers: Seq[TestPeer] = Seq.empty
 
-    val peerConfiguration: PeerConfiguration = Config.Network.peer
-    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
-
     val peerDiscoveryManager = TestProbe()
     val peerEventBus = TestProbe()
     val knownNodesManager = TestProbe()
     val peerStatistics = TestProbe()
 
-    val bootstrapNodes: Set[Node] =
-      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
+    val peerConfiguration: PeerConfiguration = Config.Network.peer
+    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
-    val knownNodes: Set[URI] = Set.empty
+    val bootstrapNodes: Set[Node] = discoveryConfig.bootstrapNodes
+    val bootstrapNodesUris: Set[URI] = bootstrapNodes.map(_.toUri)
+    val discoveredNodes: Set[Node] = Set.empty
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (_, address, isIncoming) =>
       val peerProbe = TestProbe()
@@ -590,10 +589,8 @@ class PeerManagerSpec
     def handleInitialNodesDiscovery(): Unit = {
       time.advance(6000) // wait for bootstrap nodes scan
 
-      peerDiscoveryManager.expectMsg(PeerDiscoveryManager.GetDiscoveredNodesInfo)
-      peerDiscoveryManager.reply(PeerDiscoveryManager.DiscoveredNodesInfo(bootstrapNodes))
       knownNodesManager.expectMsg(KnownNodesManager.GetKnownNodes)
-      knownNodesManager.reply(KnownNodesManager.KnownNodes(knownNodes))
+      knownNodesManager.reply(KnownNodesManager.KnownNodes(bootstrapNodesUris))
     }
   }
 

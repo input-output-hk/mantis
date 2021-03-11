@@ -24,7 +24,15 @@ import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, PeerStatisticsActor, ServerActor}
+import io.iohk.ethereum.network.{
+  EtcPeerManagerActor,
+  ForkResolver,
+  KnownNodesManager,
+  PeerEventBusActor,
+  PeerManagerActor,
+  PeerStatisticsActor,
+  ServerActor
+}
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._

@@ -55,7 +55,8 @@ class PeerManagerActor(
   import PeerManagerActor._
   import akka.pattern.pipe
 
-  val triedNodes: mutable.Set[ByteString] = lruSet[ByteString](maxBlacklistedNodes)
+  private[network] val triedNodes: mutable.Set[ByteString] = lruSet[ByteString](maxBlacklistedNodes)
+  private[network] val remainingNodesToConnect: mutable.Set[ByteString] = mutable.Set[ByteString]()
 
   implicit class ConnectedPeersOps(connectedPeers: ConnectedPeers) {
 
@@ -86,7 +87,6 @@ class PeerManagerActor(
 
   override def receive: Receive = {
     case StartConnecting =>
-      scheduleNodesUpdate()
       knownNodesManager ! KnownNodesManager.GetKnownNodes
       context become listening(ConnectedPeers.empty)
       unstashAll()
@@ -94,13 +94,8 @@ class PeerManagerActor(
       stash()
   }
 
-  private def scheduleNodesUpdate(): Unit = {
-    scheduler.scheduleWithFixedDelay(
-      peerConfiguration.updateNodesInitialDelay,
-      peerConfiguration.updateNodesInterval,
-      peerDiscoveryManager,
-      PeerDiscoveryManager.GetDiscoveredNodesInfo
-    )
+  private def triggerNodesUpdate(): Unit = {
+    peerDiscoveryManager ! PeerDiscoveryManager.GetDiscoveredNodesInfo
   }
 
   private def listening(connectedPeers: ConnectedPeers): Receive = {
@@ -116,10 +111,13 @@ class PeerManagerActor(
       val nodesToConnect = nodes.take(peerConfiguration.maxOutgoingPeers)
 
       if (nodesToConnect.nonEmpty) {
+        remainingNodesToConnect.addAll(nodesToConnect.map(uri => ByteString(Hex.decode(uri.getUserInfo))))
+
         log.debug("Trying to connect to {} known nodes", nodesToConnect.size)
         nodesToConnect.foreach(n => self ! ConnectToPeer(n))
       } else {
         log.debug("The known nodes list is empty")
+        triggerNodesUpdate()
       }
 
     case PeerDiscoveryManager.RandomNodeInfo(node) =>
@@ -164,6 +162,8 @@ class PeerManagerActor(
     )
 
     if (nodesToConnect.nonEmpty) {
+      remainingNodesToConnect.addAll(nodesToConnect.map(_.id))
+
       log.debug("Trying to connect to {} nodes", nodesToConnect.size)
       nodesToConnect.foreach(n => {
         triedNodes.add(n.id)
@@ -171,6 +171,7 @@ class PeerManagerActor(
       })
     } else {
       log.debug("The nodes list is empty, no new nodes to connect to")
+      triggerNodesUpdate()
     }
 
     // Make sure the background lookups keep going and we don't get stuck with 0
@@ -243,6 +244,7 @@ class PeerManagerActor(
 
     val alreadyConnectedToPeer =
       connectedPeers.hasHandshakedWith(nodeId) || connectedPeers.isConnectionHandled(remoteAddress)
+    // TODO should this be:  connectedPeers.outgoingPeersCount <= peerConfiguration.maxOutgoingPeers ?
     val isOutgoingPeersNotMaxValue = connectedPeers.outgoingPeersCount < peerConfiguration.maxOutgoingPeers
 
     val validConnection = for {
@@ -257,6 +259,11 @@ class PeerManagerActor(
         context become listening(newConnectedPeers)
 
       case Left(error) => handleConnectionErrors(error)
+    }
+
+    remainingNodesToConnect.remove(nodeId)
+    if (remainingNodesToConnect.isEmpty) {
+      triggerNodesUpdate()
     }
   }
 

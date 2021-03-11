@@ -190,7 +190,6 @@ class PeerDiscoveryManager(
 
     maybeDiscoveredNodes
       .map(_ ++ alreadyDiscoveredNodes)
-      .map(_.filterNot(isLocalNode))
       .map(DiscoveredNodesInfo(_))
   }
 
