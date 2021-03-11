@@ -109,7 +109,6 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     eip155BlockNumber = 0,
     chainId = 0x03.toByte,
     networkId = 1,
-    protocolVersion = 63,
     maxCodeSize = None,
     eip161BlockNumber = 0,
     frontierBlockNumber = 0,

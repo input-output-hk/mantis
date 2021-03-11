@@ -40,6 +40,8 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
+    val protocolVersion = networkConfig.getInt("protocol-version")
+
     val automaticPortForwarding = networkConfig.getBoolean("automatic-port-forwarding")
 
     object Server {

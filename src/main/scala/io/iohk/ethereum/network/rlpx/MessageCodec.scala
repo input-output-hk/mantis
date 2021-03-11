@@ -4,15 +4,13 @@ import java.util.concurrent.atomic.AtomicInteger
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
-import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
-class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolNegotiator: ProtocolNegotiator) {
+class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -24,10 +22,8 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
   // MessageCodec is only used from actor context so it can be var
   @volatile
   private var remotePeerP2pVersion: Option[Long] = None
-  @volatile
-  private var remotePeerProtocolVersion: Option[Version] = None
 
-  private def setRemoteP2PVersionBasedOnHelloMessage(m: Message): Unit = {
+  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit = {
     if (remotePeerP2pVersion.isEmpty) {
       m match {
         case hello: Hello =>
@@ -37,16 +33,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     }
   }
 
-  private def setRemoteProtocolVersionBasedOnHelloMessage(m: Message): Unit = {
-    if (remotePeerProtocolVersion.isEmpty) {
-      m match {
-        case hello: Hello =>
-          remotePeerProtocolVersion = protocolNegotiator.negotiate(hello.capabilities)
-        case _ =>
-      }
-    }
-  }
-
+  // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
 
@@ -60,15 +47,9 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
         }
 
       payloadTry.map { payload =>
-        remotePeerProtocolVersion match {
-          case Some(pv) =>
-            messageDecoder.fromBytes(frame.`type`, payload, pv)
-          case None =>
-            val m = messageDecoder.fromBytes(frame.`type`, payload, protocolNegotiator.protocolVersion)
-            setRemoteP2PVersionBasedOnHelloMessage(m)
-            setRemoteProtocolVersionBasedOnHelloMessage(m)
-            m
-        }
+        val m = messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
+        setRemoteVersionBasedOnHelloMessage(m)
+        m
       }
     }
   }

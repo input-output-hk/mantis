@@ -27,7 +27,6 @@ class ForksTest extends AnyFlatSpec with Matchers {
       // unused
       bootstrapNodes = Set(),
       networkId = 1,
-      protocolVersion = 63,
       maxCodeSize = None,
       eip161BlockNumber = Long.MaxValue,
       customGenesisFileOpt = None,
