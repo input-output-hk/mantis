@@ -2,6 +2,7 @@
 
 set -exuo pipefail
 
+trap 'trap - SIGTERM && kill -- -$$' SIGINT SIGTERM EXIT
 
 mkdir -p /tmp
 mkdir -p "$NOMAD_TASK_DIR/mantis"
@@ -23,6 +24,19 @@ if [ -n "${DAG_NAME:-}" ]; then
   fi
 fi
 
+if [ -d "$STORAGE_DIR" ]; then
+  echo "$STORAGE_DIR found, not restoring from backup..."
+else
+  echo "$STORAGE_DIR not found, restoring backup..."
+  restic restore latest \
+    --tag "$NAMESPACE" \
+    --target / \
+    || echo "couldn't restore backup, continue startup procedure..."
+      mkdir -p "$NOMAD_TASK_DIR/mantis"
+      rm -rf "$NOMAD_TASK_DIR/mantis/{keystore,node.key}"
+      rm -rf "$NOMAD_TASK_DIR/mantis/logs"
+fi
+
 until [ "$(grep -c enode mantis.conf)" -ge "$REQUIRED_PEER_COUNT" ]; do
   sleep 1
 done
@@ -31,6 +45,8 @@ ulimit -c unlimited
 cp mantis.conf running.conf
 
 (
+trap 'trap - SIGTERM && kill -- -$$' SIGINT SIGTERM EXIT
+
 while true; do
   set +x
   while diff -u running.conf mantis.conf > /dev/stderr; do
