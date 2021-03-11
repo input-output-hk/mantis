@@ -24,11 +24,11 @@ class CheckpointingService(
       blockchain.getBlockByNumber(blockToReturnNum)
     }.flatMap {
       case Some(b) if isValidParent =>
-        Task.now(Right(GetLatestBlockResponse(Some(b.hash), Some(b.number))))
+        Task.now(Right(GetLatestBlockResponse(Some(BlockInfo(b.hash, b.number)))))
 
       case Some(_) =>
         log.debug("Parent checkpoint is not found in a local blockchain")
-        Task.now(Right(GetLatestBlockResponse(None, None)))
+        Task.now(Right(GetLatestBlockResponse(None)))
 
       case None =>
         log.error(
@@ -47,7 +47,8 @@ class CheckpointingService(
 
 object CheckpointingService {
   case class GetLatestBlockRequest(checkpointingInterval: Int, parentCheckpoint: Option[ByteString])
-  case class GetLatestBlockResponse(hash: Option[ByteString], number: Option[BigInt])
+  case class GetLatestBlockResponse(block: Option[BlockInfo])
+  case class BlockInfo(hash: ByteString, number: BigInt)
 
   case class PushCheckpointRequest(hash: ByteString, signatures: List[ECDSASignature])
   case class PushCheckpointResponse()

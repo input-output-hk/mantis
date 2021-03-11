@@ -38,7 +38,7 @@ class CheckpointingServiceSpec
       val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
 
       val request = GetLatestBlockRequest(k, None)
-      val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
+      val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
@@ -65,7 +65,7 @@ class CheckpointingServiceSpec
       val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
 
       val request = GetLatestBlockRequest(k, Some(hash))
-      val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
+      val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header))
@@ -93,7 +93,7 @@ class CheckpointingServiceSpec
       val block = Block(Fixtures.Blocks.ValidBlock.header.copy(number = checkpointedBlockNum), BlockBody.empty)
 
       val request = GetLatestBlockRequest(k, Some(hash))
-      val expectedResponse = GetLatestBlockResponse(None, None)
+      val expectedResponse = GetLatestBlockResponse(None)
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(None)
@@ -118,7 +118,7 @@ class CheckpointingServiceSpec
 
   it should "get latest block in case of blockchain re-org" in new TestSetup {
     val block = Fixtures.Blocks.ValidBlock.block
-    val expectedResponse = GetLatestBlockResponse(Some(block.hash), Some(block.number))
+    val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
     (blockchain.getBestBlockNumber _)
       .expects()
       .returning(7)

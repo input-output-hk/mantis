@@ -32,7 +32,7 @@ class CheckpointingJRCSpec
 
   "CheckpointingJRC" should "getLatestBlock" in new TestSetup {
     val request = getLatestBlockRequestBuilder(JArray(JInt(4) :: Nil))
-    val servResp = GetLatestBlockResponse(Some(block.hash), Some(block.number))
+    val servResp = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
     (checkpointingService.getLatestBlock _)
       .expects(GetLatestBlockRequest(4, None))
       .returning(Task.now(Right(servResp)))
