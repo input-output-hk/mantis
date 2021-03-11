@@ -1,5 +1,7 @@
 package io.iohk.ethereum.network.handshaker
 
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -11,19 +13,17 @@ import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.PV60.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.network.p2p.messages._
+import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
+import io.iohk.ethereum.utils._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils._
-import io.iohk.ethereum.utils._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import java.util.concurrent.atomic.AtomicReference
 
 class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
@@ -269,7 +269,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
     lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
-    class MockEtcHandshakerConfiguration(pv: Int = Config.blockchains.blockchainConfig.protocolVersion)
+    class MockEtcHandshakerConfiguration(pv: Int = Config.Network.protocolVersion)
         extends EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = None
       override val nodeStatusHolder: AtomicReference[NodeStatus] = TestSetup.this.nodeStatusHolder
@@ -279,18 +279,14 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       override val protocolVersion: Int = pv
     }
 
-    val etcHandshakerConfiguration = new MockEtcHandshakerConfiguration(ProtocolVersions.PV64)
-
-    val protocolNegotiator = new ProtocolNegotiator(etcHandshakerConfiguration.protocolVersion)
-
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
         new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(etcHandshakerConfiguration, protocolNegotiator)
-    val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver, protocolNegotiator)
+    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV64))
+    val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
     val firstBlock =
       genesisBlock.copy(header = genesisBlock.header.copy(parentHash = genesisBlock.header.hash, number = 1))
@@ -310,7 +306,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait LocalPeerPV63Setup extends LocalPeerSetup {
-    val localStatusMsg = PV60.Status(
+    val localStatusMsg = CommonMessages.Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
@@ -349,7 +345,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
-    val remoteStatusMsg = PV60.Status(
+    val remoteStatusMsg = CommonMessages.Status(
       protocolVersion = ProtocolVersions.PV63,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,

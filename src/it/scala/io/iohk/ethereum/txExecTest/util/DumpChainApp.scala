@@ -23,8 +23,6 @@ import io.iohk.ethereum.network.PeerStatisticsActor
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
@@ -93,12 +91,10 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val protocolVersion: Version = blockchainConfig.protocolVersion
+      override val protocolVersion: Int = Config.Network.protocolVersion
     }
 
-  val protocolNegotiator = new ProtocolNegotiator(handshakerConfiguration.protocolVersion)
-
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration, protocolNegotiator)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
@@ -115,7 +111,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
-      protocolNegotiator = protocolNegotiator
+      bestProtocolVersion = Config.Network.protocolVersion
     ),
     "peer-manager"
   )

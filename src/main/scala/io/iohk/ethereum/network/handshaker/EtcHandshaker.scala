@@ -7,8 +7,6 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
 import io.iohk.ethereum.utils.NodeStatus
 
 case class EtcHandshaker private (
@@ -24,11 +22,8 @@ case class EtcHandshaker private (
 
 object EtcHandshaker {
 
-  def apply(
-      handshakerConfiguration: EtcHandshakerConfiguration,
-      protocolNegotiator: ProtocolNegotiator
-  ): EtcHandshaker = {
-    val initialState = EtcHelloExchangeState(handshakerConfiguration, protocolNegotiator)
+  def apply(handshakerConfiguration: EtcHandshakerConfiguration): EtcHandshaker = {
+    val initialState = EtcHelloExchangeState(handshakerConfiguration)
     EtcHandshaker(initialState, handshakerConfiguration)
   }
 
@@ -40,5 +35,5 @@ trait EtcHandshakerConfiguration {
   val appStateStorage: AppStateStorage
   val peerConfiguration: PeerConfiguration
   val forkResolverOpt: Option[ForkResolver]
-  val protocolVersion: Version
+  val protocolVersion: Int
 }

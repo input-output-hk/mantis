@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.messages.ProtocolNegotiator
+import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -411,7 +411,7 @@ object PeerManagerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
-      protocolNegotiator: ProtocolNegotiator
+      bestProtocolVersion: Version
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
       peerFactory(
@@ -421,7 +421,7 @@ object PeerManagerActor {
         handshaker,
         authHandshaker,
         messageDecoder,
-        protocolNegotiator
+        bestProtocolVersion
       )
 
     Props(
@@ -445,7 +445,7 @@ object PeerManagerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      protocolNegotiator: ProtocolNegotiator
+      bestProtocolVersion: Version
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -457,7 +457,7 @@ object PeerManagerActor {
       handshaker,
       authHandshaker,
       messageDecoder,
-      protocolNegotiator
+      bestProtocolVersion
     )
     ctx.actorOf(props, id)
   }

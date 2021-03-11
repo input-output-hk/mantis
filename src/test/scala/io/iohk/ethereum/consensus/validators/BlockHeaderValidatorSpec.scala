@@ -461,7 +461,6 @@ class BlockHeaderValidatorSpec
       eip106BlockNumber = 0,
       chainId = 0x3d.toByte,
       networkId = 1,
-      protocolVersion = 63,
       monetaryPolicyConfig = null,
       customGenesisFileOpt = None,
       accountStartNonce = UInt256.Zero,
