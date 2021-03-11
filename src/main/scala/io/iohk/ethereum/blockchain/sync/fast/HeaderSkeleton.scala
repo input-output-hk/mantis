@@ -69,7 +69,7 @@ final case class HeaderSkeleton(
     remainingSkeletonHeaders.min(maxSkeletonHeaders)
   }
 
-  private val lastSkeletonHeaderNumber: BigInt = from + (batchSize * limit) - 1
+  val lastSkeletonHeaderNumber: BigInt = from + (batchSize * limit) - 1
   private val skeletonHeaderNumbers: Seq[BigInt] =
     firstSkeletonHeaderNumber to lastSkeletonHeaderNumber by batchSize
 

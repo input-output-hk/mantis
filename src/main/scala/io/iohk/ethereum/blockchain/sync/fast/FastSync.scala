@@ -207,7 +207,7 @@ class FastSync(
         currentSkeletonState match {
           case Some(currentSkeleton) =>
             if (skeletonHandler.contains(sender())) handleSkeletonResponse(peer, blockHeaders, currentSkeleton)
-            handleHeaderBatchResponse(peer, blockHeaders, currentSkeleton)
+            else handleHeaderBatchResponse(peer, blockHeaders, currentSkeleton)
           case None =>
             log.warning(
               s"Received response to fill in header skeleton, but current header skeleton is not defined."
@@ -239,8 +239,9 @@ class FastSync(
     ): Unit = {
       def validateDownloadedHeaders = blockHeaders.toList.traverse_(validateHeaderOnly)
 
-      log.debug("Handling new received skeleton from peer [{}].", peer.id.value)
+      log.info("Handling new received skeleton from peer [{}].", peer.id.value)
 
+      skeletonHandler.foreach(context.unwatch)
       skeletonHandler = None
 
       validateDownloadedHeaders match {
@@ -254,7 +255,10 @@ class FastSync(
               log.warning("Failed to set skeleton headers from peer [{}]: [{}]", peer.id.value, error.msg)
               requestSkeletonHeaders(peer)
             case Right(updatedSkeleton) =>
-              log.debug("Updated current skeleton header to [{}]", updatedSkeleton)
+              log.debug(
+                "Updated current skeleton header. Included batches (starting numbers): [{}]",
+                updatedSkeleton.batchStartingHeaderNumbers.mkString(", ")
+              )
               currentSkeletonState = Some(updatedSkeleton)
               blockHeadersQueue ++= updatedSkeleton.batchStartingHeaderNumbers.map(from =>
                 HeaderRange(from, updatedSkeleton.batchSize)
@@ -304,7 +308,7 @@ class FastSync(
       )
       currentSkeleton.addBatch(blockHeaders) match {
         case Right(skeleton) =>
-          log.debug("Successfully added headers from peer [{}] to current skeleton.", peer.id.value, skeleton)
+          log.debug("Successfully added headers from peer [{}] to current skeleton.", peer.id.value)
           skeleton.fullChain match {
             case Some(fullChain) =>
               log.debug("Current header skeleton completed. Starting to request bodies and receipts.")
@@ -932,7 +936,12 @@ class FastSync(
     def requestBlockHeaders(peer: Peer): Unit = {
       val (request, remaining) = (blockHeadersQueue.head, blockHeadersQueue.tail)
 
-      log.debug("Requesting block headers from peer [{}]", peer.id.value)
+      log.debug(
+        "Requesting [{}] block headers starting at block header [{}] from peer [{}]",
+        request.limit,
+        request.from,
+        peer.id.value
+      )
 
       val handler = context.actorOf(
         PeerRequestHandler.props[GetBlockHeaders, BlockHeaders](
@@ -956,7 +965,12 @@ class FastSync(
       val skeleton =
         HeaderSkeleton(syncState.bestBlockHeaderNumber + 1, syncState.safeDownloadTarget, blockHeadersPerRequest)
 
-      log.debug("Requesting header skeleton [{}] from master peer [{}]", skeleton, peer.id.value)
+      log.debug(
+        "Requesting header skeleton for range [{}-{}] from master peer [{}]",
+        skeleton.from,
+        skeleton.lastSkeletonHeaderNumber,
+        peer.id.value
+      )
 
       val msg = GetBlockHeaders(
         Left(skeleton.firstSkeletonHeaderNumber),
