@@ -130,6 +130,7 @@ class FastSync(
     private var masterPeer: Option[Peer] = None
     // TODO ETCM-701 get rid of state and move skeleton download to a separate actor
     private var currentSkeletonState: Option[HeaderSkeleton] = None
+    private var skeletonHandler: Option[ActorRef] = None
     private var batchFailuresCount = 0
     private var blockHeadersQueue: Seq[HeaderRange] = Nil
 
@@ -206,7 +207,7 @@ class FastSync(
         FastSyncMetrics.setBlockHeadersDownloadTime(timeTaken)
         currentSkeletonState match {
           case Some(currentSkeleton) =>
-            if (masterPeer.contains(peer)) handleSkeletonResponse(peer, blockHeaders, currentSkeleton)
+            if (skeletonHandler.contains(sender())) handleSkeletonResponse(peer, blockHeaders, currentSkeleton)
             handleHeaderBatchResponse(peer, blockHeaders, currentSkeleton)
           case None =>
             log.warning(
@@ -241,7 +242,7 @@ class FastSync(
 
       log.debug("Handling new received skeleton from peer [{}].", peer.id.value)
 
-      removeRequestHandler(sender())
+      skeletonHandler = None
 
       validateDownloadedHeaders match {
         case Left(error) =>
@@ -252,6 +253,7 @@ class FastSync(
             case Left(error) =>
               // TODO ETCM-701 if this error keeps happening, switch master peer
               log.warning("Failed to set skeleton headers from peer [{}]: [{}]", peer.id.value, error.msg)
+              requestSkeletonHeaders(peer)
             case Right(updatedSkeleton) =>
               log.debug("Updated current skeleton header to [{}]", updatedSkeleton)
               currentSkeletonState = Some(updatedSkeleton)
@@ -984,7 +986,7 @@ class FastSync(
       )
 
       context watch handler
-      assignedHandlers += (handler -> peer)
+      skeletonHandler = Some(handler)
       currentSkeletonState = Some(skeleton)
       peerRequestsTime += (peer -> Instant.now())
     }
