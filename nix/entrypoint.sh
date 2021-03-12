@@ -2,7 +2,19 @@
 
 set -exuo pipefail
 
-trap 'trap - SIGTERM && kill -- -$$' SIGINT SIGTERM EXIT
+cleanup() {
+    # kill all processes whose parent is this process
+    pkill -P $$
+}
+
+for sig in INT QUIT HUP TERM; do
+  trap "
+    cleanup
+    trap - $sig EXIT
+    kill -s $sig "'"$$"' "$sig"
+done
+trap cleanup EXIT
+
 
 mkdir -p /tmp
 mkdir -p "$NOMAD_TASK_DIR/mantis"
@@ -45,8 +57,6 @@ ulimit -c unlimited
 cp mantis.conf running.conf
 
 (
-trap 'trap - SIGTERM && kill -- -$$' SIGINT SIGTERM EXIT
-
 while true; do
   set +x
   while diff -u running.conf mantis.conf > /dev/stderr; do
