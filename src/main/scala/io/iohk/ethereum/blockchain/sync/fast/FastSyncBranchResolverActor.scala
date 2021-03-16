@@ -96,7 +96,7 @@ class FastSyncBranchResolverActor(
   private def requestRecentBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Unit = {
     val requestHandler = sendGetBlockHeadersRequest(
       masterPeer,
-      fromBlock = childOf(bestBlockNumber - recentHeadersSize),
+      fromBlock = childOf((bestBlockNumber - recentHeadersSize).max(0)),
       amount = recentHeadersSize
     )
     context.become(waitingForRecentBlockHeaders(masterPeer, bestBlockNumber, requestHandler))
