@@ -11,6 +11,7 @@ object Mantis extends Logger {
         new TestNode
       } else new StdNode
 
+    log.info("Mantis app {}", Config.clientVersion)
     log.info("Using network {}", Config.blockchains.network)
 
     node.start()

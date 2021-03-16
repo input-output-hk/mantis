@@ -1,5 +1,5 @@
 logLevel := sbt.Level.Warn
-addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.9.0")
+addSbtPlugin("com.eed3si9n" % "sbt-buildinfo" % "0.10.0")
 addSbtPlugin("com.github.mwz" % "sbt-sonar" % "2.2.0")
 addSbtPlugin("com.lightbend.sbt" % "sbt-javaagent" % "0.1.6")
 addSbtPlugin("com.sksamuel.scapegoat" % "sbt-scapegoat" % "1.1.0")
