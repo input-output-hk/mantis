@@ -24,15 +24,15 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag
 
   import PeerRequestHandler._
 
-  val initiator: ActorRef = context.parent
+  private val initiator: ActorRef = context.parent
 
-  val timeout: Cancellable = scheduler.scheduleOnce(responseTimeout, self, Timeout)
+  private val timeout: Cancellable = scheduler.scheduleOnce(responseTimeout, self, Timeout)
 
-  val startTime: Long = System.currentTimeMillis()
+  private val startTime: Long = System.currentTimeMillis()
 
   private def subscribeMessageClassifier = MessageClassifier(Set(responseMsgCode), PeerSelector.WithId(peer.id))
 
-  def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
+  private def timeTakenSoFar(): Long = System.currentTimeMillis() - startTime
 
   override def preStart(): Unit = {
     etcPeerManager ! EtcPeerManagerActor.SendMessage(toSerializable(requestMsg), peer.id)
@@ -79,8 +79,8 @@ object PeerRequestHandler {
   )(implicit scheduler: Scheduler, toSerializable: RequestMsg => MessageSerializable): Props =
     Props(new PeerRequestHandler(peer, responseTimeout, etcPeerManager, peerEventBus, requestMsg, responseMsgCode))
 
-  case class RequestFailed(peer: Peer, reason: String)
-  case class ResponseReceived[T](peer: Peer, response: T, timeTaken: Long)
+  final case class RequestFailed(peer: Peer, reason: String)
+  final case class ResponseReceived[T](peer: Peer, response: T, timeTaken: Long)
 
   private case object Timeout
 }

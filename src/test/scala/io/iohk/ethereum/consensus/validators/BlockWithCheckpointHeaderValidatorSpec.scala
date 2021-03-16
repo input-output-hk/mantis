@@ -301,10 +301,8 @@ class BlockWithCheckpointHeaderValidatorSpec
         override def difficulty: DifficultyCalculator =
           (_: BigInt, _: Long, _: BlockHeader) => 0
 
-        override def validateEvenMore(
-            blockHeader: BlockHeader,
-            parentHeader: BlockHeader
-        ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+        override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+          Right(BlockHeaderValid)
       }
 
     val blockHeaderValidator = blockHeaderValidatorBuilder(config)

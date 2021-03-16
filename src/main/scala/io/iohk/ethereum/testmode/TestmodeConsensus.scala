@@ -30,7 +30,15 @@ class TestmodeConsensus(
   override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
 
   class TestValidators extends Validators {
-    override def blockHeaderValidator: BlockHeaderValidator = (_, _) => Right(BlockHeaderValid)
+    override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
+      override def validate(
+          blockHeader: BlockHeader,
+          getBlockHeaderByHash: GetBlockHeaderByHash
+      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+
+      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        Right(BlockHeaderValid)
+    }
     override def signedTransactionValidator: SignedTransactionValidator =
       new StdSignedTransactionValidator(blockchainConfig)
     override def validateBlockBeforeExecution(
