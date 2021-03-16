@@ -34,7 +34,7 @@ case class Transaction(
 
   override def toString: String = {
     val receivingAddressString =
-      if (receivingAddress.isDefined) Hex.toHexString(receivingAddress.get.toArray) else "[Contract creation]"
+      receivingAddress.map(addr => Hex.toHexString(addr.toArray)).getOrElse("[Contract creation]")
 
     s"Transaction {" +
       s"nonce: $nonce " +

@@ -13,6 +13,8 @@ trait BlockHeaderValidator {
       blockHeader: BlockHeader,
       getBlockHeaderByHash: GetBlockHeaderByHash
   ): Either[BlockHeaderError, BlockHeaderValid]
+
+  def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid]
 }
 
 object BlockHeaderValidator {
