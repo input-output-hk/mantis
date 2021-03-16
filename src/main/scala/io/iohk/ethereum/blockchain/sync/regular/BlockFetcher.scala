@@ -3,6 +3,9 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.pattern.{ask, pipe}
+import akka.stream.Attributes.InputBuffer
+import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.{Attributes, DelayOverflowStrategy, OverflowStrategy}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
@@ -45,7 +48,23 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
+  implicit val sys = context.system
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
+
+  val queue = {
+    val cap = 1000
+    val numberOfElements = 1
+    Source
+      .queue[BlockFetcherState](cap, OverflowStrategy.backpressure)
+      .delay(5.seconds, DelayOverflowStrategy.dropHead)
+      .addAttributes(Attributes.inputBuffer(numberOfElements, numberOfElements))
+      .map { s =>
+        log.debug("Resuming fetching with the latest state")
+        fetchBlocks(s.withResumedFetching)
+      }
+      .toMat(Sink.ignore)(Keep.left)
+      .run()
+  }
 
   override def receive: Receive = idle()
 
@@ -103,7 +122,7 @@ class BlockFetcher(
   }
 
   private def handleHeadersMessages(state: BlockFetcherState): Receive = {
-    case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
+    case Response(_, BlockHeaders(headers)) if state.isFetchingHeaders =>
       val newState =
         if (state.fetchingHeadersState == AwaitingHeadersToBeIgnored) {
           log.debug(
@@ -153,7 +172,7 @@ class BlockFetcher(
               state.withBodiesFetchReceived.handleRequestedBlocks(newBlocks, peer.id)
           }
         val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
-        log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
+        log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
         fetchBlocks(newState)
       }
     case RetryBodiesRequest if state.isFetchingBodies =>
@@ -267,7 +286,7 @@ class BlockFetcher(
   }
 
   private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {
-    //by handling these type of messages, fetcher can receive from network, fresh info about blocks on top
+    //by handling these type of messages, fetcher can receive from network fresh info about blocks on top
     //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
     case MessageFromPeer(BlockHeaders(headers), _) =>
       headers.lastOption.map { bh =>
@@ -290,6 +309,9 @@ class BlockFetcher(
         .clearQueues()
         .withLastBlock(blockNr)
         .withPossibleNewTopAt(blockNr)
+        .withPausedFetching
+
+      fetchBlocks(newState)
   }
 
   private def handlePickedBlocks(
@@ -305,9 +327,14 @@ class BlockFetcher(
   private def fetchBlocks(state: BlockFetcherState): Unit = {
     // Remember that tryFetchHeaders and tryFetchBodies can issue a request
     // Nice and clean way to express that would be to use SyncIO from cats-effect
-    val newState = state |> tryFetchHeaders |> tryFetchBodies
 
-    context become started(newState)
+    if (state.pausedFetching) {
+      queue.offer(state)
+      context become started(state)
+    } else {
+      val newState = state |> tryFetchHeaders |> tryFetchBodies
+      context become started(newState)
+    }
   }
 
   private def tryFetchHeaders(fetcherState: BlockFetcherState): BlockFetcherState =
@@ -338,7 +365,7 @@ class BlockFetcher(
       .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
-      .map(state => state.withNewBodiesFetch)
+      .map(_.withNewBodiesFetch)
       .getOrElse(fetcherState)
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
