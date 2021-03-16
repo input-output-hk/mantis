@@ -62,7 +62,7 @@ class EthashMiner(
           .getBlockForMining(blockValue)
           .map {
             case PendingBlockAndState(PendingBlock(block, _), _) => {
-              val blockNumber = block.header.number.toLong + 1
+              val blockNumber = block.header.number.toLong
               val epoch = EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
               val (dag, dagSize) = calculateDagSize(blockNumber, epoch)
               val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
