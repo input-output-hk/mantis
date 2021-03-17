@@ -1,10 +1,9 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.{ask, pipe}
-import akka.stream.Attributes.InputBuffer
-import akka.stream.scaladsl.{Keep, Sink, Source}
+import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueue}
 import akka.stream.{Attributes, DelayOverflowStrategy, OverflowStrategy}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
@@ -48,10 +47,10 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
-  implicit val sys = context.system
+  implicit val sys: ActorSystem = context.system
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
 
-  val queue = {
+  private val queue: SourceQueue[BlockFetcherState] = {
     val cap = 1000
     val numberOfElements = 1
     Source
