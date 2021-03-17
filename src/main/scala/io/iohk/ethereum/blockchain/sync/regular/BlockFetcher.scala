@@ -1,8 +1,10 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, ActorSystem, Props}
 import akka.pattern.{ask, pipe}
+import akka.stream.scaladsl.{Keep, Sink, Source, SourceQueue}
+import akka.stream.{Attributes, DelayOverflowStrategy, OverflowStrategy}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
@@ -45,7 +47,23 @@ class BlockFetcher(
   import BlockFetcher._
 
   implicit val ec: MonixScheduler = MonixScheduler(context.dispatcher)
+  implicit val sys: ActorSystem = context.system
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
+
+  private val queue: SourceQueue[BlockFetcherState] = {
+    val cap = 1000
+    val numberOfElements = 1
+    Source
+      .queue[BlockFetcherState](cap, OverflowStrategy.backpressure)
+      .delay(5.seconds, DelayOverflowStrategy.dropHead)
+      .addAttributes(Attributes.inputBuffer(numberOfElements, numberOfElements))
+      .map { s =>
+        log.debug("Resuming fetching with the latest state")
+        fetchBlocks(s.withResumedFetching)
+      }
+      .toMat(Sink.ignore)(Keep.left)
+      .run()
+  }
 
   override def receive: Receive = idle()
 
@@ -103,7 +121,7 @@ class BlockFetcher(
   }
 
   private def handleHeadersMessages(state: BlockFetcherState): Receive = {
-    case Response(peer, BlockHeaders(headers)) if state.isFetchingHeaders =>
+    case Response(_, BlockHeaders(headers)) if state.isFetchingHeaders =>
       val newState =
         if (state.fetchingHeadersState == AwaitingHeadersToBeIgnored) {
           log.debug(
@@ -153,7 +171,7 @@ class BlockFetcher(
               state.withBodiesFetchReceived.handleRequestedBlocks(newBlocks, peer.id)
           }
         val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
-        log.debug(s"Processed ${waitingHeadersDequeued} new blocks from received block bodies")
+        log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
         fetchBlocks(newState)
       }
     case RetryBodiesRequest if state.isFetchingBodies =>
@@ -267,7 +285,7 @@ class BlockFetcher(
   }
 
   private def handlePossibleTopUpdate(state: BlockFetcherState): Receive = {
-    //by handling these type of messages, fetcher can received from network, fresh info about blocks on top
+    //by handling these type of messages, fetcher can receive from network fresh info about blocks on top
     //ex. After a successful handshake, fetcher will receive the info about the header of the peer best block
     case MessageFromPeer(BlockHeaders(headers), _) =>
       headers.lastOption.map { bh =>
@@ -275,10 +293,22 @@ class BlockFetcher(
         val newState = state.withPossibleNewTopAt(bh.number)
         fetchBlocks(newState)
       }
-    //keep fetcher state updated in case new checkpoint block or mined block was imported
+    //keep fetcher state updated in case new mined block was imported
     case InternalLastBlockImport(blockNr) =>
-      log.debug(s"New last block $blockNr imported from the inside")
+      log.debug(s"New mined block $blockNr imported from the inside")
       val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
+
+      fetchBlocks(newState)
+
+    //keep fetcher state updated in case new checkpoint block was imported
+    case InternalCheckpointImport(blockNr) =>
+      log.debug(s"New checkpoint block $blockNr imported from the inside")
+
+      val newState = state
+        .clearQueues()
+        .withLastBlock(blockNr)
+        .withPossibleNewTopAt(blockNr)
+        .withPausedFetching
 
       fetchBlocks(newState)
   }
@@ -296,9 +326,14 @@ class BlockFetcher(
   private def fetchBlocks(state: BlockFetcherState): Unit = {
     // Remember that tryFetchHeaders and tryFetchBodies can issue a request
     // Nice and clean way to express that would be to use SyncIO from cats-effect
-    val newState = state |> tryFetchHeaders |> tryFetchBodies
 
-    context become started(newState)
+    if (state.pausedFetching) {
+      queue.offer(state)
+      context become started(state)
+    } else {
+      val newState = state |> tryFetchHeaders |> tryFetchBodies
+      context become started(newState)
+    }
   }
 
   private def tryFetchHeaders(fetcherState: BlockFetcherState): BlockFetcherState =
@@ -329,7 +364,7 @@ class BlockFetcher(
       .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
-      .map(state => state.withNewBodiesFetch)
+      .map(_.withNewBodiesFetch)
       .getOrElse(fetcherState)
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
@@ -403,13 +438,13 @@ object BlockFetcher {
     Props(new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator))
 
   sealed trait FetchMsg
-  case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
-  case class FetchStateNode(hash: ByteString) extends FetchMsg
-  case object RetryFetchStateNode extends FetchMsg
-  case class PickBlocks(amount: Int) extends FetchMsg
-  case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt) extends FetchMsg
-  case object PrintStatus extends FetchMsg
-  case class InvalidateBlocksFrom(fromBlock: BigInt, reason: String, toBlacklist: Option[BigInt]) extends FetchMsg
+  final case class Start(importer: ActorRef, fromBlock: BigInt) extends FetchMsg
+  final case class FetchStateNode(hash: ByteString) extends FetchMsg
+  final case object RetryFetchStateNode extends FetchMsg
+  final case class PickBlocks(amount: Int) extends FetchMsg
+  final case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt) extends FetchMsg
+  final case object PrintStatus extends FetchMsg
+  final case class InvalidateBlocksFrom(fromBlock: BigInt, reason: String, toBlacklist: Option[BigInt]) extends FetchMsg
 
   object InvalidateBlocksFrom {
 
@@ -419,12 +454,13 @@ object BlockFetcher {
     def apply(from: BigInt, reason: String, toBlacklist: Option[BigInt]): InvalidateBlocksFrom =
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
-  case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
-  case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
-  case object RetryBodiesRequest extends FetchMsg
-  case object RetryHeadersRequest extends FetchMsg
+  final case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchMsg
+  final case class InternalLastBlockImport(blockNr: BigInt) extends FetchMsg
+  final case class InternalCheckpointImport(blockNr: BigInt) extends FetchMsg
+  final case object RetryBodiesRequest extends FetchMsg
+  final case object RetryHeadersRequest extends FetchMsg
 
   sealed trait FetchResponse
-  case class PickedBlocks(blocks: NonEmptyList[Block]) extends FetchResponse
-  case class FetchedStateNode(stateNode: NodeData) extends FetchResponse
+  final case class PickedBlocks(blocks: NonEmptyList[Block]) extends FetchResponse
+  final case class FetchedStateNode(stateNode: NodeData) extends FetchResponse
 }

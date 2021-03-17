@@ -41,6 +41,7 @@ case class BlockFetcherState(
     waitingHeaders: Queue[BlockHeader],
     fetchingHeadersState: FetchingHeadersState,
     fetchingBodiesState: FetchingBodiesState,
+    pausedFetching: Boolean = false,
     stateNodeFetcher: Option[StateNodeFetcher],
     lastBlock: BigInt,
     knownTop: BigInt,
@@ -294,6 +295,9 @@ case class BlockFetcherState(
   def isFetchingBodies: Boolean = fetchingBodiesState != NotFetchingBodies
   def withNewBodiesFetch: BlockFetcherState = copy(fetchingBodiesState = AwaitingBodies)
   def withBodiesFetchReceived: BlockFetcherState = copy(fetchingBodiesState = NotFetchingBodies)
+
+  def withPausedFetching: BlockFetcherState = copy(pausedFetching = true)
+  def withResumedFetching: BlockFetcherState = copy(pausedFetching = false)
 
   def fetchingStateNode(hash: ByteString, requestor: ActorRef): BlockFetcherState =
     copy(stateNodeFetcher = Some(StateNodeFetcher(hash, requestor)))

@@ -31,30 +31,38 @@ class CheckpointingJRCSpec
   import Req._
 
   "CheckpointingJRC" should "getLatestBlock" in new TestSetup {
-    val request = getLatestBlockRequestBuilder(JArray(JInt(4) :: Nil))
-    val servResp = GetLatestBlockResponse(block.hash, block.number)
+    val request = getLatestBlockRequestBuilder(JArray(JInt(4) :: JNull :: Nil))
+    val servResp = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
     (checkpointingService.getLatestBlock _)
-      .expects(GetLatestBlockRequest(4))
+      .expects(GetLatestBlockRequest(4, None))
       .returning(Task.now(Right(servResp)))
 
     val expectedResult = JObject(
-      "hash" -> JString("0x" + ByteStringUtils.hash2string(block.hash)),
-      "number" -> JInt(block.number)
-    )
+      "block" -> JObject(
+        "hash" -> JString("0x" + ByteStringUtils.hash2string(block.hash)),
+        "number" -> JInt(block.number)
+    ))
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveResult(expectedResult)
   }
 
+  it should "return invalid params when checkpoint parent is of the wrong type" in new TestSetup {
+    val request = getLatestBlockRequestBuilder(JArray(JInt(1) :: JBool(true) :: Nil))
+
+    val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
+    response should haveError(notSupportedTypeError)
+  }
+
   it should "return invalid params when checkpoint interval is not positive (getLatestBlock)" in new TestSetup {
-    val request = getLatestBlockRequestBuilder(JArray(JInt(-1) :: Nil))
+    val request = getLatestBlockRequestBuilder(JArray(JInt(-1) :: JNull :: Nil))
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveError(expectedPositiveIntegerError)
   }
 
   it should "return invalid params when checkpoint interval is too big (getLatestBlock)" in new TestSetup {
-    val request = getLatestBlockRequestBuilder(JArray(JInt(BigInt(Int.MaxValue) + 1) :: Nil))
+    val request = getLatestBlockRequestBuilder(JArray(JInt(BigInt(Int.MaxValue) + 1) :: JNull :: Nil))
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveError(expectedPositiveIntegerError)
@@ -191,6 +199,7 @@ class CheckpointingJRCSpec
     )
 
     val expectedPositiveIntegerError = InvalidParams("Expected positive integer")
+    val notSupportedTypeError = InvalidParams("Not supported type for parentCheckpoint")
 
     def pushCheckpointRequestBuilder(json: JArray) = JsonRpcRequest(
       "2.0",
