@@ -153,6 +153,29 @@ class BlockImporterItSpec
     blockchain.getBestBlock().get shouldEqual newBlock3
   }
 
+  it should "return Unknown branch, don't start reorganisation in case of PickedBlocks with block that has a parent who is not present in the chain " in {
+    val newcomerBlock4: Block =
+      getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
+    val newcomerWeight4Duplicate = oldWeight3.increase(newcomerBlock4.header)
+
+    //Block n5 with oldBlock4 as parent
+    val newComerBlock5WithOldBlock4Parent: Block =
+      getBlock(genesisBlock.number + 5, difficulty = 108, parent = oldBlock4.header.hash)
+
+    blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+    // simulation of node restart
+    blockchain.saveBestKnownBlocks(blockchain.getBestBlockNumber() - 1)
+    blockchain.save(newcomerBlock4, Nil, newcomerWeight4Duplicate, saveAsBestBlock = true)
+
+    //this is not reorganising anymore until oldBlock4(not part of the chain anymore) // but resolveBranch is returning UnknownBranch
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newComerBlock5WithOldBlock4Parent)))
+
+    Thread.sleep(200)
+    blockchain.getBestBlock().get shouldEqual newcomerBlock4
+  }
+
   it should "switch to a branch with a checkpoint" in {
 
     val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
