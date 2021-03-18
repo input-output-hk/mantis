@@ -5,7 +5,7 @@ import io.iohk.ethereum.vm.{WorldStateProxy, _}
 import Implicits._
 import akka.util.ByteString
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger, VmConfig}
 
 import scala.annotation.tailrec
 
@@ -94,6 +94,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       world: W,
       resultMsg: msg.CallResult
   ): ProgramResult[W, S] = {
+    logCallResult(resultMsg)
     val updatedWorld = applyAccountChanges[W, S](world, resultMsg)
     ProgramResult(
       resultMsg.returnData,
@@ -105,6 +106,36 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       resultMsg.gasRefund,
       if (resultMsg.error) Some(OutOfGas) else None
     )
+  }
+
+  private def logCallResult(resultMsg: msg.CallResult): Unit = log.whenDebugEnabled {
+    import ByteStringUtils.hash2string
+    import resultMsg._
+
+    def printModifiedAccount(acc: msg.ModifiedAccount): String = {
+      s"""
+         |    ModifiedAccount:
+         |      address: ${acc.address: Address}
+         |      nonce: ${acc.nonce: BigInt}
+         |      balance: ${acc.balance: BigInt}
+         |      code: ${hash2string(acc.code)}
+         |      storageUpdates: ${acc.storageUpdates.map(su => (su.offset: BigInt) -> (su.data: BigInt)).mkString(", ")}
+         |""".stripMargin
+    }
+
+    s"""
+       |CallResult:
+       |  returnData: ${hash2string(returnData)}
+       |  returnCode: ${returnCode: BigInt}
+       |  gasRemaining: ${gasRemaining: BigInt}
+       |  gasRefund: ${gasRefund: BigInt}
+       |  error: ${error}
+       |  deletedAccounts: ${deletedAccounts.map(a => a: Address).mkString(", ")}
+       |  touchedAccounts: ${touchedAccounts.map(a => a: Address).mkString(", ")}
+       |  logs: ${logs.map(l => TxLogEntry(l.address, l.topics.map(t => t: ByteString), l.data)).mkString(", ")}
+       |  modifiedAccounts: ${modifiedAccounts.map(printModifiedAccount).mkString}
+       |""".stripMargin
+
   }
 
   private def applyAccountChanges[W <: WorldStateProxy[W, S], S <: vm.Storage[S]](

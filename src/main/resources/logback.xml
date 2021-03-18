@@ -61,6 +61,7 @@
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="DEBUG" />
     <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
     <logger name="io.iohk.ethereum.network.PeerActor" level="DEBUG" />
-    <logger name="io.iohk.ethereum.vm.VM" level="OFF" />
+    <logger name="io.iohk.ethereum.vm.VM" level="TRACE" />
+    <logger name="io.iohk.ethereum.extvm.VMClient" level="DEBUG" />
 
 </configuration>
