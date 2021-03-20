@@ -1,12 +1,13 @@
 diff --git a/build.sbt b/build.sbt
-index 6bf2b25cb..155de447d 100644
+index b2562eaf2..7488b19b8 100644
 --- a/build.sbt
 +++ b/build.sbt
-@@ -25,6 +25,7 @@ def commonSettings(projectName: String) = Seq(
-     "-encoding",
-     "UTF-8"
-   ),
-+  PB.runProtoc in Compile := (args => Process("@protobuf@/bin/protoc", args)!),
-   scalacOptions in (Compile, console) ~= (_.filterNot(
-     Set(
-       "-Ywarn-unused-import",
+@@ -92,7 +92,7 @@ val root = {
+   if (!nixBuild)
+     root
+   else
+-    root.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
++    root.settings(PB.runProtoc in Compile := (args => Process("@protobuf@/bin/protoc", args) !))
+ }
+ 
+ scalacOptions := Seq(
