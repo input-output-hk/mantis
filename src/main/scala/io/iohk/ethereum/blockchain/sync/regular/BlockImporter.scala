@@ -2,14 +2,12 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
-import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -17,7 +15,6 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
-import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
@@ -34,7 +31,6 @@ class BlockImporter(
     ommersPool: ActorRef,
     broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
-    checkpointBlockGenerator: CheckpointBlockGenerator,
     supervisor: ActorRef
 ) extends Actor
     with ActorLogging {
@@ -69,39 +65,44 @@ class BlockImporter(
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks, DefaultBlockImport)(state)
 
-    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
-    case MinedBlock(block) =>
-      if (!state.importing) {
-        importMinedBlock(block, state)
-      }
+    case MinedBlock(block) if !state.importing =>
+        importBlock(
+          block,
+          new MinedBlockImportMessages(block),
+          MinedBlockImport,
+          false,
+          true)(state)
 
-    //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
-    case nc @ NewCheckpoint(parentHash, signatures) =>
+    case nc @ NewCheckpoint(block) =>
       if (state.importing) {
         //We don't want to lose a checkpoint
         context.system.scheduler.scheduleOnce(1.second, self, nc)
       } else {
-        ledger.getBlockByHash(parentHash) match {
-          case Some(parent) =>
-            val checkpointBlock = checkpointBlockGenerator.generate(parent, Checkpoint(signatures))
-            importCheckpointBlock(checkpointBlock, state)
-
-          case None =>
-            log.error(s"Could not find parent (${ByteStringUtils.hash2string(parentHash)}) for new checkpoint block")
-        }
+        importBlock(
+          block,
+          new CheckpointBlockImportMessages(block),
+          CheckpointBlockImport,
+          false,
+          true)(state)
       }
 
-    case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing => importNewBlock(block, peerId, state)
+    case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing =>
+      importBlock(
+        block,
+        new NewBlockImportMessages(block, peerId),
+        NewBlockImport,
+        informFetcherOnFail = true,
+        internally = false
+      )(state)
 
     case ImportDone(newBehavior, importType) =>
       val newState = state.notImportingBlocks().branchResolved()
       val behavior: Behavior = getBehavior(newBehavior, importType)
-
       if (newBehavior == Running) {
         self ! PickBlocks
       }
-
       context become behavior(newState)
+
     case PickBlocks if !state.importing => pickBlocks(state)
   }
 
@@ -213,33 +214,6 @@ class BlockImporter(
             (importedBlocks, Some(missingNodeEx))
         }
     }
-
-  private def importMinedBlock(block: Block, state: ImporterState): Unit =
-    importBlock(
-      block,
-      new MinedBlockImportMessages(block),
-      MinedBlockImport,
-      informFetcherOnFail = false,
-      internally = true
-    )(state)
-
-  private def importCheckpointBlock(block: Block, state: ImporterState): Unit =
-    importBlock(
-      block,
-      new CheckpointBlockImportMessages(block),
-      CheckpointBlockImport,
-      informFetcherOnFail = false,
-      internally = true
-    )(state)
-
-  private def importNewBlock(block: Block, peerId: PeerId, state: ImporterState): Unit =
-    importBlock(
-      block,
-      new NewBlockImportMessages(block, peerId),
-      NewBlockImport,
-      informFetcherOnFail = true,
-      internally = false
-    )(state)
 
   private def importBlock(
       block: Block,
@@ -363,7 +337,6 @@ object BlockImporter {
       ommersPool: ActorRef,
       broadcaster: ActorRef,
       pendingTransactionsManager: ActorRef,
-      checkpointBlockGenerator: CheckpointBlockGenerator,
       supervisor: ActorRef
   ): Props =
     Props(
@@ -375,7 +348,6 @@ object BlockImporter {
         ommersPool,
         broadcaster,
         pendingTransactionsManager,
-        checkpointBlockGenerator,
         supervisor
       )
     )
@@ -388,7 +360,7 @@ object BlockImporter {
   case object OnTop extends ImporterMsg
   case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
-  case class NewCheckpoint(parentHash: ByteString, signatures: Seq[ECDSASignature]) extends ImporterMsg
+  case class NewCheckpoint(block: Block) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior, blockImportType: BlockImportType) extends ImporterMsg
   case object PickBlocks extends ImporterMsg

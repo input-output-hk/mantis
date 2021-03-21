@@ -535,8 +535,8 @@ class RegularSyncSpec
 
         ledger.setImportResult(testBlocks(1), Task.now(BlockImportedToTop(Nil)))
 
-        val newCheckpointMsg = NewCheckpoint(block.hash, checkpoint.signatures)
         val checkpointBlock = checkpointBlockGenerator.generate(block, checkpoint)
+        val newCheckpointMsg = NewCheckpoint(checkpointBlock)
         ledger.setImportResult(checkpointBlock, Task.eval(BlockImportedToTop(Nil)))
 
         regularSync ! SyncProtocol.Start
@@ -561,8 +561,8 @@ class RegularSyncSpec
         ledger.setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
         ledger.importBlock(parentBlock)(Scheduler.global)
 
-        val newCheckpointMsg = NewCheckpoint(parentBlock.hash, checkpoint.signatures)
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
+        val newCheckpointMsg = NewCheckpoint(checkpointBlock)
         ledger.setImportResult(
           checkpointBlock,
           // FIXME: lastCheckpointNumber == 0, refactor FakeLedger?

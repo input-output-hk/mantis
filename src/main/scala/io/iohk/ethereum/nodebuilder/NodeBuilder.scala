@@ -472,23 +472,30 @@ trait PersonalServiceBuilder {
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder with SyncControllerBuilder with BlockchainBuilder with BlockchainConfigBuilder =>
+  self: ConsensusBuilder
+    with SyncControllerBuilder
+    with BlockchainBuilder
+    with BlockchainConfigBuilder
+    with CheckpointBlockGeneratorBuilder =>
 
   lazy val qaService =
     new QAService(
       consensus,
       blockchain,
+      checkpointBlockGenerator,
       blockchainConfig,
       syncController
     )
 }
 
 trait CheckpointingServiceBuilder {
-  self: BlockchainBuilder with SyncControllerBuilder =>
+  self: BlockchainBuilder with SyncControllerBuilder with LedgerBuilder with CheckpointBlockGeneratorBuilder =>
 
   lazy val checkpointingService =
     new CheckpointingService(
       blockchain,
+      ledger,
+      checkpointBlockGenerator,
       syncController
     )
 }
@@ -657,7 +664,6 @@ trait SyncControllerBuilder {
     with LedgerBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder
-    with CheckpointBlockGeneratorBuilder
     with OmmersPoolBuilder
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
@@ -674,7 +680,6 @@ trait SyncControllerBuilder {
       consensus.validators,
       peerEventBus,
       pendingTransactionsManager,
-      checkpointBlockGenerator,
       ommersPool,
       etcPeerManager,
       blacklist,
