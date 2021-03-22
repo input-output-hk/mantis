@@ -102,9 +102,7 @@ class RegularSync(
       context become running(newState)
     case ProgressProtocol.ImportedBlock(blockNumber, isCheckpoint, internally) =>
       log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
-      val newState =
-        if (isCheckpoint) progressState.copy(currentBlock = blockNumber, bestKnownNetworkBlock = blockNumber)
-        else progressState.copy(currentBlock = blockNumber)
+      val newState = progressState.copy(currentBlock = blockNumber)
       if (internally && isCheckpoint) {
         fetcher ! InternalCheckpointImport(blockNumber)
       } else if (internally) {

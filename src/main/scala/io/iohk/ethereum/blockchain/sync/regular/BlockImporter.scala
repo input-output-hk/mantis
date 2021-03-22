@@ -329,7 +329,7 @@ class BlockImporter(
         Right(Nil)
       case UnknownBranch =>
         val currentBlock = blocks.head.number.min(startingBlockNumber)
-        val goingBackTo = currentBlock - syncConfig.branchResolutionRequestSize
+        val goingBackTo = (currentBlock - syncConfig.branchResolutionRequestSize).max(0)
         val msg = s"Unknown branch, going back to block nr $goingBackTo in order to resolve branches"
 
         log.info(msg)

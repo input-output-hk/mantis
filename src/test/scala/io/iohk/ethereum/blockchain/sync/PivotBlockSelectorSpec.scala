@@ -447,7 +447,7 @@ class PivotBlockSelectorSpec
 
     override def defaultSyncConfig: SyncConfig = super.defaultSyncConfig.copy(
       doFastSync = true,
-      branchResolutionRequestSize = 20,
+      branchResolutionRequestSize = 30,
       checkForNewBlockInterval = 1.second,
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
