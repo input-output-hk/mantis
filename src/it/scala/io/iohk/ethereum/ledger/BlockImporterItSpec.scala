@@ -6,12 +6,15 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.{BlockFetcher, BlockImporter}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, ObjectGenerators, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators, crypto}
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import monix.execution.Scheduler
 import org.scalamock.scalatest.MockFactory
@@ -61,6 +64,18 @@ class BlockImporterItSpec
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
+
+  override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
+    override val ommersValidator: OmmersValidator = (
+        parentHash: ByteString,
+        blockNumber: BigInt,
+        ommers: Seq[BlockHeader],
+        getBlockHeaderByHash: GetBlockHeaderByHash,
+        getNBlocksBack: GetNBlocksBack
+    ) =>
+      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+  }
 
   override lazy val ledger = new TestLedgerImpl(successValidators) {
     override private[ledger] lazy val blockExecution =
@@ -153,14 +168,19 @@ class BlockImporterItSpec
     blockchain.getBestBlock().get shouldEqual newBlock3
   }
 
-  it should "return Unknown branch, don't start reorganisation in case of PickedBlocks with block that has a parent who is not present in the chain " in {
+  it should "return Unknown branch, don't start reorganisation(therefore no block/ommer validation) in case of PickedBlocks with block that has a parent who is not present in the chain(or ommer not in  chain)" in {
     val newcomerBlock4: Block =
       getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
     val newcomerWeight4Duplicate = oldWeight3.increase(newcomerBlock4.header)
 
     //Block n5 with oldBlock4 as parent
     val newComerBlock5WithOldBlock4Parent: Block =
-      getBlock(genesisBlock.number + 5, difficulty = 108, parent = oldBlock4.header.hash)
+      getBlock(
+        genesisBlock.number + 5,
+        difficulty = 108,
+        parent = oldBlock4.header.hash,
+        ommers = Seq(oldBlock4.header)
+      )
 
     blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
     blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
@@ -169,7 +189,7 @@ class BlockImporterItSpec
     blockchain.saveBestKnownBlocks(blockchain.getBestBlockNumber() - 1)
     blockchain.save(newcomerBlock4, Nil, newcomerWeight4Duplicate, saveAsBestBlock = true)
 
-    //this is not reorganising anymore until oldBlock4(not part of the chain anymore) // but resolveBranch is returning UnknownBranch
+    //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newComerBlock5WithOldBlock4Parent)))
 
     Thread.sleep(200)

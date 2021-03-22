@@ -400,16 +400,14 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       .once()
   }
 
-  def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] = {
+  def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] =
     (blockchain.isInChain _).expects(hash).returning(result)
-  }
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
     (blockchain.getBlockByNumber _).expects(number).returning(block)
 
-  def setGenesisHeader(header: BlockHeader): Unit = {
+  def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchain.genesisHeader).expects().returning(header)
-  }
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
