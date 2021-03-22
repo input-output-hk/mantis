@@ -2,7 +2,6 @@ package io.iohk.ethereum.rpcTest
 
 import java.math.BigInteger
 import java.security.SecureRandom
-
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.domain.Address
@@ -24,6 +23,7 @@ import io.iohk.ethereum.rpcTest.TestData._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.web3j.protocol.core.methods.response.EthLog
+import org.web3j.protocol.exceptions.ClientConnectionException
 
 import scala.jdk.CollectionConverters._
 import scala.language.implicitConversions
@@ -68,9 +68,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response1 = service.ethGetBlockTransactionCountByNumber(twoTransactionBlock.blockNumber).send()
     response1.getTransactionCount.asBigInt shouldEqual twoTransactionBlock.transactions.size
 
-    val response2 = service.ethGetBlockTransactionCountByNumber(futureBlock).send()
-    response2.getResult shouldBe null
-    response2.getError.getCode shouldEqual generalErrorCode
+    assertThrows[ClientConnectionException](service.ethGetBlockTransactionCountByNumber(futureBlock).send())
   }
 
   it should "eth_getUncleCountByBlockHash" taggedAs (MainNet) in new ScenarioSetup {
@@ -80,9 +78,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response1 = service.ethGetUncleCountByBlockHash(oneUncleTestBlock.hash).send()
     response1.getUncleCount.asBigInt shouldEqual oneUncleTestBlock.uncles.size
 
-    val response2 = service.ethGetUncleCountByBlockHash(unexisitingBlockHash).send()
-    response2.getResult shouldBe null
-    response2.getError.getCode shouldEqual generalErrorCode
+    assertThrows[ClientConnectionException](service.ethGetUncleCountByBlockHash(unexisitingBlockHash).send())
   }
 
   it should "eth_getUncleCountByBlockNumber" taggedAs (MainNet) in new ScenarioSetup {
@@ -92,9 +88,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response1 = service.ethGetUncleCountByBlockNumber(oneUncleTestBlock.blockNumber).send()
     response1.getUncleCount.asBigInt shouldEqual oneUncleTestBlock.uncles.size
 
-    val response2 = service.ethGetUncleCountByBlockNumber(futureBlock).send()
-    response2.getResult shouldBe null
-    response2.getError.getCode shouldEqual generalErrorCode
+    assertThrows[ClientConnectionException](service.ethGetUncleCountByBlockNumber(futureBlock).send())
   }
 
   it should "eth_getBlockByHash" taggedAs (MainNet) in new ScenarioSetup {
@@ -105,9 +99,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     response1.getBlock shouldEqual null
     response1.getError shouldEqual null
 
-    val response2 = service.ethGetBlockByHash(badHash, false).send()
-    response2.getBlock shouldEqual null
-    response2.getError.getCode shouldEqual generalErrorCode
+    assertThrows[ClientConnectionException](service.ethGetBlockByHash(badHash, false).send())
   }
 
   it should "eth_getTransactionByBlockHashAndIndex" taggedAs (MainNet) in new ScenarioSetup {
@@ -1094,7 +1086,12 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
     val response = service.personalListAccounts().send()
     val personalAccounts = response.getAccountIds.asScala
 
-    personalAccounts should contain.allOf(firstAccount.address, secondAccount.address, thirdAccount.address, gethAccount.address)
+    personalAccounts should contain.allOf(
+      firstAccount.address,
+      secondAccount.address,
+      thirdAccount.address,
+      gethAccount.address
+    )
 
     val response1 = service.ethAccounts().send()
     val ethAccounts = response1.getAccounts.asScala
