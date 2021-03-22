@@ -223,7 +223,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     nodesPerRequest = 200,
     maxTargetDifference = 1,
     syncRetryInterval = 50.milliseconds,
-    blacklistDuration = 100.seconds
+    blacklistDuration = 100.seconds,
+    fastSyncMaxBatchRetries = 0,
+    fastSyncBlockValidationN = 200
   )
 
   lazy val broadcaster = new BlockBroadcast(etcPeerManager)
@@ -298,6 +300,41 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     (newBlock, newWeight, parentWorld)
   }
 
+  private def generateInvalidBlocks(
+      currentBestBlock: Block
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task {
+      val currentWorld = getMptForBlock(currentBestBlock)
+
+      val newBlockNumber = currentBestBlock.header.number + 1
+      val newWorld = updateWorldForBlock(newBlockNumber, currentWorld)
+      val childBlock =
+        currentBestBlock.copy(header =
+          currentBestBlock.header.copy(
+            number = newBlockNumber,
+            stateRoot = newWorld.stateRootHash
+          )
+        )
+      val newWeight = ChainWeight.totalDifficultyOnly(1)
+
+      broadcastBlock(childBlock, newWeight)
+      bl.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
+    }
+  }
+
+  private def generateValidBlocks(
+      currentBestBlock: Block
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task {
+      val currentWeight = bl.getChainWeightByHash(currentBestBlock.hash).get
+      val currentWorld = getMptForBlock(currentBestBlock)
+      val (newBlock, newWeight, _) =
+        createChildBlock(currentBestBlock, currentWeight, currentWorld)(updateWorldForBlock)
+      bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
+      broadcastBlock(newBlock, newWeight)
+    }
+  }
+
   def importBlocksUntil(
       n: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
@@ -305,14 +342,46 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       if (block.get.number >= n) {
         Task(())
       } else {
-        Task {
-          val currentWeight = bl.getChainWeightByHash(block.get.hash).get
-          val currentWolrd = getMptForBlock(block.get)
-          val (newBlock, newWeight, _) = createChildBlock(block.get, currentWeight, currentWolrd)(updateWorldForBlock)
-          bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
-          broadcastBlock(newBlock, newWeight)
-        }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
+        generateValidBlocks(block.get)(updateWorldForBlock).flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
+    }
+  }
+
+  def importMaliciousBlocks(
+      from: BigInt,
+      to: BigInt
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task(bl.getBestBlock()).flatMap { block =>
+      if (block.get.number >= to) {
+        Task(())
+      } else if (block.get.number >= from) {
+        generateInvalidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+          importMaliciousBlocks(from, to)(updateWorldForBlock)
+        )
+      } else {
+        generateValidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+          importMaliciousBlocks(from, to)(updateWorldForBlock)
+        )
+      }
+
+    }
+  }
+
+  def importMaliciousBlockNumbers(
+      from: BigInt,
+      to: BigInt
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task(bl.getBestBlock()).flatMap { block =>
+      if (block.get.number >= to) {
+        Task(())
+      } else if (block.get.number >= from) {
+        generateInvalidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+          importMaliciousBlockNumbers(from, to)(updateWorldForBlock)
+        )
+      } else {
+        importBlocksUntil(from)(updateWorldForBlock)
+      }
+
     }
   }
 

@@ -337,7 +337,12 @@ class FastSync(
         batchFailuresCount += 1
         if (batchFailuresCount > fastSyncMaxBatchRetries) {
           log.info("Max number of allowed failures reached. Switching branch and master peer.")
-          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+//          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+
+          val bestBlockNumber = blockchain.getBestBlockNumber()
+          log.info("Master peer failure: Current best block {}", bestBlockNumber)
+
+          blacklistPeerAndHandleRewind(masterPeer.get, blacklistDuration, header, fastSyncBlockValidationN)
 
           // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
           context become waitingForBranchResolution
@@ -346,16 +351,27 @@ class FastSync(
         }
       }
 
-      syncState = syncState.enqueueHeaderRange(request)
       error match {
         // These are the reasons that make the master peer suspicious
         case InvalidPenultimateHeader(_, header) => handleMasterPeerFailure(header)
         case InvalidBatchHash(_, header) => handleMasterPeerFailure(header)
         // Otherwise probably it's just this peer's fault
         case _ =>
+          syncState = syncState.enqueueHeaderRange(request)
           log.warning(error.msg)
           blockHeadersError(peer, reason)
       }
+    }
+
+    private def blacklistPeerAndHandleRewind(
+        masterPeer: Peer,
+        blacklistDuration: FiniteDuration,
+        header: BlockHeader,
+        N: Int
+    ): Unit = {
+      blacklist.add(masterPeer.id, blacklistDuration, BlockHeaderValidationFailed)
+      discardLastBlocks(header.number, N)
+      syncState = syncState.updateDiscardedBlocks(header, N)
     }
 
     private def waitingForBranchResolution: Receive = handleStatus orElse {
@@ -364,10 +380,17 @@ class FastSync(
         batchFailuresCount = 0
 
         // Restart syncing from the valid block available in state.
-        syncState = syncState.copy(bestBlockHeaderNumber = firstCommonBlockNumber)
+        syncState = syncState.copy(
+          bestBlockHeaderNumber = firstCommonBlockNumber,
+          nextBlockToFullyValidate = firstCommonBlockNumber + 1
+        )
         masterPeer = Some(resolvedPeer)
         context become receive
-        processSyncing()
+        if (firstCommonBlockNumber >= syncState.pivotBlock.number) {
+          updatePivotBlock(LastBlockValidationFailed)
+        } else {
+          processSyncing()
+        }
       case _: FastSyncBranchResolverActor.BranchResolutionFailed =>
         // there isn't much we can do if we don't find a branch/peer to continue syncing, so let's try again
         branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
@@ -506,7 +529,9 @@ class FastSync(
 
     // TODO [ETCM-676]: Move to blockchain and make sure it's atomic
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
-      (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
+      val headers = (startBlock to ((startBlock - blocksToDiscard) max 1) by -1)
+
+      headers.foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
