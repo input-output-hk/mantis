@@ -224,7 +224,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     maxTargetDifference = 1,
     syncRetryInterval = 50.milliseconds,
     blacklistDuration = 100.seconds,
-    fastSyncMaxBatchRetries = 0,
+    fastSyncMaxBatchRetries = 2,
     fastSyncBlockValidationN = 200
   )
 

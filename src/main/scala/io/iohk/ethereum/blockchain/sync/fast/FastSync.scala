@@ -343,6 +343,8 @@ class FastSync(
           context become waitingForBranchResolution
           branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
           currentSkeletonState = None
+        } else {
+          syncState = syncState.enqueueHeaderRange(request)
         }
       }
 
