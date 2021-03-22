@@ -221,15 +221,16 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
   ) { case (peer1, peer2, peer3, peer4) =>
     for {
       _ <- peer1.importBlocksUntil(400)(IdentityUpdate)
-      _ <- peer2.importBlocksUntil(1100)(IdentityUpdate)
+      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
 
-      _ <- peer3.importMaliciousBlocks(650, 800)(IdentityUpdate)
-      _ <- peer3.importBlocksUntil(1200)(IdentityUpdate)
+      _ <- peer3.importMaliciousBlocks(600, 800)(IdentityUpdate)
+      _ <- peer3.importBlocksUntil(1200)(updateStateAtBlock(1000))
 
       _ <- peer4.importBlocksUntil(1100)(IdentityUpdate)
 
       _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer2.importBlocksUntil(1800)(IdentityUpdate)
       _ <- peer1.waitForFastSyncFinish()
     } yield {
       // Peer3 is blacklisted

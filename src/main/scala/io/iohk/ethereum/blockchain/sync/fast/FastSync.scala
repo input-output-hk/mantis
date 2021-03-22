@@ -337,12 +337,7 @@ class FastSync(
         batchFailuresCount += 1
         if (batchFailuresCount > fastSyncMaxBatchRetries) {
           log.info("Max number of allowed failures reached. Switching branch and master peer.")
-//          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
-
-          val bestBlockNumber = blockchain.getBestBlockNumber()
-          log.info("Master peer failure: Current best block {}", bestBlockNumber)
-
-          blacklistPeerAndHandleRewind(masterPeer.get, blacklistDuration, header, fastSyncBlockValidationN)
+          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
 
           // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
           context become waitingForBranchResolution
@@ -361,17 +356,6 @@ class FastSync(
           log.warning(error.msg)
           blockHeadersError(peer, reason)
       }
-    }
-
-    private def blacklistPeerAndHandleRewind(
-        masterPeer: Peer,
-        blacklistDuration: FiniteDuration,
-        header: BlockHeader,
-        N: Int
-    ): Unit = {
-      blacklist.add(masterPeer.id, blacklistDuration, BlockHeaderValidationFailed)
-      discardLastBlocks(header.number, N)
-      syncState = syncState.updateDiscardedBlocks(header, N)
     }
 
     private def waitingForBranchResolution: Receive = handleStatus orElse {
@@ -529,9 +513,7 @@ class FastSync(
 
     // TODO [ETCM-676]: Move to blockchain and make sure it's atomic
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
-      val headers = (startBlock to ((startBlock - blocksToDiscard) max 1) by -1)
-
-      headers.foreach { n =>
+      (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
         blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
