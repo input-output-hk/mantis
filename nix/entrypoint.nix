@@ -1,5 +1,5 @@
-{ lib, writeShellScript, awscli, mantis, coreutils, gnugrep }:
-writeShellScript "mantis" ''
+{ lib, writeShellScriptBin, awscli, mantis, coreutils, gnugrep }:
+writeShellScriptBin "mantis-entrypoint" ''
   set -exuo pipefail
 
   export PATH="${lib.makeBinPath [ coreutils mantis awscli gnugrep ]}"
