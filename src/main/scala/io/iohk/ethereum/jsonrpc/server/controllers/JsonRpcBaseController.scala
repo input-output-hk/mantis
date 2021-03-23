@@ -49,6 +49,8 @@ trait JsonRpcBaseController {
   def handleRequest(request: JsonRpcRequest): Task[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
 
+    log.debug("received request {}", request)
+
     val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
       JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
       Task.now(errorResponse(request, MethodNotFound))

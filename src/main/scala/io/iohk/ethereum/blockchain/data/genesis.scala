@@ -1,8 +1,17 @@
 package io.iohk.ethereum.blockchain.data
 
 import akka.util.ByteString
+import io.iohk.ethereum.domain.UInt256
 
-case class AllocAccount(balance: String)
+case class PrecompiledAccountConfig(name: String)
+
+case class GenesisAccount(
+    precompiled: Option[PrecompiledAccountConfig],
+    balance: UInt256,
+    code: ByteString,
+    nonce: UInt256,
+    storage: Map[UInt256, UInt256]
+)
 
 case class GenesisData(
     nonce: ByteString,
@@ -12,5 +21,5 @@ case class GenesisData(
     gasLimit: String,
     coinbase: ByteString,
     timestamp: String,
-    alloc: Map[String, AllocAccount]
+    alloc: Map[String, GenesisAccount]
 )

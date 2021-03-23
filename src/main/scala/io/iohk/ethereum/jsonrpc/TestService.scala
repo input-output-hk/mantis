@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import cats.syntax.functor._
-import io.iohk.ethereum.blockchain.data.{AllocAccount, GenesisData, GenesisDataLoader}
+import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
@@ -35,13 +35,11 @@ object TestService {
       homesteadForkBlock: BigInt,
       maximumExtraDataSize: BigInt
   )
-  case class PrecompiledAccountConfig(name: String)
-  case class AccountConfig(precompiled: Option[PrecompiledAccountConfig], wei: BigInt)
   case class ChainParams(
       genesis: GenesisParams,
       blockchainParams: BlockchainParams,
       sealEngine: String,
-      accounts: Map[ByteString, AccountConfig]
+      accounts: Map[ByteString, GenesisAccount]
   )
 
   case class SetChainParamsRequest(chainParams: ChainParams)
@@ -93,7 +91,7 @@ class TestService(
       coinbase = request.chainParams.genesis.author,
       timestamp = Hex.toHexString(request.chainParams.genesis.timestamp.toArray[Byte]),
       alloc = request.chainParams.accounts.map { case (addr, acc) =>
-        Hex.toHexString(addr.toArray[Byte]) -> AllocAccount(acc.wei.toString)
+        Hex.toHexString(addr.toArray[Byte]) -> acc
       }
     )
 
@@ -150,18 +148,19 @@ class TestService(
     implicit val timeout = Timeout(5.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
-      .timeout(timeout.duration)
+      // .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
-      .flatMap { pendingTxs =>
-        val pb = consensus.blockGenerator.generateBlock(
-          parentBlock,
-          pendingTxs.pendingTransactions.map(_.stx.tx),
-          etherbase,
-          Nil,
-          None
-        )
-        Task.now(pb.pendingBlock)
+      .map { pendingTxs =>
+        consensus.blockGenerator
+          .generateBlock(
+            parentBlock,
+            pendingTxs.pendingTransactions.map(_.stx.tx),
+            etherbase,
+            Nil,
+            None
+          )
+          .pendingBlock
       }
-      .timeout(timeout.duration)
+    // .timeout(timeout.duration)
   }
 }

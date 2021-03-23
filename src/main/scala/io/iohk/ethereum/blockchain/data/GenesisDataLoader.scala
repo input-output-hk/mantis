@@ -90,13 +90,13 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
     val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) {
-      case (rootHash, (((address, AllocAccount(balance)), idx))) =>
+      case (rootHash, (((address, genesisAccount), idx))) =>
         val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
         val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
         val stateRoot = mpt
           .put(
             crypto.kec256(Hex.decode(paddedAddress)),
-            Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
+            Account(nonce = genesisAccount.nonce, balance = genesisAccount.balance, codeHash = genesisAccount.code)
           )
           .getRootHash
         stateRoot
