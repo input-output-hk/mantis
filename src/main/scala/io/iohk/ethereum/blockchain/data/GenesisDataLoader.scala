@@ -32,34 +32,36 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
   def loadGenesisData(): Unit = {
     log.debug("Loading genesis data")
 
-    val genesisJson = blockchainConfig.customGenesisFileOpt match {
-      case Some(customGenesisFile) =>
-        log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
+    val genesisJson = blockchainConfig.customGenesisJsonOpt.getOrElse {
+      blockchainConfig.customGenesisFileOpt match {
+        case Some(customGenesisFile) =>
+          log.debug(s"Trying to load custom genesis data from file: $customGenesisFile")
 
-        Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
-          log.debug(s"Cannot load custom genesis data from file: $customGenesisFile")
-          log.debug(s"Trying to load from resources: $customGenesisFile")
-          Try(Source.fromResource(customGenesisFile))
-        } match {
-          case Success(customGenesis) =>
-            log.info(s"Using custom genesis data from: $customGenesisFile")
-            try {
-              customGenesis.getLines().mkString
-            } finally {
-              customGenesis.close()
-            }
-          case Failure(ex) =>
-            log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
-            throw ex
-        }
-      case None =>
-        log.info("Using default genesis data")
-        val src = Source.fromResource("blockchain/default-genesis.json")
-        try {
-          src.getLines().mkString
-        } finally {
-          src.close()
-        }
+          Try(Source.fromFile(customGenesisFile)).recoverWith { case _: FileNotFoundException =>
+            log.debug(s"Cannot load custom genesis data from file: $customGenesisFile")
+            log.debug(s"Trying to load from resources: $customGenesisFile")
+            Try(Source.fromResource(customGenesisFile))
+          } match {
+            case Success(customGenesis) =>
+              log.info(s"Using custom genesis data from: $customGenesisFile")
+              try {
+                customGenesis.getLines().mkString
+              } finally {
+                customGenesis.close()
+              }
+            case Failure(ex) =>
+              log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
+              throw ex
+          }
+        case None =>
+          log.info("Using default genesis data")
+          val src = Source.fromResource("blockchain/default-genesis.json")
+          try {
+            src.getLines().mkString
+          } finally {
+            src.close()
+          }
+      }
     }
 
     loadGenesisData(genesisJson) match {
