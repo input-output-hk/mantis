@@ -1,9 +1,9 @@
-{ lib, stdenv, mantis, makeWrapper, jre, gawk }:
+{ lib, stdenv, mantis, makeWrapper, jre, gawk, gnused, kevm }:
 let
   inherit (stdenv.lib) optionalString makeLibraryPath;
   inherit (stdenv) cc isDarwin;
   LD_LIBRARY_PATH = makeLibraryPath [ cc.cc.lib ];
-  PATH = lib.makeBinPath [ jre gawk ];
+  PATH = lib.makeBinPath [ jre gawk gnused kevm ];
 in stdenv.mkDerivation {
   pname = "mantis";
   version = let
@@ -23,11 +23,13 @@ in stdenv.mkDerivation {
 
     for p in $(find $out/bin/* -executable); do
       wrapProgram "$p" \
-        --prefix PATH : ${PATH} \
+        --set PATH ${PATH} \
         ${
           optionalString (!isDarwin)
           "--prefix LD_LIBRARY_PATH : ${LD_LIBRARY_PATH}"
         }
     done
+
+    ln -s ${kevm}/bin/kevm-vm $out/bin
   '';
 }

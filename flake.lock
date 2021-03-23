@@ -1,0 +1,79 @@
+{
+  "nodes": {
+    "flake-utils": {
+      "locked": {
+        "lastModified": 1614513358,
+        "narHash": "sha256-LakhOx3S1dRjnh0b5Dg3mbZyH0ToC9I8Y2wKSkBaTzU=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "5466c5bbece17adaab2d82fae80b46e807611bf3",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1610118011,
+        "narHash": "sha256-a17vwGBOqmAsy/Wkvf10ygDyfgjJpvlPyNnf7SAk+Ac=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "type": "github"
+      }
+    },
+    "nixpkgs-sbt": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1591564272,
+        "narHash": "sha256-Z+4hmPx21+vYx9jp19+3jaT/Whl8IzmH1G/fGyFv7FY=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "e2bb73ce5f786b83e984b80199112f86b8a6cc9d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "e2bb73ce5f786b83e984b80199112f86b8a6cc9d",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "flake-utils": "flake-utils",
+        "nixpkgs": "nixpkgs",
+        "nixpkgs-sbt": "nixpkgs-sbt",
+        "sbtix": "sbtix"
+      }
+    },
+    "sbtix": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1563807309,
+        "narHash": "sha256-L8EW6s/21q3R2VmjNngfkl80sOas4BWHTxssM2o+76Y=",
+        "owner": "input-output-hk",
+        "repo": "Sbtix",
+        "rev": "7b969a5641fce10500ca51cbe88af4ea160d7064",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "Sbtix",
+        "rev": "7b969a5641fce10500ca51cbe88af4ea160d7064",
+        "type": "github"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}

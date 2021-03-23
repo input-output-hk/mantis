@@ -1,8 +1,6 @@
-{ src, mkSrc, lib, gitignoreSource, callPackage, jre }: rec {
+{ src, lib, callPackage, jre }: rec {
 
-  mantis-source = mkSrc src;
-
-  mantis-unwrapped = callPackage ./unwrapped.nix { src = mantis-source; };
+  mantis-unwrapped = callPackage ./unwrapped.nix { inherit src; };
 
   mantis = callPackage ./wrapped.nix {
     mantis = mantis-unwrapped;
