@@ -1,9 +1,9 @@
-{ lib, stdenv, mantis, makeWrapper, jre, gawk, gnused, kevm }:
+{ lib, stdenv, mantis, makeWrapper, jre, gawk, gnused, kevm, coreutils }:
 let
   inherit (stdenv.lib) optionalString makeLibraryPath;
   inherit (stdenv) cc isDarwin;
   LD_LIBRARY_PATH = makeLibraryPath [ cc.cc.lib ];
-  PATH = lib.makeBinPath [ jre gawk gnused kevm ];
+  PATH = lib.makeBinPath [ jre gawk gnused kevm coreutils ];
 in stdenv.mkDerivation {
   pname = "mantis";
   version = let

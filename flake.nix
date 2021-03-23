@@ -26,7 +26,7 @@
           src = builtins.fetchGit {
             url = "https://github.com/input-output-hk/mantis";
             rev = self.rev or "482340d5e6ab635e5a5047e9b670d59b4ad366c2";
-            ref = "develop";
+            ref = "3.1.0-flake";
             submodules = true;
           };
         };
