@@ -38,6 +38,8 @@
 
         kevm = final.callPackage ./nix/pkgs/kevm.nix { };
 
+        iele = final.callPackage ./nix/pkgs/iele.nix { };
+
         mantis-entrypoint = final.callPackage ./nix/entrypoint.nix { };
       };
 
@@ -75,7 +77,6 @@
       defaultApp = apps.mantis;
     }) // (collectHydraSets [
       (mkHydraSet [ "mantis" ] [ "x86_64-linux" "x86_64-darwin" ])
-      (mkHydraSet [ "kevm" ] [ "x86_64-linux" ])
-      (mkHydraSet [ "mantis-entrypoint" ] [ "x86_64-linux" ])
+      (mkHydraSet [ "kevm" "iele" "mantis-entrypoint" ] [ "x86_64-linux" ])
     ]);
 }
