@@ -2,7 +2,7 @@ package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.domain.{Address, UInt256}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, MonetaryPolicyConfig}
 import org.bouncycastle.util.encoders.Hex

@@ -12,7 +12,7 @@ import org.bouncycastle.util.encoders.Hex
   * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
   * interface.
   *
-  * @see [[io.iohk.ethereum.consensus.ethash.validators.StdValidatorsExecutor StdEthashValidators]]
+  * @see [[StdValidatorsExecutor StdEthashValidators]]
   *      for the PoW-specific counterpart.
   */
 final class StdValidators(

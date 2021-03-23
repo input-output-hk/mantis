@@ -6,7 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage

@@ -1,13 +1,14 @@
-package io.iohk.ethereum.consensus.ethash.validators
+package io.iohk.ethereum.consensus.validators.std
 
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, BlockValidator, SignedTransactionValidator}
 
 /**
   * Implements validators that adhere to the PoW-specific
-  * [[io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor]]
+  * [[ValidatorsExecutor]]
   * interface.
   */
-final class StdValidatorsExecutor private[validators] (
+final class StdValidatorsExecutor private[std] (
     val blockValidator: BlockValidator,
     val blockHeaderValidator: BlockHeaderValidator,
     val signedTransactionValidator: SignedTransactionValidator,

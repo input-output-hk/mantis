@@ -49,7 +49,8 @@ class EthashMinerSpec
 
   it should "mine valid blocks on the end of the epoch" taggedAs EthashMinerSpecTag in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
-    val parentBlockNumber: Int = 2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)
+    val parentBlockNumber: Int =
+      2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)
     val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
     val bfm: Block = blockForMining(parentBlock.header)
 
@@ -84,8 +85,9 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner: TestActorRef[Nothing] = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
-
+    val miner: TestActorRef[Nothing] = TestActorRef(
+      EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService)
+    )
 
     protected def executeTest(parentBlock: Block, blockForMining: Block): Unit = {
       prepareMocks(parentBlock, blockForMining)

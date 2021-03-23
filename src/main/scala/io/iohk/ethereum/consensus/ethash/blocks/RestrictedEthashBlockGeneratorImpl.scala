@@ -4,12 +4,12 @@ import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, DefaultBlockTimestampProvider, PendingBlockAndState}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.domain.{Address, Block, Blockchain, SignedTransaction}
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 
 class RestrictedEthashBlockGeneratorImpl(
     validators: ValidatorsExecutor,

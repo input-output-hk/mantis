@@ -1,9 +1,14 @@
-package io.iohk.ethereum.consensus
-package ethash.validators
+package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator, StdValidators}
+import io.iohk.ethereum.consensus.ethash.validators.{
+  EthashBlockHeaderValidator,
+  MockedPowBlockHeaderValidator,
+  OmmersValidator,
+  RestrictedEthashBlockHeaderValidator
+}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderValidator, Validators}
+import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, Protocol}
 import io.iohk.ethereum.domain.{Block, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
@@ -55,7 +60,7 @@ object ValidatorsExecutor {
       StdBlockValidator,
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
-      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+      new StdOmmersValidator(blockHeaderValidator)
     )
   }
 
@@ -66,7 +71,7 @@ object ValidatorsExecutor {
       StdBlockValidator,
       blockHeaderValidator,
       new StdSignedTransactionValidator(blockchainConfig),
-      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+      new StdOmmersValidator(blockHeaderValidator)
     )
   }
 

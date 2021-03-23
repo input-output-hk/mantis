@@ -1,19 +1,18 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class BlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
+class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   "Block" should "created based on valid data" in {
     val block = Block(validBlockHeader, validBlockBody)

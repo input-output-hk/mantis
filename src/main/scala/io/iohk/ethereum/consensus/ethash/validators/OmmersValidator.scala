@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.ethash.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.{OmmersError, OmmersValid}
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 
@@ -36,9 +37,10 @@ object OmmersValidator {
 
   object OmmersError {
     case object OmmersLengthError extends OmmersError
-    case object OmmersNotValidError extends OmmersError
+    case class OmmersHeaderError(errors: List[BlockHeaderError]) extends OmmersError
     case object OmmersUsedBeforeError extends OmmersError
-    case object OmmersAncestorsError extends OmmersError
+    case object OmmerIsAncestorError extends OmmersError
+    case object OmmerParentIsNotAncestorError extends OmmersError
     case object OmmersDuplicatedError extends OmmersError
   }
 

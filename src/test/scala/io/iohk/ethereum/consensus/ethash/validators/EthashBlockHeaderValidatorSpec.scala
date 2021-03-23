@@ -1,26 +1,25 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus.ethash.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
+import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.{UInt256, _}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
+import io.iohk.ethereum.{Fixtures, ObjectGenerators, SuperSlow}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.SuperSlow
 import org.scalatest.prop.TableFor4
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 // scalastyle:off magic.number
-class BlockHeaderValidatorSpec
+class EthashBlockHeaderValidatorSpec
     extends AnyFlatSpec
     with Matchers
     with ScalaCheckPropertyChecks
