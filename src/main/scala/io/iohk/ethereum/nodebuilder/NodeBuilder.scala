@@ -554,7 +554,7 @@ trait JSONRpcControllerBuilder {
     with CheckpointingServiceBuilder
     with MantisServiceBuilder =>
 
-  private val testService =
+  private lazy val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
     else None
 

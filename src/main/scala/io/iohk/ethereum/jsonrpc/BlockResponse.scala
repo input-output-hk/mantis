@@ -13,6 +13,7 @@ case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[Byte
 case class BlockResponse(
     number: BigInt,
     hash: Option[ByteString],
+    mixHash: Option[ByteString],
     parentHash: ByteString,
     nonce: Option[ByteString],
     sha3Uncles: ByteString,
@@ -82,6 +83,7 @@ object BlockResponse {
     BlockResponse(
       number = block.header.number,
       hash = if (pendingBlock) None else Some(block.header.hash),
+      mixHash = if (pendingBlock) None else Some(block.header.mixHash),
       parentHash = block.header.parentHash,
       nonce = if (pendingBlock) None else Some(block.header.nonce),
       sha3Uncles = block.header.ommersHash,

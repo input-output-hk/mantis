@@ -7,45 +7,67 @@ import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.bouncycastle.util.encoders.Hex
+import cats.implicits._
+import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
+import io.iohk.ethereum.domain.UInt256
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val test_setChainParams = new JsonMethodDecoder[SetChainParamsRequest]
     with JsonEncoder[SetChainParamsResponse] {
-    private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, AccountConfig]] = {
-      val accounts = accountsJson.asInstanceOf[JObject].values.collect { case (key, accObj: Map[_, _]) =>
-        val rawWei = accObj.asInstanceOf[Map[String, Any]]("wei").asInstanceOf[String]
-        val wei =
-          if (rawWei.startsWith("0x")) BigInt(rawWei.replace("0x", ""), 16)
-          else BigInt(rawWei, 10)
-        ByteString(Hex.decode(key.replace("0x", ""))) -> AccountConfig(None, wei)
-      }
-      Right(accounts)
-    }
+
+    private def extractAccount(accountJson: JValue): Either[JsonRpcError, GenesisAccount] =
+      for {
+        storageObject <- Try((accountJson \ "storage").extract[JObject]).toEither.left.map(e =>
+          InvalidParams(e.toString())
+        )
+        storage <- storageObject.obj.traverse {
+          case (key, JString(value)) =>
+            Try(UInt256(decode(key)) -> UInt256(decode(value))).toEither.left.map(e => InvalidParams(e.toString()))
+          case _ => Left(InvalidParams())
+        }
+        balance = UInt256(decode((accountJson \ "balance").extract[String]))
+        code = ByteString(decode((accountJson \ "code").extract[String]))
+        nonce = UInt256(decode((accountJson \ "nonce").extract[String]))
+      } yield GenesisAccount(
+        None,
+        balance,
+        code,
+        nonce,
+        storage.toMap
+      )
+
+    private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, GenesisAccount]] =
+      for {
+        mapping <- Try(accountsJson.extract[JObject]).toEither.left.map(e => InvalidParams(e.toString()))
+        accounts <- mapping.obj.traverse { case (key, value) =>
+          for {
+            address <- extractBytes(key)
+            account <- extractAccount(value)
+          } yield address -> account
+        }
+      } yield accounts.toMap
 
     private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
       for {
         eIP150ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
         eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP158ForkBlock")
-        accountStartNonce <- extractQuantity(blockchainParamsJson \ "accountStartNonce")
-        allowFutureBlocks <- Try((blockchainParamsJson \ "allowFutureBlocks").extract[Boolean]).toEither.left.map(_ =>
-          InvalidParams()
-        )
-        blockReward <- extractQuantity(blockchainParamsJson \ "blockReward")
+        accountStartNonce <- optionalQuantity(blockchainParamsJson \ "accountStartNonce")
+        allowFutureBlocks = (blockchainParamsJson \ "allowFutureBlocks").extractOrElse(true)
+        blockReward <- optionalQuantity(blockchainParamsJson \ "blockReward")
         byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "byzantiumForkBlock")
         homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "homesteadForkBlock")
-        maximumExtraDataSize <- extractQuantity(blockchainParamsJson \ "maximumExtraDataSize")
       } yield BlockchainParams(
         eIP150ForkBlock,
         eIP158ForkBlock,
-        accountStartNonce,
+        accountStartNonce.getOrElse(0),
         allowFutureBlocks,
-        blockReward,
+        blockReward.getOrElse(0),
         byzantiumForkBlock,
         homesteadForkBlock,
-        maximumExtraDataSize
+        0
       )
     }
 
@@ -54,7 +76,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         author <- extractBytes((genesisJson \ "author").extract[String])
         extraData <- extractBytes((genesisJson \ "extraData").extract[String])
         gasLimit <- extractQuantity(genesisJson \ "gasLimit")
-        parentHash <- extractBytes((genesisJson \ "parentHash").extract[String])
+        parentHash <- extractBytes((genesisJson \ "parentHash").extractOrElse(""))
         timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
       } yield GenesisParams(author, extraData, gasLimit, parentHash, timestamp)
     }
