@@ -71,7 +71,7 @@ class PivotBlockSelector(
     } else {
       log.info(
         "Cannot pick pivot block. Need at least {} peers, but there are only {} which meet the criteria " +
-          "({} all available at the moment). Retrying with current best block number [{}]",
+          "({} all available at the moment).",
         minPeersToChoosePivotBlock,
         correctPeers.size,
         peersToDownloadFrom.size,
@@ -84,10 +84,15 @@ class PivotBlockSelector(
   // Voters are collected until minimum peers to choose pivot block is obtained.
   private def retryPivotBlockSelection(pivotBlockNumber: BigInt): Unit = {
     pivotBlockRetryCount += 1
-    if (pivotBlockRetryCount <= maxPivotBlockFailuresCount) {
+    if (pivotBlockRetryCount <= maxPivotBlockFailuresCount && pivotBlockNumber > 0) {
       val electionDetails = collectVoters(Some(pivotBlockNumber))
       startPivotBlockSelection(electionDetails)
     } else {
+      log.debug(
+        "Cannot pick pivot block. Current best block number [{}]. Retrying in [{}]",
+        pivotBlockNumber,
+        startRetryInterval
+      )
       // Restart the whole process.
       scheduleRetry(startRetryInterval)
     }
@@ -210,7 +215,7 @@ class PivotBlockSelector(
     // if this request is issued by the retry logic.
     val currentBestBlockNumber: BigInt =
       previousBestBlockNumber
-        .map(_ - pivotBlockNumberResetDelta)
+        .map(_ - pivotBlockNumberResetDelta.max(0))
         .getOrElse(bestPeerBestBlockNumber)
 
     val expectedPivotBlock = (currentBestBlockNumber - syncConfig.pivotBlockOffset).max(0)
