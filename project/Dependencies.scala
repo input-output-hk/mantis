@@ -113,7 +113,7 @@ object Dependencies {
     "org.scala-lang.modules" %% "scala-parser-combinators" % "1.1.2",
     "org.scala-sbt.ipcsocket" % "ipcsocket" % "1.1.0",
     "org.xerial.snappy" % "snappy-java" % "1.1.7.7",
-    "org.web3j" % "core" % "5.0.0" % Test,
+    "org.web3j" % "core" % "4.5.11" % Test,
     "io.vavr" % "vavr" % "1.0.0-alpha-3",
     "org.jupnp" % "org.jupnp" % "2.5.2",
     "org.jupnp" % "org.jupnp.support" % "2.5.2",
