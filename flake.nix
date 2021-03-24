@@ -14,34 +14,13 @@
         "github:input-output-hk/Sbtix?rev=7b969a5641fce10500ca51cbe88af4ea160d7064";
       flake = false;
     };
+    mantis-faucet-web.url = "github:input-output-hk/mantis-faucet-web";
+    mantis-explorer.url = "github:input-output-hk/mantis-explorer";
   };
 
-  outputs = { self, nixpkgs, flake-utils, nixpkgs-sbt, ... }@inputs:
+  outputs = { self, nixpkgs, flake-utils, ... }@inputs:
     let
-      overlay = final: prev: {
-        inherit (import nixpkgs-sbt { inherit (final) system; }) sbt;
-        sbtix = final.callPackage ./sbtix.nix { };
-
-        mantisPkgs = final.callPackage ./nix/pkgs/mantis {
-          src = builtins.fetchGit {
-            url = "https://github.com/input-output-hk/mantis";
-            rev = self.rev or "482340d5e6ab635e5a5047e9b670d59b4ad366c2";
-            ref = "3.1.0-flake";
-            submodules = true;
-          };
-        };
-
-        jdk = prev.openjdk8_headless;
-        jre = prev.openjdk8_headless.jre;
-
-        inherit (final.mantisPkgs) mantis;
-
-        kevm = final.callPackage ./nix/pkgs/kevm.nix { };
-
-        iele = final.callPackage ./nix/pkgs/iele.nix { };
-
-        mantis-entrypoint = final.callPackage ./nix/entrypoint.nix { };
-      };
+      overlay = import ./nix/overlay.nix inputs;
 
       pkgsForSystem = system:
         (import nixpkgs) {
@@ -76,7 +55,20 @@
       apps.mantis = flake-utils.lib.mkApp { drv = pkgs.mantis; };
       defaultApp = apps.mantis;
     }) // (collectHydraSets [
-      (mkHydraSet [ "mantis" ] [ "x86_64-linux" "x86_64-darwin" ])
-      (mkHydraSet [ "kevm" "iele" "mantis-entrypoint" ] [ "x86_64-linux" ])
+      (mkHydraSet [
+        "mantis"
+        "kevm"
+        "iele"
+
+        "mantis-entrypoint"
+
+        "mantis-explorer-evm"
+        "mantis-explorer-iele"
+        "mantis-explorer-kevm"
+
+        "mantis-faucet-web-evm"
+        "mantis-faucet-web-iele"
+        "mantis-faucet-web-kevm"
+      ] [ "x86_64-linux" ])
     ]);
 }
