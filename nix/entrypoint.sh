@@ -28,6 +28,7 @@ done
 set -x
 
 if [ -n "${COINBASE:-}" ]; then
+  mkdir -p "$NOMAD_SECRETS_DIR/keystore"
   cp "$NOMAD_SECRETS_DIR/account" "$NOMAD_SECRETS_DIR/keystore/UTC--2020-10-16T14-48-29.47Z-$COINBASE"
 fi
 
