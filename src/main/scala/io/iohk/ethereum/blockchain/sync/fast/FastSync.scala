@@ -220,7 +220,7 @@ class FastSync(
             processSyncing()
         }
       case ResponseReceived(peer, BlockBodies(blockBodies), timeTaken) =>
-        log.info("Received {} block bodies in {} ms", blockBodies.size, timeTaken)
+        log.info("Received {} block bodies from peer [{}] in {} ms", blockBodies.size, peer.id, timeTaken)
         FastSyncMetrics.setBlockBodiesDownloadTime(timeTaken)
 
         val requestedBodies = requestedBlockBodies.getOrElse(sender(), Nil)
@@ -228,7 +228,7 @@ class FastSync(
         removeRequestHandler(sender())
         handleBlockBodies(peer, requestedBodies, blockBodies)
       case ResponseReceived(peer, Receipts(receipts), timeTaken) =>
-        log.info("Received {} receipts in {} ms", receipts.size, timeTaken)
+        log.info("Received {} receipts from peer [{}] in {} ms", receipts.size, peer.id, timeTaken)
         FastSyncMetrics.setBlockReceiptsDownloadTime(timeTaken)
 
         val requestedHashes = requestedReceipts.getOrElse(sender(), Nil)
