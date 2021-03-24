@@ -30,21 +30,15 @@ inputs: final: prev: {
   iele = final.callPackage ./pkgs/iele.nix { };
   mantis-entrypoint = final.callPackage ./entrypoint.nix { };
 
-  mantis-faucet-web =
-    inputs.mantis-faucet-web.defaultPackage.${final.system}.overrideAttrs
-    (old: {
-      FAUCET_NODE_URL = "https://mantis-testnet-faucet.mantis.ws";
-      MANTIS_VM = "Mantis Testnet";
-    });
-
   makeFaucet = name:
     (final.callPackage ./pkgs/nginx.nix {
-      package = final.mantis-faucet-web.overrideAttrs (old: 
-      {
-        MANTIS_VM = prev.lib.toUpper name;
-        FAUCET_NODE_URL = "https://faucet-${prev.lib.toLower name}.portal.dev.cardano.org";
-      }
-      );
+      package =
+        inputs.mantis-faucet-web.defaultPackage.${final.system}.overrideAttrs
+        (old: {
+          MANTIS_VM = prev.lib.toUpper name;
+          FAUCET_NODE_URL =
+            "https://faucet-${prev.lib.toLower name}.portal.dev.cardano.org";
+        });
       target = "/mantis-faucet";
     });
 
@@ -56,11 +50,11 @@ inputs: final: prev: {
       target = "/mantis-explorer";
     });
 
-  mantis-explorer-evm  = final.makeExplorer "EVM";
+  mantis-explorer-evm = final.makeExplorer "EVM";
   mantis-explorer-iele = final.makeExplorer "IELE";
   mantis-explorer-kevm = final.makeExplorer "KEVM";
 
-  mantis-faucet-web-evm  = final.makeFaucet "EVM";
+  mantis-faucet-web-evm = final.makeFaucet "EVM";
   mantis-faucet-web-iele = final.makeFaucet "IELE";
   mantis-faucet-web-kevm = final.makeFaucet "KEVM";
 }
