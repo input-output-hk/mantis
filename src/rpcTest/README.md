@@ -9,11 +9,11 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
 
 1. Build `mantis` client via `sbt dist`.
 2. Unzip built client to some directory i.e `~/mantis_build`
-3. Run script `patch-mantis` (it's in resources dir) with path to your mantis instance. Example invocation assuming that mantis is in `~/mantis_build` looks as follows:
+3. Run script `patch-mantis` (it's in resources dir) with path to your mantis instance. Example invocation assuming that mantis is in `~/mantis_build/mantis-X.Y.Z` looks as follows:
     
-        ./resources/patch-mantis ~/mantis_build
+        ./resources/patch-mantis ~/mantis_build/mantis-3.2.1
 
-4. Go to `~/mantis_build` directory and run mantis on ETC mainnet with command:
+4. Go to `~/mantis_build/mantis-3.2.1` directory and run mantis on ETC mainnet with command:
 
         ./bin/mantis-launcher etc -Dmantis.sync.do-fast-sync=false -Dmantis.network.discovery.discovery-enabled=true -Dmantis.network.rpc.http.mode=http
         
@@ -22,8 +22,8 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
 
         sbt "rpcTest:testOnly -- -n MainNet"
         
-7. Turn off Mantis client in `~/mantis_build`
-8. Go to `~/mantis_build` directory and run mantis using command below (mantis will be run with miner so you need to wait till DAG is loaded):
+7. Turn off Mantis client in `~/mantis_build/mantis-3.2.1`
+8. Go to `~/mantis_build/mantis-3.2.1` directory and run mantis using command below (mantis will be run with miner so you need to wait till DAG is loaded):
 
         ./bin/mantis -Dmantis.consensus.mining-enabled=true
 9. Go to `mantis` source dir and run 
@@ -31,7 +31,7 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
         sbt "rpcTest:testOnly -- -n PrivNet"
         
 10. Turn off Mantis client
-11. Go to `~/mantis_build` directory and run Mantis with mining disabled using command
+11. Go to `~/mantis_build/mantis-3.2.1` directory and run Mantis with mining disabled using command
 
         ./bin/mantis
         

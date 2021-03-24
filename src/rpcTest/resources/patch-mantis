@@ -2,7 +2,7 @@
 
 MANTIS_DIR=$1
 SCRIPT_DIR="$( cd "$(dirname "$0")" ; pwd -P )"
-KEYSTORE_PATH=~/.mantis-rpc-test/rpc-test-private/keystore
+KEYSTORE_PATH=~/.mantis-rpc-test/rpc-test-private/keystore/
 
 if [[ -z "$MANTIS_DIR" ]]; then
   echo "Path to Mantis dir must be passed as the first argument"
@@ -16,7 +16,7 @@ fi
 
 echo "Patching Mantis at $MANTIS_DIR with configuration for JSON-RPC tests"
 
-cp -R ${SCRIPT_DIR}/privateNetConfig/conf/ ${MANTIS_DIR}/conf
+cp -R ${SCRIPT_DIR}/privateNetConfig/conf/* ${MANTIS_DIR}/conf/
 
 mkdir -p ${KEYSTORE_PATH}
-cp -R ${SCRIPT_DIR}/privateNetConfig/keystore/ ${KEYSTORE_PATH}
+cp -R ${SCRIPT_DIR}/privateNetConfig/keystore/* ${KEYSTORE_PATH}
