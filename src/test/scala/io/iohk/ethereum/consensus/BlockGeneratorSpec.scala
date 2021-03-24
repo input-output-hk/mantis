@@ -215,6 +215,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
+      customGenesisJsonOpt = None,
       monetaryPolicyConfig =
         MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
       // unused
@@ -287,6 +288,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
+      customGenesisJsonOpt = None,
       monetaryPolicyConfig =
         MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
       // unused
@@ -566,6 +568,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
+      customGenesisJsonOpt = None,
       monetaryPolicyConfig =
         MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L, 2000000000000000000L),
       // unused

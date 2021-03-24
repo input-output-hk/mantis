@@ -33,6 +33,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       constantinopleBlockNumber = Long.MaxValue,
       istanbulBlockNumber = Long.MaxValue,
       customGenesisFileOpt = None,
+      customGenesisJsonOpt = None,
       daoForkConfig = None,
       difficultyBombPauseBlockNumber = Long.MaxValue,
       difficultyBombContinueBlockNumber = Long.MaxValue,
