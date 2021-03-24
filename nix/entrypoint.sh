@@ -27,6 +27,10 @@ until [ "$(grep -c enode mantis.conf)" -ge "$REQUIRED_PEER_COUNT" ]; do
 done
 set -x
 
+if [ -n "${COINBASE:-}" ]; then
+  cp "$NOMAD_SECRETS_DIR/account" "$NOMAD_SECRETS_DIR/keystore/UTC--2020-10-16T14-48-29.47Z-$COINBASE"
+fi
+
 ulimit -c unlimited
 ulimit -n 2048
 cp mantis.conf running.conf
