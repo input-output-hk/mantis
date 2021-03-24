@@ -61,6 +61,7 @@
         "iele"
 
         "mantis-entrypoint"
+        "mantis-faucet-entrypoint"
 
         "mantis-explorer-evm"
         "mantis-explorer-iele"

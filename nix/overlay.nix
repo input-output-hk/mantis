@@ -9,6 +9,13 @@ inputs: final: prev: {
   };
   writeBashBinChecked = name: final.writeBashChecked "/bin/${name}";
 
+  mantis-faucet-source = builtins.fetchGit {
+    url = "https://github.com/input-output-hk/mantis";
+    rev = "07e617cdd1bfc76ad1a8472305f0e5e60e2801e1";
+    ref = "develop";
+    submodules = true;
+  };
+
   mantisPkgs = final.callPackage ./pkgs/mantis {
     src = builtins.fetchGit {
       url = "https://github.com/input-output-hk/mantis";
@@ -17,6 +24,10 @@ inputs: final: prev: {
       submodules = true;
     };
   };
+
+  mantis-faucet = import final.mantis-faucet-source { inherit (final) system; };
+  mantis-faucet-entrypoint =
+    final.callPackage ./entrypoint.nix { mantis = final.mantis-faucet; };
 
   inherit (final.mantisPkgs) mantis;
 
