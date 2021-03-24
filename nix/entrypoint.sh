@@ -28,6 +28,7 @@ done
 set -x
 
 ulimit -c unlimited
+ulimit -n 2048
 cp mantis.conf running.conf
 
 exec mantis "-Duser.home=$NOMAD_TASK_DIR" "$@"
