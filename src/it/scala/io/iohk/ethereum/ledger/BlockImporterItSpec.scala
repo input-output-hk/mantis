@@ -19,6 +19,7 @@ import io.iohk.ethereum.ledger.Ledger.BlockResult
 import monix.execution.Scheduler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.concurrent.Eventually.eventually
 import org.scalatest.flatspec.AsyncFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -150,9 +151,8 @@ class BlockImporterItSpec
     blockImporter ! BlockImporter.Start
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    Thread.sleep(1000)
     //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
-    blockchain.getBestBlock().get shouldEqual oldBlock4
+    eventually { blockchain.getBestBlock().get shouldEqual oldBlock4 }
   }
 
   it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
@@ -164,17 +164,16 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    Thread.sleep(200)
-    blockchain.getBestBlock().get shouldEqual newBlock3
+    eventually { Thread.sleep(200); blockchain.getBestBlock().get shouldEqual newBlock3 }
   }
 
   it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
-    val newcomerBlock4: Block =
+    val newBlock4ParentOldBlock3: Block =
       getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
-    val newcomerWeight4Duplicate = oldWeight3.increase(newcomerBlock4.header)
+    val newBlock4WeightParentOldBlock3 = oldWeight3.increase(newBlock4ParentOldBlock3.header)
 
     //Block n5 with oldBlock4 as parent
-    val newComerBlock5WithOldBlock4Parent: Block =
+    val newBlock5ParentOldBlock4: Block =
       getBlock(
         genesisBlock.number + 5,
         difficulty = 108,
@@ -187,13 +186,12 @@ class BlockImporterItSpec
     blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(blockchain.getBestBlockNumber() - 1)
-    blockchain.save(newcomerBlock4, Nil, newcomerWeight4Duplicate, saveAsBestBlock = true)
+    blockchain.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
 
     //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newComerBlock5WithOldBlock4Parent)))
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock5ParentOldBlock4)))
 
-    Thread.sleep(200)
-    blockchain.getBestBlock().get shouldEqual newcomerBlock4
+    eventually { blockchain.getBestBlock().get shouldEqual newBlock4ParentOldBlock3 }
   }
 
   it should "switch to a branch with a checkpoint" in {
@@ -206,9 +204,8 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    Thread.sleep(200)
-    blockchain.getBestBlock().get shouldEqual oldBlock5WithCheckpoint
-    blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number
+    eventually { blockchain.getBestBlock().get shouldEqual oldBlock5WithCheckpoint }
+    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number }
   }
 
   it should "switch to a branch with a newer checkpoint" in {
@@ -221,9 +218,8 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    Thread.sleep(200)
-    blockchain.getBestBlock().get shouldEqual newBlock4WithCheckpoint
-    blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number
+    eventually { blockchain.getBestBlock().get shouldEqual newBlock4WithCheckpoint }
+    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number }
   }
 
   it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in {
@@ -242,8 +238,9 @@ class BlockImporterItSpec
 
     val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
 
-    Thread.sleep(1000)
-    blockchain.getBestBlock().get shouldEqual checkpointBlock
-    blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1
+    eventually { Thread.sleep(1000); blockchain.getBestBlock().get shouldEqual checkpointBlock }
+    eventually {
+      Thread.sleep(1000); blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1
+    }
   }
 }
