@@ -32,43 +32,33 @@ class EthashMinerSpec
   private implicit val timeout: Duration = 10.minutes
 
   "EthashMiner" should "mine valid blocks" taggedAs (EthashMinerSpecTag) in new TestSetup {
-    val parent = origin
-    val bfm = blockForMining(parent.header)
+    val parentBlock: Block = origin
+    val bfm: Block = blockForMining(parentBlock.header)
 
-    (blockchain.getBestBlock _).expects().returns(Some(parent)).anyNumberOfTimes()
-    (ethMiningService.submitHashRate _)
-      .expects(*)
-      .returns(Task.now(Right(SubmitHashRateResponse(true))))
-      .atLeastOnce()
-    (blockGenerator.generateBlock _)
-      .expects(parent, Nil, consensusConfig.coinbase, Nil, None)
-      .returning(PendingBlockAndState(PendingBlock(bfm, Nil), fakeWorld))
-      .atLeastOnce()
+    executeTest(parentBlock, bfm)
+  }
 
-    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
-      sender ! OmmersPool.Ommers(Nil)
-      TestActor.KeepRunning
-    })
+  it should "mine valid block on the beginning of the new epoch" taggedAs EthashMinerSpecTag in new TestSetup {
+    val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
+    val parentBlockNumber: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
+    val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
+    val bfm: Block = blockForMining(parentBlock.header)
 
-    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
-      sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
-      TestActor.KeepRunning
-    })
+    executeTest(parentBlock, bfm)
+  }
 
-    miner ! MinerProtocol.StartMining
+  it should "mine valid blocks on the end of the epoch" taggedAs EthashMinerSpecTag in new TestSetup {
+    val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
+    val parentBlockNumber: Int = 2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)
+    val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
+    val bfm: Block = blockForMining(parentBlock.header)
 
-    val block = waitForMinedBlock
-
-    miner ! MinerProtocol.StopMining
-
-    block.body.transactionList shouldBe Seq(txToMine)
-    block.header.nonce.length shouldBe 8
-    blockHeaderValidator.validate(block.header, parent.header) shouldBe Right(BlockHeaderValid)
+    executeTest(parentBlock, bfm)
   }
 
   trait TestSetup extends MinerSpecSetup with MockFactory {
 
-    override val origin = Block(
+    override val origin: Block = Block(
       Fixtures.Blocks.Genesis.header.copy(
         difficulty = UInt256(Hex.decode("0400")).toBigInt,
         number = 0,
@@ -80,11 +70,11 @@ class EthashMinerSpec
 
     val blockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
-    val ommersPool = TestProbe()
-    val pendingTransactionsManager = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     override val blockCreator = new EthashBlockCreator(
@@ -94,7 +84,49 @@ class EthashMinerSpec
       ommersPool = ommersPool.ref
     )
 
-    val miner = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
+    val miner: TestActorRef[Nothing] = TestActorRef(EthashMiner.props(blockchain, blockCreator, sync.ref, ethService, ethMiningService))
 
+
+    protected def executeTest(parentBlock: Block, blockForMining: Block): Unit = {
+      prepareMocks(parentBlock, blockForMining)
+      val minedBlock = startMining()
+      checkAssertions(minedBlock, parentBlock)
+    }
+
+    private def prepareMocks(parentBlock: Block, blockForMining: Block): Unit = {
+      (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+      (ethMiningService.submitHashRate _)
+        .expects(*)
+        .returns(Task.now(Right(SubmitHashRateResponse(true))))
+        .atLeastOnce()
+      (blockGenerator.generateBlock _)
+        .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None)
+        .returning(PendingBlockAndState(PendingBlock(blockForMining, Nil), fakeWorld))
+        .atLeastOnce()
+
+      ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+        sender ! OmmersPool.Ommers(Nil)
+        TestActor.KeepRunning
+      })
+
+      pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+        sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
+        TestActor.KeepRunning
+      })
+    }
+
+    private def startMining(): Block = {
+      miner ! MinerProtocol.StartMining
+      val block = waitForMinedBlock
+      miner ! MinerProtocol.StopMining
+
+      block
+    }
+
+    private def checkAssertions(minedBlock: Block, parentBlock: Block): Unit = {
+      minedBlock.body.transactionList shouldBe Seq(txToMine)
+      minedBlock.header.nonce.length shouldBe 8
+      blockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
+    }
   }
 }
