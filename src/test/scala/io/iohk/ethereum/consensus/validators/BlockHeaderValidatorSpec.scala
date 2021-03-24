@@ -463,6 +463,7 @@ class BlockHeaderValidatorSpec
       networkId = 1,
       monetaryPolicyConfig = null,
       customGenesisFileOpt = None,
+      customGenesisJsonOpt = None,
       accountStartNonce = UInt256.Zero,
       bootstrapNodes = Set(),
       gasTieBreaker = false,
