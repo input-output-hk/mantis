@@ -80,7 +80,7 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
         receiptsRoot = parentHeader.receiptsRoot,
         logsBloom = parentHeader.logsBloom,
         difficulty = difficultyCalc.calculateDifficulty(1, blockForMiningTimestamp, parentHeader),
-        number = BigInt(1),
+        number = parentHeader.number + 1,
         gasLimit = calculateGasLimit(UInt256(parentHeader.gasLimit)),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
