@@ -460,6 +460,36 @@ class PivotBlockSelectorSpec
     fastSync.expectMsg(Result(baseBlockHeader.copy(number = 1400)))
   }
 
+  it should "restart pivot block selection after `maxPivotBlockFailuresCount` is reached" in new TestSetup {
+
+    override val minPeersToChoosePivotBlock = 2
+    override val peersToChoosePivotBlockMargin = 1
+
+    updateHandshakedPeers(
+      HandshakedPeers(
+        allPeers
+          .updated(peer1, allPeers(peer1).copy(maxBlockNumber = 2000))
+          .updated(peer2, allPeers(peer2).copy(maxBlockNumber = 800))
+          .updated(peer3, allPeers(peer3).copy(maxBlockNumber = 900))
+          .updated(peer4, allPeers(peer4).copy(maxBlockNumber = 1000))
+      )
+    )
+
+    pivotBlockSelector ! SelectPivotBlock
+
+    peerMessageBus.expectNoMessage()
+
+    updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
+
+    time.advance(syncConfig.startRetryInterval)
+
+    peerMessageBus.expectMsgAllOf(
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id)))
+    )
+  }
+
   class TestSetup extends TestSyncConfig {
 
     val blacklist: Blacklist = CacheBasedBlacklist.empty(100)
