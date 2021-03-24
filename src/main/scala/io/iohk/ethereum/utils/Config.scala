@@ -135,7 +135,9 @@ object Config {
       stateSyncPersistBatchSize: Int,
       pivotBlockReScheduleInterval: FiniteDuration,
       maxPivotBlockAge: Int,
-      fastSyncMaxBatchRetries: Int
+      fastSyncMaxBatchRetries: Int,
+      pivotBlockNumberResetDelta: Int,
+      maxPivotBlockFailuresCount: Int
   )
 
   object SyncConfig {
@@ -179,7 +181,9 @@ object Config {
         stateSyncPersistBatchSize = syncConfig.getInt("state-sync-persist-batch-size"),
         pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reschedule-interval").toMillis.millis,
         maxPivotBlockAge = syncConfig.getInt("max-pivot-block-age"),
-        fastSyncMaxBatchRetries = syncConfig.getInt("fast-sync-max-batch-retries")
+        fastSyncMaxBatchRetries = syncConfig.getInt("fast-sync-max-batch-retries"),
+        pivotBlockNumberResetDelta = syncConfig.getInt("pivot-block-number-reset-delta"),
+        maxPivotBlockFailuresCount = syncConfig.getInt("max-pivot-block-failures-count")
       )
     }
   }

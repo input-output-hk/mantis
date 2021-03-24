@@ -37,10 +37,6 @@ class PivotBlockSelector(
 
   private var pivotBlockRetryCount = 0
 
-  //TODO make these config params
-  private val pivotBlockNumberResetDelta: BigInt = 50
-  private val maxPivotBlockFailuresCount = 3
-
   override def receive: Receive = idle
 
   private def idle: Receive = handlePeerListMessages orElse { case SelectPivotBlock =>
@@ -85,12 +81,14 @@ class PivotBlockSelector(
     }
   }
 
+  // Voters are collected until minimum peers to choose pivot block is obtained.
   private def retryPivotBlockSelection(pivotBlockNumber: BigInt): Unit = {
     pivotBlockRetryCount += 1
     if (pivotBlockRetryCount <= maxPivotBlockFailuresCount) {
       val electionDetails = collectVoters(Some(pivotBlockNumber))
       startPivotBlockSelection(electionDetails)
     } else {
+      // Restart the whole process.
       scheduleRetry(startRetryInterval)
     }
   }
@@ -208,6 +206,8 @@ class PivotBlockSelector(
       .map { case (_, bestPeerBestBlockNumber) => bestPeerBestBlockNumber }
       .getOrElse(BigInt(0))
 
+    // The current best block number is pushed back by `pivotBlockNumberResetDelta`
+    // if this request is issued by the retry logic.
     val currentBestBlockNumber: BigInt =
       previousBestBlockNumber
         .map(_ - pivotBlockNumberResetDelta)
