@@ -168,7 +168,7 @@ class BlockImporterItSpec
     blockchain.getBestBlock().get shouldEqual newBlock3
   }
 
-  it should "return Unknown branch, don't start reorganisation(therefore no block/ommer validation) in case of PickedBlocks with block that has a parent who is not present in the chain(or ommer not in  chain)" in {
+  it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
     val newcomerBlock4: Block =
       getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
     val newcomerWeight4Duplicate = oldWeight3.increase(newcomerBlock4.header)
