@@ -215,6 +215,19 @@ trait Blockchain {
   def getStateStorage: StateStorage
 
   def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]]
+
+  /**
+    * Strict check if given block hash is in chain
+    * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
+    * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
+    * @param hash block hash
+    */
+  def isInChain(hash: ByteString): Boolean = {
+    (for {
+      header <- getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
+      hash <- getHashByBlockNumber(header.number)
+    } yield header.hash == hash).getOrElse(false)
+  }
 }
 // scalastyle:on
 

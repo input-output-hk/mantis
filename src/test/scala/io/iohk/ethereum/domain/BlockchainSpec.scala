@@ -26,35 +26,44 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByHash(validBlock.header.hash)
-    assert(block.isDefined)
-    assert(validBlock == block.get)
+    block.isDefined should ===(true)
+    validBlock should ===(block.get)
     val blockHeader = blockchain.getBlockHeaderByHash(validBlock.header.hash)
-    assert(blockHeader.isDefined)
-    assert(validBlock.header == blockHeader.get)
+    blockHeader.isDefined should ===(true)
+    validBlock.header should ===(blockHeader.get)
     val blockBody = blockchain.getBlockBodyByHash(validBlock.header.hash)
-    assert(blockBody.isDefined)
-    assert(validBlock.body == blockBody.get)
+    blockBody.isDefined should ===(true)
+    validBlock.body should ===(blockBody.get)
   }
 
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
     val block = blockchain.getBlockByNumber(validBlock.header.number)
-    assert(block.isDefined)
-    assert(validBlock == block.get)
+    block.isDefined should ===(true)
+    validBlock should ===(block.get)
+  }
+
+  it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
+    val validBlock = Fixtures.Blocks.ValidBlock.block
+    blockchain.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
+    blockchain.isInChain(validBlock.hash) === (false)
+    // simulation of node restart
+    blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
+    blockchain.isInChain(validBlock.hash) should ===(false)
   }
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
     blockchain.storeBlockHeader(validHeader).commit()
     val header = blockchain.getBlockHeaderByNumber(validHeader.number)
-    assert(header.isDefined)
-    assert(validHeader == header.get)
+    header.isDefined should ===(true)
+    validHeader should ===(header.get)
   }
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
-    assert(blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty)
-    assert(blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty)
+    blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
+    blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
   }
 
   it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {
@@ -66,8 +75,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     val retrievedBlock = blockchain.getBlockByHash(validBlock.header.hash)
-    assert(retrievedBlock.isDefined)
-    assert(validBlock == retrievedBlock.get)
+    retrievedBlock.isDefined should ===(true)
+    validBlock should ===(retrievedBlock.get)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
     blockchain.getBestBlockNumber() should ===(validBlock.number)
