@@ -18,6 +18,7 @@ GPG_EXISTS=$(gpg --list-keys "$GPG_KEY_ID" >&2 && echo "yes" || echo "no")
 
 if [[ "$GPG_EXISTS" == "no" ]]; then
 	echo "$GPG_KEY" | base64 --decode | gpg --batch --import
+    gpg --passphrase $GPG_PASSPHRASE --batch --yes -a -b LICENSE
 fi
 
 # https://github.com/olafurpg/sbt-ci-release#secrets
@@ -35,14 +36,31 @@ export JAVA_OPTS="$JAVA_OPTS -Dsbt.gigahorse=false"
 # with `publish / skip := true` in build.sbt for the default project,
 # without any aggregation, by default it would publish nothing, so
 # let's tell it here by using `sbt-ci-release` env vars.
+# NOTE: +rlp/publishSigned with the `+` would cross publish,
+# but it doesn't work because of scapegoat (see below).
 export CI_SNAPSHOT_RELEASE="; rlp/publishSigned; crypto/publishSigned"
 export CI_RELEASE=$CI_SNAPSHOT_RELEASE
 export CI_SONATYPE_RELEASE=$"; rlp/sonatypeBundleRelease; crypto/sonatypeBundleRelease"
 
+# Scala 2.12 has up to scapegoat 1.4.5, while Scala 2.13 starts with 1.4.7.
+# I couldn't make build.sbt vary the scapegoat version by the current cross build,
+# so as a workaround the combos are called here explicitly.
+function release {
+    SCALA_VERSION=$1
+    export SCAPEGOAT_VERSION=$2
+
+    sbt "++ $SCALA_VERSION ; ci-release"
+}
+
+function releaseAll {
+    release 2.12.10 1.4.5
+    release 2.13.4 1.4.7
+}
+
 if [[ "$BUILDKITE_BRANCH" == "develop" ]]; then
 
     # Publish the -SNAPSHOT version.
-    sbt ci-release
+    releaseAll
 
 elif [[ "$BUILDKITE_BRANCH" == "master" ]]; then
 
@@ -53,7 +71,7 @@ elif [[ "$BUILDKITE_BRANCH" == "master" ]]; then
     # Check https://github.com/olafurpg/sbt-ci-release/blob/main/plugin/src/main/scala/com/geirsson/CiReleasePlugin.scala for the rules.
 	export CI_COMMIT_TAG=$(sbt -Dsbt.supershell=false -error "print version")
 
-    sbt ci-release
+    releaseAll
 
 else
 
