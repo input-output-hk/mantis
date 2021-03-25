@@ -18,8 +18,9 @@ GPG_EXISTS=$(gpg --list-keys "$GPG_KEY_ID" >&2 && echo "yes" || echo "no")
 
 if [[ "$GPG_EXISTS" == "no" ]]; then
 	echo "$GPG_KEY" | base64 --decode | gpg --batch --import
-    gpg --passphrase $GPG_PASSPHRASE --batch --yes -a -b LICENSE
 fi
+# Local testing showed that without this the SBT plugin got "Bad passphrase".
+gpg --passphrase $GPG_PASSPHRASE --batch --yes -a -b LICENSE
 
 # https://github.com/olafurpg/sbt-ci-release#secrets
 export PGP_SECRET="$GPG_KEY"
@@ -38,9 +39,9 @@ export JAVA_OPTS="$JAVA_OPTS -Dsbt.gigahorse=false"
 # let's tell it here by using `sbt-ci-release` env vars.
 # NOTE: +rlp/publishSigned with the `+` would cross publish,
 # but it doesn't work because of scapegoat (see below).
-export CI_SNAPSHOT_RELEASE="; rlp/publishSigned; crypto/publishSigned"
+export CI_SNAPSHOT_RELEASE="; bytes/publishSigned; rlp/publishSigned; crypto/publishSigned"
 export CI_RELEASE=$CI_SNAPSHOT_RELEASE
-export CI_SONATYPE_RELEASE=$"; rlp/sonatypeBundleRelease; crypto/sonatypeBundleRelease"
+export CI_SONATYPE_RELEASE=$"; bytes/sonatypeBundleRelease; rlp/sonatypeBundleRelease; crypto/sonatypeBundleRelease"
 
 # Scala 2.12 has up to scapegoat 1.4.5, while Scala 2.13 starts with 1.4.7.
 # I couldn't make build.sbt vary the scapegoat version by the current cross build,

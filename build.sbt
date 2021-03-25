@@ -61,6 +61,11 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   skip in publish := true
 )
 
+val publishSettings = Seq(
+  publish / skip := false,
+  crossScalaVersions := supportedScalaVersions
+)
+
 // Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
 // which would fail if the project didn't have configuration to add to.
 val Integration = config("it") extend Test
@@ -70,8 +75,8 @@ lazy val bytes = {
     .in(file("bytes"))
     .configs(Integration)
     .settings(commonSettings("mantis-bytes"))
+    .settings(publishSettings)
     .settings(
-      crossScalaVersions := supportedScalaVersions,
       libraryDependencies ++=
         Dependencies.akkaUtil ++
           Dependencies.testing
@@ -86,9 +91,8 @@ lazy val crypto = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-crypto"))
+    .settings(publishSettings)
     .settings(
-      publish / skip := false,
-      crossScalaVersions := supportedScalaVersions,
       libraryDependencies ++=
         Dependencies.akkaUtil ++
           Dependencies.crypto ++
@@ -104,9 +108,8 @@ lazy val rlp = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-rlp"))
+    .settings(publishSettings)
     .settings(
-      publish / skip := false,
-      crossScalaVersions := supportedScalaVersions,
       libraryDependencies ++=
         Dependencies.akkaUtil ++
           Dependencies.shapeless ++
