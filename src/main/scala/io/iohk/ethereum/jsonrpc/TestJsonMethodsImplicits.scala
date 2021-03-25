@@ -131,6 +131,18 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: RewindToBlockResponse): JValue = true
   }
 
+  implicit val test_importRawBlock = new JsonMethodDecoder[ImportRawBlockRequest]
+    with JsonEncoder[ImportRawBlockResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, ImportRawBlockRequest] =
+      params match {
+        case Some(JArray(JString(blockRlp) :: Nil)) =>
+          Right(ImportRawBlockRequest(blockRlp))
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: ImportRawBlockResponse): JValue = t.blockHash
+  }
+
   implicit val miner_setEtherbase = new JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetEtherbaseRequest] =
       params match {

@@ -2,20 +2,23 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
-import cats.syntax.functor._
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
+
 import scala.concurrent.duration._
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 object TestService {
   case class GenesisParams(
@@ -56,6 +59,9 @@ object TestService {
 
   case class SetEtherbaseRequest(etherbase: Address)
   case class SetEtherbaseResponse()
+
+  case class ImportRawBlockRequest(blockRlp: String)
+  case class ImportRawBlockResponse(blockHash: String)
 }
 
 class TestService(
@@ -137,6 +143,27 @@ class TestService(
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     Task.now(Right(RewindToBlockResponse()))
+  }
+
+  def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] = {
+    Try(decode(request.blockRlp).toBlock) match {
+      case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
+      case Success(value) => {
+        testLedgerWrapper.ledger
+          .importBlock(value)
+          .flatMap(handleResult)
+      }
+    }
+  }
+
+  private def handleResult(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
+    blockImportResult match {
+      case BlockImportedToTop(blockImportData) => {
+        consensus.blockTimestamp += 1
+        Task.now(Right(ImportRawBlockResponse(ByteStringUtils.hash2string(blockImportData.head.block.hash))))
+      }
+      case _ => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
+    }
   }
 
   def setEtherbase(req: SetEtherbaseRequest): ServiceResponse[SetEtherbaseResponse] = {
