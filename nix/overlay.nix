@@ -4,7 +4,7 @@ rev: final: prev: {
   mantis = final.callPackage ./mantis.nix {
     src = builtins.fetchGit {
       url = "https://github.com/input-output-hk/mantis";
-      ref = "flake";
+      ref = "develop";
       rev = rev;
       submodules = true;
     };
