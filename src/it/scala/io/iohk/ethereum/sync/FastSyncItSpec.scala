@@ -216,7 +216,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     }
   }
 
-  it should "start branch resolving on invalid batch last header hash" in customTestCaseResourceM(
+  it should "sync blockchain when peer responds with invalid batch last header hash" in customTestCaseResourceM(
     FakePeer.start4FakePeersRes()
   ) { case (peer1, peer2, peer3, peer4) =>
     for {

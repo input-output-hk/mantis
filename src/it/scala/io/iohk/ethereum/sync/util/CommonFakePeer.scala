@@ -300,7 +300,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     (newBlock, newWeight, parentWorld)
   }
 
-  private def generateInvalidBlocks(
+  private def generateInvalidBlock(
       currentBestBlock: Block
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
     Task {
@@ -322,7 +322,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     }
   }
 
-  private def generateValidBlocks(
+  private def generateValidBlock(
       currentBestBlock: Block
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
     Task {
@@ -342,7 +342,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       if (block.get.number >= n) {
         Task(())
       } else {
-        generateValidBlocks(block.get)(updateWorldForBlock).flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
+        generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
     }
   }
@@ -355,11 +355,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {
-        generateInvalidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+        generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
           importMaliciousBlocks(from, to)(updateWorldForBlock)
         )
       } else {
-        generateValidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+        generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
           importMaliciousBlocks(from, to)(updateWorldForBlock)
         )
       }
@@ -375,7 +375,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {
-        generateInvalidBlocks(block.get)(updateWorldForBlock).flatMap(_ =>
+        generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
           importMaliciousBlockNumbers(from, to)(updateWorldForBlock)
         )
       } else {
