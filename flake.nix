@@ -9,6 +9,10 @@
       url = "github:nixos/nixpkgs?rev=e2bb73ce5f786b83e984b80199112f86b8a6cc9d";
       flake = false;
     };
+    nixpkgs-kevm = {
+      url = "github:nixos/nixpkgs?rev=df25e214c8e662d693ef89e45ce56bbf58d6c59e";
+      flake = false;
+    };
     sbtix = {
       url =
         "github:input-output-hk/Sbtix?rev=7b969a5641fce10500ca51cbe88af4ea160d7064";

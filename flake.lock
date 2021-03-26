@@ -97,6 +97,23 @@
         "type": "indirect"
       }
     },
+    "nixpkgs-kevm": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1606507280,
+        "narHash": "sha256-NvYGnD+gdDPVZlzB+t6GS+IC72dmN1sPwiAMrr3I8YQ=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "df25e214c8e662d693ef89e45ce56bbf58d6c59e",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "df25e214c8e662d693ef89e45ce56bbf58d6c59e",
+        "type": "github"
+      }
+    },
     "nixpkgs-sbt": {
       "flake": false,
       "locked": {
@@ -150,6 +167,7 @@
         "mantis-explorer": "mantis-explorer",
         "mantis-faucet-web": "mantis-faucet-web",
         "nixpkgs": "nixpkgs_3",
+        "nixpkgs-kevm": "nixpkgs-kevm",
         "nixpkgs-sbt": "nixpkgs-sbt",
         "sbtix": "sbtix"
       }
