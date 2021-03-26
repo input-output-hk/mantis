@@ -371,7 +371,10 @@ class FastSync(
         batchFailuresCount = 0
 
         // Restart syncing from the valid block available in state.
-        syncState = syncState.copy(bestBlockHeaderNumber = firstCommonBlockNumber)
+        syncState = syncState.copy(
+          bestBlockHeaderNumber = firstCommonBlockNumber,
+          nextBlockToFullyValidate = firstCommonBlockNumber + 1
+        )
         masterPeer = Some(newMasterPeer)
         context become receive
         processSyncing()
@@ -460,7 +463,7 @@ class FastSync(
       updateReason match {
         case ImportedLastBlock =>
           if (pivotBlockHeader.number - syncState.pivotBlock.number <= syncConfig.maxTargetDifference) {
-            log.info("Current pivot block is fresh enough, starting state download")
+            log.info("Current pivot block is fresh enough, starting state download.")
             // Empty root has means that there were no transactions in blockchain, and Mpt trie is empty
             // Asking for this root would result only with empty transactions
             if (syncState.pivotBlock.stateRoot == ByteString(MerklePatriciaTrie.EmptyRootHash)) {
@@ -886,7 +889,10 @@ class FastSync(
       } else if (shouldRequestNewSkeleton(peerInfo)) {
         requestSkeletonHeaders(peer)
       } else {
-        log.debug("Nothing to request. Waiting for responses for [{}] sent requests.", assignedHandlers.size)
+        log.debug(
+          "Nothing to request. Waiting for responses for [{}] sent requests.",
+          assignedHandlers.size + skeletonHandler.size
+        )
       }
     }
 
