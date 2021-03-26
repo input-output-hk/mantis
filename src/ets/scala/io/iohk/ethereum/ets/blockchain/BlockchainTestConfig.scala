@@ -31,6 +31,7 @@ object BlockchainTestConfig {
     chainId = 0x1.toByte,
     networkId = 1,
     customGenesisFileOpt = Some("test-genesis.json"),
+    customGenesisJsonOpt = None,
     monetaryPolicyConfig =
       MonetaryPolicyConfig(5000000, 0.2, BigInt("5000000000000000000"), BigInt("3000000000000000000")),
     daoForkConfig = None,

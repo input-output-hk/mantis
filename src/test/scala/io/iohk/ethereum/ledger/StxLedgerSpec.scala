@@ -123,6 +123,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     difficultyBombContinueBlockNumber = 0,
     difficultyBombRemovalBlockNumber = Long.MaxValue,
     customGenesisFileOpt = None,
+    customGenesisJsonOpt = None,
     accountStartNonce = UInt256.Zero,
     monetaryPolicyConfig = MonetaryPolicyConfig(5, 0, 0, 0),
     daoForkConfig = None,

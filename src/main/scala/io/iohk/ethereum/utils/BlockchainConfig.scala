@@ -7,6 +7,7 @@ import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
+import com.typesafe.config.ConfigRenderOptions
 
 case class BlockchainConfig(
     powTargetTime: Option[Long] = None,
@@ -32,6 +33,7 @@ case class BlockchainConfig(
     difficultyBombContinueBlockNumber: BigInt,
     difficultyBombRemovalBlockNumber: BigInt,
     customGenesisFileOpt: Option[String],
+    customGenesisJsonOpt: Option[String],
     daoForkConfig: Option[DaoForkConfig],
     accountStartNonce: UInt256,
     chainId: Byte,
@@ -85,6 +87,9 @@ object BlockchainConfig {
       blockchainConfig.getString("difficulty-bomb-removal-block-number")
     )
     val customGenesisFileOpt: Option[String] = Try(blockchainConfig.getString("custom-genesis-file")).toOption
+    val customGenesisJsonOpt: Option[String] = Try(
+      blockchainConfig.getObject("custom-genesis-file").render(ConfigRenderOptions.concise())
+    ).toOption
 
     val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
     val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
@@ -134,6 +139,7 @@ object BlockchainConfig {
       difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
       difficultyBombRemovalBlockNumber = difficultyBombRemovalBlockNumber,
       customGenesisFileOpt = customGenesisFileOpt,
+      customGenesisJsonOpt = customGenesisJsonOpt,
       daoForkConfig = daoForkConfig,
       accountStartNonce = accountStartNonce,
       chainId = chainId,
