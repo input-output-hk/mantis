@@ -74,11 +74,14 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
       for {
         author <- extractBytes((genesisJson \ "author").extract[String])
+        difficulty = (genesisJson \ "difficulty").extractOrElse("0")
         extraData <- extractBytes((genesisJson \ "extraData").extract[String])
         gasLimit <- extractQuantity(genesisJson \ "gasLimit")
         parentHash <- extractBytes((genesisJson \ "parentHash").extractOrElse(""))
         timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
-      } yield GenesisParams(author, extraData, gasLimit, parentHash, timestamp)
+        nonce <- extractBytes((genesisJson \ "nonce").extract[String])
+        mixHash <- extractBytes((genesisJson \ "mixHash").extract[String])
+      } yield GenesisParams(author, difficulty, extraData, gasLimit, parentHash, timestamp, nonce, mixHash)
     }
 
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetChainParamsRequest] =

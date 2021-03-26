@@ -23,10 +23,13 @@ import scala.util.{Failure, Success, Try}
 object TestService {
   case class GenesisParams(
       author: ByteString,
+      difficulty: String,
       extraData: ByteString,
       gasLimit: BigInt,
       parentHash: ByteString,
-      timestamp: ByteString
+      timestamp: ByteString,
+      nonce: ByteString,
+      mixHash: ByteString
   )
   case class BlockchainParams(
       EIP150ForkBlock: BigInt,
@@ -89,9 +92,9 @@ class TestService(
     )
 
     val genesisData = GenesisData(
-      nonce = ByteString(Hex.decode("00")),
-      mixHash = None,
-      difficulty = "0",
+      nonce = request.chainParams.genesis.nonce,
+      mixHash = Some(request.chainParams.genesis.mixHash),
+      difficulty = request.chainParams.genesis.difficulty,
       extraData = request.chainParams.genesis.extraData,
       gasLimit = "0x" + request.chainParams.genesis.gasLimit.toString(16),
       coinbase = request.chainParams.genesis.author,
@@ -159,8 +162,8 @@ class TestService(
   private def handleResult(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
     blockImportResult match {
       case BlockImportedToTop(blockImportData) => {
-        consensus.blockTimestamp += 1
-        Task.now(Right(ImportRawBlockResponse(ByteStringUtils.hash2string(blockImportData.head.block.hash))))
+        val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
+        Task.now(Right(ImportRawBlockResponse(blockHash)))
       }
       case _ => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
     }
