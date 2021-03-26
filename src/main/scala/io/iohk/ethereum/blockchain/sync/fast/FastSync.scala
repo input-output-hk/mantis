@@ -39,7 +39,6 @@ import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.util.Random
-import scala.collection.immutable.Queue
 import scala.collection.mutable
 import scala.util.Try
 import scala.util.Success
