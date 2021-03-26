@@ -972,7 +972,7 @@ class FastSync(
           assignedHandlers += (handler -> peer)
           requestedHeaders += (peer -> toRequest)
           peerRequestsTime += (peer -> Instant.now())
-        case Failure(_) => log.warning("Tried to request more block headers but work queue was empty.")
+        case _ => log.warning("Tried to request more block headers but work queue was empty.")
       }
 
     }
