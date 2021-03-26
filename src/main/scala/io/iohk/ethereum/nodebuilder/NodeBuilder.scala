@@ -28,7 +28,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.testmode.{TestEthBlockServiceWrapper, TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
@@ -365,6 +365,11 @@ trait TestServiceBuilder {
 
   lazy val testService =
     new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
+}
+
+trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
+  self: BlockchainBuilder with TestLedgerBuilder =>
+  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger)
 }
 
 trait EthProofServiceBuilder {

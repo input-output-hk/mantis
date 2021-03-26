@@ -83,7 +83,7 @@ class EthBlocksServiceSpec
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = true, weight = Some(blockWeight))
     )
-    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.toOption shouldBe Some(stxResponses)
   }
 
@@ -98,7 +98,7 @@ class EthBlocksServiceSpec
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
-    response.blockResponse.get.chainWeight shouldBe None
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe None
     response.blockResponse.get.transactions.toOption shouldBe Some(stxResponses)
   }
 
@@ -115,7 +115,7 @@ class EthBlocksServiceSpec
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
-    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
   }
 
@@ -178,7 +178,7 @@ class EthBlocksServiceSpec
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = true, weight = Some(blockWeight))
     )
-    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.toOption shouldBe Some(stxResponses)
   }
 
@@ -194,7 +194,7 @@ class EthBlocksServiceSpec
     }
 
     response.blockResponse shouldBe Some(BlockResponse(blockToRequest, fullTxs = true))
-    response.blockResponse.get.chainWeight shouldBe None
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe None
     response.blockResponse.get.transactions.toOption shouldBe Some(stxResponses)
   }
 
@@ -212,7 +212,7 @@ class EthBlocksServiceSpec
     response.blockResponse shouldBe Some(
       BlockResponse(blockToRequest, fullTxs = false, weight = Some(blockWeight))
     )
-    response.blockResponse.get.chainWeight shouldBe Some(blockWeight)
+    response.blockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(blockWeight)
     response.blockResponse.get.transactions.left.toOption shouldBe Some(blockToRequest.body.transactionList.map(_.hash))
   }
 
@@ -289,7 +289,7 @@ class EthBlocksServiceSpec
     val response = ethBlocksService.getUncleByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).toOption.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
-    response.uncleBlockResponse.get.chainWeight shouldBe None
+    response.uncleBlockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
@@ -305,7 +305,7 @@ class EthBlocksServiceSpec
     val response = ethBlocksService.getUncleByBlockHashAndIndex(request).runSyncUnsafe(Duration.Inf).toOption.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleWeight), pendingBlock = false))
-    response.uncleBlockResponse.get.chainWeight shouldBe Some(uncleWeight)
+    response.uncleBlockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(uncleWeight)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
@@ -363,7 +363,7 @@ class EthBlocksServiceSpec
     val response = ethBlocksService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).toOption.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, None, pendingBlock = false))
-    response.uncleBlockResponse.get.chainWeight shouldBe None
+    response.uncleBlockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe None
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
@@ -380,7 +380,7 @@ class EthBlocksServiceSpec
     val response = ethBlocksService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).toOption.get
 
     response.uncleBlockResponse shouldBe Some(BlockResponse(uncle, Some(uncleWeight), pendingBlock = false))
-    response.uncleBlockResponse.get.chainWeight shouldBe Some(uncleWeight)
+    response.uncleBlockResponse.get.asInstanceOf[BlockResponse].chainWeight shouldBe Some(uncleWeight)
     response.uncleBlockResponse.get.transactions shouldBe Left(Nil)
     response.uncleBlockResponse.get.uncles shouldBe Nil
   }
