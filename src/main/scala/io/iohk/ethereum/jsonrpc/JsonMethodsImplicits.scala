@@ -30,7 +30,7 @@ trait JsonMethodsImplicits {
   def encodeAsHex(input: BigInt): JString =
     JString(s"0x${input.toString(16)}")
 
-  protected def decode(s: String): Array[Byte] = {
+  def decode(s: String): Array[Byte] = {
     val stripped = s.replaceFirst("^0x", "")
     val normalized = if (stripped.length % 2 == 1) "0" + stripped else stripped
     Hex.decode(normalized)
