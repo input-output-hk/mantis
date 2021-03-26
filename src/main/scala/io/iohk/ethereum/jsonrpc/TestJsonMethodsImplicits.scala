@@ -21,22 +21,22 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     private def extractAccount(accountJson: JValue): Either[JsonRpcError, GenesisAccount] =
       for {
         storageObject <- Try((accountJson \ "storage").extract[JObject]).toEither.left.map(e =>
-          InvalidParams(e.toString())
+          InvalidParams(e.toString)
         )
         storage <- storageObject.obj.traverse {
           case (key, JString(value)) =>
-            Try(UInt256(decode(key)) -> UInt256(decode(value))).toEither.left.map(e => InvalidParams(e.toString()))
+            Try(UInt256(decode(key)) -> UInt256(decode(value))).toEither.left.map(e => InvalidParams(e.toString))
           case _ => Left(InvalidParams())
         }
         balance = UInt256(decode((accountJson \ "balance").extract[String]))
-        code = ByteString(decode((accountJson \ "code").extract[String]))
-        nonce = UInt256(decode((accountJson \ "nonce").extract[String]))
+        code = Some(ByteString(decode((accountJson \ "code").extract[String])))
+        nonce = Some(UInt256(decode((accountJson \ "nonce").extract[String])))
       } yield GenesisAccount(
         None,
         balance,
         code,
         nonce,
-        storage.toMap
+        Some(storage.toMap)
       )
 
     private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, GenesisAccount]] =

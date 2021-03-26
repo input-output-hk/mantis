@@ -1,15 +1,18 @@
 package io.iohk.ethereum.blockchain.data
 
 import java.io.FileNotFoundException
-
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
+  ByteStringJsonSerializer,
+  UInt256JsonSerializer
+}
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
@@ -75,7 +78,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
 
   private def loadGenesisData(genesisJson: String): Try[Unit] = {
     import org.json4s.native.JsonMethods.parse
-    implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer
+    implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer + UInt256JsonSerializer
     for {
       genesisData <- Try(parse(genesisJson).extract[GenesisData])
       _ <- loadGenesisData(genesisData)
@@ -96,7 +99,11 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
         val stateRoot = mpt
           .put(
             crypto.kec256(Hex.decode(paddedAddress)),
-            Account(nonce = genesisAccount.nonce, balance = genesisAccount.balance)
+            Account(
+              nonce = genesisAccount.nonce
+                .getOrElse(blockchainConfig.accountStartNonce),
+              balance = genesisAccount.balance
+            )
           )
           .getRootHash
         stateRoot
@@ -178,5 +185,23 @@ object GenesisDataLoader {
           )
         )
 
+    def deserializeUint256String(jv: JValue): UInt256 = jv match {
+      case JString(s) =>
+        Try(UInt256(BigInt(1, Implicits.decode(s)))) match {
+          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Success(value) => value
+        }
+      case other => throw new RuntimeException("Expected hex string, but got: " + other)
+    }
+
+    object UInt256JsonSerializer
+        extends CustomSerializer[UInt256](formats =>
+          (
+            { case jv => deserializeUint256String(jv) },
+            PartialFunction.empty
+          )
+        )
   }
 }
+
+object Implicits extends JsonMethodsImplicits

@@ -8,9 +8,9 @@ case class PrecompiledAccountConfig(name: String)
 case class GenesisAccount(
     precompiled: Option[PrecompiledAccountConfig],
     balance: UInt256,
-    code: ByteString,
-    nonce: UInt256,
-    storage: Map[UInt256, UInt256]
+    code: Option[ByteString],
+    nonce: Option[UInt256],
+    storage: Option[Map[UInt256, UInt256]]
 )
 
 case class GenesisData(
