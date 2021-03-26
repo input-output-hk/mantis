@@ -60,14 +60,10 @@ in sbt.mkDerivation rec {
     })
   ];
 
-  #patchPhase = lib.optionalString (libsonic != null) ''
-  #  rm -rf src/main/resources
-  #  cp -r ${libsonic}/lib src/main/resources
-  #'';
-
   # This sha represents the change dependencies of mantis.
-  # Update this sha whenever you change the dependencies
-  depsSha256 = "0n7vv4k73cxjwg40qggr7gnkkg7vn8a179sf0wxnz3absj1700jj";
+  # Update this sha whenever you change the dependencies using the
+  # update-nix.sh script
+  depsSha256 = "sha256-csNBHVOC2bNSOjLjWleiVeS5ts3qFS7V8DxBv2nVDqE=";
 
   # this is the command used to to create the fixed-output-derivation
   depsWarmupCommand = "PROTOC_CACHE=.nix/protoc-cache; HOME=$TMPDIR; PATH=${PATH}:$PATH; sbt clean; sbt compile --debug";

@@ -10,6 +10,18 @@ rev: final: prev: {
     };
   };
 
+  mantis-hash = { ref, rev }:
+    (final.callPackage ./mantis.nix {
+      src = builtins.fetchGit {
+        url = "https://github.com/input-output-hk/mantis";
+        inherit rev ref;
+        submodules = true;
+      };
+    }).overrideAttrs (_: {
+      outputHash = "sha256-0000000000000000000000000000000000000000000=";
+      outputHashMode = "recursive";
+    });
+
   writeBashChecked = final.writers.makeScriptWriter {
     interpreter = "${final.bashInteractive}/bin/bash";
     check = final.writers.writeBash "shellcheck-check" ''
