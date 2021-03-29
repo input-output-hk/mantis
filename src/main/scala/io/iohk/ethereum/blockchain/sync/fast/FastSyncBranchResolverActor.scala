@@ -79,7 +79,7 @@ class FastSyncBranchResolverActor(
     handlePeerListMessages orElse {
       case ResponseReceived(peer, BlockHeaders(headers), durationMs) if peer == searchState.masterPeer =>
         context.unwatch(requestHandler)
-        headers match {
+        headers.toList match {
           case childHeader :: Nil if childHeader.number == blockHeaderNumberToSearch =>
             log.debug(ReceivedBlockHeaderLog, blockHeaderNumberToSearch, peer.id, durationMs)
             handleBinarySearchBlockHeaderResponse(searchState, childHeader)
