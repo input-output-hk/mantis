@@ -66,24 +66,14 @@ class BlockImporter(
       importBlocks(blocks, DefaultBlockImport)(state)
 
     case MinedBlock(block) if !state.importing =>
-        importBlock(
-          block,
-          new MinedBlockImportMessages(block),
-          MinedBlockImport,
-          false,
-          true)(state)
+      importBlock(block, new MinedBlockImportMessages(block), MinedBlockImport, false, true)(state)
 
     //We don't want to lose a checkpoint
     case nc @ NewCheckpoint(_) if state.importing =>
-        context.system.scheduler.scheduleOnce(1.second, self, nc)
+      context.system.scheduler.scheduleOnce(1.second, self, nc)
 
     case NewCheckpoint(block) if !state.importing =>
-      importBlock(
-        block,
-        new CheckpointBlockImportMessages(block),
-        CheckpointBlockImport,
-        false,
-        true)(state)
+      importBlock(block, new CheckpointBlockImportMessages(block), CheckpointBlockImport, false, true)(state)
 
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing =>
       importBlock(

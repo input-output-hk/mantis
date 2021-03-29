@@ -50,7 +50,8 @@ class QAService(
     hash match {
       case Some(hashValue) =>
         Task {
-          val parent = blockchain.getBlockByHash(hashValue).orElse(blockchain.getBestBlock()).getOrElse(blockchain.genesisBlock)
+          val parent =
+            blockchain.getBlockByHash(hashValue).orElse(blockchain.getBestBlock()).getOrElse(blockchain.genesisBlock)
           val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
           val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, checkpoint)
           syncController ! NewCheckpoint(checkpointBlock)
