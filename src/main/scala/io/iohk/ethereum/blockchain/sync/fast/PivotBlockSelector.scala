@@ -35,13 +35,19 @@ class PivotBlockSelector(
   import PivotBlockSelector._
   import syncConfig._
 
+  private var pivotBlockRetryCount = 0
+
   override def receive: Receive = idle
 
   private def idle: Receive = handlePeerListMessages orElse { case SelectPivotBlock =>
-    val election @ ElectionDetails(correctPeers, expectedPivotBlock) = collectVoters
+    val electionDetails = collectVoters()
+    startPivotBlockSelection(electionDetails)
+  }
 
-    if (election.isEnoughVoters(minPeersToChoosePivotBlock)) {
+  private def startPivotBlockSelection(election: ElectionDetails): Unit = {
+    val ElectionDetails(correctPeers, currentBestBlockNumber, expectedPivotBlock) = election
 
+    if (election.hasEnoughVoters(minPeersToChoosePivotBlock)) {
       val (peersToAsk, waitingPeers) = correctPeers.splitAt(minPeersToChoosePivotBlock + peersToChoosePivotBlockMargin)
 
       log.info(
@@ -64,17 +70,35 @@ class PivotBlockSelector(
       )
     } else {
       log.info(
-        "Cannot pick pivot block. Need at least {} peers, but there are only {} which meet the criteria ({} all available at the moment). Retrying in {}",
+        "Cannot pick pivot block. Need at least {} peers, but there are only {} which meet the criteria " +
+          "({} all available at the moment).",
         minPeersToChoosePivotBlock,
         correctPeers.size,
         peersToDownloadFrom.size,
+        currentBestBlockNumber
+      )
+      retryPivotBlockSelection(currentBestBlockNumber)
+    }
+  }
+
+  // Voters are collected until minimum peers to choose pivot block is obtained.
+  private def retryPivotBlockSelection(pivotBlockNumber: BigInt): Unit = {
+    pivotBlockRetryCount += 1
+    if (pivotBlockRetryCount <= maxPivotBlockFailuresCount && pivotBlockNumber > 0) {
+      val electionDetails = collectVoters(Some(pivotBlockNumber))
+      startPivotBlockSelection(electionDetails)
+    } else {
+      log.debug(
+        "Cannot pick pivot block. Current best block number [{}]. Retrying in [{}]",
+        pivotBlockNumber,
         startRetryInterval
       )
+      // Restart the whole process.
       scheduleRetry(startRetryInterval)
     }
   }
 
-  def runningPivotBlockElection(
+  private def runningPivotBlockElection(
       peersToAsk: Set[PeerId],
       waitingPeers: List[PeerId],
       pivotBlockNumber: BigInt,
@@ -85,10 +109,7 @@ class PivotBlockSelector(
       case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
         peerEventBus ! Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peerId)))
         val updatedPeersToAsk = peersToAsk - peerId
-        val targetBlockHeaderOpt =
-          if (blockHeaders.headers.size != 1) None
-          else
-            blockHeaders.headers.find(header => header.number == pivotBlockNumber)
+        val targetBlockHeaderOpt = blockHeaders.headers.find(header => header.number == pivotBlockNumber)
         targetBlockHeaderOpt match {
           case Some(targetBlockHeader) =>
             val newValue =
@@ -159,6 +180,7 @@ class PivotBlockSelector(
     peersLeft + bestHeaderVotes >= minPeersToChoosePivotBlock
 
   private def scheduleRetry(interval: FiniteDuration): Unit = {
+    pivotBlockRetryCount = 0
     scheduler.scheduleOnce(interval, self, SelectPivotBlock)
     context become idle
   }
@@ -178,7 +200,7 @@ class PivotBlockSelector(
     )
   }
 
-  private def collectVoters: ElectionDetails = {
+  private def collectVoters(previousBestBlockNumber: Option[BigInt] = None): ElectionDetails = {
     val peersUsedToChooseTarget = peersToDownloadFrom.collect {
       case (_, PeerWithInfo(peer, PeerInfo(_, _, true, maxBlockNumber, _))) =>
         (peer, maxBlockNumber)
@@ -188,12 +210,20 @@ class PivotBlockSelector(
     val bestPeerBestBlockNumber = peersSortedByBestNumber.headOption
       .map { case (_, bestPeerBestBlockNumber) => bestPeerBestBlockNumber }
       .getOrElse(BigInt(0))
-    val expectedPivotBlock = (bestPeerBestBlockNumber - syncConfig.pivotBlockOffset).max(0)
+
+    // The current best block number is pushed back by `pivotBlockNumberResetDelta`
+    // if this request is issued by the retry logic.
+    val currentBestBlockNumber: BigInt =
+      previousBestBlockNumber
+        .map(_ - pivotBlockNumberResetDelta.max(0))
+        .getOrElse(bestPeerBestBlockNumber)
+
+    val expectedPivotBlock = (currentBestBlockNumber - syncConfig.pivotBlockOffset).max(0)
     val correctPeers = peersSortedByBestNumber
       .takeWhile { case (_, number) => number >= expectedPivotBlock }
       .map { case (peer, _) => peer }
 
-    ElectionDetails(correctPeers, expectedPivotBlock)
+    ElectionDetails(correctPeers, currentBestBlockNumber, expectedPivotBlock)
   }
 }
 
@@ -209,7 +239,7 @@ object PivotBlockSelector {
     Props(new PivotBlockSelector(etcPeerManager: ActorRef, peerEventBus, syncConfig, scheduler, fastSync, blacklist))
 
   case object SelectPivotBlock
-  case class Result(targetBlockHeader: BlockHeader)
+  final case class Result(targetBlockHeader: BlockHeader)
 
   case object ElectionPivotBlockTimeout
 
@@ -223,7 +253,11 @@ object PivotBlockSelector {
     }
   }
 
-  case class ElectionDetails(participants: List[Peer], expectedPivotBlock: BigInt) {
-    def isEnoughVoters(minNumberOfVoters: Int): Boolean = participants.size >= minNumberOfVoters
+  final case class ElectionDetails(
+      participants: List[Peer],
+      currentBestBlockNumber: BigInt,
+      expectedPivotBlock: BigInt
+  ) {
+    def hasEnoughVoters(minNumberOfVoters: Int): Boolean = participants.size >= minNumberOfVoters
   }
 }
