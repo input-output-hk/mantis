@@ -49,7 +49,7 @@ trait JsonRpcBaseController {
   def handleRequest(request: JsonRpcRequest): Task[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
 
-    log.debug("received request {}", request)
+    log.debug(s"received request ${request.inspect}")
 
     val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
       JsonRpcControllerMetrics.NotFoundMethodsCounter.increment()
@@ -76,6 +76,7 @@ trait JsonRpcBaseController {
             JsonRpcControllerMetrics.recordMethodTime(request.method, time)
           }
       }
+      .flatTap { response => Task { log.debug(s"sending response ${response.inspect}") } }
       .onErrorRecoverWith { case t: Throwable =>
         JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
         log.error(s"Error serving request: ${request.toStringWithSensitiveInformation}", t)

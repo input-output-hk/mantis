@@ -30,6 +30,7 @@ trait BaseBlockResponse {
   def timestamp: BigInt
   def transactions: Either[Seq[ByteString], Seq[TransactionResponse]]
   def uncles: Seq[ByteString]
+  def coinbase: Option[ByteString]
 }
 
 case class EthBlockResponse(
@@ -52,7 +53,8 @@ case class EthBlockResponse(
     gasUsed: BigInt,
     timestamp: BigInt,
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
-    uncles: Seq[ByteString]
+    uncles: Seq[ByteString],
+    coinbase: Option[ByteString]
 ) extends BaseBlockResponse
 
 //scalastyle:off method.length
@@ -81,7 +83,8 @@ case class BlockResponse(
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
     uncles: Seq[ByteString],
     signature: String,
-    signer: String
+    signer: String,
+    coinbase: Option[ByteString]
 ) extends BaseBlockResponse {
   val chainWeight: Option[ChainWeight] = for {
     lcn <- lastCheckpointNumber
@@ -97,7 +100,8 @@ object BlockResponse {
       block: Block,
       weight: Option[ChainWeight] = None,
       fullTxs: Boolean = false,
-      pendingBlock: Boolean = false
+      pendingBlock: Boolean = false,
+      coinbase: Option[ByteString] = None
   ): BlockResponse = {
     val transactions =
       if (fullTxs)
@@ -129,9 +133,9 @@ object BlockResponse {
     BlockResponse(
       number = block.header.number,
       hash = if (pendingBlock) None else Some(block.header.hash),
-      mixHash = if (pendingBlock) None else Some(block.header.mixHash),
+      mixHash = if (block.header.mixHash.isEmpty) None else Some(block.header.mixHash),
       parentHash = block.header.parentHash,
-      nonce = if (pendingBlock) None else Some(block.header.nonce),
+      nonce = if (block.header.nonce.isEmpty) None else Some(block.header.nonce),
       sha3Uncles = block.header.ommersHash,
       logsBloom = block.header.logsBloom,
       transactionsRoot = block.header.transactionsRoot,
@@ -151,7 +155,8 @@ object BlockResponse {
       transactions = transactions,
       uncles = block.body.uncleNodesList.map(_.hash),
       signature = signatureStr,
-      signer = signerStr
+      signer = signerStr,
+      coinbase = None
     )
   }
 

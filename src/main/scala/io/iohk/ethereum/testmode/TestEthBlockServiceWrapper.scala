@@ -5,8 +5,10 @@ import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, Bloc
 import io.iohk.ethereum.jsonrpc.{BaseBlockResponse, EthBlockResponse, EthBlocksService, ServiceResponse}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.consensus.Consensus
+import akka.util.ByteString
 
-class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger)
+class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consensus: Consensus)
     extends EthBlocksService(blockchain, ledger)
     with Logger {
 
@@ -41,7 +43,10 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger)
     .map(
       _.map(blockByBlockResponse =>
         BlockByNumberResponse(
-          blockByBlockResponse.blockResponse.map(response => toEthResponse(response))
+          blockByBlockResponse.blockResponse
+            .map(response =>
+              toEthResponse(response).copy(coinbase = Some(ByteString(consensus.config.generic.coinbase.toArray)))
+            )
         )
       )
     )
@@ -66,6 +71,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger)
     response.gasUsed,
     response.timestamp,
     response.transactions,
-    response.uncles
+    response.uncles,
+    response.coinbase
   )
 }

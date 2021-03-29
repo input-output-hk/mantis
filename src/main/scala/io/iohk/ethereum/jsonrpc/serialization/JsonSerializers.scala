@@ -8,7 +8,7 @@ import org.json4s.{CustomSerializer, DefaultFormats, Formats, JNull, JString}
 
 object JsonSerializers {
   implicit val formats: Formats =
-    DefaultFormats + UnformattedDataJsonSerializer + QuantitiesSerializer + OptionNoneToJNullSerializer + AddressJsonSerializer
+    DefaultFormats.preservingEmptyValues + UnformattedDataJsonSerializer + QuantitiesSerializer + OptionNoneToJNullSerializer + AddressJsonSerializer
 
   object UnformattedDataJsonSerializer
       extends CustomSerializer[ByteString](_ =>
