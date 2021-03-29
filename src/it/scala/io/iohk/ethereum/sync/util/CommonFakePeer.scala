@@ -308,6 +308,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
       val newBlockNumber = currentBestBlock.header.number + 1
       val newWorld = updateWorldForBlock(newBlockNumber, currentWorld)
+
+      // The child block is made invalid by not properly updating its parent hash.
       val childBlock =
         currentBestBlock.copy(header =
           currentBestBlock.header.copy(
@@ -347,7 +349,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     }
   }
 
-  def importMaliciousBlocks(
+  def importInvalidBlocks(
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
@@ -356,18 +358,18 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
         Task(())
       } else if (block.get.number >= from) {
         generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
-          importMaliciousBlocks(from, to)(updateWorldForBlock)
+          importInvalidBlocks(from, to)(updateWorldForBlock)
         )
       } else {
         generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
-          importMaliciousBlocks(from, to)(updateWorldForBlock)
+          importInvalidBlocks(from, to)(updateWorldForBlock)
         )
       }
 
     }
   }
 
-  def importMaliciousBlockNumbers(
+  def importInvalidBlockNumbers(
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
@@ -376,7 +378,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
         Task(())
       } else if (block.get.number >= from) {
         generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
-          importMaliciousBlockNumbers(from, to)(updateWorldForBlock)
+          importInvalidBlockNumbers(from, to)(updateWorldForBlock)
         )
       } else {
         importBlocksUntil(from)(updateWorldForBlock)
