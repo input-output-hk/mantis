@@ -73,18 +73,17 @@ class BlockImporter(
           false,
           true)(state)
 
-    case nc @ NewCheckpoint(block) =>
-      if (state.importing) {
-        //We don't want to lose a checkpoint
+    //We don't want to lose a checkpoint
+    case nc @ NewCheckpoint(_) if state.importing =>
         context.system.scheduler.scheduleOnce(1.second, self, nc)
-      } else {
-        importBlock(
-          block,
-          new CheckpointBlockImportMessages(block),
-          CheckpointBlockImport,
-          false,
-          true)(state)
-      }
+
+    case NewCheckpoint(block) if !state.importing =>
+      importBlock(
+        block,
+        new CheckpointBlockImportMessages(block),
+        CheckpointBlockImport,
+        false,
+        true)(state)
 
     case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing =>
       importBlock(
