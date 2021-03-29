@@ -135,16 +135,17 @@ class TestService(
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
-      getBlockForMining(blockchain.getBestBlock().get).map { blockForMining =>
-        val res = testLedgerWrapper.ledger.importBlock(blockForMining.block)
-        log.info("Block mining result: " + res)
-        pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-        consensus.blockTimestamp += 1
-      }
+      getBlockForMining(blockchain.getBestBlock().get)
+        .flatMap(blockForMining => testLedgerWrapper.ledger.importBlock(blockForMining.block))
+        .map { res =>
+          log.info("Block mining result: " + res)
+          pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
+          consensus.blockTimestamp += 1
+        }
     }
 
-    def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { res =>
-      if (n <= 1) Task.now(res)
+    def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { _ =>
+      if (n <= 1) Task.unit
       else doNTimesF(n - 1)(fn)
     }
 
@@ -194,7 +195,7 @@ class TestService(
     implicit val timeout = Timeout(5.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
-      // .timeout(timeout.duration)
+      .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         consensus.blockGenerator
@@ -207,7 +208,7 @@ class TestService(
           )
           .pendingBlock
       }
-    // .timeout(timeout.duration)
+      .timeout(timeout.duration)
   }
 
   def getAccountsInRange(request: AccountsInRangeRequest): ServiceResponse[AccountsInRangeResponse] = ???

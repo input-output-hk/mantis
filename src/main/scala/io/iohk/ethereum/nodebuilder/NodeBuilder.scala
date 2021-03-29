@@ -368,8 +368,8 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: BlockchainBuilder with TestLedgerBuilder =>
-  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger)
+  self: BlockchainBuilder with TestLedgerBuilder with ConsensusBuilder =>
+  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger, consensus)
 }
 
 trait EthProofServiceBuilder {

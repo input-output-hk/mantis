@@ -18,7 +18,8 @@ trait SensitiveInformationToString {
 
 case class JsonRpcRequest(jsonrpc: String, method: String, params: Option[JArray], id: Option[JValue])
     extends SensitiveInformationToString {
-  override def toString(): String = {
+
+  def inspect: String = {
     implicit val formats: Formats = DefaultFormats
     "JsonRpcRequest" + (jsonrpc, method, params.map(write(_)), id.map(write(_))).toString
   }
