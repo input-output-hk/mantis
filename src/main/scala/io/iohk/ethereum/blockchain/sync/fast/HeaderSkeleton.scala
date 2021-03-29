@@ -62,14 +62,15 @@ final case class HeaderSkeleton(
   val firstSkeletonHeaderNumber: BigInt = from + gapSize
 
   /**
-    * Maximum number of blocks to be downloaded at once. This is the total number of blocks that the skeleton contains.
+    * Maximum number of blocks to be downloaded at once. This is the total number of skeleton headers that the skeleton contains.
     */
   val limit: BigInt = {
-    val remainingSkeletonHeaders = remainingBlocks / batchSize + (remainingBlocks % batchSize).min(1)
+    val remainingSkeletonHeaders = remainingBlocks / batchSize
     remainingSkeletonHeaders.min(maxSkeletonHeaders)
   }
 
   val lastSkeletonHeaderNumber: BigInt = from + (batchSize * limit) - 1
+
   private val skeletonHeaderNumbers: Seq[BigInt] =
     firstSkeletonHeaderNumber to lastSkeletonHeaderNumber by batchSize
 
