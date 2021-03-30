@@ -1,13 +1,8 @@
-rev: final: prev: {
+final: prev: {
   jre = prev.jdk8.jre;
 
   mantis = final.callPackage ./mantis.nix {
-    src = builtins.fetchGit {
-      url = "https://github.com/input-output-hk/mantis";
-      ref = "develop";
-      rev = rev;
-      submodules = true;
-    };
+    src = ../.;
   };
 
   writeBashChecked = final.writers.makeScriptWriter {
