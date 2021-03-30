@@ -102,7 +102,8 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
             Account(
               nonce = genesisAccount.nonce
                 .getOrElse(blockchainConfig.accountStartNonce),
-              balance = genesisAccount.balance
+              balance = genesisAccount.balance,
+              codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash)
             )
           )
           .getRootHash
