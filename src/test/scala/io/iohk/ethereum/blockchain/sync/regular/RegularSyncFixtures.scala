@@ -72,7 +72,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
-          checkpointBlockGenerator,
           system.scheduler
         )
         .withDispatcher("akka.actor.default-dispatcher")

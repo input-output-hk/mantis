@@ -98,7 +98,6 @@ class BlockImporterItSpec
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
       pendingTransactionsManagerProbe.ref,
-      checkpointBlockGenerator,
       supervisor.ref
     )
   )
@@ -143,7 +142,6 @@ class BlockImporterItSpec
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
         pendingTransactionsManagerProbe.ref,
-        checkpointBlockGenerator,
         supervisor.ref
       )
     )
@@ -234,9 +232,8 @@ class BlockImporterItSpec
       Seq(crypto.generateKeyPair(secureRandom)),
       newBlock5.hash
     )
-    blockImporter ! NewCheckpoint(newBlock5.hash, signatures)
-
     val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
+    blockImporter ! NewCheckpoint(checkpointBlock)
 
     eventually { Thread.sleep(1000); blockchain.getBestBlock().get shouldEqual checkpointBlock }
     eventually {

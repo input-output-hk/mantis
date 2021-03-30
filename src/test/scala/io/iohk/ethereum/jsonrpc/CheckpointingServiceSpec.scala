@@ -3,8 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, Checkpoint}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
@@ -105,14 +107,17 @@ class CheckpointingServiceSpec
   }
 
   it should "send new checkpoint to Sync" in new TestSetup {
-    val hash = Fixtures.Blocks.ValidBlock.block.hash
+    val parentBlock = Fixtures.Blocks.ValidBlock.block
+    val hash = parentBlock.hash
     val signatures = Nil
     val request = PushCheckpointRequest(hash, signatures)
     val expectedResponse = PushCheckpointResponse()
 
-    val result = service.pushCheckpoint(request).runSyncUnsafe()
+    (ledger.getBlockByHash _).expects(hash).returning(Some(parentBlock)).once()
 
-    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    val result = service.pushCheckpoint(request).runSyncUnsafe()
+    val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, Checkpoint(signatures))
+    syncController.expectMsg(NewCheckpoint(checkpointBlock))
     result shouldEqual Right(expectedResponse)
   }
 
@@ -139,7 +144,9 @@ class CheckpointingServiceSpec
 
   trait TestSetup {
     val blockchain = mock[BlockchainImpl]
+    val ledger = mock[Ledger]
     val syncController = TestProbe()
-    val service = new CheckpointingService(blockchain, syncController.ref)
+    val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
+    val service = new CheckpointingService(blockchain, ledger, checkpointBlockGenerator, syncController.ref)
   }
 }

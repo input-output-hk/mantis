@@ -2,9 +2,11 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
+import akka.util.ByteString
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.EthashConfig
 import io.iohk.ethereum.consensus.ethash.MinerResponses.MiningOrdered
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
@@ -48,10 +50,16 @@ class QAServiceSpec
   ) { fixture =>
     import fixture._
 
+    (blockchain.getBlockByHash _)
+      .expects(req.blockHash.get)
+      .returning(Some(block))
+      .noMoreThanOnce()
+
     val result = qaService.generateCheckpoint(req)
+    val checkpointBlock = checkpointBlockGenerator.generate(block, Checkpoint(signatures))
 
     result.map { r =>
-      syncController.expectMsg(NewCheckpoint(block.hash, signatures))
+      syncController.expectMsg(NewCheckpoint(checkpointBlock))
       r shouldBe Right(GenerateCheckpointResponse(checkpoint))
     }
   }
@@ -61,6 +69,12 @@ class QAServiceSpec
   ) { fixture =>
     import fixture._
     val reqWithoutBlockHash = req.copy(blockHash = None)
+
+    (blockchain.getBlockByHash _)
+      .expects(req.blockHash.get)
+      .returning(Some(block))
+      .noMoreThanOnce()
+
     (blockchain.getBestBlock _)
       .expects()
       .returning(Some(block))
@@ -68,9 +82,10 @@ class QAServiceSpec
 
     val result: ServiceResponse[GenerateCheckpointResponse] =
       qaService.generateCheckpoint(reqWithoutBlockHash)
+    val checkpointBlock = checkpointBlockGenerator.generate(block, Checkpoint(signatures))
 
     result.map { r =>
-      syncController.expectMsg(NewCheckpoint(block.hash, signatures))
+      syncController.expectMsg(NewCheckpoint(checkpointBlock))
       r shouldBe Right(GenerateCheckpointResponse(checkpoint))
     }
   }
@@ -91,10 +106,12 @@ class QAServiceSpec
     lazy val testConsensus: TestConsensus = mock[TestConsensus]
     lazy val blockchain = mock[BlockchainImpl]
     lazy val syncController = TestProbe()
+    lazy val checkpointBlockGenerator = new CheckpointBlockGenerator()
 
     lazy val qaService = new QAService(
       testConsensus,
       blockchain,
+      checkpointBlockGenerator,
       blockchainConfig,
       syncController.ref
     )

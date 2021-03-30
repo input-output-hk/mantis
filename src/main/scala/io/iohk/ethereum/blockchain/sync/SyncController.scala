@@ -3,7 +3,6 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
@@ -18,7 +17,6 @@ class SyncController(
     validators: Validators,
     peerEventBus: ActorRef,
     pendingTransactionsManager: ActorRef,
-    checkpointBlockGenerator: CheckpointBlockGenerator,
     ommersPool: ActorRef,
     etcPeerManager: ActorRef,
     blacklist: Blacklist,
@@ -106,7 +104,6 @@ class SyncController(
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
-        checkpointBlockGenerator,
         scheduler
       ),
       "regular-sync"
@@ -127,7 +124,6 @@ object SyncController {
       validators: Validators,
       peerEventBus: ActorRef,
       pendingTransactionsManager: ActorRef,
-      checkpointBlockGenerator: CheckpointBlockGenerator,
       ommersPool: ActorRef,
       etcPeerManager: ActorRef,
       blacklist: Blacklist,
@@ -142,7 +138,6 @@ object SyncController {
         validators,
         peerEventBus,
         pendingTransactionsManager,
-        checkpointBlockGenerator,
         ommersPool,
         etcPeerManager,
         blacklist,
