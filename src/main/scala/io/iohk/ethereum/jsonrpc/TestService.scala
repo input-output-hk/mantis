@@ -41,11 +41,24 @@ object TestService {
       homesteadForkBlock: BigInt,
       maximumExtraDataSize: BigInt
   )
+
   case class ChainParams(
       genesis: GenesisParams,
       blockchainParams: BlockchainParams,
       sealEngine: String,
       accounts: Map[ByteString, GenesisAccount]
+  )
+
+  case class AccountsInRangeRequestParams(
+      blockHashOrNumber: Either[BigInt, ByteString],
+      txIndex: BigInt,
+      addressHash: ByteString,
+      maxResults: BigInt
+  )
+
+  case class AccountsInRange(
+      addressMap: Map[ByteString, ByteString],
+      nextKey: ByteString
   )
 
   case class SetChainParamsRequest(chainParams: ChainParams)
@@ -65,6 +78,9 @@ object TestService {
 
   case class ImportRawBlockRequest(blockRlp: String)
   case class ImportRawBlockResponse(blockHash: String)
+
+  case class AccountsInRangeRequest(parameters: AccountsInRangeRequestParams)
+  case class AccountsInRangeResponse(addressMap: Map[String, String], nextKey: String)
 }
 
 class TestService(
@@ -193,4 +209,6 @@ class TestService(
       }
     // .timeout(timeout.duration)
   }
+
+  def getAccountsInRange(request: AccountsInRangeRequest): ServiceResponse[AccountsInRangeResponse] = ???
 }

@@ -249,6 +249,8 @@ case class JsonRpcController(
       handle[ImportRawBlockRequest, ImportRawBlockResponse](testService.importRawBlock, req)
     case req @ JsonRpcRequest(_, "miner_setEtherbase", _, _) =>
       handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
+    case req @ JsonRpcRequest(_, "debug_accountRange", _, _) =>
+      handle[AccountsInRangeRequest, AccountsInRangeResponse](testService.getAccountsInRange, req)
   }
 
   private def handleIeleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {

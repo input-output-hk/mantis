@@ -12,6 +12,8 @@ import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
 import io.iohk.ethereum.domain.UInt256
+import org.json4s
+import org.json4s.Extraction
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
@@ -29,13 +31,15 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ => Left(InvalidParams())
         }
         balance = UInt256(decode((accountJson \ "balance").extract[String]))
-        code = Some(ByteString(decode((accountJson \ "code").extract[String])))
-        nonce = Some(UInt256(decode((accountJson \ "nonce").extract[String])))
+        code = decode((accountJson \ "code").extract[String])
+        codeOpt = if (code.isEmpty) None else Some(ByteString(code))
+        nonce = decode((accountJson \ "nonce").extract[String])
+        nonceOpt = if (nonce.isEmpty || UInt256(nonce) == UInt256.Zero) None else Some(UInt256(nonce))
       } yield GenesisAccount(
         None,
         balance,
-        code,
-        nonce,
+        codeOpt,
+        nonceOpt,
         Some(storage.toMap)
       )
 
@@ -157,5 +161,28 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     def encodeJson(t: SetEtherbaseResponse): JValue = true
+  }
+
+  implicit val debug_accountRange = new JsonMethodDecoder[AccountsInRangeRequest]
+    with JsonEncoder[AccountsInRangeResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, AccountsInRangeRequest] =
+      params match {
+        case Some(JArray(blockHashOrNumber :: txIndex :: addressHash :: maxResults :: Nil)) =>
+          for {
+            txIndex <- extractQuantity(txIndex)
+            maxResults <- extractQuantity(maxResults)
+            addressHash <- extractBytes(addressHash.extract[String])
+            blockHashOrNumberEither = extractBlockHashOrNumber(blockHashOrNumber.extract[String])
+          } yield AccountsInRangeRequest(
+            AccountsInRangeRequestParams(blockHashOrNumberEither, txIndex, addressHash, maxResults)
+          )
+        case _ => Left(InvalidParams())
+      }
+
+    private def extractBlockHashOrNumber(blockHash: String): Either[BigInt, ByteString] =
+      extractHash(blockHash)
+        .fold(_ => Left(BigInt(blockHash)), Right(_))
+
+    override def encodeJson(t: AccountsInRangeResponse): JValue = Extraction.decompose(t)
   }
 }
