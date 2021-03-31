@@ -1,20 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
-import com.github.benmanes.caffeine.cache.Caffeine
 import com.github.blemale.scaffeine.{Cache, Scaffeine}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
+import io.iohk.ethereum.blockchain.sync.Blacklist._
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
 import io.iohk.ethereum.utils.Logger
 
-import scala.concurrent.duration.FiniteDuration
-import scala.concurrent.duration._
+import scala.concurrent.duration.{FiniteDuration, _}
 import scala.jdk.CollectionConverters._
-import scala.jdk.OptionConverters._
 import scala.jdk.DurationConverters._
-
-import Blacklist._
-import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType.WrongBlockHeadersType
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
+import scala.jdk.OptionConverters._
 
 trait Blacklist {
   def isBlacklisted(id: BlacklistId): Boolean

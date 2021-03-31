@@ -180,7 +180,7 @@ class FastSyncBranchResolverActor(
     context.unwatch(peerRef)
     blacklistIfHandshaked(
       peer.id,
-      syncConfig.blacklistDuration,
+      syncConfig.criticalBlacklistDuration,
       BlacklistReason.WrongBlockHeaders
     )
     restart()

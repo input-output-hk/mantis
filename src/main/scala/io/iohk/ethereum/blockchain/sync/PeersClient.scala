@@ -38,7 +38,7 @@ class PeersClient(
   def running(requesters: Requesters): Receive =
     handleBlacklistMessages orElse handlePeerListMessages orElse {
       case PrintStatus => printStatus(requesters: Requesters)
-      case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
+      case BlacklistPeer(peerId, reason) => getHandshakedPeerById(peerId).foreach(blacklistPeer(_, reason))
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
         selectPeer(peerSelector) match {

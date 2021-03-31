@@ -152,7 +152,12 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.waitForRegularSyncLoadLastBlock(length)
     } yield {
       assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-      assert(peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl.getBestBlock().get.number == length)
+      assert(
+        peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl
+          .getBestBlock()
+          .get
+          .number == length
+      )
       assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }

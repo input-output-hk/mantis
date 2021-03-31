@@ -61,9 +61,9 @@ object WireProtocol {
 
   object Disconnect {
     object Reasons {
-      val DisconnectRequested = 0x00
+      val DisconnectRequested = 0x00 // Peer with invalid network settings or invalid network id
       val TcpSubsystemError = 0x01
-      val UselessPeer = 0x03
+      val UselessPeer = 0x03 // Peer on invalid fork
       val TooManyPeers = 0x04
       val AlreadyConnected = 0x05
       val IncompatibleP2pProtocolVersion = 0x06

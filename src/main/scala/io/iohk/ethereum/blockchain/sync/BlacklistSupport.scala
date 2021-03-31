@@ -34,9 +34,11 @@ trait BlacklistSupport {
   }
 
   def undoBlacklist(blacklistId: BlacklistId): Unit = {
-    val peer = blacklistedPeers.get(blacklistId)
-    peer.foreach(_.cancel())
-    blacklistedPeers.remove(blacklistId)
+    if (blacklistedPeers.contains(blacklistId)) {
+      val peer = blacklistedPeers.get(blacklistId)
+      peer.foreach(_.cancel())
+      blacklistedPeers.remove(blacklistId)
+    }
   }
 
   def isBlacklisted(blacklistId: BlacklistId): Boolean =

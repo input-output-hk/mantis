@@ -50,12 +50,11 @@ trait PeerListSupport {
       removePeer(peerId)
   }
 
-  def peerById(peerId: PeerId): Option[Peer] = handshakedPeers collectFirst {
+  def getHandshakedPeerById(peerId: PeerId): Option[Peer] = handshakedPeers collectFirst {
     case (peer, _) if peer.id == peerId => peer
   }
 
-  def blacklistIfHandshaked(peer: Peer, reason: String): Unit =
-    handshakedPeers.get(peer).foreach(_ => blacklist(peer.id, syncConfig.blacklistDuration, reason))
+  def blacklistPeer(peer: Peer, reason: String): Unit = blacklist(peer.id, syncConfig.blacklistDuration, reason)
 }
 object PeerListSupport {
   type PeersMap = Map[Peer, PeerInfo]

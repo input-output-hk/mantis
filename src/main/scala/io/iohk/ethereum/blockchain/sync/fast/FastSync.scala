@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor._
 import akka.util.ByteString
-import cats.NonEmptyTraverse.ops.toAllNonEmptyTraverseOps
 import cats.data.NonEmptyList
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
@@ -20,7 +19,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -36,13 +35,10 @@ import org.bouncycastle.util.encoders.Hex
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 import scala.annotation.tailrec
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.util.Random
-import scala.collection.mutable
-import scala.util.Try
-import scala.util.Success
-import scala.util.Failure
+import scala.util.{Random, Success, Try}
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -342,7 +338,7 @@ class FastSync(
         batchFailuresCount += 1
         if (batchFailuresCount > fastSyncMaxBatchRetries) {
           log.info("Max number of allowed failures reached. Switching branch and master peer.")
-          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
+          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, criticalBlacklistDuration)
 
           // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
           context become waitingForBranchResolution
@@ -564,6 +560,7 @@ class FastSync(
 
     private def handleRewind(header: BlockHeader, peer: Peer, N: Int, duration: FiniteDuration): Unit = {
       blacklist.add(peer.id, duration, BlockHeaderValidationFailed)
+
       if (header.number <= syncState.safeDownloadTarget) {
         discardLastBlocks(header.number, N)
         syncState = syncState.updateDiscardedBlocks(header, N)
