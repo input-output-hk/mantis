@@ -12,7 +12,8 @@
 , gnused
 , protobuf
 , substituteAll
-, writeShellScriptBin
+, writeBashBinChecked
+, mantis-extvm-pb
 }:
 
 let
@@ -25,16 +26,15 @@ let
   LD_LIBRARY_PATH = ''''; #lib.makeLibraryPath [ libsonic ];
 
   # filter out mentions of protobridge, which is unable to execute
-  protoc-wrapper = writeShellScriptBin "protoc" ''
+  protoc-wrapper = writeBashBinChecked "protoc" ''
     set -e
 
     for f in "$@"; do
-      echo ''${f##*=}
+      echo "''${f##*=}"
     done | grep protocbridge | xargs sed -i "1s|.*|#!${runtimeShell}|"
 
     exec ${protobuf}/bin/protoc "$@"
   '';
-
 
 in sbt.mkDerivation rec {
   pname = "mantis";
@@ -45,6 +45,9 @@ in sbt.mkDerivation rec {
   preConfigure = ''
     HOME=$TMPDIR
     PROTOC_CACHE=.nix/protoc-cache
+
+    mkdir -p src/main/protobuf/extvm
+    cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
   '';
 
   # used by sbt-derivation to modify vendor derivation

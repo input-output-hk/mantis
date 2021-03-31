@@ -2,12 +2,7 @@ rev: final: prev: {
   jre = prev.jdk8.jre;
 
   mantis = final.callPackage ./mantis.nix {
-    src = builtins.fetchGit {
-      url = "https://github.com/input-output-hk/mantis";
-      ref = "develop";
-      rev = rev;
-      submodules = true;
-    };
+    src = ../.;
   };
 
   mantis-hash = { ref, rev }:
@@ -15,12 +10,18 @@ rev: final: prev: {
       src = builtins.fetchGit {
         url = "https://github.com/input-output-hk/mantis";
         inherit rev ref;
-        submodules = true;
       };
     }).overrideAttrs (_: {
       outputHash = "sha256-0000000000000000000000000000000000000000000=";
       outputHashMode = "recursive";
     });
+
+  # Last change to this was in 2018, so to avoid submodules we just clone
+  # ourselves instead.
+  mantis-extvm-pb = builtins.fetchGit {
+    url = "https://github.com/input-output-hk/mantis-extvm-pb";
+    rev =  "53eb31f3c59f7200994915b834e626bd292df7ed";
+  };
 
   writeBashChecked = final.writers.makeScriptWriter {
     interpreter = "${final.bashInteractive}/bin/bash";
