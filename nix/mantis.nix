@@ -14,6 +14,7 @@
 , substituteAll
 , writeBashBinChecked
 , mantis-extvm-pb
+, depsSha256
 }:
 
 let
@@ -66,10 +67,20 @@ in sbt.mkDerivation rec {
   # This sha represents the change dependencies of mantis.
   # Update this sha whenever you change the dependencies using the
   # update-nix.sh script
-  depsSha256 = "sha256-csNBHVOC2bNSOjLjWleiVeS5ts3qFS7V8DxBv2nVDqE=";
+  inherit depsSha256;
 
   # this is the command used to to create the fixed-output-derivation
-  depsWarmupCommand = "PROTOC_CACHE=.nix/protoc-cache; HOME=$TMPDIR; PATH=${PATH}:$PATH; sbt clean; sbt compile --debug";
+  depsWarmupCommand = ''
+    export PROTOC_CACHE=.nix/protoc-cache
+    export HOME="$TMPDIR"
+    export PATH="${PATH}:$PATH"
+
+    mkdir -p src/main/protobuf/extvm
+    cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
+
+    sbt clean
+    sbt compile --debug
+  '';
 
   installPhase = ''
     sbt stage

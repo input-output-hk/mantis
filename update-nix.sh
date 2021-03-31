@@ -21,46 +21,39 @@ fi
 
 echo "Determining new sha for sbt build, this can take several minutes to do a 'sbt compile'"
 
-branch="$(git rev-parse --abbrev-ref HEAD)"
-revision="$(git rev-parse HEAD)"
+current_sha=$(nix eval --raw '.#mantis.deps.outputHash')
 
 output="$(
 nix build \
   --impure \
-  --expr "
-    (builtins.getFlake (toString ./.)).legacyPackages.x86_64-linux.mantis-hash {
-      ref = \"${branch}\";
-      rev = \"${revision}\";
-    }
-  " 2>&1 || true
+  --expr "(builtins.getFlake (toString ./.)).legacyPackages.x86_64-linux.mantis-hash" \
+  2>&1 || true
 )"
 
-NEW_SHA=$(
-echo "$output" \
-  | awk '/^\s+got: / { print $2 }'
-)
+new_sha="$(echo "$output" | awk '/^\s*got: / { print $2 }')"
+current_sha=$(nix eval --raw '.#mantis.deps.outputHash')
 
-if [ -z "$NEW_SHA" ]; then
+if [ -z "$new_sha" ]; then
   echo "$output"
   echo "calculating hash failed!"
   exit 1
 fi
 
-echo "Calculated sha: $NEW_SHA"
+echo "Calculated sha: $new_sha"
 
 update_sha() {
-  echo "Updating sha in ./nix/mantis.nix"
-  sed -r -i -e "s|depsSha256 = \"[^\"]+\";|depsSha256 = \"${NEW_SHA}\";|" ./nix/mantis.nix
-  echo "./nix/mantis.nix has been updated"
+  echo "Updating sha in ./nix/overlay.nix"
+  sed -i "s|depsSha256 = \"$current_sha\";|depsSha256 = \"$new_sha\";|" nix/overlay.nix
+  echo "./nix/overlay.nix has been updated"
 }
 
 if [ $# == 1 ] || [ "${1:-}" == "--check" ]; then
-  current_sha=$(grep depsSha256 ./nix/mantis.nix | sed 's/\s*depsSha256\s*=\s*//g' | sed -e 's/"//g' -e 's/;//g' | xargs nix-hash --to-base32 --type sha256 )
-  if [ "$current_sha" == "$NEW_SHA" ]; then
-    echo "./nix/mantis.nix is up-to-date"
+  current_sha=$(nix eval --raw '.#mantis.deps.outputHash')
+  if [ "$current_sha" == "$new_sha" ]; then
+    echo "./nix/overlay.nix is up-to-date"
     exit 0
   else
-    echo "wanted: $NEW_SHA"
+    echo "wanted: $new_sha"
     echo "   got: $current_sha"
     update_sha
     exit 1
