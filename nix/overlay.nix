@@ -70,4 +70,38 @@ inputs: final: prev: {
   mantis-faucet-web-evm = final.makeFaucet "EVM";
   mantis-faucet-web-iele = final.makeFaucet "IELE";
   mantis-faucet-web-kevm = final.makeFaucet "KEVM";
+
+  mantis-image =
+    inputs.nixpkgs-unstable.legacyPackages.${final.system}.dockerTools.buildLayeredImage {
+      name = "inputoutput/mantis";
+      tag = "2021";
+
+      contents = with final; [
+        iele
+        kevm
+        mantis
+
+        bashInteractive
+        coreutils
+        curl
+        diffutils
+        dnsutils
+        fd
+        gawk
+        gnugrep
+        gnused
+        iproute
+        jq
+        less
+        lsof
+        netcat
+        nettools
+        procps
+        ripgrep
+        tree
+        vim
+      ];
+
+      config.Entrypoint = [ "${final.bashInteractive}/bin/bash" ];
+    };
 }

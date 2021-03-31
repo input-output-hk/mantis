@@ -18,6 +18,7 @@
         "github:input-output-hk/Sbtix?rev=7b969a5641fce10500ca51cbe88af4ea160d7064";
       flake = false;
     };
+    nixpkgs-unstable.url = "github:nixos/nixpkgs/nixpkgs-unstable";
     mantis-faucet-web.url = "github:input-output-hk/mantis-faucet-web";
     mantis-explorer.url = "github:input-output-hk/mantis-explorer";
   };
