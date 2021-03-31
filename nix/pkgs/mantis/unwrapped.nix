@@ -1,6 +1,6 @@
 # this file originates from SBTix
 { src, stdenv, writeShellScriptBin, bash, protobuf, sbtix
-, jdk, impure ? false }:
+, jdk, mantis-extvm-pb, runCommand, impure ? false }:
 
 let
   inherit (stdenv.lib) optionalString makeLibraryPath;
@@ -19,14 +19,21 @@ let
     set -e
 
     for f in "$@"; do
-      echo ''${f##*=}
+      echo "''${f##*=}"
     done | grep protocbridge | xargs sed -i "1s|.*|#!${bash}/bin/bash|"
 
     exec ${protobuf}/bin/protoc "$@"
   '';
 
+  extSrc = runCommand "mantis-src-ext" {} ''
+    cp -r ${src} $out
+    chmod -R u+w $out
+    mkdir -p $out/src/main/protobuf/extvm
+    cp ${mantis-extvm-pb}/msg.proto $out/src/main/protobuf/extvm/msg.proto
+  '';
+
 in sbtix.buildSbtProject {
-  inherit src;
+  src = extSrc;
 
   name = "mantis";
   sbtOptions = "-Dnix=true";

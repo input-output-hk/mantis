@@ -16,22 +16,22 @@ inputs: final: prev: {
     submodules = true;
   };
 
-  mantisPkgs = final.callPackage ./pkgs/mantis {
-    src = builtins.fetchGit {
-      url = "https://github.com/input-output-hk/mantis";
-      rev = inputs.self.rev or "482340d5e6ab635e5a5047e9b670d59b4ad366c2";
-      ref = "3.1.0-flake";
-      submodules = true;
-    };
+  # Last change to this was in 2018, so to avoid submodules we just clone
+  # ourselves instead.
+  mantis-extvm-pb = builtins.fetchGit {
+    url = "https://github.com/input-output-hk/mantis-extvm-pb";
+    rev = "6b3039be92882df6ef6c15887c8d0b5f10c86d6f";
   };
+
+  mantisPkgs = final.callPackage ./pkgs/mantis { src = ../.; };
+
+  inherit (final.mantisPkgs) mantis;
 
   nixpkgs-kevm = import inputs.nixpkgs-kevm { inherit (final) system; };
 
   mantis-faucet = import final.mantis-faucet-source { inherit (final) system; };
   mantis-faucet-entrypoint =
     final.callPackage ./entrypoint.nix { mantis = final.mantis-faucet; };
-
-  inherit (final.mantisPkgs) mantis;
 
   inherit (import inputs.nixpkgs-sbt { inherit (final) system; }) sbt;
 

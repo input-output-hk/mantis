@@ -1,3 +1,2 @@
-{ system ? builtins.currentSystem, src ? ./.
-, pkgs ? (import ./nix { inherit system src; }).pkgs }:
-pkgs.mantis
+let flake = builtins.getFlake (toString ./.);
+in flake.pkgs.${builtins.currentSystem}.defaultPackage
