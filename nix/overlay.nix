@@ -2,12 +2,19 @@ rev: final: prev: {
   jre = prev.jdk8.jre;
 
   mantis = final.callPackage ./mantis.nix {
-    src = builtins.fetchGit {
-      url = "https://github.com/input-output-hk/mantis";
-      ref = "develop";
-      rev = rev;
-      submodules = true;
-    };
+    src = ../.;
+    depsSha256 = "sha256-csNBHVOC2bNSOjLjWleiVeS5ts3qFS7V8DxBv2nVDqE=";
+  };
+
+  mantis-hash = final.mantis.override {
+    depsSha256 = "sha256-0000000000000000000000000000000000000000000=";
+  };
+
+  # Last change to this was in 2018, so to avoid submodules we just clone
+  # ourselves instead.
+  mantis-extvm-pb = builtins.fetchGit {
+    url = "https://github.com/input-output-hk/mantis-extvm-pb";
+    rev = "53eb31f3c59f7200994915b834e626bd292df7ed";
   };
 
   writeBashChecked = final.writers.makeScriptWriter {

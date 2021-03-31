@@ -41,7 +41,7 @@
       apps.mantis = flake-utils.lib.mkApp { drv = pkgs.mantis; };
       defaultApp = apps.mantis;
     }) // ( collectHydraSets [
-      (mkHydraSet [ "mantis" ] [ "x86_64-linux" "x86_64-darwin" ])
+      (mkHydraSet [ "mantis" ] [ "x86_64-linux" ])
       (mkHydraSet [ "mantis-entrypoint" ] [ "x86_64-linux" ])
     ]);
 }

@@ -12,7 +12,9 @@
 , gnused
 , protobuf
 , substituteAll
-, writeShellScriptBin
+, writeBashBinChecked
+, mantis-extvm-pb
+, depsSha256
 }:
 
 let
@@ -25,16 +27,15 @@ let
   LD_LIBRARY_PATH = ''''; #lib.makeLibraryPath [ libsonic ];
 
   # filter out mentions of protobridge, which is unable to execute
-  protoc-wrapper = writeShellScriptBin "protoc" ''
+  protoc-wrapper = writeBashBinChecked "protoc" ''
     set -e
 
     for f in "$@"; do
-      echo ''${f##*=}
+      echo "''${f##*=}"
     done | grep protocbridge | xargs sed -i "1s|.*|#!${runtimeShell}|"
 
     exec ${protobuf}/bin/protoc "$@"
   '';
-
 
 in sbt.mkDerivation rec {
   pname = "mantis";
@@ -45,6 +46,10 @@ in sbt.mkDerivation rec {
   preConfigure = ''
     HOME=$TMPDIR
     PROTOC_CACHE=.nix/protoc-cache
+
+    chmod -R u+w src
+    mkdir -p src/main/protobuf/extvm
+    cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
   '';
 
   # used by sbt-derivation to modify vendor derivation
@@ -60,17 +65,24 @@ in sbt.mkDerivation rec {
     })
   ];
 
-  #patchPhase = lib.optionalString (libsonic != null) ''
-  #  rm -rf src/main/resources
-  #  cp -r ${libsonic}/lib src/main/resources
-  #'';
-
   # This sha represents the change dependencies of mantis.
-  # Update this sha whenever you change the dependencies
-  depsSha256 = "0n7vv4k73cxjwg40qggr7gnkkg7vn8a179sf0wxnz3absj1700jj";
+  # Update this sha whenever you change the dependencies using the
+  # update-nix.sh script
+  inherit depsSha256;
 
   # this is the command used to to create the fixed-output-derivation
-  depsWarmupCommand = "PROTOC_CACHE=.nix/protoc-cache; HOME=$TMPDIR; PATH=${PATH}:$PATH; sbt clean; sbt compile --debug";
+  depsWarmupCommand = ''
+    export PROTOC_CACHE=.nix/protoc-cache
+    export HOME="$TMPDIR"
+    export PATH="${PATH}:$PATH"
+
+    chmod -R u+w src
+    mkdir -p src/main/protobuf/extvm
+    cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
+
+    sbt clean
+    sbt compile --debug
+  '';
 
   installPhase = ''
     sbt stage
