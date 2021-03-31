@@ -47,6 +47,7 @@ in sbt.mkDerivation rec {
     HOME=$TMPDIR
     PROTOC_CACHE=.nix/protoc-cache
 
+    chmod -R u+w src
     mkdir -p src/main/protobuf/extvm
     cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
   '';
@@ -75,6 +76,7 @@ in sbt.mkDerivation rec {
     export HOME="$TMPDIR"
     export PATH="${PATH}:$PATH"
 
+    chmod -R u+w src
     mkdir -p src/main/protobuf/extvm
     cp ${mantis-extvm-pb}/msg.proto src/main/protobuf/extvm/msg.proto
 
