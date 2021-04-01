@@ -30,7 +30,6 @@ trait BaseBlockResponse {
   def timestamp: BigInt
   def transactions: Either[Seq[ByteString], Seq[TransactionResponse]]
   def uncles: Seq[ByteString]
-  def coinbase: Option[ByteString]
 }
 
 case class EthBlockResponse(
@@ -53,8 +52,7 @@ case class EthBlockResponse(
     gasUsed: BigInt,
     timestamp: BigInt,
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
-    uncles: Seq[ByteString],
-    coinbase: Option[ByteString]
+    uncles: Seq[ByteString]
 ) extends BaseBlockResponse
 
 //scalastyle:off method.length
@@ -83,8 +81,7 @@ case class BlockResponse(
     transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
     uncles: Seq[ByteString],
     signature: String,
-    signer: String,
-    coinbase: Option[ByteString]
+    signer: String
 ) extends BaseBlockResponse {
   val chainWeight: Option[ChainWeight] = for {
     lcn <- lastCheckpointNumber
@@ -155,8 +152,7 @@ object BlockResponse {
       transactions = transactions,
       uncles = block.body.uncleNodesList.map(_.hash),
       signature = signatureStr,
-      signer = signerStr,
-      coinbase = None
+      signer = signerStr
     )
   }
 

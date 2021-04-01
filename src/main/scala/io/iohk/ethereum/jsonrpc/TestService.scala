@@ -5,6 +5,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
@@ -80,7 +81,7 @@ object TestService {
   case class ImportRawBlockResponse(blockHash: String)
 
   case class AccountsInRangeRequest(parameters: AccountsInRangeRequestParams)
-  case class AccountsInRangeResponse(addressMap: Map[String, String], nextKey: String)
+  case class AccountsInRangeResponse(addressMap: Map[ByteString, ByteString], nextKey: ByteString)
 }
 
 class TestService(
@@ -97,6 +98,8 @@ class TestService(
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
   private var etherbase: Address = consensusConfig.coinbase
+  private var accountAddresses: List[String] = List()
+  private var accountRangeOffset = 0
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
@@ -129,6 +132,9 @@ class TestService(
 
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
+
+    accountAddresses = genesisData.alloc.keys.toList
+    accountRangeOffset = 0
 
     Task.now(Right(SetChainParamsResponse()))
   }
@@ -211,5 +217,38 @@ class TestService(
       .timeout(timeout.duration)
   }
 
-  def getAccountsInRange(request: AccountsInRangeRequest): ServiceResponse[AccountsInRangeResponse] = ???
+  def getAccountsInRange(request: AccountsInRangeRequest): ServiceResponse[AccountsInRangeResponse] = {
+    val blockOpt = request.parameters.blockHashOrNumber
+      .fold(number => blockchain.getBlockByNumber(number), blockHash => blockchain.getBlockByHash(blockHash))
+
+    if (blockOpt.isEmpty) {
+      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
+    }
+
+    val accountBatch = accountAddresses
+      .slice(accountRangeOffset, accountRangeOffset + request.parameters.maxResults.toInt + 1)
+
+    val addressesForExistingAccounts = accountBatch
+      .filter(key => {
+        val accountOpt = blockchain.getAccount(Address(key), blockOpt.get.header.number)
+        accountOpt.isDefined
+      })
+      .map(key => (key, Address(crypto.kec256(Hex.decode(key)))))
+
+    Task.now(
+      Right(
+        AccountsInRangeResponse(
+          addressMap = addressesForExistingAccounts
+            .take(request.parameters.maxResults.toInt)
+            .foldLeft(Map[ByteString, ByteString]())((el, addressPair) =>
+              el + (addressPair._2.bytes -> ByteStringUtils.string2hash(addressPair._1))
+            ),
+          nextKey =
+            if (accountBatch.size > request.parameters.maxResults)
+              ByteStringUtils.string2hash(addressesForExistingAccounts.last._1)
+            else UInt256(0).bytes
+        )
+      )
+    )
+  }
 }

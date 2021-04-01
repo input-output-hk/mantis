@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
@@ -13,13 +12,14 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDe
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec, JsonMethodDecoder, JsonSerializers}
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 
 import scala.util.Try
 
 trait JsonMethodsImplicits {
-  implicit val formats = JsonSerializers.formats
+  implicit val formats: Formats = JsonSerializers.formats
 
   def encodeAsHex(input: ByteString): JString =
     JString(s"0x${Hex.toHexString(input.toArray[Byte])}")

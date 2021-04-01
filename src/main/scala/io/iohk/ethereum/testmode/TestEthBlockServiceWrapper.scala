@@ -44,9 +44,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
       _.map(blockByBlockResponse =>
         BlockByNumberResponse(
           blockByBlockResponse.blockResponse
-            .map(response =>
-              toEthResponse(response).copy(coinbase = Some(ByteString(consensus.config.generic.coinbase.toArray)))
-            )
+            .map(response => toEthResponse(response))
         )
       )
     )
@@ -71,7 +69,6 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     response.gasUsed,
     response.timestamp,
     response.transactions,
-    response.uncles,
-    response.coinbase
+    response.uncles
   )
 }
