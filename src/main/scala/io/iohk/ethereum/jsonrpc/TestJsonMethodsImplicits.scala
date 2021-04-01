@@ -6,14 +6,11 @@ import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.bouncycastle.util.encoders.Hex
 import cats.implicits._
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
 import io.iohk.ethereum.domain.UInt256
-import org.json4s
-import org.json4s.Extraction
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
@@ -183,6 +180,11 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       extractHash(blockHash)
         .fold(_ => Left(BigInt(blockHash)), Right(_))
 
-    override def encodeJson(t: AccountsInRangeResponse): JValue = Extraction.decompose(t)
+    override def encodeJson(t: AccountsInRangeResponse): JValue = JObject(
+      "addressMap" -> JObject(
+        t.addressMap.toList.map(addressPair => encodeAsHex(addressPair._1).values -> encodeAsHex(addressPair._2))
+      ),
+      "nextKey" -> encodeAsHex(t.nextKey)
+    )
   }
 }
