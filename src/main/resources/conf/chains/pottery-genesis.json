@@ -1,5 +1,5 @@
 {
-  "difficulty": "0x20000",
+  "difficulty": "0x400",
   "extraData": "0x70686f656e697820636869636b656e206162737572642062616e616e61",
   "gasLimit": "0x2fefd8",
   "nonce": "0x0000000000000000",
