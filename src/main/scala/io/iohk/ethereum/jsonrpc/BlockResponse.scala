@@ -28,7 +28,7 @@ trait BaseBlockResponse {
   def gasLimit: BigInt
   def gasUsed: BigInt
   def timestamp: BigInt
-  def transactions: Either[Seq[ByteString], Seq[TransactionResponse]]
+  def transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
   def uncles: Seq[ByteString]
 }
 
@@ -51,7 +51,7 @@ case class EthBlockResponse(
     gasLimit: BigInt,
     gasUsed: BigInt,
     timestamp: BigInt,
-    transactions: Either[Seq[ByteString], Seq[TransactionResponse]],
+    transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]],
     uncles: Seq[ByteString]
 ) extends BaseBlockResponse
 

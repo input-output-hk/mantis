@@ -40,7 +40,9 @@ object TestService {
       blockReward: BigInt,
       byzantiumForkBlock: BigInt,
       homesteadForkBlock: BigInt,
-      maximumExtraDataSize: BigInt
+      maximumExtraDataSize: BigInt,
+      constantinopleForkBlock: BigInt,
+      istanbulForkBlock: BigInt
   )
 
   case class ChainParams(
@@ -62,6 +64,16 @@ object TestService {
       nextKey: ByteString
   )
 
+  case class StorageRangeParams(
+      blockHashOrNumber: Either[BigInt, ByteString],
+      txIndex: BigInt,
+      address: ByteString,
+      begin: BigInt,
+      maxResults: BigInt
+  )
+
+  case class StorageEntry(key: ByteString, value: ByteString)
+
   case class SetChainParamsRequest(chainParams: ChainParams)
   case class SetChainParamsResponse()
 
@@ -82,6 +94,9 @@ object TestService {
 
   case class AccountsInRangeRequest(parameters: AccountsInRangeRequestParams)
   case class AccountsInRangeResponse(addressMap: Map[ByteString, ByteString], nextKey: ByteString)
+
+  case class StorageRangeRequest(parameters: StorageRangeParams)
+  case class StorageRangeResponse(complete: Boolean, storage: Map[ByteString, StorageEntry])
 }
 
 class TestService(
@@ -105,6 +120,9 @@ class TestService(
     val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
       homesteadBlockNumber = request.chainParams.blockchainParams.homesteadForkBlock,
       eip150BlockNumber = request.chainParams.blockchainParams.EIP150ForkBlock,
+      byzantiumBlockNumber = request.chainParams.blockchainParams.byzantiumForkBlock,
+      constantinopleBlockNumber = request.chainParams.blockchainParams.constantinopleForkBlock,
+      istanbulBlockNumber = request.chainParams.blockchainParams.istanbulForkBlock,
       accountStartNonce = UInt256(request.chainParams.blockchainParams.accountStartNonce),
       networkId = 1,
       bootstrapNodes = Set()
@@ -122,6 +140,9 @@ class TestService(
         Hex.toHexString(addr.toArray[Byte]) -> acc
       }
     )
+
+    // set coinbase for blocks that will be tried to mine
+    etherbase = Address(genesisData.coinbase)
 
     // remove current genesis (Try because it may not exist)
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
@@ -250,5 +271,9 @@ class TestService(
         )
       )
     )
+  }
+
+  def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
+    Task.now(Right(StorageRangeResponse(complete = true, storage = Map())))
   }
 }

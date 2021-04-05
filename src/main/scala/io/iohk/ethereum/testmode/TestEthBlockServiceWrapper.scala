@@ -1,8 +1,16 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
-import io.iohk.ethereum.jsonrpc.{BaseBlockResponse, EthBlockResponse, EthBlocksService, ServiceResponse}
+import io.iohk.ethereum.jsonrpc.{
+  BaseBlockResponse,
+  BaseTransactionResponse,
+  EthBlockResponse,
+  EthBlocksService,
+  EthTransactionResponse,
+  ServiceResponse,
+  TransactionData
+}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.consensus.Consensus
@@ -23,11 +31,12 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
   ): ServiceResponse[EthBlocksService.BlockByBlockHashResponse] = super
     .getByBlockHash(request)
     .map(
-      _.map(blockByBlockResponse =>
+      _.map(blockByBlockResponse => {
+        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByBlockHashResponse(
-          blockByBlockResponse.blockResponse.map(response => toEthResponse(response))
+          blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response))
         )
-      )
+      })
     )
 
   /**
@@ -41,15 +50,16 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
   ): ServiceResponse[EthBlocksService.BlockByNumberResponse] = super
     .getBlockByNumber(request)
     .map(
-      _.map(blockByBlockResponse =>
+      _.map(blockByBlockResponse => {
+        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(
           blockByBlockResponse.blockResponse
-            .map(response => toEthResponse(response))
+            .map(response => toEthResponse(fullBlock, response))
         )
-      )
+      })
     )
 
-  private def toEthResponse(response: BaseBlockResponse) = EthBlockResponse(
+  private def toEthResponse(block: Block, response: BaseBlockResponse) = EthBlockResponse(
     response.number,
     response.hash,
     response.mixHash,
@@ -68,7 +78,16 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     response.gasLimit,
     response.gasUsed,
     response.timestamp,
-    response.transactions,
+    toEthTransaction(block, response.transactions),
     response.uncles
   )
+
+  private def toEthTransaction(
+      block: Block,
+      responseTransactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
+  ): Either[Seq[ByteString], Seq[BaseTransactionResponse]] = responseTransactions.map(_ => {
+    block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
+      EthTransactionResponse(tx = TransactionData(stx, Some(block.header), Some(transactionIndex)))
+    }
+  })
 }

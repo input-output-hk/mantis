@@ -251,6 +251,8 @@ case class JsonRpcController(
       handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
     case req @ JsonRpcRequest(_, "debug_accountRange", _, _) =>
       handle[AccountsInRangeRequest, AccountsInRangeResponse](testService.getAccountsInRange, req)
+    case req @ JsonRpcRequest(_, "debug_storageRangeAt", _, _) =>
+      handle[StorageRangeRequest, StorageRangeResponse](testService.storageRangeAt, req)
   }
 
   private def handleIeleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
