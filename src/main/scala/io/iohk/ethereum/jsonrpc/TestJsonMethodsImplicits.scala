@@ -11,6 +11,7 @@ import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
 import io.iohk.ethereum.domain.UInt256
+import org.json4s.Extraction
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
@@ -60,6 +61,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         blockReward <- optionalQuantity(blockchainParamsJson \ "blockReward")
         byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "byzantiumForkBlock")
         homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "homesteadForkBlock")
+        constantinopleForkBlock <- extractQuantity(blockchainParamsJson \ "constantinopleForkBlock")
+        istanbulForkBlock <- extractQuantity(blockchainParamsJson \ "istanbulForkBlock")
       } yield BlockchainParams(
         eIP150ForkBlock,
         eIP158ForkBlock,
@@ -68,7 +71,9 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         blockReward.getOrElse(0),
         byzantiumForkBlock,
         homesteadForkBlock,
-        0
+        0,
+        constantinopleForkBlock,
+        istanbulForkBlock
       )
     }
 
@@ -186,5 +191,29 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       ),
       "nextKey" -> encodeAsHex(t.nextKey)
     )
+  }
+
+  implicit val debug_storageRangeAt = new JsonMethodDecoder[StorageRangeRequest]
+    with JsonEncoder[StorageRangeResponse] {
+    override def decodeJson(params: Option[JArray]): Either[JsonRpcError, StorageRangeRequest] =
+      params match {
+        case Some(JArray(blockHashOrNumber :: txIndex :: address :: begin :: maxResults :: Nil)) =>
+          for {
+            txIndex <- extractQuantity(txIndex)
+            maxResults <- extractQuantity(maxResults)
+            begin <- extractQuantity(begin)
+            addressHash <- extractBytes(address.extract[String])
+            blockHashOrNumberEither = extractBlockHashOrNumber(blockHashOrNumber.extract[String])
+          } yield StorageRangeRequest(
+            StorageRangeParams(blockHashOrNumberEither, txIndex, addressHash, begin, maxResults)
+          )
+        case _ => Left(InvalidParams())
+      }
+
+    private def extractBlockHashOrNumber(blockHash: String): Either[BigInt, ByteString] =
+      extractHash(blockHash)
+        .fold(_ => Left(BigInt(blockHash)), Right(_))
+
+    override def encodeJson(t: StorageRangeResponse): JValue = Extraction.decompose(t)
   }
 }
