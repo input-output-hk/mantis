@@ -50,8 +50,6 @@ class PeerActor[R <: HandshakeResult](
 
   def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
 
-  val peerId: PeerId = PeerId.fromRef(self)
-
   override def receive: Receive = waitingForInitialCommand
 
   def waitingForInitialCommand: Receive = stashMessages orElse {
@@ -200,7 +198,7 @@ class PeerActor[R <: HandshakeResult](
 
   def handleTerminated(rlpxConnection: RLPxConnection, numRetries: Int, status: Status): Receive = {
     case Terminated(actor) if actor == rlpxConnection.ref =>
-      log.debug(s"Underlying rlpx connection with peer $peerId closed")
+      rlpxConnection.uriOpt.foreach(uri => log.debug(s"Underlying rlpx connection with peer ${uri.getUserInfo} closed"))
       rlpxConnection.uriOpt match {
         case Some(uri) if numRetries < peerConfiguration.connectMaxRetries =>
           scheduleConnectRetry(uri, numRetries + 1)
@@ -264,7 +262,8 @@ class PeerActor[R <: HandshakeResult](
 
   class HandshakedPeer(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, handshakeResult: R) {
 
-    val peer: Peer = Peer(peerAddress, self, incomingConnection, Some(remoteNodeId))
+    val peerId = PeerId(Hex.toHexString(remoteNodeId.toArray))
+    val peer: Peer = Peer(peerId, peerAddress, self, incomingConnection, Some(remoteNodeId))
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /**
@@ -277,7 +276,7 @@ class PeerActor[R <: HandshakeResult](
 
           case RLPxConnectionHandler.MessageReceived(message) =>
             MessageLogger.logMessage(peerId, message)
-            peerEventBus ! Publish(MessageFromPeer(message, peer.id))
+            peerEventBus ! Publish(MessageFromPeer(message, peerId))
 
           case DisconnectPeer(reason) =>
             disconnectFromPeer(rlpxConnection, reason)

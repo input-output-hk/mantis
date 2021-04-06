@@ -12,7 +12,7 @@ import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.{Block, ChainWeight, Checkpoint, HeadersSeq}
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -519,7 +519,7 @@ class BlockFetcherSpec
     )
 
     val fakePeerActor: TestProbe = TestProbe()
-    val fakePeer = Peer(new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
+    val fakePeer = Peer(PeerId("fakePeer"), new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
     lazy val blockFetcher = system.actorOf(
       BlockFetcher

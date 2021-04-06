@@ -208,7 +208,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer1.waitForFastSyncFinish()
     } yield {
       // Peer3 is blacklisted
-      val blacklistedPeer = PeerId(s"${peer3.node.addr.getHostAddress}:${peer3.node.tcpPort}")
+      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
       val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
 
       assert(peer1.blacklist.isBlacklisted(blacklistedPeer))
@@ -234,7 +234,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer1.waitForFastSyncFinish()
     } yield {
       // Peer3 is blacklisted
-      val blacklistedPeer = PeerId(s"${peer3.node.addr.getHostAddress}:${peer3.node.tcpPort}")
+      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
       val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
 
       assert(peer1.blacklist.isBlacklisted(blacklistedPeer))

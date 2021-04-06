@@ -166,7 +166,12 @@ class StateSyncSpec
 
     val peersMap = (1 to 8).map { i =>
       (
-        Peer(new InetSocketAddress("127.0.0.1", i), TestProbe(i.toString).ref, incomingConnection = false),
+        Peer(
+          PeerId(s"peer$i"),
+          new InetSocketAddress("127.0.0.1", i),
+          TestProbe(i.toString).ref,
+          incomingConnection = false
+        ),
         initialPeerInfo
       )
     }.toMap

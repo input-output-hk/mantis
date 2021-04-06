@@ -2,12 +2,11 @@ package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import io.iohk.ethereum.{NormalPatience, crypto}
 import monix.execution.Scheduler.Implicits.global
@@ -28,9 +27,9 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
     peerManager.reply(
       PeerManagerActor.Peers(
         Map(
-          Peer(new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
-          Peer(new InetSocketAddress(2), testRef, false) -> PeerActor.Status.Handshaked,
-          Peer(new InetSocketAddress(3), testRef, false) -> PeerActor.Status.Connecting
+          Peer(PeerId("peer1"), new InetSocketAddress(1), testRef, false) -> PeerActor.Status.Handshaked,
+          Peer(PeerId("peer2"), new InetSocketAddress(2), testRef, false) -> PeerActor.Status.Handshaked,
+          Peer(PeerId("peer3"), new InetSocketAddress(3), testRef, false) -> PeerActor.Status.Connecting
         )
       )
     )

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
@@ -16,7 +15,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
 }
 import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -237,10 +236,10 @@ class SyncStateDownloaderStateSpec
     val ref4 = TestProbe().ref
 
     val initialState = DownloaderState(Map.empty, Map.empty)
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
-    val notKnownPeer = Peer(new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
+    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
+    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
+    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
+    val notKnownPeer = Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
     val peers = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
     val potentialNodes = (1 to 100).map(i => ByteString(i)).toList
     val potentialNodesHashes = potentialNodes.map(node => kec256(node))

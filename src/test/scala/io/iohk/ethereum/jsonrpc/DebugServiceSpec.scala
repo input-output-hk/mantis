@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.domain.ChainWeight
@@ -9,7 +8,7 @@ import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInf
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerManagerActor}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerActor, PeerId, PeerManagerActor}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalamock.scalatest.MockFactory
@@ -79,7 +78,7 @@ class DebugServiceSpec
       bestBlockHash = peerStatus.bestHash
     )
     val peer1Probe = TestProbe()
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
+    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false)
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
   }
 }
