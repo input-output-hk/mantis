@@ -1,7 +1,8 @@
 package io.iohk.ethereum.network
 
-import io.iohk.ethereum.metrics.MetricsContainer
 import java.util.concurrent.atomic.AtomicLong
+
+import io.iohk.ethereum.metrics.MetricsContainer
 
 case object NetworkMetrics extends MetricsContainer {
 
@@ -19,6 +20,9 @@ case object NetworkMetrics extends MetricsContainer {
   final val BlacklistedPeersSize = metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
 
   final val PendingPeersSize = metrics.registry.gauge("network.peers.pending.gauge", new AtomicLong(0))
+
+  final val TriedPeersSize =
+    metrics.registry.gauge("network.tried.peers.gauge", new AtomicLong(0L))
 
   def registerAddHandshakedPeer(peer: Peer): Unit = {
     if (peer.incomingConnection) {
