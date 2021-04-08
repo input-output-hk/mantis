@@ -58,12 +58,12 @@ case class ConnectedPeers(
   def promotePeerToHandshaked(peerAfterHandshake: Peer): ConnectedPeers = {
     if (peerAfterHandshake.incomingConnection)
       copy(
-        incomingPendingPeers = incomingPendingPeers - peerAfterHandshake.id,
+        incomingPendingPeers = incomingPendingPeers - PeerId.fromRef(peerAfterHandshake.ref),
         handshakedPeers = handshakedPeers + (peerAfterHandshake.id -> peerAfterHandshake)
       )
     else
       copy(
-        outgoingPendingPeers = outgoingPendingPeers - peerAfterHandshake.id,
+        outgoingPendingPeers = outgoingPendingPeers - PeerId.fromRef(peerAfterHandshake.ref),
         handshakedPeers = handshakedPeers + (peerAfterHandshake.id -> peerAfterHandshake)
       )
   }

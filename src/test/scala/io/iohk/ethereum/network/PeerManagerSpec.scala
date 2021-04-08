@@ -56,7 +56,7 @@ class PeerManagerSpec
     peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
 
     val probe2: TestProbe = createdPeers(2).probe
-    val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true)
+    val peer = Peer(PeerId("peer"), incomingPeerAddress1, probe2.ref, incomingConnection = true)
 
     peerManager ! PeerClosedConnection(peer.remoteAddress.getHostString, Disconnect.Reasons.Other)
 
@@ -143,7 +143,7 @@ class PeerManagerSpec
 
     // It should have created the next peer for the first incoming connection (probably using a synchronous test scheduler).
     val probe2: TestProbe = createdPeers(2).probe
-    val peer = Peer(incomingPeerAddress1, probe2.ref, incomingConnection = true, Some(incomingNodeId1))
+    val peer = Peer(PeerId("peer"), incomingPeerAddress1, probe2.ref, incomingConnection = true, Some(incomingNodeId1))
     probe2.expectMsg(PeerActor.HandleConnection(incomingConnection1.ref, incomingPeerAddress1))
     probe2.reply(PeerEvent.PeerHandshakeSuccessful(peer, initialPeerInfo))
 
@@ -160,7 +160,8 @@ class PeerManagerSpec
     // Simulate the successful handshake with the 2nd incoming. It should be disconnected because max-incoming is 1.
     val probe3: TestProbe = createdPeers(3).probe
 
-    val secondPeer = Peer(incomingPeerAddress2, probe3.ref, incomingConnection = true, Some(incomingNodeId2))
+    val secondPeer =
+      Peer(PeerId("secondPeer"), incomingPeerAddress2, probe3.ref, incomingConnection = true, Some(incomingNodeId2))
 
     probe3.expectMsg(PeerActor.HandleConnection(incomingConnection2.ref, incomingPeerAddress2))
     probe3.reply(PeerEvent.PeerHandshakeSuccessful(secondPeer, initialPeerInfo))
@@ -229,7 +230,13 @@ class PeerManagerSpec
     peerManager ! PeerManagerActor.HandlePeerConnection(peerAsIncomingTcpConnection.ref, peerAsIncomingAddress)
 
     val peerAsIncomingProbe = createdPeers.last.probe
-    val peerAsIncoming = Peer(peerAsIncomingAddress, peerAsIncomingProbe.ref, incomingConnection = true, Some(nodeId))
+    val peerAsIncoming = Peer(
+      PeerId("peerAsIncoming"),
+      peerAsIncomingAddress,
+      peerAsIncomingProbe.ref,
+      incomingConnection = true,
+      Some(nodeId)
+    )
 
     peerAsIncomingProbe.expectMsg(
       PeerActor.HandleConnection(peerAsIncomingTcpConnection.ref, peerAsIncoming.remoteAddress)
@@ -258,7 +265,13 @@ class PeerManagerSpec
     peerManager ! PeerManagerActor.HandlePeerConnection(peerAsIncomingTcpConnection.ref, peerAsIncomingAddress)
 
     val peerAsIncomingProbe = createdPeers.last.probe
-    val peerAsIncoming = Peer(peerAsIncomingAddress, peerAsIncomingProbe.ref, incomingConnection = true, Some(nodeId))
+    val peerAsIncoming = Peer(
+      PeerId("peerAsIncoming"),
+      peerAsIncomingAddress,
+      peerAsIncomingProbe.ref,
+      incomingConnection = true,
+      Some(nodeId)
+    )
 
     peerAsIncomingProbe.expectMsg(
       PeerActor.HandleConnection(peerAsIncomingTcpConnection.ref, peerAsIncoming.remoteAddress)
@@ -536,7 +549,7 @@ class PeerManagerSpec
 
     val peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (_, address, isIncoming) =>
       val peerProbe = TestProbe()
-      createdPeers :+= TestPeer(Peer(address, peerProbe.ref, isIncoming), peerProbe)
+      createdPeers :+= TestPeer(Peer(PeerId(""), address, peerProbe.ref, isIncoming), peerProbe)
       peerProbe.ref
     }
 
@@ -604,6 +617,7 @@ class PeerManagerSpec
       incoming <- arbitrary[Boolean]
       ageMillis <- Gen.choose(0, 24 * 60 * 60 * 1000)
     } yield Peer(
+      PeerId.fromRef(TestProbe().ref),
       remoteAddress = new InetSocketAddress(ip, port),
       ref = TestProbe().ref,
       incomingConnection = incoming,

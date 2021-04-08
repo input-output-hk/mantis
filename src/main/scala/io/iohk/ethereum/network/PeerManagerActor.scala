@@ -310,7 +310,19 @@ class PeerManagerActor(
   ): (Peer, ConnectedPeers) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
-    val pendingPeer = Peer(address, ref, incomingConnection, None, createTimeMillis = System.currentTimeMillis)
+
+    // The peerId is unknown for a pending peer, hence it is created from the PeerActor's path.
+    // Upon successful handshake, the pending peer is updated with the actual peerId derived from
+    // the Node's public key. See: ConnectedPeers#promotePeerToHandshaked
+    val pendingPeer =
+      Peer(
+        PeerId.fromRef(ref),
+        address,
+        ref,
+        incomingConnection,
+        nodeId = None,
+        createTimeMillis = System.currentTimeMillis
+      )
 
     val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)
 

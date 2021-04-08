@@ -6,7 +6,7 @@ import io.iohk.ethereum.{BlockHelpers, Fixtures}
 import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -169,7 +169,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val blocksSavedInPeer: List[Block] =
         commonBlocks :++ BlockHelpers.generateChain(ourBestBlock + 1 - highestCommonBlock, commonBlocks.last)
 
-      val dummyPeer = Peer(new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+      val dummyPeer = Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
 
       val initialSearchState = SearchState(1, 10, dummyPeer)
       val ours = blocksSaved.map(b => (b.number, b)).toMap
@@ -245,7 +245,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val blocksSaved: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
       val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
 
-      val dummyPeer = Peer(new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+      val dummyPeer = Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
 
       val initialSearchState = SearchState(1, 8, dummyPeer)
       val ours = blocksSaved.map(b => (b.number, b)).toMap
