@@ -154,11 +154,12 @@ class PeerManagerActor(
     NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
     NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
     NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
+    NetworkMetrics.TriedPeersSize.set(triedNodes.size)
 
     log.info(
-      s"Discovered ${nodes.size} nodes, " +
-        s"Blacklisted ${blacklistedPeers.size} nodes, " +
-        s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
+      s"Total number of discovered nodes ${nodes.size}. " +
+        s"Total number of connection attempts ${triedNodes.size}, blacklisted ${blacklistedPeers.size} nodes. " +
+        s"Handshaked ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
         s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes."
     )
