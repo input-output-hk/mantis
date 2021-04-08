@@ -208,6 +208,12 @@ class BlockImporter(
           case DuplicateBlock | BlockEnqueued =>
             tryImportBlocks(restOfBlocks, importedBlocks)
 
+          case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
+            Task.now((importedBlocks, Some(missingNodeException)))
+
+          case BlockImportFailedDueToMissingNode(missingNodeException) =>
+            Task.raiseError(missingNodeException)
+
           case err @ (UnknownParent | BlockImportFailed(_)) =>
             log.error(
               "Block {} import failed, with hash {} and parent hash {}",
@@ -216,10 +222,6 @@ class BlockImporter(
               ByteStringUtils.hash2string(blocks.head.header.parentHash)
             )
             Task.now((importedBlocks, Some(err)))
-        }
-        .onErrorHandle {
-          case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-            (importedBlocks, Some(missingNodeEx))
         }
     }
 
@@ -253,18 +255,18 @@ class BlockImporter(
                   supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
                 case None => ()
               }
+            case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
+              // state node re-download will be handled when downloading headers
+              doLog(importMessages.missingStateNode(missingNodeException))
+              Running
+            case BlockImportFailedDueToMissingNode(missingNodeException) =>
+              Task.raiseError(missingNodeException)
             case BlockImportFailed(error) =>
               if (informFetcherOnFail) {
                 fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
               }
           }
           .map(_ => Running)
-          .recover {
-            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-              // state node re-download will be handled when downloading headers
-              doLog(importMessages.missingStateNode(missingNodeEx))
-              Running
-          }
       },
       blockImportType
     )
