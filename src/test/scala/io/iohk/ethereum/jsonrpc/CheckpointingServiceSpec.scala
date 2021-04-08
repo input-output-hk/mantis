@@ -57,7 +57,7 @@ class CheckpointingServiceSpec
       n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
     } yield (k, m, n)
 
-    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val previousCheckpoint = Fixtures.Blocks.Block3125369.block
     val hash = previousCheckpoint.hash
 
     forAll(nums) { case (k, m, n) =>
@@ -70,8 +70,34 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header))
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header.copy(number = 0)))
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      val result = service.getLatestBlock(request)
+
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
+    }
+  }
+
+  it should "not return a block that is at the same height as the passed parent checkpoint block" in new TestSetup {
+    val nums = for {
+      k <- Gen.choose[Int](1, 10) // checkpointing interval
+      m <- Gen.choose(0, 1000) // number of checkpoints in the chain
+      n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
+    } yield (k, m, n)
+
+    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val hash = previousCheckpoint.hash
+
+    forAll(nums) { case (k, m, n) =>
+      val checkpointedBlockNum: BigInt = k * m
+      val bestBlockNum: BigInt = checkpointedBlockNum + n
+
+      val request = GetLatestBlockRequest(k, Some(hash))
+      val expectedResponse = GetLatestBlockResponse(None)
+
+      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
+      (blockchain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)

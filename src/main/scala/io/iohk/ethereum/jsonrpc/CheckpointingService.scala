@@ -21,8 +21,12 @@ class CheckpointingService(
 
   def getLatestBlock(req: GetLatestBlockRequest): ServiceResponse[GetLatestBlockResponse] = {
     lazy val bestBlockNum = blockchain.getBestBlockNumber()
-    lazy val blockToReturnNum = bestBlockNum - bestBlockNum % req.checkpointingInterval
-    lazy val isValidParent = req.parentCheckpoint.forall(blockchain.getBlockHeaderByHash(_).isDefined)
+    lazy val blockToReturnNum =
+      if (req.checkpointingInterval != 0)
+        bestBlockNum - bestBlockNum % req.checkpointingInterval
+      else bestBlockNum
+    lazy val isValidParent =
+      req.parentCheckpoint.forall(blockchain.getBlockHeaderByHash(_).exists(_.number < blockToReturnNum))
 
     Task {
       blockchain.getBlockByNumber(blockToReturnNum)
@@ -31,7 +35,7 @@ class CheckpointingService(
         Task.now(Right(GetLatestBlockResponse(Some(BlockInfo(b.hash, b.number)))))
 
       case Some(_) =>
-        log.debug("Parent checkpoint is not found in a local blockchain")
+        log.debug("No checkpoint candidate found for a specified parent")
         Task.now(Right(GetLatestBlockResponse(None)))
 
       case None =>
@@ -59,10 +63,10 @@ class CheckpointingService(
 }
 
 object CheckpointingService {
-  case class GetLatestBlockRequest(checkpointingInterval: Int, parentCheckpoint: Option[ByteString])
-  case class GetLatestBlockResponse(block: Option[BlockInfo])
-  case class BlockInfo(hash: ByteString, number: BigInt)
+  final case class GetLatestBlockRequest(checkpointingInterval: Int, parentCheckpoint: Option[ByteString])
+  final case class GetLatestBlockResponse(block: Option[BlockInfo])
+  final case class BlockInfo(hash: ByteString, number: BigInt)
 
-  case class PushCheckpointRequest(hash: ByteString, signatures: List[ECDSASignature])
-  case class PushCheckpointResponse()
+  final case class PushCheckpointRequest(hash: ByteString, signatures: List[ECDSASignature])
+  final case class PushCheckpointResponse()
 }
