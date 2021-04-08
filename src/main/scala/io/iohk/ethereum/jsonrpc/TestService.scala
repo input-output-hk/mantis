@@ -12,11 +12,12 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy.persistState
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -151,6 +152,9 @@ class TestService(
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
+    //save account codes to world state
+    storeGenesisAccountCodes(newBlockchainConfig, genesisData.alloc)
+    storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
@@ -158,6 +162,43 @@ class TestService(
     accountRangeOffset = 0
 
     Task.now(Right(SetChainParamsResponse()))
+  }
+
+  private def storeGenesisAccountCodes(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
+    val genesisBlock = blockchain.getBlockByNumber(0).get
+    val world =
+      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
+
+    val accountsWithCodes = accounts
+      .filter(pair => pair._2.code.isDefined)
+
+    val worldToPersist = accountsWithCodes.foldLeft(world)((world, addressAccountPair) => {
+      world.saveCode(Address(addressAccountPair._1), addressAccountPair._2.code.get)
+    })
+
+    InMemoryWorldStateProxy.persistState(worldToPersist)
+  }
+
+  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
+    val genesisBlock = blockchain.getBlockByNumber(0).get
+    val world =
+      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
+
+    val accountsWithStorageData = accounts
+      .filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
+
+    val worldToPersist = accountsWithStorageData.foldLeft(world)((world, addressAccountPair) => {
+      val address = Address(addressAccountPair._1)
+      val emptyStorage = world.getStorage(address)
+      val updatedStorage = addressAccountPair._2.storage.get.foldLeft(emptyStorage) { case (storage, (key, value)) =>
+        storage.store(key, value)
+      }
+      val updatedWorld = world.saveStorage(Address(addressAccountPair._1), updatedStorage)
+      updatedWorld.contractStorages.values.foreach(cs => cs.inner.nodeStorage.persist())
+      updatedWorld
+    })
+
+    InMemoryWorldStateProxy.persistState(worldToPersist)
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
@@ -274,6 +315,29 @@ class TestService(
   }
 
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
-    Task.now(Right(StorageRangeResponse(complete = true, storage = Map())))
+
+    val blockOpt = request.parameters.blockHashOrNumber
+      .fold(number => blockchain.getBlockByNumber(number), hash => blockchain.getBlockByHash(hash))
+
+    if (blockOpt.isEmpty) {
+      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
+    }
+
+    val accountOpt = blockchain.getAccount(Address(request.parameters.address), blockOpt.get.header.number)
+
+    if (accountOpt.isEmpty) {
+      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
+    }
+
+    val storage = blockchain.getAccountStorageAt(accountOpt.get.storageRoot, request.parameters.begin, true)
+
+    Task.now(
+      Right(
+        StorageRangeResponse(
+          complete = true,
+          storage = Map(request.parameters.address -> StorageEntry(ByteString(""), ByteString("")))
+        )
+      )
+    )
   }
 }

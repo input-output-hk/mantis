@@ -54,26 +54,26 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
     private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
       for {
-        eIP150ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP150ForkBlock")
-        eIP158ForkBlock <- extractQuantity(blockchainParamsJson \ "EIP158ForkBlock")
+        eIP150ForkBlock <- optionalQuantity(blockchainParamsJson \ "EIP150ForkBlock")
+        eIP158ForkBlock <- optionalQuantity(blockchainParamsJson \ "EIP158ForkBlock")
         accountStartNonce <- optionalQuantity(blockchainParamsJson \ "accountStartNonce")
         allowFutureBlocks = (blockchainParamsJson \ "allowFutureBlocks").extractOrElse(true)
         blockReward <- optionalQuantity(blockchainParamsJson \ "blockReward")
-        byzantiumForkBlock <- extractQuantity(blockchainParamsJson \ "byzantiumForkBlock")
-        homesteadForkBlock <- extractQuantity(blockchainParamsJson \ "homesteadForkBlock")
-        constantinopleForkBlock <- extractQuantity(blockchainParamsJson \ "constantinopleForkBlock")
-        istanbulForkBlock <- extractQuantity(blockchainParamsJson \ "istanbulForkBlock")
+        byzantiumForkBlock <- optionalQuantity(blockchainParamsJson \ "byzantiumForkBlock")
+        homesteadForkBlock <- optionalQuantity(blockchainParamsJson \ "homesteadForkBlock")
+        constantinopleForkBlock <- optionalQuantity(blockchainParamsJson \ "constantinopleForkBlock")
+        istanbulForkBlock <- optionalQuantity(blockchainParamsJson \ "istanbulForkBlock")
       } yield BlockchainParams(
-        eIP150ForkBlock,
-        eIP158ForkBlock,
+        eIP150ForkBlock.getOrElse(0),
+        eIP158ForkBlock.getOrElse(0),
         accountStartNonce.getOrElse(0),
         allowFutureBlocks,
         blockReward.getOrElse(0),
-        byzantiumForkBlock,
-        homesteadForkBlock,
+        byzantiumForkBlock.getOrElse(0),
+        homesteadForkBlock.getOrElse(0),
         0,
-        constantinopleForkBlock,
-        istanbulForkBlock
+        constantinopleForkBlock.getOrElse(0),
+        istanbulForkBlock.getOrElse(0)
       )
     }
 
