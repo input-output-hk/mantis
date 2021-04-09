@@ -27,8 +27,6 @@ inputs: final: prev: {
 
   inherit (final.mantisPkgs) mantis;
 
-  nixpkgs-kevm = import inputs.nixpkgs-kevm { inherit (final) system; };
-
   mantis-faucet = import final.mantis-faucet-source { inherit (final) system; };
   mantis-faucet-entrypoint =
     final.callPackage ./entrypoint.nix { mantis = final.mantis-faucet; };
@@ -39,7 +37,7 @@ inputs: final: prev: {
 
   jdk = prev.openjdk8_headless;
   jre = prev.openjdk8_headless.jre;
-  kevm = final.nixpkgs-kevm.callPackage ./pkgs/kevm.nix { };
+  kevm = final.callPackage ./pkgs/kevm.nix { };
   iele = final.callPackage ./pkgs/iele.nix { };
   mantis-entrypoint = final.callPackage ./entrypoint.nix { };
 
