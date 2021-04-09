@@ -222,12 +222,8 @@ lazy val node = {
       // Requires the 'ant-javafx.jar' that comes with Oracle JDK
       // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
       ThisBuild / jdkPackagerType := "image",
+      mappings in Universal ++= directory((resourceDirectory in Compile).value / "conf"),
       mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
-      mappings in Universal += (resourceDirectory in Compile).value / "application.conf" -> "conf/base.conf",
-      mappings in Universal += (resourceDirectory in Compile).value / "metrics.conf" -> "conf/metrics.conf",
-      mappings in Universal ++= directory((resourceDirectory in Compile).value / "chains").map { case (f, name) =>
-        f -> s"conf/$name"
-      },
       bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/app.conf"""",
       bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
       batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\conf\app.conf"""",

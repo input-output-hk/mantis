@@ -6,12 +6,13 @@ import cats.implicits._
 import enumeratum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.ethash.MinerResponses._
 import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
 import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Blockchain, Checkpoint}
+import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
@@ -21,6 +22,7 @@ import mouse.all._
 class QAService(
     consensus: Consensus,
     blockchain: Blockchain,
+    checkpointBlockGenerator: CheckpointBlockGenerator,
     blockchainConfig: BlockchainConfig,
     syncController: ActorRef
 ) extends Logger {
@@ -48,8 +50,11 @@ class QAService(
     hash match {
       case Some(hashValue) =>
         Task {
+          val parent =
+            blockchain.getBlockByHash(hashValue).orElse(blockchain.getBestBlock()).getOrElse(blockchain.genesisBlock)
           val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
-          syncController ! NewCheckpoint(hashValue, checkpoint.signatures)
+          val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, checkpoint)
+          syncController ! NewCheckpoint(checkpointBlock)
           Right(GenerateCheckpointResponse(checkpoint))
         }
       case None => Task.now(Left(JsonRpcError.BlockNotFound))

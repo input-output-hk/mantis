@@ -223,7 +223,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     nodesPerRequest = 200,
     maxTargetDifference = 1,
     syncRetryInterval = 50.milliseconds,
-    blacklistDuration = 100.seconds
+    blacklistDuration = 100.seconds,
+    fastSyncMaxBatchRetries = 2,
+    fastSyncBlockValidationN = 200
   )
 
   lazy val broadcaster = new BlockBroadcast(etcPeerManager)
@@ -298,6 +300,43 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     (newBlock, newWeight, parentWorld)
   }
 
+  private def generateInvalidBlock(
+      currentBestBlock: Block
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task {
+      val currentWorld = getMptForBlock(currentBestBlock)
+
+      val newBlockNumber = currentBestBlock.header.number + 1
+      val newWorld = updateWorldForBlock(newBlockNumber, currentWorld)
+
+      // The child block is made invalid by not properly updating its parent hash.
+      val childBlock =
+        currentBestBlock.copy(header =
+          currentBestBlock.header.copy(
+            number = newBlockNumber,
+            stateRoot = newWorld.stateRootHash
+          )
+        )
+      val newWeight = ChainWeight.totalDifficultyOnly(1)
+
+      broadcastBlock(childBlock, newWeight)
+      bl.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
+    }
+  }
+
+  private def generateValidBlock(
+      currentBestBlock: Block
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task {
+      val currentWeight = bl.getChainWeightByHash(currentBestBlock.hash).get
+      val currentWorld = getMptForBlock(currentBestBlock)
+      val (newBlock, newWeight, _) =
+        createChildBlock(currentBestBlock, currentWeight, currentWorld)(updateWorldForBlock)
+      bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
+      broadcastBlock(newBlock, newWeight)
+    }
+  }
+
   def importBlocksUntil(
       n: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
@@ -305,14 +344,46 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       if (block.get.number >= n) {
         Task(())
       } else {
-        Task {
-          val currentWeight = bl.getChainWeightByHash(block.get.hash).get
-          val currentWolrd = getMptForBlock(block.get)
-          val (newBlock, newWeight, _) = createChildBlock(block.get, currentWeight, currentWolrd)(updateWorldForBlock)
-          bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
-          broadcastBlock(newBlock, newWeight)
-        }.flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
+        generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
+    }
+  }
+
+  def importInvalidBlocks(
+      from: BigInt,
+      to: BigInt
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task(bl.getBestBlock()).flatMap { block =>
+      if (block.get.number >= to) {
+        Task(())
+      } else if (block.get.number >= from) {
+        generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
+          importInvalidBlocks(from, to)(updateWorldForBlock)
+        )
+      } else {
+        generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
+          importInvalidBlocks(from, to)(updateWorldForBlock)
+        )
+      }
+
+    }
+  }
+
+  def importInvalidBlockNumbers(
+      from: BigInt,
+      to: BigInt
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    Task(bl.getBestBlock()).flatMap { block =>
+      if (block.get.number >= to) {
+        Task(())
+      } else if (block.get.number >= from) {
+        generateInvalidBlock(block.get)(updateWorldForBlock).flatMap(_ =>
+          importInvalidBlockNumbers(from, to)(updateWorldForBlock)
+        )
+      } else {
+        importBlocksUntil(from)(updateWorldForBlock)
+      }
+
     }
   }
 

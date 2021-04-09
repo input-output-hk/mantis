@@ -3,8 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl}
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, Checkpoint}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
@@ -55,7 +57,7 @@ class CheckpointingServiceSpec
       n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
     } yield (k, m, n)
 
-    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val previousCheckpoint = Fixtures.Blocks.Block3125369.block
     val hash = previousCheckpoint.hash
 
     forAll(nums) { case (k, m, n) =>
@@ -68,8 +70,34 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header))
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header.copy(number = 0)))
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      val result = service.getLatestBlock(request)
+
+      result.runSyncUnsafe() shouldEqual Right(expectedResponse)
+    }
+  }
+
+  it should "not return a block that is at the same height as the passed parent checkpoint block" in new TestSetup {
+    val nums = for {
+      k <- Gen.choose[Int](1, 10) // checkpointing interval
+      m <- Gen.choose(0, 1000) // number of checkpoints in the chain
+      n <- Gen.choose(0, k - 1) // distance from best block to checkpointed block
+    } yield (k, m, n)
+
+    val previousCheckpoint = Fixtures.Blocks.ValidBlock.block
+    val hash = previousCheckpoint.hash
+
+    forAll(nums) { case (k, m, n) =>
+      val checkpointedBlockNum: BigInt = k * m
+      val bestBlockNum: BigInt = checkpointedBlockNum + n
+
+      val request = GetLatestBlockRequest(k, Some(hash))
+      val expectedResponse = GetLatestBlockResponse(None)
+
+      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
+      (blockchain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -105,14 +133,17 @@ class CheckpointingServiceSpec
   }
 
   it should "send new checkpoint to Sync" in new TestSetup {
-    val hash = Fixtures.Blocks.ValidBlock.block.hash
+    val parentBlock = Fixtures.Blocks.ValidBlock.block
+    val hash = parentBlock.hash
     val signatures = Nil
     val request = PushCheckpointRequest(hash, signatures)
     val expectedResponse = PushCheckpointResponse()
 
-    val result = service.pushCheckpoint(request).runSyncUnsafe()
+    (ledger.getBlockByHash _).expects(hash).returning(Some(parentBlock)).once()
 
-    syncController.expectMsg(NewCheckpoint(hash, signatures))
+    val result = service.pushCheckpoint(request).runSyncUnsafe()
+    val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, Checkpoint(signatures))
+    syncController.expectMsg(NewCheckpoint(checkpointBlock))
     result shouldEqual Right(expectedResponse)
   }
 
@@ -139,7 +170,9 @@ class CheckpointingServiceSpec
 
   trait TestSetup {
     val blockchain = mock[BlockchainImpl]
+    val ledger = mock[Ledger]
     val syncController = TestProbe()
-    val service = new CheckpointingService(blockchain, syncController.ref)
+    val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
+    val service = new CheckpointingService(blockchain, ledger, checkpointBlockGenerator, syncController.ref)
   }
 }

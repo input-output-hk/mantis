@@ -95,7 +95,6 @@ object RegularSyncItSpecUtils {
         ommersPool,
         broadcasterRef,
         pendingTransactionsManager,
-        checkpointBlockGenerator,
         regularSync
       ))
 
@@ -110,7 +109,6 @@ object RegularSyncItSpecUtils {
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
-        checkpointBlockGenerator,
         system.scheduler
       )
     )
@@ -170,7 +168,8 @@ object RegularSyncItSpecUtils {
         Seq(crypto.generateKeyPair(secureRandom)),
         parent.hash
       )
-      regularSync ! NewCheckpoint(parent.header.hash, signatures)
+      val checkpoint = checkpointBlockGenerator.generate(parent, Checkpoint(signatures))
+      regularSync ! NewCheckpoint(checkpoint)
     }
 
     def getCheckpointFromPeer(checkpoint: Block, peerId: PeerId): Task[Unit] = Task {

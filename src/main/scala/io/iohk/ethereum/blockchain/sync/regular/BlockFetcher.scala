@@ -268,7 +268,7 @@ class BlockFetcher(
         fetchBlocks(newState)
       case Left(_) if block.number <= state.knownTop =>
         log.debug(
-          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} not fit into queues - clearing the queues and setting possible new top"
+          s"Checkpoint block ${ByteStringUtils.hash2string(blockHash)} not fit into queues - clearing the queues and setting new top"
         )
         val newState = state
           .clearQueues()

@@ -30,6 +30,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       maxCodeSize = None,
       eip161BlockNumber = Long.MaxValue,
       customGenesisFileOpt = None,
+      customGenesisJsonOpt = None,
       difficultyBombPauseBlockNumber = Long.MaxValue,
       difficultyBombContinueBlockNumber = Long.MaxValue,
       difficultyBombRemovalBlockNumber = Long.MaxValue,

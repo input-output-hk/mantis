@@ -2,8 +2,10 @@ package io.iohk.ethereum.sync
 
 import akka.util.ByteString
 import io.iohk.ethereum.FlatSpecBase
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.sync.FastSyncItSpec._
 import io.iohk.ethereum.sync.util.FastSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
@@ -180,6 +182,65 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     }
   }
 
+  it should "switch to regular sync once `safeDownloadTarget` is reached" in customTestCaseResourceM(
+    FakePeer.start3FakePeersRes()
+  ) { case (peer1, peer2, peer3) =>
+    for {
+      _ <- peer2.importBlocksUntil(1200)(IdentityUpdate)
+      _ <- peer3.importBlocksUntil(1200)(IdentityUpdate)
+      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
+    }
+  }
+
+  it should "blacklist peer on Invalid batch last header number" in customTestCaseResourceM(
+    FakePeer.start3FakePeersRes()
+  ) { case (peer1, peer2, peer3) =>
+    for {
+      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
+      _ <- peer3.importInvalidBlockNumbers(201, 1200)(IdentityUpdate)
+
+      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      // Peer3 is blacklisted
+      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
+      val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
+
+      assert(peer1.blacklist.isBlacklisted(blacklistedPeer))
+      assert(blacklistReason.get == BlacklistReasonType.BlockHeaderValidationFailedType)
+    }
+  }
+
+  it should "sync blockchain when peer responds with invalid batch last header hash" in customTestCaseResourceM(
+    FakePeer.start4FakePeersRes()
+  ) { case (peer1, peer2, peer3, peer4) =>
+    for {
+      _ <- peer1.importBlocksUntil(400)(IdentityUpdate)
+      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
+
+      _ <- peer3.importInvalidBlocks(600, 800)(IdentityUpdate)
+      _ <- peer3.importBlocksUntil(1200)(updateStateAtBlock(1000))
+
+      _ <- peer4.importBlocksUntil(1100)(IdentityUpdate)
+
+      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
+      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer2.importBlocksUntil(1200)(IdentityUpdate)
+      _ <- peer1.waitForFastSyncFinish()
+    } yield {
+      // Peer3 is blacklisted
+      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
+      val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
+
+      assert(peer1.blacklist.isBlacklisted(blacklistedPeer))
+      assert(blacklistReason.get == BlacklistReasonType.BlockHeaderValidationFailedType)
+    }
+  }
 }
 
 object FastSyncItSpec {

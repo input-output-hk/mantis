@@ -154,11 +154,12 @@ class PeerManagerActor(
     NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
     NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
     NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
+    NetworkMetrics.TriedPeersSize.set(triedNodes.size)
 
     log.info(
-      s"Discovered ${nodes.size} nodes, " +
-        s"Blacklisted ${blacklistedPeers.size} nodes, " +
-        s"handshaked to ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
+      s"Total number of discovered nodes ${nodes.size}. " +
+        s"Total number of connection attempts ${triedNodes.size}, blacklisted ${blacklistedPeers.size} nodes. " +
+        s"Handshaked ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
         s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes."
     )
@@ -310,7 +311,19 @@ class PeerManagerActor(
   ): (Peer, ConnectedPeers) = {
     val ref = peerFactory(context, address, incomingConnection)
     context watch ref
-    val pendingPeer = Peer(address, ref, incomingConnection, None, createTimeMillis = System.currentTimeMillis)
+
+    // The peerId is unknown for a pending peer, hence it is created from the PeerActor's path.
+    // Upon successful handshake, the pending peer is updated with the actual peerId derived from
+    // the Node's public key. See: ConnectedPeers#promotePeerToHandshaked
+    val pendingPeer =
+      Peer(
+        PeerId.fromRef(ref),
+        address,
+        ref,
+        incomingConnection,
+        nodeId = None,
+        createTimeMillis = System.currentTimeMillis
+      )
 
     val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)
 

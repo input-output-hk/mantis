@@ -6,7 +6,6 @@ import akka.testkit.{ExplicitlyTriggeredScheduler, TestActorRef, TestProbe}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
@@ -508,8 +507,6 @@ class SyncControllerSpec
     val peerMessageBus = TestProbe()
     val pendingTransactionsManager = TestProbe()
 
-    val checkpointBlockGenerator = new CheckpointBlockGenerator()
-
     val ommersPool = TestProbe()
 
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
@@ -541,7 +538,6 @@ class SyncControllerSpec
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,
-          checkpointBlockGenerator,
           ommersPool.ref,
           etcPeerManager.ref,
           blacklist,
@@ -777,7 +773,7 @@ class SyncControllerSpec
     private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
 
     def littleTimePasses() =
-      testScheduler.timePasses(100.millis)
+      testScheduler.timePasses(300.millis)
 
     def someTimePasses() =
       testScheduler.timePasses(3000.millis)

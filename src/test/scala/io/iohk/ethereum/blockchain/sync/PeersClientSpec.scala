@@ -1,13 +1,12 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -59,9 +58,9 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   object Peers {
     implicit val system = ActorSystem("PeersClient_System")
 
-    val peer1 = Peer(new InetSocketAddress("127.0.0.1", 1), TestProbe().ref, false)
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
+    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), TestProbe().ref, false)
+    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), TestProbe().ref, false)
+    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
 
     private val peerStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,

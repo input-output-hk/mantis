@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
@@ -11,7 +10,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -114,11 +113,11 @@ class BlockBroadcastSpec
       NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     val peer2Probe = TestProbe()
-    val peer2 = Peer(new InetSocketAddress("127.0.0.1", 0), peer2Probe.ref, false)
+    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 0), peer2Probe.ref, false)
     val peer3Probe = TestProbe()
-    val peer3 = Peer(new InetSocketAddress("127.0.0.1", 0), peer3Probe.ref, false)
+    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 0), peer3Probe.ref, false)
     val peer4Probe = TestProbe()
-    val peer4 = Peer(new InetSocketAddress("127.0.0.1", 0), peer4Probe.ref, false)
+    val peer4 = Peer(PeerId("peer4"), new InetSocketAddress("127.0.0.1", 0), peer4Probe.ref, false)
 
     //when
     val peers = Seq(peer, peer2, peer3, peer4)
@@ -166,6 +165,6 @@ class BlockBroadcastSpec
     )
 
     val peerProbe = TestProbe()
-    val peer = Peer(new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
+    val peer = Peer(PeerId("peer"), new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
   }
 }

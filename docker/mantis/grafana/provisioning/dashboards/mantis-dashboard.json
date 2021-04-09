@@ -3033,6 +3033,144 @@
           "fill": 0,
           "fillGradient": 0,
           "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 8
+          },
+          "hiddenSeries": false,
+          "id": 84,
+          "legend": {
+            "avg": false,
+            "current": false,
+            "hideEmpty": false,
+            "max": false,
+            "min": false,
+            "show": true,
+            "total": false,
+            "values": false
+          },
+          "lines": true,
+          "linewidth": 1,
+          "nullPointMode": "connected",
+          "options": {
+            "alertThreshold": true
+          },
+          "percentage": true,
+          "pluginVersion": "7.3.6",
+          "pointradius": 0.5,
+          "points": false,
+          "renderer": "flot",
+          "seriesOverrides": [
+            {
+              "alias": "nb_tried_peers",
+              "hiddenSeries": true,
+              "hideTooltip": true,
+              "legend": false
+            },
+            {
+              "alias": "nb_discovered_peers",
+              "hiddenSeries": true,
+              "hideTooltip": true,
+              "legend": false
+            }
+          ],
+          "spaceLength": 10,
+          "stack": false,
+          "steppedLine": false,
+          "targets": [
+            {
+              "expr": "app_network_tried_peers_gauge",
+              "interval": "",
+              "legendFormat": "nb_tried_peers",
+              "refId": "Number of tried peers"
+            },
+            {
+              "expr": "app_network_discovery_foundPeers_gauge",
+              "interval": "",
+              "legendFormat": "nb_discovered_peers",
+              "refId": "Number discovered peers"
+            }
+          ],
+          "thresholds": [],
+          "timeFrom": null,
+          "timeRegions": [],
+          "timeShift": null,
+          "title": "Ratio of tried / discovered peers",
+          "tooltip": {
+            "shared": true,
+            "sort": 0,
+            "value_type": "individual"
+          },
+          "transformations": [
+            {
+              "id": "calculateField",
+              "options": {
+                "alias": "Ratio",
+                "binary": {
+                  "left": "nb_tried_peers",
+                  "operator": "/",
+                  "reducer": "sum",
+                  "right": "nb_discovered_peers"
+                },
+                "mode": "binary",
+                "reduce": {
+                  "include": [
+                    "{{instance}}"
+                  ],
+                  "reducer": "sum"
+                }
+              }
+            }
+          ],
+          "type": "graph",
+          "xaxis": {
+            "buckets": null,
+            "mode": "time",
+            "name": null,
+            "show": true,
+            "values": []
+          },
+          "yaxes": [
+            {
+              "decimals": null,
+              "format": "percentunit",
+              "label": "%",
+              "logBase": 1,
+              "max": 1,
+              "min": 0,
+              "show": true
+            },
+            {
+              "format": "short",
+              "label": null,
+              "logBase": 1,
+              "max": null,
+              "min": null,
+              "show": false
+            }
+          ],
+          "yaxis": {
+            "align": false,
+            "alignLevel": null
+          }
+        },
+        {
+          "aliasColors": {},
+          "bars": false,
+          "dashLength": 10,
+          "dashes": false,
+          "datasource": "Prometheus",
+          "fieldConfig": {
+            "defaults": {
+              "custom": {},
+              "links": []
+            },
+            "overrides": []
+          },
+          "fill": 0,
+          "fillGradient": 0,
+          "gridPos": {
             "h": 10,
             "w": 8,
             "x": 0,
