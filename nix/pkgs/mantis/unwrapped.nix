@@ -30,6 +30,7 @@ let
     chmod -R u+w $out
     mkdir -p $out/src/main/protobuf/extvm
     cp ${mantis-extvm-pb}/msg.proto $out/src/main/protobuf/extvm/msg.proto
+    cp ${mantis-extvm-pb}/VERSION $out/src/main/protobuf/extvm/VERSION
   '';
 
 in sbtix.buildSbtProject {
