@@ -5,7 +5,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.crypto
+import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
@@ -17,7 +17,8 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy.persistState
+
+import io.iohk.ethereum.rlp.RLPList
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success, Try}
@@ -98,6 +99,9 @@ object TestService {
 
   case class StorageRangeRequest(parameters: StorageRangeParams)
   case class StorageRangeResponse(complete: Boolean, storage: Map[ByteString, StorageEntry])
+
+  case class GetLogHashRequest(transactionHash: ByteString)
+  case class GetLogHashResponse(logHash: ByteString)
 }
 
 class TestService(
@@ -339,5 +343,22 @@ class TestService(
         )
       )
     )
+  }
+
+  def getLogHash(request: GetLogHashRequest): ServiceResponse[GetLogHashResponse] = {
+    import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits._
+
+    val result = for {
+      transactionLocation <- blockchain.getTransactionLocation(request.transactionHash)
+      block <- blockchain.getBlockByHash(transactionLocation.blockHash)
+      _ <- block.body.transactionList.lift(transactionLocation.txIndex)
+      receipts <- blockchain.getReceiptsByHash(block.header.hash)
+      logs = receipts.flatMap(receipt => receipt.logs)
+      rlpList: RLPList = RLPList(logs.map(_.toRLPEncodable).toList: _*)
+    } yield ByteString(crypto.kec256(rlp.encode(rlpList)))
+
+    result
+      .map(rlpHash => Task.now(Right(GetLogHashResponse(rlpHash))))
+      .getOrElse(Task.now(Right(GetLogHashResponse(ByteString(crypto.kec256(rlp.encode(RLPList(List(): _*))))))))
   }
 }

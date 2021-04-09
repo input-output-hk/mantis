@@ -60,7 +60,9 @@ class BlockPreparator(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
   ): InMemoryWorldStateProxy = {
-    if (!Config.testmode) {
+    if (Config.testmode) {
+      worldStateProxy
+    } else {
       val blockNumber = block.header.number
 
       val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
@@ -104,8 +106,7 @@ class BlockPreparator(
         log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
         increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
       }
-    } else
-      worldStateProxy
+    }
   }
 
   /**
