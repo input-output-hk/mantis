@@ -32,7 +32,7 @@ Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
 ### Command Line Interface
 
 `cli` is a tool that can be used to:
- 
+
  - generate a new private key
  ```
 ./bin/mantis cli generate-private-key
@@ -124,7 +124,7 @@ will need to be updated so that it includes the new dependency state.
 To do so, please run:
 ```
 ./update-nix.sh
-git add ./nix/pkgs/mantis.nix
+git add ./nix/mantis.nix
 git commit -m "Update nix-sbt sha"
 ```
 
@@ -159,9 +159,9 @@ If a new certificate is required, create a new keystore with a certificate by ru
 1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `application.conf` file:
 
     keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
-   
+
     keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-   
+
     password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
 2. Enable TLS in specific config:
     - For JSON RPC: `mantis.network.rpc.http.mode=https`
@@ -171,9 +171,9 @@ If a new certificate is required, create a new keystore with a certificate by ru
 1. Configure the certificate and password file to be used at `mantis.network.rpc.http.certificate` key on the `faucet.conf` file:
 
    keystore-path: path to the keystore storing the certificates (if generated through our script they are by default located in "./tls/mantisCA.p12")
-   
+
    keystore-type: type of certificate keystore being used (if generated through our script use "pkcs12")
-   
+
    password-file: path to the file with the password used for accessing the certificate keystore (if generated through our script they are by default located in "./tls/password")
 2. Enable TLS in specific config:
    - For JSON RPC: `mantis.network.rpc.http.mode=https`
@@ -200,7 +200,7 @@ volumes:
 - $HOME/.mantis:/home/demiourgos728/.mantis/
 command: -Dconfig.file=./conf/sagano.conf
 ```
-   
+
 2. Create a wallet address. Run the following curl command, replacing `<password>` by a password of your choice:
 ```
 curl --request POST \
@@ -209,7 +209,7 @@ curl --request POST \
   --header 'Content-Type: application/json' \
   --data '{
 	"jsonrpc": "2.0",
-  "method": "personal_newAccount", 
+  "method": "personal_newAccount",
   "params": ["<password>"],
   "id": 1
 }'
@@ -244,7 +244,7 @@ curl --request POST \
   --header 'Content-Type: application/json' \
   --data '{
 	"jsonrpc": "2.0",
-  "method": "faucet_sendFunds", 
+  "method": "faucet_sendFunds",
   "params": ["<address>"],
   "id": 1
 }'
