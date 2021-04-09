@@ -65,7 +65,7 @@ class TestmodeConsensus(
     }
   }
 
-  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.PoW)
+  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
 
   override val blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,

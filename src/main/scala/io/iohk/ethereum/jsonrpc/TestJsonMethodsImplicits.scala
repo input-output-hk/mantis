@@ -216,4 +216,17 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
     override def encodeJson(t: StorageRangeResponse): JValue = Extraction.decompose(t)
   }
+
+  implicit val test_getLogHash = new JsonMethodDecoder[GetLogHashRequest] with JsonEncoder[GetLogHashResponse] {
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetLogHashRequest] =
+      params match {
+        case Some(JArray(JString(transactionHashString) :: Nil)) =>
+          for {
+            transactionHash <- extractHash(transactionHashString)
+          } yield GetLogHashRequest(transactionHash)
+        case _ => Left(InvalidParams())
+      }
+
+    override def encodeJson(t: GetLogHashResponse): JValue = encodeAsHex(t.logHash)
+  }
 }
