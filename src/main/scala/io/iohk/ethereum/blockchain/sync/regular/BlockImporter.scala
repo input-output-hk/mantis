@@ -19,12 +19,20 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
+import akka.actor.typed.{ActorRef => TypedActorRef}
+import akka.actor.typed.scaladsl.adapter._
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 
 import scala.concurrent.duration._
 
 // scalastyle:off cyclomatic.complexity
 class BlockImporter(
-    fetcher: ActorRef,
+    fetcher: TypedActorRef[BlockFetcher.FetchCommand],
+    peerEventBus: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
     syncConfig: SyncConfig,
@@ -45,21 +53,33 @@ class BlockImporter(
   override def postRestart(reason: Throwable): Unit = {
     super.postRestart(reason)
     start()
+    peerEventBus ! Subscribe(
+      MessageClassifier(
+        Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
+        PeerSelector.AllPeers
+      )
+    )
+  }
+
+  override def postStop(): Unit = {
+    super.postStop()
+    peerEventBus ! Unsubscribe()
   }
 
   private def idle: Receive = { case Start =>
     start()
+    peerEventBus ! Subscribe(
+      MessageClassifier(
+        Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
+        PeerSelector.AllPeers
+      )
+    )
   }
 
-  private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
-    case OnTop => context become currentBehavior(state.onTop())
-    case NotOnTop => context become currentBehavior(state.notOnTop())
-  }
-
-  private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
+  private def running(state: ImporterState): Receive = {
     case ReceiveTimeout => self ! PickBlocks
 
-    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
+    case PrintStatus => log.info("Best block: {}", blockchain.getBestBlockNumber())
 
     case BlockFetcher.PickedBlocks(blocks) =>
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
@@ -70,7 +90,6 @@ class BlockImporter(
         block,
         new MinedBlockImportMessages(block),
         MinedBlockImport,
-        informFetcherOnFail = false,
         internally = true
       )(state)
 
@@ -83,16 +102,32 @@ class BlockImporter(
         block,
         new CheckpointBlockImportMessages(block),
         CheckpointBlockImport,
-        informFetcherOnFail = false,
         internally = true
       )(state)
 
-    case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing =>
+    case MessageFromPeer(BlockHeaders(headers), _) =>
+      headers.lastOption.map { bh =>
+        log.debug(s"Candidate for new top at block ${bh.number}, current known top ${state.knownTop}")
+        //TODO: keep track of the highest network block
+      }
+
+    case MessageFromPeer(NewBlockHashes(hashes), _) =>
+      log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
+     //TODO: keep track of the highest network block
+
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing =>
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
         NewBlockImport,
-        informFetcherOnFail = true,
+        internally = false
+      )(state)
+
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing =>
+      importBlock(
+        block,
+        new NewBlockImportMessages(block, peerId),
+        NewBlockImport,
         internally = false
       )(state)
 
@@ -120,15 +155,15 @@ class BlockImporter(
 
   private def start(): Unit = {
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
-    fetcher ! BlockFetcher.Start(self, startingBlockNumber)
+    fetcher ! BlockFetcher.Start(startingBlockNumber)
     supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
-    context become running(ImporterState.initial)
+    context become running(ImporterState.initial(startingBlockNumber))
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
     val msg =
-      state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](BlockFetcher.PickBlocks(syncConfig.blocksBatchSize))(from =>
-        BlockFetcher.StrictPickBlocks(from, startingBlockNumber)
+      state.resolvingBranchFrom.fold[BlockFetcher.FetchCommand](BlockFetcher.PickBlocks(syncConfig.blocksBatchSize, self))(from =>
+        BlockFetcher.StrictPickBlocks(from, startingBlockNumber, self)
       )
 
     fetcher ! msg
@@ -170,7 +205,7 @@ class BlockImporter(
 
             err match {
               case e: MissingNodeException =>
-                fetcher ! BlockFetcher.FetchStateNode(e.hash)
+                fetcher ! BlockFetcher.FetchStateNode(e.hash, self)
                 ResolvingMissingNode(NonEmptyList(notImportedBlocks.head, notImportedBlocks.tail))
               case _ =>
                 val invalidBlockNr = notImportedBlocks.head.number
@@ -220,7 +255,6 @@ class BlockImporter(
       block: Block,
       importMessages: ImportMessages,
       blockImportType: BlockImportType,
-      informFetcherOnFail: Boolean,
       internally: Boolean
   ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
@@ -246,10 +280,9 @@ class BlockImporter(
                   supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
                 case None => ()
               }
+              //TODO: return flag "informFetcherOnFail"?
             case BlockImportFailed(error) =>
-              if (informFetcherOnFail) {
                 fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
-              }
           }
           .map(_ => Running)
           .recover {
@@ -331,7 +364,8 @@ class BlockImporter(
 object BlockImporter {
   // scalastyle:off parameter.number
   def props(
-      fetcher: ActorRef,
+      fetcher: TypedActorRef[BlockFetcher.FetchCommand],
+      peerEventBus: ActorRef,
       ledger: Ledger,
       blockchain: Blockchain,
       syncConfig: SyncConfig,
@@ -343,6 +377,7 @@ object BlockImporter {
     Props(
       new BlockImporter(
         fetcher,
+        peerEventBus,
         ledger,
         blockchain,
         syncConfig,
@@ -393,13 +428,10 @@ object BlockImporter {
   }
 
   case class ImporterState(
-      isOnTop: Boolean,
+      knownTop: BigInt,
       importing: Boolean,
       resolvingBranchFrom: Option[BigInt]
   ) {
-    def onTop(): ImporterState = copy(isOnTop = true)
-
-    def notOnTop(): ImporterState = copy(isOnTop = false)
 
     def importingBlocks(): ImporterState = copy(importing = true)
 
@@ -413,8 +445,8 @@ object BlockImporter {
   }
 
   object ImporterState {
-    def initial: ImporterState = ImporterState(
-      isOnTop = false,
+    def initial(knownTop: BigInt): ImporterState = ImporterState(
+      knownTop = knownTop,
       importing = false,
       resolvingBranchFrom = None
     )
