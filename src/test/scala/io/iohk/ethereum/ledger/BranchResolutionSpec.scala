@@ -50,7 +50,7 @@ class BranchResolutionSpec
       new BranchResolutionTestSetup {
         val headers = getChainHeadersNel(1, 10)
 
-        setBestBlockNumber(10)
+//        setBestBlockNumber(10)
         setHeaderInChain(headers.head.parentHash)
         setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
@@ -64,7 +64,7 @@ class BranchResolutionSpec
       new BranchResolutionTestSetup {
         val headers = getChainHeadersNel(1, 10)
 
-        setBestBlockNumber(10)
+//        setBestBlockNumber(10)
         setHeaderInChain(headers.head.parentHash)
         setChainWeightByHash(headers.head.parentHash, ChainWeight.zero)
 
@@ -79,7 +79,7 @@ class BranchResolutionSpec
 
       setHeaderInChain(genesisHeader.parentHash, result = false)
       setGenesisHeader(genesisHeader)
-      setBestBlockNumber(10)
+//      setBestBlockNumber(10)
       setChainWeightByHash(genesisHeader.hash, ChainWeight.zero)
       setBlockByNumber(0, Some(Block(genesisHeader, BlockBody(Nil, Nil))))
 
@@ -95,7 +95,7 @@ class BranchResolutionSpec
 
       setHeaderInChain(differentGenesis.parentHash, result = false)
       setGenesisHeader(genesisHeader)
-      setBestBlockNumber(10)
+//      setBestBlockNumber(10)
 
       ledger.resolveBranch(headers) shouldEqual UnknownBranch
     }
@@ -104,7 +104,7 @@ class BranchResolutionSpec
       val headers = getChainHeadersNel(1, 10)
       val commonParent = headers.toList(1)
 
-      setBestBlockNumber(8)
+//      setBestBlockNumber(8)
       setHeaderInChain(headers.head.parentHash)
       setChainWeightByHash(commonParent.hash, ChainWeight.zero)
 
@@ -126,7 +126,7 @@ class BranchResolutionSpec
 
       setHeaderInChain(commonParent.hash)
       setChainWeightForBlock(commonParent, parentWeight)
-      setBestBlockNumber(longerBranchLowerWeight.last.number)
+//      setBestBlockNumber(longerBranchLowerWeight.last.number)
       longerBranchLowerWeight.foreach(b => setBlockByNumber(b.number, Some(b)))
 
       ledger.resolveBranch(shorterBranchHigherWeight.map(_.header)) shouldEqual NewBetterBranch(
@@ -153,7 +153,7 @@ class BranchResolutionSpec
 
           setHeaderInChain(commonParent.hash)
           setChainWeightForBlock(commonParent, parentWeight)
-          setBestBlockNumber(noCheckpointBranch.last.number)
+//          setBestBlockNumber(noCheckpointBranch.last.number)
           noCheckpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
 
           ledger.resolveBranch(checkpointBranch.map(_.header)) shouldEqual NewBetterBranch(noCheckpointBranch)
@@ -179,7 +179,7 @@ class BranchResolutionSpec
 
           setHeaderInChain(commonParent.hash)
           setChainWeightForBlock(commonParent, parentWeight)
-          setBestBlockNumber(checkpointBranch.last.number)
+//          setBestBlockNumber(checkpointBranch.last.number)
           checkpointBranch.map(b => setBlockByNumber(b.number, Some(b)))
 
           ledger.resolveBranch(noCheckpointBranch.map(_.header)) shouldEqual NoChainSwitch

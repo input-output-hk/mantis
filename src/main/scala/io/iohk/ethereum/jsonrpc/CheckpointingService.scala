@@ -16,7 +16,7 @@ class CheckpointingService(
   import CheckpointingService._
 
   def getLatestBlock(req: GetLatestBlockRequest): ServiceResponse[GetLatestBlockResponse] = {
-    lazy val bestBlockNum = blockchain.getBestBlockNumber()
+    lazy val bestBlockNum = blockchain.getBestBlock().getOrElse(blockchain.genesisBlock).number
     lazy val blockToReturnNum = bestBlockNum - bestBlockNum % req.checkpointingInterval
     lazy val isValidParent = req.parentCheckpoint.forall(blockchain.getBlockHeaderByHash(_).isDefined)
 

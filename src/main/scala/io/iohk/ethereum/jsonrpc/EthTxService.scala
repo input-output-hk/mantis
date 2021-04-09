@@ -151,7 +151,7 @@ class EthTxService(
 
   def getGetGasPrice(req: GetGasPriceRequest): ServiceResponse[GetGasPriceResponse] = {
     val blockDifference = 30
-    val bestBlock = blockchain.getBestBlockNumber()
+    val bestBlock = blockchain.getBestBlock().get.number
 
     Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)

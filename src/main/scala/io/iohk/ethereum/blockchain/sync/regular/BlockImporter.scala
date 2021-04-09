@@ -63,10 +63,10 @@ class BlockImporter(
   private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
     case ReceiveTimeout => self ! PickBlocks
 
-    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
+    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlock().get.number, state.isOnTop)
 
     case BlockFetcher.PickedBlocks(blocks) =>
-      SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
+//      SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks, DefaultBlockImport)(state)
 
     //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
@@ -134,23 +134,13 @@ class BlockImporter(
 
   private def importBlocks(blocks: NonEmptyList[Block], blockImportType: BlockImportType): ImportFn = importWith(
     {
-      Task(
-        log.debug(
-          "Attempting to import blocks starting from {} and ending with {}",
-          blocks.head.number,
-          blocks.last.number
-        )
-      )
-        .flatMap(_ => Task.now(resolveBranch(blocks)))
-        .flatMap {
-          case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-          case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
-        }
+      handleBlocksImport(blocks.toList)
+
     },
     blockImportType
   )
 
-  private def handleBlocksImport(blocks: List[Block]): Task[NewBehavior] =
+  private def handleBlocksImport(blocks: List[Block]): Task[NewBehavior] = {
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
@@ -177,6 +167,7 @@ class BlockImporter(
             }
         }
       }
+  }
 
   private def tryImportBlocks(
       blocks: List[Block],
@@ -344,7 +335,7 @@ class BlockImporter(
         Right(Nil)
     }
 
-  private def startingBlockNumber: BigInt = blockchain.getBestBlockNumber()
+  private def startingBlockNumber: BigInt = blockchain.getBestBlock().getOrElse(blockchain.genesisBlock).number
 
   private def getBehavior(newBehavior: NewBehavior, blockImportType: BlockImportType): Behavior = newBehavior match {
     case Running => running

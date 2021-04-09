@@ -105,46 +105,6 @@ class PersonalServiceSpec
     res shouldEqual Right(UnlockAccountResponse(true))
   }
 
-  it should "send a transaction (given sender address and a passphrase)" in new TestSetup {
-    (keyStore.unlockAccount _)
-      .expects(address, passphrase)
-      .returning(Right(wallet))
-
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
-
-    val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).runToFuture
-
-    txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Nil))
-
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
-  }
-
-  it should "send a transaction when having pending txs from the same sender" in new TestSetup {
-    val newTx = wallet.signTx(tx.toTransaction(nonce + 1), None).tx
-
-    (keyStore.unlockAccount _)
-      .expects(address, passphrase)
-      .returning(Right(wallet))
-
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
-
-    val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).runToFuture
-
-    txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Seq(PendingTransaction(stxWithSender, 0))))
-
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(newTx.hash))
-    txPool.expectMsg(AddOrOverrideTransaction(newTx))
-  }
-
   it should "fail to send a transaction given a wrong passphrase" in new TestSetup {
     (keyStore.unlockAccount _)
       .expects(address, passphrase)
@@ -155,27 +115,6 @@ class PersonalServiceSpec
 
     res shouldEqual Left(InvalidPassphrase)
     txPool.expectNoMessage()
-  }
-
-  it should "send a transaction (given sender address and using an unlocked account)" in new TestSetup {
-    (keyStore.unlockAccount _)
-      .expects(address, passphrase)
-      .returning(Right(wallet))
-
-    personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
-
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
-
-    val req = SendTransactionRequest(tx)
-    val res = personal.sendTransaction(req).runToFuture
-
-    txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Nil))
-
-    res.futureValue shouldEqual Right(SendTransactionResponse(stx.hash))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
   }
 
   it should "fail to send a transaction when account is locked" in new TestSetup {
@@ -316,45 +255,6 @@ class PersonalServiceSpec
         val res = personal.ecRecover(req).runSyncUnsafe(taskTimeout)
         res shouldEqual Right(EcRecoverResponse(address))
       }
-  }
-
-  it should "produce not chain specific transaction before eip155" in new TestSetup {
-    (keyStore.unlockAccount _)
-      .expects(address, passphrase)
-      .returning(Right(wallet))
-
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
-
-    val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).runToFuture
-
-    txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Nil))
-
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(stx.hash))
-    txPool.expectMsg(AddOrOverrideTransaction(stx))
-  }
-
-  it should "produce chain specific transaction after eip155" in new TestSetup {
-    (keyStore.unlockAccount _)
-      .expects(address, passphrase)
-      .returning(Right(wallet))
-
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    val forkBlock = new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
-
-    val req = SendTransactionWithPassphraseRequest(tx, passphrase)
-    val res = personal.sendTransaction(req).runToFuture
-
-    txPool.expectMsg(GetPendingTransactions)
-    txPool.reply(PendingTransactionsResponse(Nil))
-
-    res.futureValue shouldEqual Right(SendTransactionWithPassphraseResponse(chainSpecificStx.hash))
-    txPool.expectMsg(AddOrOverrideTransaction(chainSpecificStx))
   }
 
   it should "return an error when importing a duplicated key" in new TestSetup {

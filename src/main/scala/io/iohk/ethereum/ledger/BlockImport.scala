@@ -26,14 +26,14 @@ class BlockImport(
       currentBestBlock: Block,
       currentWeight: ChainWeight
   )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-    val validationResult =
-      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
+//    val validationResult =
+//      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
     val importResult =
       Task
         .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
         .executeOn(blockExecutionScheduler)
 
-    Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
+    Task.parMap2(Task.right(BlockExecutionSuccess), importResult) { case (validationResult, importResult) =>
       validationResult.fold(
         error => handleImportTopValidationError(error, block, importResult),
         _ => importResult
@@ -42,42 +42,16 @@ class BlockImport(
   }
 
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight): BlockImportResult = {
-    val executionResult = for {
-      topBlock <- blockQueue.enqueueBlock(block, bestBlockNumber)
-      topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
-      (executed, errors) = blockExecution.executeAndValidateBlocks(topBlocks, currentWeight)
-    } yield (executed, errors, topBlocks)
 
-    executionResult match {
-      case Some((importedBlocks, maybeError, topBlocks)) =>
-        val result = maybeError match {
-          case None =>
-            BlockImportedToTop(importedBlocks)
+    val execResult: (List[BlockData], Option[BlockExecutionError]) =
+      blockExecution.executeAndValidateBlocks(List(block), currentWeight)
 
-          case Some(error) if importedBlocks.isEmpty =>
-            blockQueue.removeSubtree(block.header.hash)
-            BlockImportFailed(error.toString)
-
-          case Some(_) =>
-            topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
-              blockQueue.removeSubtree(failedBlock.header.hash)
-            }
-            BlockImportedToTop(importedBlocks)
-        }
-        log.debug(
-          "{}", {
-            val result = importedBlocks.map { blockData =>
-              val header = blockData.block.header
-              s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
-            }
-            result.toString
-          }
-        )
-
-        result
-
+    execResult._2 match {
       case None =>
-        BlockImportFailed(s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch")
+        BlockImportedToTop(execResult._1)
+
+      case Some(error) =>
+        BlockImportFailed(error.toString)
     }
   }
 
@@ -141,7 +115,7 @@ class BlockImport(
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
-    val bestNumber = blockchain.getBestBlockNumber()
+    val bestNumber = blockchain.getBestBlock().get.number
 
     val reorgResult = for {
       parent <- newBranch.headOption
@@ -206,13 +180,12 @@ class BlockImport(
     }
 
     import cats.implicits._
-    val checkpointNumber = oldBranch.collect {
+    val checkpointHash = oldBranch.collect {
       case BlockData(block, _, _) if block.hasCheckpoint => block.number
     }.maximumOption
 
-    val bestNumber = oldBranch.last.block.header.number
-    blockchain.saveBestKnownBlocks(bestNumber, checkpointNumber)
-    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
+    val bestHash = oldBranch.last.block.hash
+    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block))
 
     newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
       blockQueue.removeSubtree(block.header.hash)

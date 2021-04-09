@@ -130,7 +130,7 @@ object Fixtures {
         transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
         receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
         logsBloom = ByteString(Hex.decode("0" * 512)),
-        difficulty = BigInt("17179869184"),
+        difficulty = BigInt("1"),
         number = 0,
         gasLimit = 5000,
         gasUsed = 0,

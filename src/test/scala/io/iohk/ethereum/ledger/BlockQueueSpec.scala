@@ -16,7 +16,6 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   "BlockQueue" should "ignore block if it's already in the queue" in new TestConfig {
     val block = getBlock(1)
     val parentWeight = ChainWeight.zero
-    setBestBlockNumber(1).twice()
     setChainWeightForParent(block, Some(parentWeight))
 
     blockQueue.enqueueBlock(block) shouldEqual Some(Leaf(block.header.hash, parentWeight.increase(block.header)))
@@ -27,7 +26,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   it should "ignore blocks outside of range" in new TestConfig {
     val block1 = getBlock(1)
     val block30 = getBlock(30)
-    setBestBlockNumber(15).twice()
+//    setBestBlockNumber(15).twice()
 
     blockQueue.enqueueBlock(block1)
     blockQueue.isQueued(block1.header.hash) shouldBe false
@@ -38,14 +37,14 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "remove the blocks that fall out of range" in new TestConfig {
     val block1 = getBlock(1)
-    setBestBlockNumber(1)
+//    setBestBlockNumber(1)
     setChainWeightForParent(block1)
 
     blockQueue.enqueueBlock(block1)
     blockQueue.isQueued(block1.header.hash) shouldBe true
 
     val block20 = getBlock(20)
-    setBestBlockNumber(20)
+//    setBestBlockNumber(20)
     setChainWeightForParent(block20)
 
     blockQueue.enqueueBlock(block20)
@@ -56,7 +55,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   it should "enqueue a block with parent on the main chain updating its total difficulty" in new TestConfig {
     val block1 = getBlock(1, 13)
     val parentWeight = ChainWeight.totalDifficultyOnly(42)
-    setBestBlockNumber(1)
+//    setBestBlockNumber(1)
     setChainWeightForParent(block1, Some(parentWeight))
 
     blockQueue.enqueueBlock(block1) shouldEqual Some(Leaf(block1.header.hash, parentWeight.increase(block1.header)))
@@ -70,7 +69,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
     val parentWeight = ChainWeight.totalDifficultyOnly(42)
 
-    setBestBlockNumber(1).anyNumberOfTimes()
+//    setBestBlockNumber(1).anyNumberOfTimes()
     setChainWeightForParent(block1, Some(parentWeight))
     setChainWeightForParent(block2a, None)
     setChainWeightForParent(block2b, None)
@@ -86,7 +85,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "enqueue an orphaned block" in new TestConfig {
     val block1 = getBlock(1)
-    setBestBlockNumber(1)
+//    setBestBlockNumber(1)
     setChainWeightForParent(block1)
 
     blockQueue.enqueueBlock(block1) shouldBe None
@@ -99,7 +98,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val block2b = getBlock(2, parent = block1.header.hash)
     val block3 = getBlock(3, parent = block2a.header.hash)
 
-    setBestBlockNumber(1).anyNumberOfTimes()
+//    setBestBlockNumber(1).anyNumberOfTimes()
     setChainWeightForParent(block1)
     setChainWeightForParent(block2a)
     setChainWeightForParent(block2b)
@@ -125,7 +124,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val block2b = getBlock(2, parent = block1a.header.hash)
     val block3 = getBlock(3, parent = block2a.header.hash)
 
-    setBestBlockNumber(1).anyNumberOfTimes()
+//    setBestBlockNumber(1).anyNumberOfTimes()
     setChainWeightForParent(block1a)
     setChainWeightForParent(block1b)
     setChainWeightForParent(block2a)
@@ -158,8 +157,8 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
     val blockchain = mock[BlockchainImpl]
     val blockQueue = BlockQueue(blockchain, syncConfig)
 
-    def setBestBlockNumber(n: BigInt) =
-      (blockchain.getBestBlockNumber _).expects().returning(n)
+//    def setBestBlockNumber(n: BigInt) =
+//      (blockchain.getBestBlockNumber _).expects().returning(n)
 
     def setChainWeightForParent(block: Block, weight: Option[ChainWeight] = None) =
       (blockchain.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)

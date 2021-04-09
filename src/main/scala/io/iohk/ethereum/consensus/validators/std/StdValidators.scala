@@ -26,7 +26,6 @@ final class StdValidators(
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
   ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,

@@ -13,7 +13,7 @@ trait FastSyncBranchResolver {
 
   // TODO [ETCM-676] move to [[Blockchain]] and make sure it's atomic
   def discardBlocksAfter(lastValidBlock: BigInt): Unit =
-    discardBlocks(lastValidBlock, blockchain.getBestBlockNumber())
+    discardBlocks(lastValidBlock, blockchain.getBestBlock().get.number)
 
   // TODO [ETCM-676] move to [[Blockchain]] and make sure it's atomic
   private def discardBlocks(fromBlock: BigInt, toBlock: BigInt): Unit = {

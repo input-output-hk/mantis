@@ -108,7 +108,7 @@ class EthMiningService(
       reportActive()
       Task {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
-          case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
+          case Some(pendingBlock) if blockchain.getBestBlock().get.number <= pendingBlock.block.header.number =>
             import pendingBlock._
             syncingController ! SyncProtocol.MinedBlock(
               block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash))

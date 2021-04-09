@@ -163,14 +163,14 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
       block: BlockParam
   ): Task[Either[JsonRpcError, ProofAccount]] = Task {
     for {
-      blockNumber <- resolveBlock(block).map(_.block.number)
+      block <- resolveBlock(block)
       account <- Either.fromOption(
-        blockchain.getAccount(address, blockNumber),
-        noAccount(address, blockNumber)
+        blockchain.getAccount(address, block.block.hash),
+        noAccount(address, block.block.number)
       )
       accountProof <- Either.fromOption(
-        blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
-        noAccountProof(address, blockNumber)
+        blockchain.getAccountProof(address, block.block.hash).map(_.map(asRlpSerializedNode)),
+        noAccountProof(address, block.block.number)
       )
       storageProof = getStorageProof(account, storageKeys)
     } yield ProofAccount(account, accountProof, storageProof, address)
@@ -207,10 +207,11 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
     }
 
+    val bestBlock = blockchain.getBestBlock().toRight(JsonRpcError.InvalidParams(s"Block not found"))
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => bestBlock.map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
         blockGenerator.getPendingBlockAndState
           .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))

@@ -64,38 +64,38 @@ object FastSyncItSpecUtils {
       }.toOption
     }
 
-    def containsExpectedDataUpToAccountAtBlock(n: BigInt, blockNumber: BigInt): Boolean = {
-      @tailrec
-      def go(i: BigInt): Boolean = {
-        if (i >= n) {
-          true
-        } else {
-          val expectedBalance = i
-          val accountAddress = Address(i)
-          val accountExpectedCode = ByteString(i.toByteArray)
-          val codeHash = kec256(accountExpectedCode)
-          val accountExpectedStorageAddresses = (i until i + 20).toList
-          val account = bl.getAccount(accountAddress, blockNumber).get
-          val code = bl.getEvmCodeByHash(codeHash).get
-          val storedData = accountExpectedStorageAddresses.map { addr =>
-            ByteUtils.toBigInt(bl.getAccountStorageAt(account.storageRoot, addr, ethCompatibleStorage = true))
-          }
-          val haveAllStoredData = accountExpectedStorageAddresses.zip(storedData).forall { case (address, value) =>
-            address == value
-          }
-
-          val dataIsCorrect =
-            account.balance.toBigInt == expectedBalance && code == accountExpectedCode && haveAllStoredData
-          if (dataIsCorrect) {
-            go(i + 1)
-          } else {
-            false
-          }
-        }
-      }
-
-      go(0)
-    }
+//    def containsExpectedDataUpToAccountAtBlock(n: BigInt, blockNumber: BigInt): Boolean = {
+//      @tailrec
+//      def go(i: BigInt): Boolean = {
+//        if (i >= n) {
+//          true
+//        } else {
+//          val expectedBalance = i
+//          val accountAddress = Address(i)
+//          val accountExpectedCode = ByteString(i.toByteArray)
+//          val codeHash = kec256(accountExpectedCode)
+//          val accountExpectedStorageAddresses = (i until i + 20).toList
+//          val account = bl.getAccount(accountAddress, blockNumber).get
+//          val code = bl.getEvmCodeByHash(codeHash).get
+//          val storedData = accountExpectedStorageAddresses.map { addr =>
+//            ByteUtils.toBigInt(bl.getAccountStorageAt(account.storageRoot, addr, ethCompatibleStorage = true))
+//          }
+//          val haveAllStoredData = accountExpectedStorageAddresses.zip(storedData).forall { case (address, value) =>
+//            address == value
+//          }
+//
+//          val dataIsCorrect =
+//            account.balance.toBigInt == expectedBalance && code == accountExpectedCode && haveAllStoredData
+//          if (dataIsCorrect) {
+//            go(i + 1)
+//          } else {
+//            false
+//          }
+//        }
+//      }
+//
+//      go(0)
+//    }
 
     def startWithState(): Task[Unit] = {
       Task {

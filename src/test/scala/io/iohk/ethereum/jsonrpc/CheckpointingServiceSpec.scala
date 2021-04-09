@@ -40,7 +40,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, None)
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+//      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
@@ -67,7 +67,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, Some(hash))
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+//      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header))
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
@@ -95,7 +95,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, Some(hash))
       val expectedResponse = GetLatestBlockResponse(None)
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+//      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchain.getBlockHeaderByHash _).expects(hash).returning(None)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
@@ -114,27 +114,6 @@ class CheckpointingServiceSpec
 
     syncController.expectMsg(NewCheckpoint(hash, signatures))
     result shouldEqual Right(expectedResponse)
-  }
-
-  it should "get latest block in case of blockchain re-org" in new TestSetup {
-    val block = Fixtures.Blocks.ValidBlock.block
-    val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
-    (blockchain.getBestBlockNumber _)
-      .expects()
-      .returning(7)
-    (blockchain.getBlockByNumber _)
-      .expects(BigInt(4))
-      .returning(None)
-    (blockchain.getBestBlockNumber _)
-      .expects()
-      .returning(7)
-    (blockchain.getBlockByNumber _)
-      .expects(BigInt(4))
-      .returning(Some(block))
-
-    val result = service.getLatestBlock(GetLatestBlockRequest(4, None))
-
-    result.runSyncUnsafe() shouldEqual Right(expectedResponse)
   }
 
   trait TestSetup {

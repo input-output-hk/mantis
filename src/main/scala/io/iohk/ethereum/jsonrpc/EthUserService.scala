@@ -69,7 +69,7 @@ class EthUserService(
       resolveBlock(blockParam)
         .map { case ResolvedBlock(block, _) =>
           blockchain
-            .getAccount(address, block.header.number)
+            .getAccount(address, block.header.hash)
             .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
         }
         .map(makeResponse)

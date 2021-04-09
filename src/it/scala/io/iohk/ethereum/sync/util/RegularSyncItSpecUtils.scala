@@ -7,7 +7,13 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
-import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
+import io.iohk.ethereum.blockchain.sync.regular.{
+  BlockBroadcast,
+  BlockBroadcasterActor,
+  BlockFetcher,
+  BlockImporter,
+  RegularSync
+}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
@@ -97,7 +103,8 @@ object RegularSyncItSpecUtils {
         pendingTransactionsManager,
         checkpointBlockGenerator,
         regularSync
-      ))
+      )
+    )
 
     lazy val regularSync = system.actorOf(
       RegularSync.props(
@@ -139,7 +146,7 @@ object RegularSyncItSpecUtils {
     }
 
     def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] = {
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90) { isDone => isDone }
+      retryUntilWithDelay(Task(bl.getBestBlock().get.number == blockNumber), 1.second, 90) { isDone => isDone }
     }
 
     def mineNewBlock(

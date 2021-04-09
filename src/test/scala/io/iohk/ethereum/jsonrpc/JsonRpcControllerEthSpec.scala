@@ -71,7 +71,6 @@ class JsonRpcControllerEthSpec
 
   it should "handle eth_blockNumber request" in new JsonRpcControllerFixture {
     val bestBlockNumber = 10
-    blockchain.saveBestKnownBlocks(bestBlockNumber)
 
     val rpcRequest = newJsonRpcRequest("eth_blockNumber")
     val response = jsonRpcController.handleRequest(rpcRequest).runSyncUnsafe()
@@ -448,7 +447,6 @@ class JsonRpcControllerEthSpec
     blockchain
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
-    blockchain.saveBestKnownBlocks(42)
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_gasPrice")
 

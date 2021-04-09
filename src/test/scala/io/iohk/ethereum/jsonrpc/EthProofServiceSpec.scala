@@ -253,7 +253,6 @@ class EthProofServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
 

@@ -374,13 +374,13 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockQueue.isQueued _).expects(block.header.hash).anyNumberOfTimes().returning(inQueue)
   }
 
-  def setBestBlock(block: Block): CallHandler0[BigInt] = {
+  def setBestBlock(block: Block) = {
     (blockchain.getBestBlock _).expects().returning(Some(block))
-    (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
+//    (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
   }
 
-  def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
-    (blockchain.getBestBlockNumber _).expects().returning(num)
+//  def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
+//    (blockchain.getBestBlockNumber _).expects().returning(num)
 
   def setChainWeightForBlock(block: Block, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
     setChainWeightByHash(block.hash, weight)

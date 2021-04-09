@@ -1,5 +1,6 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import org.scalatest.wordspec.AnyWordSpec
@@ -15,6 +16,15 @@ class AppStateStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks with
         storage.putBestBlockNumber(bestBlockNumber).commit()
 
         assert(storage.getBestBlockNumber() == bestBlockNumber)
+      }
+    }
+
+    "insert and get best block hash properly" in new Fixtures {
+      forAll(ObjectGenerators.byteStringOfLengthNGen(20)) { bestBlockHash =>
+        val storage = newAppStateStorage()
+        storage.putBestBlockHash(bestBlockHash).commit()
+
+        assert(storage.getBestBlockHash().get == bestBlockHash)
       }
     }
 

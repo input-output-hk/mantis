@@ -135,7 +135,7 @@ class TestService(
 
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-    (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
+    (blockchain.getBestBlock().get.number until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     Task.now(Right(RewindToBlockResponse()))

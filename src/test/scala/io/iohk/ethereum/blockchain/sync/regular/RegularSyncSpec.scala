@@ -185,7 +185,6 @@ class RegularSyncSpec
         new Fixture(testSystem) with FakeLedger {
           implicit val ec: Scheduler = Scheduler(system.dispatcher)
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-          (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
           override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
@@ -241,7 +240,7 @@ class RegularSyncSpec
       new Fixture(testSystem) with FakeLedger {
         implicit val ec: Scheduler = Scheduler(system.dispatcher)
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-        (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
+//        (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
         override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
@@ -370,7 +369,7 @@ class RegularSyncSpec
 
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
-        (blockchain.getBestBlockNumber _).when().returns(0)
+//        (blockchain.getBestBlockNumber _).when().returns(0)
         (blockchain.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
@@ -621,7 +620,7 @@ class RegularSyncSpec
           goToTop()
 
           val num: BigInt = 42
-          blockchain.saveBestKnownBlocks(num, Some(num))
+//          blockchain.saveBestKnownBlocks(num, Some(num))
 
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(handshakedPeers))

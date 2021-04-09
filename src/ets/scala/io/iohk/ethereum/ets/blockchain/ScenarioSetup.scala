@@ -108,8 +108,7 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
     scenario.postState.map(postState => InMemoryWorldStateProxy.persistState(getWorldState(postState)))
 
   def getBestBlock: Option[Block] = {
-    val bestBlockNumber = blockchain.getBestBlockNumber()
-    blockchain.getBlockByNumber(bestBlockNumber)
+    blockchain.getBestBlock()
   }
 
   def getExpectedState: Option[List[(Address, Option[Account])]] = {
@@ -117,8 +116,8 @@ abstract class ScenarioSetup(_vm: VMImpl, scenario: BlockchainScenario) {
   }
 
   def getResultState: Option[List[(Address, Option[Account])]] = {
-    val bestBlockNumber = blockchain.getBestBlockNumber()
-    scenario.postState.map(_.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockNumber)).toList)
+    val bestBlockHash = blockchain.getBestBlock().get.hash
+    scenario.postState.map(_.map(addAcc => addAcc._1 -> blockchain.getAccount(addAcc._1, bestBlockHash)).toList)
   }
 
   private def buildBlockchainConfig(network: String, shouldSkipPoW: Boolean): (BlockchainConfig, ValidatorsExecutor) = {

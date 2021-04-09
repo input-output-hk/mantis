@@ -92,7 +92,6 @@ class EthServiceSpec
   it should "execute call and return a value" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txResult = TxResult(
       BlockchainImpl(storagesInstance.storages)
@@ -120,7 +119,6 @@ class EthServiceSpec
   it should "execute estimateGas and return a value" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val estimatedGas = BigInt(123)
     (stxLedger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)

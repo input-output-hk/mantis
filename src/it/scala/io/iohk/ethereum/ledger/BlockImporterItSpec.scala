@@ -147,12 +147,13 @@ class BlockImporterItSpec
         supervisor.ref
       )
     )
-
     blockImporter ! BlockImporter.Start
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
-
     //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
-    eventually { blockchain.getBestBlock().get shouldEqual oldBlock4 }
+    eventually { blockchain.getBestBlock().get.number shouldEqual oldBlock4.number }
+
+    blockchain.getBlockByHash(newBlock2.hash) should be(None)
+
   }
 
   it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
@@ -164,7 +165,7 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    eventually { Thread.sleep(200); blockchain.getBestBlock().get shouldEqual newBlock3 }
+    eventually { Thread.sleep(200); blockchain.getBestBlockHash() shouldEqual newBlock3.hash }
   }
 
   it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
@@ -185,7 +186,7 @@ class BlockImporterItSpec
     blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
     blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
     // simulation of node restart
-    blockchain.saveBestKnownBlocks(blockchain.getBestBlockNumber() - 1)
+
     blockchain.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
 
     //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch

@@ -144,7 +144,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
     override lazy val hash: ByteString = genesisHash
   }
 
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = None
+  override def getAccountProof(address: Address, blockNumber: ByteString): Option[Vector[MptNode]] = None
 
   override def getStorageProofAt(
       rootHash: NodeHash,
@@ -155,6 +155,10 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 
   override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())
+
+  override def getBestBlockHash(): NodeHash = ???
+
+  override def getLatestCheckpointBlockHash(): akka.util.ByteString = ???
 
   override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
 
@@ -180,7 +184,7 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
 
-  def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
+  def getAccount(address: Address, blockNumber: ByteString): Option[Account] = ???
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???

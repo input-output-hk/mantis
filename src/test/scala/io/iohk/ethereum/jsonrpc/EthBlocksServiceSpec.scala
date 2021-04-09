@@ -35,7 +35,6 @@ class EthBlocksServiceSpec
 
   "EthBlocksService" should "answer eth_blockNumber with the latest block number" in new TestSetup {
     val bestBlockNumber = 10
-    blockchain.saveBestKnownBlocks(bestBlockNumber)
 
     val response = ethBlocksService.bestBlockNumber(BestBlockNumberRequest()).runSyncUnsafe(Duration.Inf).toOption.get
     response.bestBlockNumber shouldEqual bestBlockNumber
@@ -145,7 +144,6 @@ class EthBlocksServiceSpec
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     (() => blockGenerator.getPendingBlockAndState).expects().returns(None)
 
@@ -232,7 +230,6 @@ class EthBlocksServiceSpec
   it should "get transaction count by latest block number" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response =
       ethBlocksService.getBlockTransactionCountByNumber(GetBlockTransactionCountByNumberRequest(BlockParam.Latest))
@@ -388,7 +385,6 @@ class EthBlocksServiceSpec
   it should "get uncle count by block number" in new TestSetup {
     (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response = ethBlocksService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
 

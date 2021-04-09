@@ -48,7 +48,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     * @return Current block number the client is on.
     */
   def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Task {
-    Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
+    Right(BestBlockNumberResponse(blockchain.getBestBlock().get.number))
   }
 
   /**

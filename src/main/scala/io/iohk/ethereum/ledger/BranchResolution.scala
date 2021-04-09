@@ -69,7 +69,7 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
   }
 
   private def getTopBlocksFromNumber(from: BigInt): List[Block] =
-    (from to blockchain.getBestBlockNumber())
+    (from to blockchain.getBestBlock().get.number)
       .flatMap(blockchain.getBlockByNumber)
       .toList
 }

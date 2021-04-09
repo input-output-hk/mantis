@@ -36,7 +36,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     * @return if the newly enqueued block is part of a known branch (rooted somewhere on the main chain), return
     *         the leaf hash and its total difficulty, otherwise None
     */
-  def enqueueBlock(block: Block, bestBlockNumber: BigInt = blockchain.getBestBlockNumber()): Option[Leaf] = {
+  def enqueueBlock(block: Block, bestBlockNumber: BigInt = blockchain.getBestBlock().get.number): Option[Leaf] = {
     import block.header._
 
     cleanUp(bestBlockNumber)

@@ -121,7 +121,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
         val blockWithCheckpoint =
           new CheckpointBlockGenerator().generate(Block(validBlockParentHeader, validBlockBodyWithNoTxs), checkpoint)
-        val treasuryAccountBefore = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
+        val treasuryAccountBefore = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.hash)
 
         val mockValidators = MockValidatorsAlwaysSucceed
         val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
@@ -132,8 +132,8 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val (blocks, error) =
           blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
         val beneficiaryAccount =
-          blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.number)
-        val treasuryAccountAfter = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
+          blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.hash)
+        val treasuryAccountAfter = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.hash)
 
         beneficiaryAccount.isDefined shouldBe false
         treasuryAccountBefore shouldBe treasuryAccountAfter

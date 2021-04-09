@@ -1,9 +1,11 @@
 package io.iohk.ethereum.db.storage
 
-import java.math.BigInteger
+import akka.util.ByteString
 
+import java.math.BigInteger
 import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.AppStateStorage._
+import io.iohk.ethereum.domain.Block
 
 import scala.collection.immutable.ArraySeq
 
@@ -23,6 +25,18 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
     ArraySeq.unsafeWrapArray(k.getBytes(StorageStringCharset.UTF8Charset))
   def valueDeserializer: IndexedSeq[Byte] => String = (valueBytes: IndexedSeq[Byte]) =>
     new String(valueBytes.toArray, StorageStringCharset.UTF8Charset)
+
+  def getBestBlockHash(): Option[ByteString] =
+    getByteString(Keys.BestBlockHash)
+
+  def putBestBlockHash(bestBlockHash: ByteString): DataSourceBatchUpdate =
+    put(Keys.BestBlockHash, bestBlockHash.encodeBase64.utf8String)
+
+  def getLatestCheckpointBlockHash(): Option[ByteString] =
+    getByteString(Keys.LatestCheckpointBlockHash)
+
+  def putLatestCheckpointBlockHash(bestBlockHash: ByteString): DataSourceBatchUpdate =
+    put(Keys.LatestCheckpointBlockHash, bestBlockHash.encodeBase64.utf8String)
 
   def getBestBlockNumber(): BigInt =
     getBigInt(Keys.BestBlockNumber)
@@ -52,6 +66,10 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
     get(key).map(BigInt(_)).getOrElse(BigInt(BigInteger.ZERO))
   }
 
+  private def getByteString(key: Key): Option[ByteString] = {
+    get(key).map(ByteString(_).decodeBase64)
+  }
+
   /**
     * It is safe to return zero in case of not having any checkpoint block,
     * because we assume that genesis block is a kinda stable checkpoint block (without real checkpoint)
@@ -75,10 +93,12 @@ object AppStateStorage {
   type Value = String
 
   object Keys {
+    val BestBlockHash = "BestBlockHash"
     val BestBlockNumber = "BestBlockNumber"
     val FastSyncDone = "FastSyncDone"
     val EstimatedHighestBlock = "EstimatedHighestBlock"
     val SyncStartingBlock = "SyncStartingBlock"
     val LatestCheckpointBlockNumber = "LatestCheckpointBlockNumber"
+    val LatestCheckpointBlockHash = "LatestCheckpointBlockHash"
   }
 }

@@ -11,18 +11,16 @@ class CodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with Ob
   val LimitCodeSize = 100
 
   test("CodeStorage insert") {
-    forAll(Gen.listOf(byteStringOfLengthNGen(32))) { unfilteredCodeHashes =>
-      val codeHashes = unfilteredCodeHashes.distinct
-      val codes = Gen.listOfN(codeHashes.length, randomSizeByteArrayGen(0, LimitCodeSize)).sample.get.map(ByteString(_))
-      val storage = new EvmCodeStorage(EphemDataSource())
-      val batchUpdates = codeHashes.zip(codes).foldLeft(storage.emptyBatchUpdate) { case (updates, (codeHash, code)) =>
-        updates.and(storage.put(codeHash, code))
-      }
-      batchUpdates.commit()
 
-      codeHashes.zip(codes).foreach { case (codeHash, code) =>
-        assert(storage.get(codeHash).contains(code))
-      }
+    val storage = new EvmCodeStorage(EphemDataSource())
+    val hashes = Seq(ByteString("asdf"), ByteString("asdf"))
+    val codes = Seq(ByteString("qwerty"), ByteString("poiu"))
+    val batchUpdates = hashes.zip(codes).foldLeft(storage.emptyBatchUpdate) { case (updates, (codeHash, code)) =>
+      updates.and(storage.put(codeHash, code))
+    }
+    batchUpdates.commit()
+    hashes.zip(codes).foreach { case (codeHash, code) =>
+      assert(storage.get(codeHash).contains(code))
     }
   }
 

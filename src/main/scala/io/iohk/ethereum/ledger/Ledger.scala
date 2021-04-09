@@ -119,32 +119,21 @@ class LedgerImpl(
 
   override def importBlock(
       block: Block
-  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
-    blockchain.getBestBlock() match {
-      case Some(bestBlock) =>
-        if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
-            .map(_ => DuplicateBlock)
-        } else {
-          val hash = bestBlock.header.hash
-          blockchain.getChainWeightByHash(hash) match {
-            case Some(weight) =>
-              val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
-                blockImport.importToTop(block, bestBlock, weight)
-              } else {
-                blockImport.reorganise(block, bestBlock, weight)
-              }
-              importResult.foreach(measureBlockMetrics)
-              importResult
-            case None =>
-              log.error(s"Getting total difficulty for current best block with hash: $hash failed")
-              Task.now(BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $hash"))
-          }
-        }
+  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+    val bestBlockHash = blockchain.getBestBlockHash()
+    blockchain.getChainWeightByHash(bestBlockHash) match {
+      case Some(weight) =>
+        val bestBlock = blockchain.getBlockByHash(bestBlockHash)
+        val importResult = blockImport.importToTop(block, bestBlock.get, weight)
+        importResult.foreach(measureBlockMetrics)
+        importResult
       case None =>
-        log.error("Getting current best block failed")
-        Task.now(BlockImportFailed(s"Couldn't find the current best block"))
+        log.error(s"Getting total difficulty for current best block with hash: $bestBlockHash failed")
+        Task.now(
+          BlockImportFailed(s"Couldn't get total difficulty for current best block with hash: $bestBlockHash")
+        )
     }
+  }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash

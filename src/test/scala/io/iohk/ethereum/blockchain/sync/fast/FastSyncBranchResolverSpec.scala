@@ -44,7 +44,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val headers = headersMap(amount = 3, parent = Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
 
       inSequence {
-        (mockedBlockchain.getBestBlockNumber _).expects().returning(BigInt(100)).once()
+//        (mockedBlockchain.getBestBlockNumber _).expects().returning(BigInt(100)).once()
         (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
         (mockedBlockchain.removeBlock _).expects(headers(100).hash, false).returning(())
         (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))

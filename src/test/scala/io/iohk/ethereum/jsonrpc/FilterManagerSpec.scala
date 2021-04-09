@@ -39,8 +39,6 @@ class FilterManagerSpec
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
 
-    (blockchain.getBestBlockNumber _).expects().returning(3)
-
     val createResp =
       (filterManager ? FilterManager.NewLogFilter(
         Some(BlockParam.WithNumber(1)),
@@ -65,7 +63,6 @@ class FilterManagerSpec
 
     val bh3 = blockHeader.copy(number = 3, logsBloom = BloomFilter.create(Nil))
 
-    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
     (blockchain.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
     (blockchain.getBlockHeaderByNumber _).expects(bh2.number).returning(Some(bh2))
     (blockchain.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
@@ -120,18 +117,12 @@ class FilterManagerSpec
       topics = logs2.head.logTopics
     )
 
-    // same best block, no new logs
-    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
-
     val changesResp1 =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
         .mapTo[FilterManager.LogFilterChanges]
         .futureValue
 
     changesResp1.logs.size shouldBe 0
-
-    // new block with new logs
-    (blockchain.getBestBlockNumber _).expects().returning(4).twice()
 
     val log4_1 = TxLogEntry(
       Address("0x1234"),
@@ -211,8 +202,6 @@ class FilterManagerSpec
     val address = Address("0x1234")
     val topics = Seq(Seq(), Seq(ByteString(Hex.decode("4567"))))
 
-    (blockchain.getBestBlockNumber _).expects().returning(3)
-
     val createResp =
       (filterManager ? FilterManager.NewLogFilter(
         Some(BlockParam.WithNumber(1)),
@@ -232,7 +221,6 @@ class FilterManagerSpec
     )
     val bh = blockHeader.copy(number = 1, logsBloom = BloomFilter.create(logs))
 
-    (blockchain.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
     (blockchain.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
     val bb = BlockBody(
       transactionList = Seq(
@@ -338,14 +326,10 @@ class FilterManagerSpec
 
   it should "handle block filter" in new TestSetup {
 
-    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
-
     val createResp =
       (filterManager ? FilterManager.NewBlockFilter)
         .mapTo[FilterManager.NewFilterResponse]
         .futureValue
-
-    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val getLogsRes =
       (filterManager ? FilterManager.GetFilterLogs(createResp.id))
@@ -353,8 +337,6 @@ class FilterManagerSpec
         .futureValue
 
     getLogsRes.blockHashes.size shouldBe 0
-
-    (blockchain.getBestBlockNumber _).expects().returning(6)
 
     val bh4 = blockHeader.copy(number = 4)
     val bh5 = blockHeader.copy(number = 5)
@@ -374,14 +356,10 @@ class FilterManagerSpec
 
   it should "handle pending transactions filter" in new TestSetup {
 
-    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
-
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse]
         .futureValue
-
-    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val tx = Transaction(
       nonce = 0,
@@ -415,14 +393,10 @@ class FilterManagerSpec
 
   it should "timeout unused filter" in new TestSetup {
 
-    (blockchain.getBestBlockNumber _).expects().returning(3).twice()
-
     val createResp =
       (filterManager ? FilterManager.NewPendingTransactionFilter)
         .mapTo[FilterManager.NewFilterResponse]
         .futureValue
-
-    (blockchain.getBestBlockNumber _).expects().returning(3)
 
     val tx = Transaction(
       nonce = 0,
