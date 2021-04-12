@@ -19,8 +19,8 @@
 
 let
   version = let
-    buildSbt = builtins.readFile ../build.sbt;
-    captures = builtins.match ''.*version := "([^"]+)".*'' buildSbt;
+    versionSbt = builtins.readFile ../version.sbt;
+    captures = builtins.match ''.*version in ThisBuild := "([^"]+)".*'' versionSbt;
   in builtins.elemAt captures 0;
 
   PATH = lib.makeBinPath [ jre solc coreutils gawk gnused ];
