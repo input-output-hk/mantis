@@ -42,10 +42,8 @@ class BlockImport(
   }
 
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight): BlockImportResult = {
-
     val execResult: (List[BlockData], Option[BlockExecutionError]) =
       blockExecution.executeAndValidateBlocks(List(block), currentWeight)
-
     execResult._2 match {
       case None =>
         BlockImportedToTop(execResult._1)

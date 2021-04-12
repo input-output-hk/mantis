@@ -121,7 +121,7 @@ class LedgerImpl(
       block: Block
   )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
     val bestBlockHash = blockchain.getBestBlockHash()
-    blockchain.getChainWeightByHash(bestBlockHash) match {
+    blockchain.getChainWeightByHash(block.header.parentHash) match {
       case Some(weight) =>
         val bestBlock = blockchain.getBlockByHash(bestBlockHash)
         val importResult = blockImport.importToTop(block, bestBlock.get, weight)
