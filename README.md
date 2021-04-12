@@ -128,6 +128,8 @@ git add ./nix/mantis.nix
 git commit -m "Update nix-sbt sha"
 ```
 
+For this command to work you'll need the [Flakes](https://nixos.wiki/wiki/Flakes) feature enabled in your `nix` environment.
+
 *NOTE:* This should only be necessary when updating dependencies
 (For example, edits to build.sbt or project/plugins.sbt will likely need to be regenerated)
 
