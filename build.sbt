@@ -13,9 +13,9 @@ val nixBuild = sys.props.isDefinedAt("nix")
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
 lazy val compilerOptimizationsForProd = Seq(
-  "-opt:l:method",      // method-local optimizations
-  "-opt:l:inline",      // inlining optimizations
-  "-opt-inline-from:**" // inlining allowed to all classes
+  "-opt:l:method",  // method-local optimizations
+  "-opt:l:inline",  // inlining optimizations
+  "-opt-inline-from:io.iohk.**" // inlining the project only
 )
 
 // Releasing. https://github.com/olafurpg/sbt-ci-release
