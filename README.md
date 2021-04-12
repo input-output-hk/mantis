@@ -124,7 +124,7 @@ will need to be updated so that it includes the new dependency state.
 To do so, please run:
 ```
 ./update-nix.sh
-git add ./nix/mantis.nix
+git add ./nix/overlay.nix
 git commit -m "Update nix-sbt sha"
 ```
 
