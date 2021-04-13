@@ -58,7 +58,7 @@ function releaseAll {
     release 2.13.4 1.4.7
 }
 
-if [[ "$BUILDKITE_BRANCH" == "develop" ]] || [[ "$BUILDKITE_BRANCH" == "ETCM-165-fix-publish" ]]; then
+if [[ "$BUILDKITE_BRANCH" == "develop" ]]; then
 
     # Publish the -SNAPSHOT version.
     releaseAll

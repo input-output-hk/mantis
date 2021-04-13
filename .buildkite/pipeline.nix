@@ -160,7 +160,7 @@ in
       command = ''
         nix-env -iA nixpkgs.gnupg && nix-shell --run '.buildkite/publish.sh'
       '';
-      branches = "master develop ETCM-165-fix-publish";
+      branches = "master develop";
       timeoutInMinutes = 30;
     };
   };
