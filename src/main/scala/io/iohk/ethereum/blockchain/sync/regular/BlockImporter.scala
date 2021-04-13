@@ -66,7 +66,7 @@ class BlockImporter(
     case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlock().get.number, state.isOnTop)
 
     case BlockFetcher.PickedBlocks(blocks) =>
-//      SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
+      SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
       importBlocks(blocks, DefaultBlockImport)(state)
 
     //TODO ETCM-389: Handle mined, checkpoint and new blocks uniformly
@@ -117,7 +117,7 @@ class BlockImporter(
     running(state.resolvingBranch(from))
 
   private def start(): Unit = {
-    log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
+    log.info("Starting the incredible Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(self, startingBlockNumber)
     supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
     context become running(ImporterState.initial)

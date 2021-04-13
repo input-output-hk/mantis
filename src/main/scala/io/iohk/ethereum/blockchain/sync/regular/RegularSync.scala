@@ -77,7 +77,7 @@ class RegularSync(
 
   def running(progressState: ProgressState): Receive = {
     case SyncProtocol.Start =>
-      log.info("Starting regular sync")
+      log.info("Starting regular sync - START")
       importer ! BlockImporter.Start
     case SyncProtocol.MinedBlock(block) =>
       log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
@@ -101,7 +101,7 @@ class RegularSync(
       val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
       context become running(newState)
     case ProgressProtocol.ImportedBlock(blockNumber, isCheckpoint, internally) =>
-      log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
+      log.info(s"Imported new block with [number = $blockNumber, internally = $internally]")
       val newState = progressState.copy(currentBlock = blockNumber)
       if (internally && isCheckpoint) {
         fetcher ! InternalCheckpointImport(blockNumber)

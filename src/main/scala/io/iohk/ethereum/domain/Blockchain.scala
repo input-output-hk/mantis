@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain
-import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
+import io.iohk.ethereum.domain.BlockchainImpl.{BestBlockLatestCheckpointHashes}
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
@@ -274,7 +274,8 @@ class BlockchainImpl(
   }
 
   override def getBestBlockHash(): ByteString =
-    appStateStorage.getBestBlockHash().getOrElse(genesisBlock.header.hash)
+    bestKnownBlockAndLatestCheckpoint.get().bestBlockHash
+//    appStateStorage.getBestBlockHash().getOrElse(genesisBlock.header.hash)
 
   override def getLatestCheckpointBlockHash(): ByteString =
     appStateStorage.getLatestCheckpointBlockHash().getOrElse(genesisBlock.header.hash)
@@ -322,18 +323,18 @@ class BlockchainImpl(
   }
 
   private def persistBestBlocksData(): Unit = {
-    val currentBestBlockNumber = getBlockByHash(getBestBlockHash()).map(_.number)
-    val currentBestCheckpointNumber = getLatestCheckpointBlockNumber()
+    val currentBestBlockHash = getBestBlockHash()
+    val currentBestCheckpointNumber = getLatestCheckpointBlockHash()
     log.debug(
       "Persisting app info data into database. Persisted block number is {}. " +
         "Persisted checkpoint number is {}",
-      currentBestBlockNumber,
-      currentBestCheckpointNumber
+      getBlockByHash(currentBestBlockHash).get.number,
+      getBlockByHash(currentBestCheckpointNumber).get.number
     )
 
     appStateStorage
-      .putBestBlockNumber(currentBestBlockNumber.getOrElse(0))
-      .and(appStateStorage.putLatestCheckpointBlockNumber(currentBestCheckpointNumber))
+      .putBestBlockHash(currentBestBlockHash)
+      .and(appStateStorage.putLatestCheckpointBlockHash(currentBestCheckpointNumber))
       .commit()
   }
 
@@ -349,13 +350,25 @@ class BlockchainImpl(
         getChainWeightByHash(block.header.hash)
           .map(_.totalDifficulty) > getChainWeightByHash(getBestBlockHash())
           .map(_.totalDifficulty)
-      )
-        appStateStorage.putBestBlockHash(block.header.hash).commit()
+      ) {
+        bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockHash = block.hash))
+      }
     }
     // not transactional part
     // the best blocks data will be persisted only when the cache will be persisted
     stateStorage.onBlockSave(block.header.number, appStateStorage.getBestBlockNumber())(persistBestBlocksData)
   }
+
+  // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
+  // to ensure visibility of writes, needs to be volatile or atomic ref
+  // Laziness required for mocking BlockchainImpl on tests
+  private lazy val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointHashes] =
+    new AtomicReference(
+      BestBlockLatestCheckpointHashes(
+        appStateStorage.getBestBlockHash().getOrElse(genesisBlock.hash),
+        appStateStorage.getLatestCheckpointBlockHash().getOrElse(genesisBlock.hash)
+      )
+    )
 
   override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = {
     val hash = blockHeader.hash
@@ -567,5 +580,5 @@ object BlockchainImpl {
       stateStorage = storages.stateStorage
     )
 
-  private case class BestBlockLatestCheckpointNumbers(bestBlockHash: ByteString, latestCheckpointHash: ByteString)
+  private case class BestBlockLatestCheckpointHashes(bestBlockHash: ByteString, latestCheckpointHash: ByteString)
 }

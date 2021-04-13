@@ -26,14 +26,14 @@ class BlockImport(
       currentBestBlock: Block,
       currentWeight: ChainWeight
   )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-//    val validationResult =
-//      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
+    val validationResult =
+      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
     val importResult =
       Task
         .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
         .executeOn(blockExecutionScheduler)
 
-    Task.parMap2(Task.right(BlockExecutionSuccess), importResult) { case (validationResult, importResult) =>
+    Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(
         error => handleImportTopValidationError(error, block, importResult),
         _ => importResult
