@@ -96,11 +96,11 @@ class RegularSyncSpec
         )
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
-//        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
-//        peersClient.expectMsgAllOfEq(
-//          blockHeadersChunkRequest(1),
-//          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
-//        )
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+        peersClient.expectMsgAllOfEq(
+          blockHeadersChunkRequest(1),
+          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
+        )
       })
 
       "blacklist peer which caused failed request" in sync(new Fixture(testSystem) {

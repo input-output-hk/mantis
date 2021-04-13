@@ -42,13 +42,9 @@ class BlockFetcher(
   private val log = context.log
 
   override def onMessage(message: FetchCommand): Behavior[FetchCommand] = {
-    Behaviors.receive { (_, message) =>
-      println("3"*100)
-      println(message)
-      message match {
-        case Start(fromBlock) => BlockFetcherState.initial(blockValidator, fromBlock) |> fetchBlocks
-        case _ => Behaviors.unhandled
-      }
+    message match {
+      case Start(fromBlock) => BlockFetcherState.initial(blockValidator, fromBlock) |> fetchBlocks
+      case _ => Behaviors.unhandled
     }
   }
 
@@ -112,7 +108,6 @@ class BlockFetcher(
           if (state.waitingHeaders.isEmpty) {
             supervisor ! ProgressProtocol.StartedFetching
           }
-
           state.appendHeaders(headers) match {
             case Left(err) =>
               log.info("Dismissed received headers due to: {}", err)
@@ -122,7 +117,7 @@ class BlockFetcher(
           }
         case RetryHeadersRequest =>
           log.debug("Something failed on a headers request, cancelling the request and re-fetching")
-          processBodies(state)
+          fetchBlocks(state)
         case _ =>
           Behaviors.unhandled
       }
