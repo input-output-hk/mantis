@@ -1,7 +1,5 @@
-{ sources,  pkgs }:
-
+{ sources, pkgs }:
 let
-
   # TODO, share this code with mantis build in this project
   # sbt-protoc puts the scala plugin in /tmp/protobridge<some-random-number>.
   # it is in fact a shell script with a standard `#!/usr/bin/env sh` shebang
@@ -18,11 +16,10 @@ let
     exec ${pkgs.protobuf}/bin/protoc "$@"
   '';
 in
+with pkgs;
 
-  with pkgs;
-
-  mkShell {
-    nativeBuildInputs = [ sbt solc jdk8 protoc-wrapper ];
-    # SBT = "sbt -v -mem 2048 -J-Xmx4g -Dsbt.ivy.home=/cache/ivy2 -Dsbt.boot.directory=/cache/sbt -Dmaven.repo.local=/cache/maven -Dnix=true";
-    SBT = "sbt -v -mem 2048 -J-Xmx4g -Dnix=true";
-  }
+mkShell {
+  nativeBuildInputs = [ sbt solc jdk8 protoc-wrapper retesteth ];
+  # SBT = "sbt -v -mem 2048 -J-Xmx4g -Dsbt.ivy.home=/cache/ivy2 -Dsbt.boot.directory=/cache/sbt -Dmaven.repo.local=/cache/maven -Dnix=true";
+  SBT = "sbt -v -mem 2048 -J-Xmx4g -Dnix=true";
+}
