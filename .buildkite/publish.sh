@@ -18,9 +18,9 @@ GPG_EXISTS=$(gpg --list-keys "$GPG_KEY_ID" >&2 && echo "yes" || echo "no")
 
 if [[ "$GPG_EXISTS" == "no" ]]; then
 	echo "$GPG_KEY" | base64 --decode | gpg --batch --import
+    # Local testing showed that without this the SBT plugin got "Bad passphrase".
+    gpg --passphrase $GPG_PASSPHRASE --batch --yes -a -b LICENSE
 fi
-# Local testing showed that without this the SBT plugin got "Bad passphrase".
-gpg --passphrase $GPG_PASSPHRASE --batch --yes -a -b LICENSE
 
 # https://github.com/olafurpg/sbt-ci-release#secrets
 export PGP_SECRET="$GPG_KEY"
@@ -58,7 +58,7 @@ function releaseAll {
     release 2.13.4 1.4.7
 }
 
-if [[ "$BUILDKITE_BRANCH" == "develop" ]]; then
+if [[ "$BUILDKITE_BRANCH" == "develop" ]] || [[ "$BUILDKITE_BRANCH" == "ETCM-165-fix-publish" ]]; then
 
     # Publish the -SNAPSHOT version.
     releaseAll
