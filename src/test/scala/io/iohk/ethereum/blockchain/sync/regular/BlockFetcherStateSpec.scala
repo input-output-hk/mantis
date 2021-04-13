@@ -5,7 +5,6 @@ import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.{BlockHelpers, WithActorSystemShutDown}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
@@ -29,7 +28,7 @@ class BlockFetcherStateSpec
     "invalidating blocks" should {
       "not allow to go to negative block number" in {
         val (_, actual) =
-          BlockFetcherState.initial(importer, validators.blockValidator, 10).invalidateBlocksFrom(-5, None)
+          BlockFetcherState.initial(validators.blockValidator, 10).invalidateBlocksFrom(-5, None)
 
         actual.lastBlock shouldBe 0
       }
@@ -40,7 +39,7 @@ class BlockFetcherStateSpec
         val headers = blocks.map(_.header)
 
         val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
+          .initial(validators.blockValidator, 0)
           .appendHeaders(headers)
           .map(_.handleRequestedBlocks(List(), peer))
 
@@ -50,7 +49,7 @@ class BlockFetcherStateSpec
       "enqueue requested blocks" in {
 
         val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
+          .initial(validators.blockValidator, 0)
           .appendHeaders(blocks.map(_.header))
           .map(_.handleRequestedBlocks(blocks, peer))
 
@@ -58,78 +57,18 @@ class BlockFetcherStateSpec
         blocks.foreach { block =>
           assert(result.map(_.blockProviders(block.number)) === Right(peer))
         }
-        assert(result.map(_.knownTop) === Right(blocks.last.number))
+        assert(result.map(_.waitingHeaders.size) === Right(blocks.size))
       }
 
       "enqueue requested blocks fails when ready blocks is not forming a sequence with given headers" in {
 
         val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
+          .initial(validators.blockValidator, 0)
           .copy(readyBlocks = Queue(blocks.head))
           .appendHeaders(blocks.map(_.header))
           .map(_.handleRequestedBlocks(blocks, peer))
 
         assert(result.map(_.waitingHeaders) === Left("Given headers should form a sequence with ready blocks"))
-      }
-    }
-
-    "trying to insert block into the queues" should {
-      "insert block into the ready blocks queue" in {
-        val (front, _) = blocks.splitAt(2)
-        val testBlock = BlockHelpers.generateBlock(front.last)
-        val peerId = PeerId("bar")
-
-        val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
-          .appendHeaders(blocks.map(_.header))
-          .map(_.handleRequestedBlocks(blocks, peer))
-          .flatMap(_.tryInsertBlock(testBlock, peerId))
-
-        assert(result.map(_.waitingHeaders) === Right(Queue.empty))
-        assert(result.map(_.readyBlocks) === Right(Queue.empty.enqueueAll(front :+ testBlock)))
-        front.foreach { block =>
-          assert(result.map(_.blockProviders(block.number)) === Right(peer))
-        }
-        assert(result.map(_.blockProviders(testBlock.number)) === Right(peerId))
-        assert(result.map(_.knownTop) === Right(testBlock.number))
-      }
-
-      "insert block into the waiting headers queue" in {
-        val (front, _) = blocks.splitAt(2)
-        val testBlock = BlockHelpers.generateBlock(front.last)
-
-        val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
-          .appendHeaders(blocks.map(_.header))
-          .flatMap(_.tryInsertBlock(testBlock, peer))
-
-        assert(result.map(_.readyBlocks) === Right(Queue.empty))
-        assert(result.map(_.waitingHeaders) === Right(Queue.empty.enqueueAll((front :+ testBlock).map(_.header))))
-        assert(result.map(_.knownTop) === Right(testBlock.number))
-      }
-
-      "return state without changes when block is already in the queues" in {
-        val (front, _) = blocks.splitAt(2)
-        val testBlock = front.last
-
-        val initial = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
-          .appendHeaders(blocks.map(_.header))
-
-        val result = initial.flatMap(_.tryInsertBlock(testBlock, peer))
-
-        assert(result === initial)
-      }
-
-      "return error msg when cannot insert block" in {
-        val testBlock = BlockHelpers.generateBlock(BlockHelpers.genesis)
-
-        val result = BlockFetcherState
-          .initial(importer, validators.blockValidator, 0)
-          .appendHeaders(blocks.map(_.header))
-          .flatMap(_.tryInsertBlock(testBlock, peer))
-
-        assert(result === Left(s"Cannot insert block [${ByteStringUtils.hash2string(testBlock.hash)}] into the queues"))
       }
     }
   }

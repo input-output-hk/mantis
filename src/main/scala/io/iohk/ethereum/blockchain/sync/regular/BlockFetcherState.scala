@@ -174,6 +174,7 @@ case class BlockFetcherState(
     * - lower = min(from, atLeastWith)
     * - upper = max(from, atLeastWith)
     */
+    //TODO: update thee last block here?
   def strictPickBlocks(from: BigInt, atLeastWith: BigInt): Option[(NonEmptyList[Block], BlockFetcherState)] = {
     val lower = from.min(atLeastWith)
     val upper = from.max(atLeastWith)
@@ -213,6 +214,11 @@ case class BlockFetcherState(
   def existsInReadyBlocks(hash: ByteString): Boolean = readyBlocks.exists(_.hash == hash)
 
   def withLastBlock(nr: BigInt): BlockFetcherState = copy(lastBlock = nr)
+
+  def withUpdatedReadyBlocks(nr: BigInt): BlockFetcherState = copy(
+    waitingHeaders = Queue(),
+    readyBlocks = readyBlocks.dropWhile(_.number > nr)
+  )
 
   def withPeerForBlocks(peerId: PeerId, blocks: Seq[BigInt]): BlockFetcherState =
     copy(blockProviders = blockProviders ++ blocks.map(block => block -> peerId))

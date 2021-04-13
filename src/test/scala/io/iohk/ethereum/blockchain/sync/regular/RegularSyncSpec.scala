@@ -96,11 +96,11 @@ class RegularSyncSpec
         )
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
-        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
-        peersClient.expectMsgAllOfEq(
-          blockHeadersChunkRequest(1),
-          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
-        )
+//        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+//        peersClient.expectMsgAllOfEq(
+//          blockHeadersChunkRequest(1),
+//          PeersClient.Request.create(GetBlockBodies(testBlocksChunked.head.hashes), PeersClient.BestPeer)
+//        )
       })
 
       "blacklist peer which caused failed request" in sync(new Fixture(testSystem) {
@@ -718,32 +718,32 @@ class RegularSyncSpec
         }
       }
 
-      "return updated status after importing blocks" in testCaseT { fixture =>
-        import fixture._
-
-        for {
-          _ <- Task {
-            testBlocks.take(6).foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
-
-            peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(6)))
-
-            regularSync ! SyncProtocol.Start
-
-            peerEventBus.expectMsgClass(classOf[Subscribe])
-            peerEventBus.reply(
-              MessageFromPeer(
-                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
-                defaultPeer.id
-              )
-            )
-          }
-          _ <- ledger.importedBlocks.take(5).lastL
-          _ <- fishForStatus {
-            case s: Status.Syncing if s.blocksProgress == Progress(5, 20) && s.startingBlockNumber == 0 =>
-              s
-          }
-        } yield succeed
-      }
+//      "return updated status after importing blocks" in testCaseT { fixture =>
+//        import fixture._
+//
+//        for {
+//          _ <- Task {
+//            testBlocks.take(6).foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
+//
+//            peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(6)))
+//
+//            regularSync ! SyncProtocol.Start
+//
+//            peerEventBus.expectMsgClass(classOf[Subscribe])
+//            peerEventBus.reply(
+//              MessageFromPeer(
+//                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+//                defaultPeer.id
+//              )
+//            )
+//          }
+//          _ <- ledger.importedBlocks.take(5).lastL
+//          _ <- fishForStatus {
+//            case s: Status.Syncing if s.blocksProgress == Progress(5, 20) && s.startingBlockNumber == 0 =>
+//              s
+//          }
+//        } yield succeed
+//      }
 
       "return SyncDone when on top" in customTestCaseResourceM(actorSystemResource.map(new OnTopFixture(_))) {
         fixture =>

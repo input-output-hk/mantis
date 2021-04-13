@@ -20,12 +20,12 @@ import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
 import akka.actor.typed.{ActorRef => TypedActorRef}
-import akka.actor.typed.scaladsl.adapter._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
+import akka.actor.typed.scaladsl.adapter._
 
 import scala.concurrent.duration._
 
@@ -269,6 +269,7 @@ class BlockImporter(
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
               supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally)
+              fetcher ! BlockFetcher.LastStableBlock(block.number)
             case BlockEnqueued => ()
             case DuplicateBlock => ()
             case UnknownParent => () // This is normal when receiving broadcast blocks
@@ -278,6 +279,7 @@ class BlockImporter(
               newBranch.lastOption match {
                 case Some(newBlock) =>
                   supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
+                  fetcher ! BlockFetcher.LastStableBlock(newBlock.number)
                 case None => ()
               }
               //TODO: return flag "informFetcherOnFail"?
