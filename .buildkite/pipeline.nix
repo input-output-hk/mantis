@@ -153,5 +153,15 @@ in
         nix-shell --run '$SBT benchmark:compile dist'
       '';
     };
+
+    publish = commonAttrs // {
+      dependsOn = [ test-crypto test-rlp test-unit ];
+      label = "Publishing libraries to Maven";
+      command = ''
+        nix-env -iA nixpkgs.gnupg && nix-shell --run '.buildkite/publish.sh'
+      '';
+      branches = "master develop";
+      timeoutInMinutes = 30;
+    };
   };
 }
