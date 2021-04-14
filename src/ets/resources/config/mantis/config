@@ -1,0 +1,26 @@
+{
+    "name" : "IOHK Mantis on TCP",
+    "socketType" : "tcp",
+    "socketAddress" : [
+        "0.0.0.0:8546"
+    ],
+    "initializeTime" : "5",
+    "forks" : [
+      "Frontier",
+      "Homestead",
+      "EIP150",
+      "EIP158",
+      "Byzantium",
+      "Constantinople",
+      "ConstantinopleFix",
+      "Istanbul"
+    ],
+    "additionalForks" : [
+      "FrontierToHomesteadAt5",
+      "HomesteadToEIP150At5",
+      "EIP158ToByzantiumAt5",
+      "HomesteadToDaoAt5",
+      "ByzantiumToConstantinopleFixAt5"
+    ],
+    "exceptions" : {}
+}
