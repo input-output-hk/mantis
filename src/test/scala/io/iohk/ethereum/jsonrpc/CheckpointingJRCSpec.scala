@@ -41,7 +41,8 @@ class CheckpointingJRCSpec
       "block" -> JObject(
         "hash" -> JString("0x" + ByteStringUtils.hash2string(block.hash)),
         "number" -> JInt(block.number)
-    ))
+      )
+    )
 
     val response = jsonRpcController.handleRequest(request).runSyncUnsafe()
     response should haveResult(expectedResult)

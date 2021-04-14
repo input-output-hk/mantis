@@ -1,9 +1,9 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus.ethash.validators
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
-import io.iohk.ethereum.consensus.ethash.validators.RestrictedEthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderPoWError, RestrictedEthashHeaderExtraDataError}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}

@@ -2,16 +2,18 @@ package io.iohk.ethereum.blockchain.sync
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
+
 import java.util.concurrent.Executors
 import monix.execution.Scheduler
+
 import scala.concurrent.ExecutionContext
 
 /**

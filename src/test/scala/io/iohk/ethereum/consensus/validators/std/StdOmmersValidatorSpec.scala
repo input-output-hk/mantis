@@ -1,17 +1,17 @@
-package io.iohk.ethereum.consensus.validators
+package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ethash.validators.EthashBlockHeaderValidator
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError._
-import io.iohk.ethereum.consensus.ethash.validators.{EthashBlockHeaderValidator, StdOmmersValidator}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
+class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {
@@ -20,7 +20,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
     }
   }
 
-  it should "report a failure if the list of ommers is too big" in new BlockUtils {
+  it should "report failure if the list of ommers is too big" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
       case Left(OmmersLengthError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
@@ -28,17 +28,17 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
     }
   }
 
-  it should "report a failure if there is an invalid header in the list of ommers" in new BlockUtils {
+  it should "report failure if there is an invalid header in the list of ommers" in new BlockUtils {
     val invalidOmmer1: BlockHeader = ommer1.copy(number = ommer1.number + 1)
 
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
-      case Left(OmmersNotValidError) => succeed
+      case Left(OmmersHeaderError(List(_))) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")
     }
   }
 
-  it should "report a failure if there is an ommer that was previously used" in new BlockUtils {
+  it should "report failure if there is an ommer that was previously used" in new BlockUtils {
     ommersValidator.validate(
       ommersBlockParentHash,
       ommersBlockNumber,
@@ -51,22 +51,51 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
     }
   }
 
-  it should "report a failure if there is an ommer which is of the last ancestors" in new BlockUtils {
+  it should "report failure if there is an ommer which is also an ancestor" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
-      case Left(OmmersAncestorsError) => succeed
+      case Left(OmmerIsAncestorError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")
     }
   }
 
-  it should "report a failure if there is an ommer too old" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
-      case Left(OmmersAncestorsError) => succeed
-      case _ => fail()
+  it should "report failure if there is an ommer which that is not parent of an ancestor" in new BlockUtils {
+    val getNBlocksBack: (ByteString, Int) => List[Block] =
+      (_, n) => ((ommersBlockNumber - n) until ommersBlockNumber).toList.flatMap(blockchain.getBlockByNumber)
+
+    ommersValidator.validateOmmersAncestors(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, ommerInvalidBranch),
+      getNBlocksBack
+    ) match {
+      case Left(OmmerParentIsNotAncestorError) => succeed
+      case err => fail(err.toString)
     }
   }
 
-  it should "report a failure if there is a duplicated ommer in the ommer list" in new BlockUtils {
+  it should "report failure if getNBlocksBack returns an empty list of ancestors" in new BlockUtils {
+    val getNBlocksBack: (ByteString, Int) => List[Block] = (_, _) => List.empty
+
+    ommersValidator.validateOmmersAncestors(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, ommerInvalidBranch),
+      getNBlocksBack
+    ) match {
+      case Left(OmmerParentIsNotAncestorError) => succeed
+      case err => fail(err.toString)
+    }
+  }
+
+  it should "report failure if there is an ommer that is too old" in new BlockUtils {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
+      case Left(OmmerParentIsNotAncestorError) => succeed
+      case err => fail(err.toString)
+    }
+  }
+
+  it should "report failure if there is a duplicated ommer in the ommers list" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
       case Left(OmmersDuplicatedError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
@@ -77,7 +106,29 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
   // scalastyle:off magic.number
   trait BlockUtils extends EphemBlockchainTestSetup {
 
-    val ommersValidator = new StdOmmersValidator(blockchainConfig, new EthashBlockHeaderValidator(blockchainConfig))
+    val ommersValidator = new StdOmmersValidator(new EthashBlockHeaderValidator(blockchainConfig))
+
+    val ommerInvalidBranch = BlockHeader(
+      parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b12345f6a89fb1e8f017f2411a29d0ae810ab8b")),
+      ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
+      beneficiary = ByteString(Hex.decode("28921e4e2c9d84f4c0f0c0ceb991f45751a0fe93")),
+      stateRoot = ByteString(Hex.decode("e766f9c51536e9038849e5eb0a143c3b3409b5385098359837cbf3324ad22328")),
+      transactionsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      receiptsRoot = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")),
+      logsBloom = ByteString(
+        Hex.decode(
+          "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+        )
+      ),
+      difficulty = BigInt("17864037202"),
+      number = 94,
+      gasLimit = 5000,
+      gasUsed = 0,
+      unixTimestamp = 1438270431,
+      extraData = ByteString(Hex.decode("476574682f76312e302e302f6c696e75782f676f312e342e32")),
+      mixHash = ByteString(Hex.decode("8c1ed8037984be0fe9065f8f8663c3baeeb6436868ac6915dd3c2cd5fd46fa96")),
+      nonce = ByteString(Hex.decode("40b0b2c0b6d14706"))
+    )
 
     //Ommers from block 0xe9fb121a7ee5cb03b33adbf59e95321a2453f09db98068e1f31f0da79860c50c (of number 97)
     val ommer1 = BlockHeader(
@@ -123,7 +174,7 @@ class OmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPrope
       nonce = ByteString(Hex.decode("40b0b2c0b6d14706"))
     )
     val ommers: Seq[BlockHeader] = Seq[BlockHeader](ommer1, ommer2)
-    val ommersBlockNumber = 97
+    val ommersBlockNumber: BigInt = 97
 
     val block90 = Block(
       BlockHeader(

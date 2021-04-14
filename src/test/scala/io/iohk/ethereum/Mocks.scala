@@ -2,12 +2,13 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersNotValidError
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersError.OmmersHeaderError
 import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, ValidatorsExecutor}
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
+import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderNumberError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockError, BlockTransactionsHashError, BlockValid}
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
@@ -103,7 +104,7 @@ object Mocks {
 
     override val ommersValidator: OmmersValidator =
       (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) =>
-        Left(OmmersNotValidError)
+        Left(OmmersHeaderError(List(HeaderDifficultyError)))
 
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(

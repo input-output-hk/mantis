@@ -3,7 +3,7 @@ package io.iohk.ethereum.ets.blockchain
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
@@ -18,6 +18,7 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {

@@ -35,7 +35,10 @@ class BlockImport(
 
     Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(
-        error => handleImportTopValidationError(error, block, importResult),
+        error => {
+          log.error("Error while validation block before execution: {}", error.reason)
+          handleImportTopValidationError(error, block, importResult)
+        },
         _ => importResult
       )
     }

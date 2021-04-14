@@ -15,10 +15,12 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 
@@ -207,7 +209,12 @@ class BlockImporter(
             tryImportBlocks(restOfBlocks, importedBlocks)
 
           case err @ (UnknownParent | BlockImportFailed(_)) =>
-            log.error("Block {} import failed", blocks.head.number)
+            log.error(
+              "Block {} import failed, with hash {} and parent hash {}",
+              blocks.head.number,
+              blocks.head.header.hashAsHexString,
+              ByteStringUtils.hash2string(blocks.head.header.parentHash)
+            )
             Task.now((importedBlocks, Some(err)))
         }
         .onErrorHandle {

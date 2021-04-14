@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.Protocol.{NoAdditionalEthashData, RestrictedEthashMinerData}
 import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 
