@@ -12,6 +12,12 @@ val nixBuild = sys.props.isDefinedAt("nix")
 // Enable dev mode: disable certain flags, etc.
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
+lazy val compilerOptimizationsForProd = Seq(
+  "-opt:l:method",  // method-local optimizations
+  "-opt:l:inline",  // inlining optimizations
+  "-opt-inline-from:io.iohk.**" // inlining the project only
+)
+
 // Releasing. https://github.com/olafurpg/sbt-ci-release
 inThisBuild(List(
   organization := "io.iohk",
@@ -47,6 +53,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-encoding",
     "utf-8"
   ),
+  scalacOptions ++= (if (mantisDev) Seq.empty else compilerOptimizationsForProd),
   scalacOptions in (Compile, console) ~= (_.filterNot(
     Set(
       "-Ywarn-unused-import",

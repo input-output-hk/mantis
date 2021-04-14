@@ -1,12 +1,12 @@
 diff --git a/build.sbt b/build.sbt
-index 6bf2b25cb..155de447d 100644
+index 4ac21ff40..ccd34412e 100644
 --- a/build.sbt
 +++ b/build.sbt
-@@ -25,6 +25,7 @@ def commonSettings(projectName: String) = Seq(
-     "-encoding",
-     "UTF-8"
-   ),
+@@ -43,6 +43,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
+   scalaVersion := `scala-2.13`,
+   // Scalanet snapshots are published to Sonatype after each build.
+   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
 +  PB.runProtoc in Compile := (args => Process("@protobuf@/bin/protoc", args)!),
-   scalacOptions in (Compile, console) ~= (_.filterNot(
-     Set(
-       "-Ywarn-unused-import",
+   testOptions in Test += Tests
+     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
+   scalacOptions := Seq(
