@@ -1,4 +1,4 @@
-{ stdenv, cacert, cmake, gcc, gnumake, perl, psmisc, solc }:
+{ stdenv, cacert, cmake, gcc, gnumake, perl, psmisc, solc, lllc }:
 
 stdenv.mkDerivation rec {
   pname = "retesteth";
@@ -8,7 +8,7 @@ stdenv.mkDerivation rec {
     sha256 = "0gi38ykdg207klx8sb1f8xwf76agcjj3c87hrqqvqgxp0ir8hk7c";
   };
   nativeBuildInputs = [ cacert cmake gcc gnumake perl psmisc ];
-  buildInputs = [ solc ];
+  buildInputs = [ solc lllc ];
   configurePhase = ''
     mkdir build
     cd build
@@ -24,5 +24,5 @@ stdenv.mkDerivation rec {
   '';
   outputHashMode = "recursive";
   outputHashAlgo = "sha256";
-  outputHash = "sha256-0e4a3riDsNfb1vpgSAGupSUnssIjZgYCfo16B7utjnI=";
+  outputHash = "sha256-wRPuMIQs+6VKK40VCHNHb9hFFPIdUW6XlXtVlaeVBj0=";
 }
