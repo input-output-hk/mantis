@@ -15,15 +15,17 @@
 , writeBashBinChecked
 , mantis-extvm-pb
 , depsSha256
+, retesteth
 }:
-
 let
-  version = let
-    buildSbt = builtins.readFile ../build.sbt;
-    captures = builtins.match ''.*version := "([^"]+)".*'' buildSbt;
-  in builtins.elemAt captures 0;
+  version =
+    let
+      buildSbt = builtins.readFile ../build.sbt;
+      captures = builtins.match ''.*version := "([^"]+)".*'' buildSbt;
+    in
+    builtins.elemAt captures 0;
 
-  PATH = lib.makeBinPath [ jre solc coreutils gawk gnused ];
+  PATH = lib.makeBinPath [ jre solc coreutils gawk gnused retesteth ];
   LD_LIBRARY_PATH = ''''; #lib.makeLibraryPath [ libsonic ];
 
   # filter out mentions of protobridge, which is unable to execute
@@ -37,7 +39,8 @@ let
     exec ${protobuf}/bin/protoc "$@"
   '';
 
-in sbt.mkDerivation rec {
+in
+sbt.mkDerivation rec {
   pname = "mantis";
   inherit src version;
 
