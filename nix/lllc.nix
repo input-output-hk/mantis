@@ -1,9 +1,9 @@
 { stdenv, cmake, boost, fetchzip }:
 let
-  jsoncppURL = "https://github.com/open-source-parsers/jsoncpp/archive/1.9.2.tar.gz";
+  jsoncppURL = "https://github.com/open-source-parsers/jsoncpp/archive/1.8.4.tar.gz";
   jsoncpp = fetchzip {
     url = jsoncppURL;
-    sha256 = "037d1b1qdmn3rksmn1j71j26bv4hkjv7sn7da261k853xb5899sg";
+    sha256 = "sha256-lX5sbu2WJuTfyFmFRkCbMOjlMQE62nmrjPN6adSRD/w=";
   };
 in
 stdenv.mkDerivation rec {
