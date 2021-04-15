@@ -17,7 +17,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
-
 import io.iohk.ethereum.rlp.RLPList
 
 import scala.concurrent.duration._
@@ -74,7 +73,7 @@ object TestService {
       maxResults: BigInt
   )
 
-  case class StorageEntry(key: ByteString, value: ByteString)
+  case class StorageEntry(key: String, value: String)
 
   case class SetChainParamsRequest(chainParams: ChainParams)
   case class SetChainParamsResponse()
@@ -98,7 +97,7 @@ object TestService {
   case class AccountsInRangeResponse(addressMap: Map[ByteString, ByteString], nextKey: ByteString)
 
   case class StorageRangeRequest(parameters: StorageRangeParams)
-  case class StorageRangeResponse(complete: Boolean, storage: Map[ByteString, StorageEntry])
+  case class StorageRangeResponse(complete: Boolean, storage: Map[String, StorageEntry])
 
   case class GetLogHashRequest(transactionHash: ByteString)
   case class GetLogHashResponse(logHash: ByteString)
@@ -339,7 +338,12 @@ class TestService(
       Right(
         StorageRangeResponse(
           complete = true,
-          storage = Map(request.parameters.address -> StorageEntry(ByteString(""), ByteString("")))
+          storage = Map(
+            encodeAsHex(request.parameters.address).values -> StorageEntry(
+              encodeAsHex(request.parameters.begin).values,
+              encodeAsHex(storage).values
+            )
+          )
         )
       )
     )
