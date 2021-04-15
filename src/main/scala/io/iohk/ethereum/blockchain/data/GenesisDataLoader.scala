@@ -188,7 +188,7 @@ object GenesisDataLoader {
 
     def deserializeUint256String(jv: JValue): UInt256 = jv match {
       case JString(s) =>
-        Try(UInt256(BigInt(1, Implicits.decode(s)))) match {
+        Try(UInt256(BigInt(s))) match {
           case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
           case Success(value) => value
         }
