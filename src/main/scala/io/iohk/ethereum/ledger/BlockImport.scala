@@ -41,14 +41,40 @@ class BlockImport(
   }
 
   private def importBlockToTop(block: Block, currentWeight: ChainWeight): BlockImportResult = {
-    val execResult: (List[BlockData], Option[BlockExecutionError]) =
-      blockExecution.executeAndValidateBlocks(List(block), currentWeight)
-    execResult._2 match {
-      case None =>
-        BlockImportedToTop(execResult._1)
+    val executionResult = for {
+      topBlock <- blockQueue.enqueueBlock(block, blockchain.getBestBlock().get.number)
+      topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
+      (executed, errors) = blockExecution.executeAndValidateBlocks(topBlocks, currentWeight)
+    } yield (executed, errors, topBlocks)
 
-      case Some(error) =>
-        BlockImportFailed(error.toString)
+    executionResult match {
+      case Some((importedBlocks, maybeError, topBlocks)) =>
+        val result = maybeError match {
+          case None =>
+            BlockImportedToTop(importedBlocks)
+
+          case Some(error) if importedBlocks.isEmpty =>
+            blockQueue.removeSubtree(block.header.hash)
+            BlockImportFailed(error.toString)
+
+          case Some(_) =>
+            topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
+              blockQueue.removeSubtree(failedBlock.header.hash)
+            }
+            BlockImportedToTop(importedBlocks)
+        }
+        log.debug(
+          "{}", {
+            val result = importedBlocks.map { blockData =>
+              val header = blockData.block.header
+              s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
+            }
+            result.toString
+          }
+        )
+        result
+      case None =>
+        BlockImportFailed(s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch")
     }
   }
 

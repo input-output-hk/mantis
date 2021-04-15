@@ -266,6 +266,9 @@ class BlockchainImpl(
   override def getLatestCheckpointBlockNumber(): BigInt =
     getBlockByHash(getLatestCheckpointBlockHash()).get.number
 
+  def getLatestCheckpointBlock(): Option[Block] =
+    getBlockByHash(getLatestCheckpointBlockHash())
+
   override def getBestBlock(): Option[Block] = {
     val bestBlock = getBlockByHash(getBestBlockHash())
 
@@ -278,7 +281,8 @@ class BlockchainImpl(
 //    appStateStorage.getBestBlockHash().getOrElse(genesisBlock.header.hash)
 
   override def getLatestCheckpointBlockHash(): ByteString =
-    appStateStorage.getLatestCheckpointBlockHash().getOrElse(genesisBlock.header.hash)
+    bestKnownBlockAndLatestCheckpoint.get().latestCheckpointHash
+//    appStateStorage.getLatestCheckpointBlockHash().getOrElse(genesisBlock.header.hash)
 
   override def getAccount(address: Address, blockHash: ByteString): Option[Account] =
     getAccountMpt(blockHash) >>= (_.get(address))
@@ -345,6 +349,9 @@ class BlockchainImpl(
       .and(storeChainWeight(block.header.hash, weight))
       .commit()
 
+    if (block.hasCheckpoint) {
+      bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(latestCheckpointHash = block.hash))
+    }
     if (block.number != 0) {
       if (
         getChainWeightByHash(block.header.hash)
