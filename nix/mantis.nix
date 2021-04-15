@@ -15,7 +15,6 @@
 , writeBashBinChecked
 , mantis-extvm-pb
 , depsSha256
-, retesteth
 }:
 let
   version =
@@ -25,7 +24,7 @@ let
     in
     builtins.elemAt captures 0;
 
-  PATH = lib.makeBinPath [ jre solc coreutils gawk gnused retesteth ];
+  PATH = lib.makeBinPath [ jre solc coreutils gawk gnused ];
   LD_LIBRARY_PATH = ''''; #lib.makeLibraryPath [ libsonic ];
 
   # filter out mentions of protobridge, which is unable to execute
