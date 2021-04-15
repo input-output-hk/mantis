@@ -1,6 +1,6 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
 import io.iohk.ethereum.jsonrpc.{
   BaseBlockResponse,
@@ -62,9 +62,9 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
   private def toEthResponse(block: Block, response: BaseBlockResponse) = EthBlockResponse(
     response.number,
     response.hash,
-    response.mixHash,
+    if (block.header.mixHash.isEmpty) Some(UInt256.Zero.bytes) else Some(block.header.mixHash),
     response.parentHash,
-    response.nonce,
+    if (block.header.nonce.isEmpty) None else Some(block.header.nonce),
     response.sha3Uncles,
     response.logsBloom,
     response.transactionsRoot,
