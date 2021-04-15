@@ -64,11 +64,9 @@ class BlockPreparator(
       worldStateProxy
     } else {
       val blockNumber = block.header.number
-
       val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
       val minerRewardForOmmers =
         blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
-
       val minerAddress = Address(block.header.beneficiary)
       val treasuryAddress = blockchainConfig.treasuryAddress
       val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
@@ -92,7 +90,6 @@ class BlockPreparator(
           val treasuryReward = minerRewardForBlock * TreasuryRewardPercentageAfterECIP1098 / 100
           val worldAfterTreasuryReward =
             increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
-
           log.debug(
             s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress" +
               s"paying treasury reward of $treasuryReward to treasury with address $treasuryAddress"
