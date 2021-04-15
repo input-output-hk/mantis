@@ -136,6 +136,11 @@ in
       command = ''
         nix-shell --run './test-ets.sh'
       '';
+      softFail = true;
+      artifactPaths = [
+        "mantis-output.txt"
+        "retesteth-output.txt"
+      ];
     };
 
     coverageReport = commonAttrs // {
