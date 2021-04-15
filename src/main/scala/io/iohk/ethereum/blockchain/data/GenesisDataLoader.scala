@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
   ByteStringJsonSerializer,
   UInt256JsonSerializer
 }
+import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -92,24 +93,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
-    val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) {
-      case (rootHash, ((address, genesisAccount), _)) =>
-        val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
-        val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-        val stateRoot = mpt
-          .put(
-            crypto.kec256(Hex.decode(paddedAddress)),
-            Account(
-              nonce = genesisAccount.nonce
-                .getOrElse(blockchainConfig.accountStartNonce),
-              balance = genesisAccount.balance,
-              codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash)
-            )
-          )
-          .getRootHash
-        stateRoot
-    }
-
+    val stateMptRootHash = getGenesisStateRoot(genesisData, initalRootHash, storage)
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
     log.debug(s"Prepared genesis header: $header")
@@ -135,6 +119,27 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
           saveAsBestBlock = true
         )
         Success(())
+    }
+  }
+
+  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage) = {
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, ((address, genesisAccount), _)) =>
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
+      val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
+      val stateRoot = mpt
+        .put(
+          crypto.kec256(Hex.decode(paddedAddress)),
+          Account(
+            nonce = genesisAccount.nonce
+              .getOrElse(blockchainConfig.accountStartNonce),
+            balance = genesisAccount.balance,
+            codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash)
+          )
+        )
+        .getRootHash
+      stateRoot
     }
   }
 
