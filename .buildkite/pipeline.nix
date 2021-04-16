@@ -137,6 +137,7 @@ in
         nix-shell --run './test-ets.sh'
       '';
       softFail = true;
+      retry.automatic = false;
       artifactPaths = [
         "mantis-stdout.txt"
         "mantis-stderr.txt"
