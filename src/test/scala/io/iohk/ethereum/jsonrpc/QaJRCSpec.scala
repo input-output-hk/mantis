@@ -1,8 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
-import io.iohk.ethereum.consensus.pow.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MineBlocks, MockedMinerResponse, MockedMinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Checkpoint
@@ -32,7 +31,7 @@ class QaJRCSpec
   "QaJRC" should {
     "request block mining and return valid response with correct message" when {
       "mining ordered" in new TestSetup {
-        mockSuccessfulMineBlocksBehaviour(MinerResponses.MiningOrdered)
+        mockSuccessfulMineBlocksBehaviour(MockedMinerResponses.MiningOrdered)
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
@@ -40,7 +39,7 @@ class QaJRCSpec
       }
 
       "miner is working" in new TestSetup {
-        mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerIsWorking)
+        mockSuccessfulMineBlocksBehaviour(MockedMinerResponses.MinerIsWorking)
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
@@ -48,7 +47,7 @@ class QaJRCSpec
       }
 
       "miner doesn't exist" in new TestSetup {
-        mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerNotExist)
+        mockSuccessfulMineBlocksBehaviour(MockedMinerResponses.MinerNotExist)
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
@@ -56,7 +55,7 @@ class QaJRCSpec
       }
 
       "miner not support current msg" in new TestSetup {
-        mockSuccessfulMineBlocksBehaviour(MinerResponses.MinerNotSupport(MineBlocks(1, true)))
+        mockSuccessfulMineBlocksBehaviour(MockedMinerResponses.MinerNotSupported(MineBlocks(1, true)))
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
@@ -64,7 +63,7 @@ class QaJRCSpec
       }
 
       "miner return error" in new TestSetup {
-        mockSuccessfulMineBlocksBehaviour(MinerResponses.MiningError("error"))
+        mockSuccessfulMineBlocksBehaviour(MockedMinerResponses.MiningError("error"))
 
         val response: JsonRpcResponse = jsonRpcController.handleRequest(mineBlocksRpcRequest).runSyncUnsafe()
 
@@ -336,7 +335,7 @@ class QaJRCSpec
     def responseType(expectedType: MineBlocksResponse.MinerResponseType): JField =
       "responseType" -> JString(expectedType.entryName)
 
-    def mockSuccessfulMineBlocksBehaviour(resp: MinerResponse) = {
+    def mockSuccessfulMineBlocksBehaviour(resp: MockedMinerResponse) = {
       (qaService.mineBlocks _)
         .expects(mineBlocksReq)
         .returning(Task.now(Right(MineBlocksResponse(resp))))

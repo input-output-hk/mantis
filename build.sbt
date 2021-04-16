@@ -48,7 +48,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
-    .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
+    .Argument(TestFrameworks.ScalaTest, "-l", "PowMinerSpec"), // ethahs miner tests disabled by default
   scalacOptions := Seq(
     "-unchecked",
     "-deprecation",

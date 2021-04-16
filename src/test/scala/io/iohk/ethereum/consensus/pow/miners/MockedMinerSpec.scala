@@ -1,17 +1,19 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.consensus.pow.MinerResponses.{MinerIsWorking, MinerNotSupport, MiningError, MiningOrdered}
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.ByteStringUtils
 import monix.eval.Task
 import org.scalatest._
-import scala.concurrent.duration._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.concurrent.duration._
 
 class MockedMinerSpec
     extends TestKit(ActorSystem("MockedPowMinerSpec_System"))
@@ -30,10 +32,10 @@ class MockedMinerSpec
 
     "not mine block and return MinerNotSupport msg" when {
       "the request comes before miner started" in new MockedMinerSetup {
-        val msg = MockedMinerProtocol.MineBlocks(1, false, None)
+        val msg = MineBlocks(1, false, None)
         sendToMiner(msg)
         expectNoNewBlockMsg(noMessageTimeOut)
-        parentActor.expectMsg(MinerNotSupport(msg))
+        parentActor.expectMsg(MinerNotSupported(msg))
       }
     }
 
@@ -53,7 +55,7 @@ class MockedMinerSpec
           .atLeastOnce()
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, None))
+          sendToMiner(MineBlocks(2, false, None))
 
           parentActor.expectMsg(MiningOrdered)
 
@@ -75,7 +77,7 @@ class MockedMinerSpec
         (blockchain.getBlockByHash _).expects(parentHash).returns(None)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, Some(parentHash)))
+          sendToMiner(MineBlocks(2, false, Some(parentHash)))
 
           expectNoNewBlockMsg(noMessageTimeOut)
 
@@ -92,9 +94,9 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, false, None))
           parentActor.expectMsg(MiningOrdered)
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, false, None))
           parentActor.expectMsg(MinerIsWorking)
 
           val block = waitForMinedBlock
@@ -117,7 +119,7 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, Some(parentHash)))
+          sendToMiner(MineBlocks(1, false, Some(parentHash)))
 
           parentActor.expectMsg(MiningOrdered)
 
@@ -134,7 +136,7 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, false, None))
 
           val block = waitForMinedBlock
 
@@ -151,7 +153,7 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, true, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, true, None))
+          sendToMiner(MineBlocks(1, true, None))
 
           val block = waitForMinedBlock
 
@@ -171,7 +173,7 @@ class MockedMinerSpec
         blockCreatorBehaviourExpectingInitialWorld(bfm1, false, bfm2)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, None))
+          sendToMiner(MineBlocks(2, false, None))
 
           val block1 = waitForMinedBlock
           val block2 = waitForMinedBlock
@@ -193,7 +195,7 @@ class MockedMinerSpec
         blockCreatorBehaviourExpectingInitialWorld(bfm1, true, bfm2)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, true, None))
+          sendToMiner(MineBlocks(2, true, None))
 
           val block1 = waitForMinedBlock
 
