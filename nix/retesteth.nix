@@ -1,39 +1,112 @@
-{ stdenv, cacert, cmake, gcc, gnumake, perl, psmisc, solc, lllc }: # , boost, pkg-config }:
+{ stdenv
+, cmake
+, solc
+, lllc
+, fetchFromGitHub
+, pkgconfig
+, libyamlcpp
+, boost175
+, cryptopp
+, curl
+, writeTextFile
+}:
+let
+  libscrypt = stdenv.mkDerivation
+    rec {
+      pname = "libscrypt";
+      version = "0.0.1";
+
+      src = fetchFromGitHub {
+        owner = "hunter-packages";
+        repo = pname;
+        rev = "62755c372cdcb8e40f35cf779f3abb045aa39063";
+        sha256 = "sha256-UBRiSG4VFiAADEMiK1klmH/RwL0y/ZLvA1DNaAk5U1o=";
+      };
+
+      nativeBuildInputs = [ cmake ];
+    };
+
+  secp256k1 = builtins.fetchurl {
+    url = "https://github.com/chfast/secp256k1/archive/ac8ccf29b8c6b2b793bc734661ce43d1f952977a.tar.gz";
+    sha256 = "02f8f05c9e9d2badc91be8e229a07ad5e4984c1e77193d6b00e549df129e7c3a";
+  };
+  mpir = builtins.fetchurl {
+    url = "https://github.com/chfast/mpir/archive/cmake.tar.gz";
+    sha256 = "d32ea73cb2d8115a8e59b244f96f29bad7ff03367162b660bae6495826811e06";
+  };
+  libff = builtins.fetchurl {
+    url = "https://github.com/scipr-lab/libff/archive/03b719a7c81757071f99fc60be1f7f7694e51390.tar.gz";
+    sha256 = "81b476089af43025c8f253cb1a9b5038a1c375baccffea402fa82042e608ab02";
+  };
+
+
+  cryptoPcFile = writeTextFile {
+    name = "libcryptopp.pc";
+    text = ''
+      # Crypto++ package configuration file
+      prefix=@out@
+      libdir=''${prefix}/lib
+      includedir=@dev@/include
+      Name: Crypto++
+      Description: Crypto++ cryptographic library
+      Version: 5.6.5
+      URL: https://cryptopp.com/
+      Cflags: -I''${includedir}
+      Libs: -L''${libdir} -lcryptopp
+    '';
+  };
+
+  cryptopp_5_6_5 = cryptopp.overrideAttrs (oldAttrs: {
+    src = fetchFromGitHub {
+      owner = "weidai11";
+      repo = "cryptopp";
+      rev = "CRYPTOPP_5_6_5";
+      sha256 = "sha256-h+7LK8nzk1NlkVB4Loc9VQpN79SUFvBYESSpTZyXZ/o=";
+    };
+    postPatch = "";
+    preConfigure = " ";
+    buildFlags = [ "static" "shared" ];
+    installTargets = "";
+    postInstall = ''
+      mkdir -p $dev/lib/pkgconfig
+      substituteAll ${cryptoPcFile} $dev/lib/pkgconfig/libcryptopp.pc
+      ln -s $out/lib/libcryptopp.so $out/lib/libcryptopp.so.5.6
+    '';
+  });
+
+in
 
 stdenv.mkDerivation rec {
   pname = "retesteth";
   version = "v0.1.0-accesslist_fix";
-  src = builtins.fetchurl {
-    url = "https://github.com/ethereum/retesteth/archive/refs/tags/${version}.tar.gz";
-    sha256 = "0gi38ykdg207klx8sb1f8xwf76agcjj3c87hrqqvqgxp0ir8hk7c";
+  src = fetchFromGitHub {
+    owner = "input-output-hk";
+    repo = "retesteth";
+    rev = "remove-hunter";
+    sha256 = "sha256-UbX//st3yEosvnkhy8aQzqsMXbIBKbY6N3kzVGNe8Xo=";
   };
-  nativeBuildInputs = [ cacert cmake gcc gnumake perl psmisc ];
-  buildInputs = [ solc lllc ];
 
-  configurePhase = ''
-    mkdir build
-    cd build
-    export HUNTER_ROOT="$(pwd)/hunter"
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DBoost_USE_STATIC_LIBS=OFF
+  nativeBuildInputs = [ cmake pkgconfig ];
+
+
+  buildInputs = [
+    solc
+    lllc
+    boost175
+    libyamlcpp
+    cryptopp_5_6_5
+    curl
+    libscrypt
+  ];
+
+
+  cmakeFlags = [
+    "-DCMAKE_BUILD_TYPE=Release"
+  ];
+
+  preBuild = ''
+    cp ${libff} deps/src/libff-03b719a7.tar.gz
+    cp ${secp256k1} deps/src/secp256k1-ac8ccf29.tar.gz
+    cp ${mpir} deps/src/mpir-cmake.tar.gz
   '';
-
-  # cmakeFlags = [
-  #   "-DHUNTER_ROOT=./hunter"
-  #   "-DCMAKE_BUILD_TYPE=Release"
-  #   # "-DHUNTER_ENABLED=OFF"
-  #   "-DBoost_USE_STATIC_LIBS=OFF"
-  # ];
-
-  buildPhase = ''
-    make -j4
-  '';
-  installPhase = ''
-    mkdir -p $out/bin
-    mv retesteth/retesteth $out/bin/
-  '';
-
-  __noChroot = true;
-  # outputHashMode = "recursive";
-  # outputHashAlgo = "sha256";
-  # outputHash = "sha256-wRPuMIQs+6VKK40VCHNHb9hFFPIdUW6XlXtVlaeVBj0=";
 }
