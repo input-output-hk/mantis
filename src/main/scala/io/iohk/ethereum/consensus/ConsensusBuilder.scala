@@ -1,8 +1,8 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.consensus.Protocol.{NoAdditionalEthashData, RestrictedEthashMinerData}
-import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
+import io.iohk.ethereum.consensus.Protocol.{NoAdditionalPoWData, RestrictedPoWMinerData}
+import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.{Config, Logger}
 
@@ -15,7 +15,7 @@ trait ConsensusBuilder {
   * This is done dynamically when Mantis boots, based on its configuration.
   *
   * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
-  *      [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]],
+  *      [[io.iohk.ethereum.consensus.pow.PoWConsensus PoWConsensus]],
   */
 trait StdConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder
@@ -31,19 +31,19 @@ trait StdConsensusBuilder extends ConsensusBuilder {
     FullConsensusConfig(consensusConfig, c)
 
   //TODO [ETCM-397] refactor configs to avoid possibility of running mocked or
-  // restricted-ethash consensus on real network like ETC or Mordor
-  protected def buildEthashConsensus(): ethash.EthashConsensus = {
-    val specificConfig = ethash.EthashConfig(mantisConfig)
+  // restricted-pow consensus on real network like ETC or Mordor
+  protected def buildPoWConsensus(): pow.PoWConsensus = {
+    val specificConfig = pow.EthashConfig(mantisConfig)
 
     val fullConfig = newConfig(specificConfig)
 
     val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
 
-    val additionalEthashData = consensusConfig.protocol match {
-      case Protocol.Ethash | Protocol.MockedPow => NoAdditionalEthashData
-      case Protocol.RestrictedEthash => RestrictedEthashMinerData(nodeKey)
+    val additionalPoWData = consensusConfig.protocol match {
+      case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
+      case Protocol.RestrictedPoW => RestrictedPoWMinerData(nodeKey)
     }
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalEthashData)
+    val consensus = PoWConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalPoWData)
     consensus
   }
 
@@ -53,7 +53,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val consensus =
       config.protocol match {
-        case Protocol.Ethash | Protocol.MockedPow | Protocol.RestrictedEthash => buildEthashConsensus()
+        case Protocol.PoW | Protocol.MockedPow | Protocol.RestrictedPoW => buildPoWConsensus()
       }
 
     log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")

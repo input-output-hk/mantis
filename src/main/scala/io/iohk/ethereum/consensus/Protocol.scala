@@ -19,11 +19,11 @@ sealed trait Protocol {
 object Protocol {
   object Names {
     // This is the standard Ethereum PoW consensus protocol.
-    final val Ethash = "ethash"
+    final val PoW = "pow"
 
     final val MockedPow = "mocked"
 
-    final val RestrictedEthash = "restricted-ethash"
+    final val RestrictedPoW = "restricted-pow"
   }
 
   sealed abstract class ProtocolImpl(val name: String) extends Protocol
@@ -32,7 +32,7 @@ object Protocol {
   case object MockedPow extends ProtocolImpl(Names.MockedPow)
 
   /** The standard Ethereum PoW consensus protocol. */
-  case object Ethash extends ProtocolImpl(Names.Ethash)
+  case object PoW extends ProtocolImpl(Names.PoW)
 
   /**
     * Non-standard ethereum PoW consensus protocol, which allows restricting list of possible miners.
@@ -47,13 +47,13 @@ object Protocol {
     *       c) if public key recovered from correct signature is contained within allowedMinersPublicKeys set defined
     *          for given chain
     */
-  case object RestrictedEthash extends ProtocolImpl(Names.RestrictedEthash)
+  case object RestrictedPoW extends ProtocolImpl(Names.RestrictedPoW)
 
   /** All the known protocols. If a protocol is not put here, then it cannot be used to run Mantis. */
   final val KnownProtocols = Set(
-    Ethash,
+    PoW,
     MockedPow,
-    RestrictedEthash
+    RestrictedPoW
   )
 
   final val KnownProtocolNames = KnownProtocols.map(_.name)
@@ -65,7 +65,7 @@ object Protocol {
       throw new IllegalArgumentException("Unknown protocol " + name)
     }
 
-  sealed abstract class AdditionalEthashProtocolData
-  case object NoAdditionalEthashData extends AdditionalEthashProtocolData
-  case class RestrictedEthashMinerData(miningNodeKey: AsymmetricCipherKeyPair) extends AdditionalEthashProtocolData
+  sealed abstract class AdditionalPoWProtocolData
+  case object NoAdditionalPoWData extends AdditionalPoWProtocolData
+  case class RestrictedPoWMinerData(miningNodeKey: AsymmetricCipherKeyPair) extends AdditionalPoWProtocolData
 }

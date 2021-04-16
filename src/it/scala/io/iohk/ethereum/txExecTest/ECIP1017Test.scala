@@ -49,7 +49,8 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
       ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
     )
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 

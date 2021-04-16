@@ -41,6 +41,15 @@ package object crypto {
   def kec256(input: ByteString): ByteString =
     ByteString(kec256(input.toArray))
 
+  def kec256PoW(header: Array[Byte], nonce: Array[Byte]): Array[Byte] = {
+    val digest = new KeccakDigest(256)
+    digest.update(header, 0, header.length)
+    digest.update(nonce, 0, nonce.length)
+    val output = Array.ofDim[Byte](32)
+    digest.doFinal(output, 0)
+    output
+  }
+
   def kec512(input: Array[Byte]): Array[Byte] = synchronized {
     val out = Array.ofDim[Byte](kec512.getDigestSize)
     kec512.update(input, 0, input.length)

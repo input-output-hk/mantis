@@ -5,7 +5,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
-import io.iohk.ethereum.consensus.ethash.EthashUtils
+import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._

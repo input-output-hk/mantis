@@ -5,7 +5,7 @@ import akka.testkit.TestKit
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
@@ -409,7 +409,7 @@ class EthBlocksServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[EthashBlockGenerator]
+    val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     override lazy val ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)

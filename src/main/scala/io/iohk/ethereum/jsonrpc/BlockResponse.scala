@@ -2,7 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import cats.implicits._
-import io.iohk.ethereum.consensus.ethash.RestrictedEthashSigner
+import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -121,7 +121,7 @@ object BlockResponse {
 
     val signatureStr = signature.map(_.toBytes).map(ByteStringUtils.hash2string).getOrElse(NotAvailable)
     val signerStr = signature
-      .flatMap(_.publicKey(RestrictedEthashSigner.hashHeaderForSigning(block.header)))
+      .flatMap(_.publicKey(RestrictedPoWSigner.hashHeaderForSigning(block.header)))
       .map(ByteStringUtils.hash2string)
       .getOrElse(NotAvailable)
 

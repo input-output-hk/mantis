@@ -3,8 +3,9 @@ package io.iohk.ethereum.consensus.blocks
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
@@ -36,8 +37,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("a91c44e62d17005c4b22f6ed116f485ea30d8b63f2429745816093b304eb4f73"))
     val miningTimestamp = 1508751768
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -63,8 +64,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
     val miningTimestamp = 1508752265
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -90,8 +91,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("dc25764fb562d778e5d1320f4c3ba4b09021a2603a0816235e16071e11f342ea"))
     val miningTimestamp = 1508752265
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -144,8 +145,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("908471b57f2d3e70649f9ce0c9c318d61146d3ce19f70d2f94309f135b87b64a"))
     val miningTimestamp = 1508752389
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -182,8 +183,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("806f26f0efb12a0c0c16e587984227186c46f25fc4e76698a68996183edf2cf1"))
     val miningTimestamp = 1508752492
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -235,7 +236,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
       ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
     )
 
     override lazy val blockExecution =
@@ -256,8 +258,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1499952002
 
     val fullBlock =
-      pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(
+      pendingBlock.block.copy(
+        header = pendingBlock.block.header.copy(
           nonce = minedNonce,
           mixHash = minedMixHash,
           unixTimestamp = miningTimestamp,
@@ -308,7 +310,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
       ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
     )
 
     override lazy val blockExecution =
@@ -352,8 +355,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1499951223
 
     val fullBlock =
-      pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(
+      pendingBlock.block.copy(
+        header = pendingBlock.block.header.copy(
           nonce = minedNonce,
           mixHash = minedMixHash,
           unixTimestamp = miningTimestamp,
@@ -389,8 +392,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val miningTimestamp = 1499721182
 
     val fullBlock =
-      pendingBlock.block.copy(header =
-        pendingBlock.block.header.copy(
+      pendingBlock.block.copy(
+        header = pendingBlock.block.header.copy(
           nonce = minedNonce,
           mixHash = minedMixHash,
           unixTimestamp = miningTimestamp,
@@ -439,8 +442,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("247a206abc088487edc1697fcaceb33ad87b55666e438129b7048bb08c8ed88f"))
     val miningTimestamp = 1499721182
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -476,8 +479,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val minedMixHash = ByteString(Hex.decode("270f6b2618c5bef6a188397927129c803e5fd41c85492835486832f6825a8d78"))
     val miningTimestamp = 1508752698
 
-    val fullBlock = pendingBlock.block.copy(header =
-      pendingBlock.block.header.copy(
+    val fullBlock = pendingBlock.block.copy(
+      header = pendingBlock.block.header.copy(
         nonce = minedNonce,
         mixHash = minedMixHash,
         unixTimestamp = miningTimestamp,
@@ -588,7 +591,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ecip1098BlockNumber = Long.MaxValue,
       treasuryAddress = Address(0),
       ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 
@@ -602,7 +606,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val blockCacheSize: Int = 30
     val headerExtraData: ByteString = ByteString("mined with etc scala")
 
-    override lazy val validators: ValidatorsExecutor = ethashValidators
+    override lazy val validators: ValidatorsExecutor = powValidators
 
     override lazy val consensusConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)

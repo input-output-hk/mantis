@@ -30,6 +30,7 @@ sealed abstract class ImportMessages(block: Block) {
       case UnknownParent => orphaned()
       case ChainReorganised(_, newBranch, _) => reorganisedChain(newBranch)
       case BlockImportFailed(error) => importFailed(error)
+      case BlockImportFailedDueToMissingNode(reason) => missingStateNode(reason)
     }
 }
 
