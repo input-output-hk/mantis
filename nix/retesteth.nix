@@ -1,8 +1,6 @@
 { stdenv
 , lib
 , cmake
-, solc
-, lllc
 , fetchFromGitHub
 , pkg-config
 , libyamlcpp
@@ -93,8 +91,6 @@ stdenv.mkDerivation rec {
   nativeBuildInputs = [ cmake pkg-config ];
 
   buildInputs = [
-    solc
-    lllc
     boost175
     libyamlcpp
     cryptopp_5_6_5
