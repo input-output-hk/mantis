@@ -73,21 +73,21 @@ let
     postInstall = ''
       mkdir -p $dev/lib/pkgconfig
       substituteAll ${cryptoPcFile} $dev/lib/pkgconfig/libcryptopp.pc
-      ln -sr $dev/lib/libcryptopp.so.${version} $dev/lib/libcryptopp.so.${lib.versions.majorMinor version}
-      ln -sr $dev/lib/libcryptopp.so.${version} $dev/lib/libcryptopp.so.${lib.versions.major version}
+      ln -sr $out/lib/libcryptopp.so.${version} $out/lib/libcryptopp.so.${lib.versions.majorMinor version}
+      ln -sr $out/lib/libcryptopp.so.${version} $out/lib/libcryptopp.so.${lib.versions.major version}
     '';
   });
 
 in
-
 stdenv.mkDerivation rec {
   pname = "retesteth";
   version = "v0.1.0-accesslist_fix";
+
   src = fetchFromGitHub {
     owner = "input-output-hk";
     repo = "retesteth";
     rev = "remove-hunter";
-    sha256 = "sha256-aYRq+uZTm1RicF0Jx/eT4H8EhOGPuW+LSqKSBOPC/oA=";
+    sha256 = "sha256-5BSbf8NoLWL5Iro3S70FRPGkLt+ZFKTeu/yBG2cSu/g=";
   };
 
   nativeBuildInputs = [ cmake pkg-config ];
@@ -101,7 +101,6 @@ stdenv.mkDerivation rec {
     curl
     libscrypt
   ];
-
 
   cmakeFlags = [
     "-DCMAKE_BUILD_TYPE=Release"
