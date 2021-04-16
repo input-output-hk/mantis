@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 if [ -z "$IN_NIX_SHELL" ]; then
     export SBT_NIX="-Dnix=true"
 fi
