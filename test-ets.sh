@@ -18,6 +18,9 @@ echo "running retesteth"
 retesteth -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis > retesteth-stdout.txt 2> retesteth-stderr.txt
 code=$?
 
+echo "retesteth exited with code $code"
+
+echo "shutting down mantis"
 kill %1
 
 exit $code
