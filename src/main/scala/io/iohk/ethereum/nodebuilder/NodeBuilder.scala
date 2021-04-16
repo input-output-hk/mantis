@@ -28,7 +28,7 @@ import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.testmode.{TestLedgerBuilder, TestmodeConsensusBuilder}
+import io.iohk.ethereum.testmode.{TestEthBlockServiceWrapper, TestLedgerBuilder, TestmodeConsensusBuilder}
 import io.iohk.ethereum.transactions.{PendingTransactionsManager, TransactionHistoryService}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils._
@@ -367,6 +367,11 @@ trait TestServiceBuilder {
     new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
 }
 
+trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
+  self: BlockchainBuilder with TestLedgerBuilder with ConsensusBuilder =>
+  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger, consensus)
+}
+
 trait EthProofServiceBuilder {
   self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
 
@@ -554,7 +559,7 @@ trait JSONRpcControllerBuilder {
     with CheckpointingServiceBuilder
     with MantisServiceBuilder =>
 
-  private val testService =
+  private lazy val testService =
     if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
     else None
 

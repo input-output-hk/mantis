@@ -9,6 +9,51 @@ import io.iohk.ethereum.utils.ByteStringUtils
 
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])
 
+trait BaseBlockResponse {
+  def number: BigInt
+  def hash: Option[ByteString]
+  def parentHash: ByteString
+  def nonce: Option[ByteString]
+  def sha3Uncles: ByteString
+  def logsBloom: ByteString
+  def transactionsRoot: ByteString
+  def stateRoot: ByteString
+  def receiptsRoot: ByteString
+  def miner: Option[ByteString]
+  def difficulty: BigInt
+  def totalDifficulty: Option[BigInt]
+  def extraData: ByteString
+  def size: BigInt
+  def gasLimit: BigInt
+  def gasUsed: BigInt
+  def timestamp: BigInt
+  def transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
+  def uncles: Seq[ByteString]
+}
+
+case class EthBlockResponse(
+    number: BigInt,
+    hash: Option[ByteString],
+    mixHash: Option[ByteString],
+    parentHash: ByteString,
+    nonce: Option[ByteString],
+    sha3Uncles: ByteString,
+    logsBloom: ByteString,
+    transactionsRoot: ByteString,
+    stateRoot: ByteString,
+    receiptsRoot: ByteString,
+    miner: Option[ByteString],
+    difficulty: BigInt,
+    totalDifficulty: Option[BigInt],
+    extraData: ByteString,
+    size: BigInt,
+    gasLimit: BigInt,
+    gasUsed: BigInt,
+    timestamp: BigInt,
+    transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]],
+    uncles: Seq[ByteString]
+) extends BaseBlockResponse
+
 //scalastyle:off method.length
 case class BlockResponse(
     number: BigInt,
@@ -35,7 +80,7 @@ case class BlockResponse(
     uncles: Seq[ByteString],
     signature: String,
     signer: String
-) {
+) extends BaseBlockResponse {
   val chainWeight: Option[ChainWeight] = for {
     lcn <- lastCheckpointNumber
     td <- totalDifficulty
@@ -50,7 +95,8 @@ object BlockResponse {
       block: Block,
       weight: Option[ChainWeight] = None,
       fullTxs: Boolean = false,
-      pendingBlock: Boolean = false
+      pendingBlock: Boolean = false,
+      coinbase: Option[ByteString] = None
   ): BlockResponse = {
     val transactions =
       if (fullTxs)

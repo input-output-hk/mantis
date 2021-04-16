@@ -14,6 +14,7 @@ import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, Bloc
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 
 class TestmodeConsensus(
     override val vm: VMImpl,
@@ -64,7 +65,7 @@ class TestmodeConsensus(
     }
   }
 
-  override def validators: Validators = new TestValidators
+  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
 
   override val blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
