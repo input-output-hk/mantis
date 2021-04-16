@@ -13,27 +13,27 @@ import scala.concurrent.duration.DurationInt
 object PoWMinerCoordinator {
   // TODO in ETCM-773 make trait sealed
   trait CoordinatorProtocol
-  final case class StartMining(mode: MinerMode) extends CoordinatorProtocol
+  final case class StartMining(mode: MiningMode) extends CoordinatorProtocol
   case object ProcessMining extends CoordinatorProtocol
   case object StopMining extends CoordinatorProtocol
   case object MiningCompleted extends CoordinatorProtocol
 
-  // Miner Mode will allow to remove MockerMiner
-  sealed trait MinerMode
-  case object RecurrentMining extends MinerMode // for normal mining
-  case object OnDemandMining extends MinerMode // for testing
+  // MiningMode will allow to remove MockerMiner
+  sealed trait MiningMode
+  case object RecurrentMining extends MiningMode // for normal mining
+  case object OnDemandMining extends MiningMode // for testing
 
   sealed trait MiningResponse
   case object MiningComplete extends MiningResponse
 
   def apply(
       node: Node,
-      blocKCreator: PoWBlockCreator,
+      blockCreator: PoWBlockCreator,
       blockchain: Blockchain,
       ecip1049BlockNumber: Option[BigInt]
   ): Behavior[CoordinatorProtocol] =
     Behaviors.setup(context =>
-      new PoWMinerCoordinator(context, node, blocKCreator, blockchain, ecip1049BlockNumber).idle()
+      new PoWMinerCoordinator(context, node, blockCreator, blockchain, ecip1049BlockNumber).idle()
     )
 }
 
@@ -53,6 +53,7 @@ class PoWMinerCoordinator private (
   }
 
   private def handleMiningRecurrent(): Behavior[CoordinatorProtocol] = Behaviors.receiveMessage {
+    // TODO stop the coordinator
     case StartMining(mode) =>
       context.log.info("Received message {}", StartMining(mode))
       switchMiningMode(mode)
@@ -75,7 +76,7 @@ class PoWMinerCoordinator private (
       switchMiningMode(mode)
   }
 
-  private def switchMiningMode(mode: MinerMode): Behavior[CoordinatorProtocol] = mode match {
+  private def switchMiningMode(mode: MiningMode): Behavior[CoordinatorProtocol] = mode match {
     case RecurrentMining =>
       context.self ! ProcessMining
       handleMiningRecurrent()

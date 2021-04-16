@@ -33,7 +33,7 @@ class EthashMinerSpec
 
   final val PoWMinerSpecTag = Tag("PowMinerSpec") // TODO Add tag // taggedAs PoWMinerSpecTag
 
-  "EthashMiner" should "mine valid blocks" ignore new TestSetup {
+  "EthashMiner" should "mine valid blocks" in new TestSetup {
     val parentBlock: Block = origin
     val bfm: Block = blockForMining(parentBlock.header)
 
@@ -49,7 +49,7 @@ class EthashMinerSpec
     executeTest(parentBlock, bfm)
   }
 
-  it should "mine valid blocks on the end of the epoch" ignore new TestSetup {
+  it should "mine valid blocks on the end of the epoch" in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int =
       2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)

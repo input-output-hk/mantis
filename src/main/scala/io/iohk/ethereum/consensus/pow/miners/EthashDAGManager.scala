@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
 import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator}
 import io.iohk.ethereum.utils.{ByteUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
@@ -12,10 +13,6 @@ class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
-
-  // scalastyle:off magic.number
-  val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
-  // scalastyle:on magic.number
 
   def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {

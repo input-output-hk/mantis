@@ -1,12 +1,12 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.typed.{ActorRef, Behavior, DispatcherSelector}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{ActorContext, Behaviors}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.pow.{KeccakCalculation, PoWBlockCreator, PoWMinerCoordinator}
-import io.iohk.ethereum.consensus.pow.PoWMinerCoordinator.{CoordinatorProtocol, MiningResponse}
+import io.iohk.ethereum.consensus.pow.PoWMinerCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.{MiningResult, MiningSuccessful, MiningUnsuccessful}
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 import io.iohk.ethereum.jsonrpc.EthMiningService

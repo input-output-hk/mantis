@@ -70,6 +70,7 @@ class EthashMiner(
       }
       .onErrorHandle { ex =>
         log.error(ex, "Unable to get block for mining")
+        context.stop(self)
       }
       .runAsyncAndForget
   }
@@ -138,4 +139,6 @@ object EthashMiner {
 
   // scalastyle:off magic.number
   val MaxNonce: BigInt = BigInt(2).pow(64) - 1
+
+  val DagFilePrefix: ByteString = ByteString(Array(0xfe, 0xca, 0xdd, 0xba, 0xad, 0xde, 0xe1, 0xfe).map(_.toByte))
 }

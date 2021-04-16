@@ -93,7 +93,7 @@ class PoWConsensus private (
                 node.system.spawn(
                   PoWMinerCoordinator(node, blocKCreator, blockchain, blockchainConfig.ecip1049BlockNumber),
                   "PoWMinerCoordinator",
-                  DispatcherSelector.fromConfig("BlockForgerDispatcherId")
+                  DispatcherSelector.fromConfig(BlockForgerDispatcherId)
                 )
               )
             case MockedPow => mockedMinerRef = Some(MockedMiner(node))
