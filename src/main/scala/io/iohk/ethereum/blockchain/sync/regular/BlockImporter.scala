@@ -23,7 +23,7 @@ import akka.actor.typed.{ActorRef => TypedActorRef}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHash, BlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import akka.actor.typed.scaladsl.adapter._
 
@@ -108,14 +108,22 @@ class BlockImporter(
     case MessageFromPeer(BlockHeaders(headers), _) =>
       headers.lastOption.map { bh =>
         log.debug(s"Candidate for new top at block ${bh.number}, current known top ${state.knownTop}")
-        //TODO: keep track of the highest network block
+        val newState = state.withPossibleNewTopAt(bh.number)
+        supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+        context become running(newState)
       }
 
     case MessageFromPeer(NewBlockHashes(hashes), _) =>
+      val newState = state.validateNewBlockHashes(hashes) match {
+        case Left(_) => state
+        case Right(validHashes) => validHashes.lastOption.fold(state)(h => state.withPossibleNewTopAt(h.number))
+      }
       log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
-     //TODO: keep track of the highest network block
+      supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
+      context become running(newState)
 
     case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing =>
+      supervisor ! ProgressProtocol.GotNewBlock(block.number)
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
@@ -124,6 +132,7 @@ class BlockImporter(
       )(state)
 
     case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing =>
+      supervisor ! ProgressProtocol.GotNewBlock(block.number)
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
@@ -222,7 +231,7 @@ class BlockImporter(
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
         case Some(block) =>
-          supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally = false)
+          supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         case None => ()
       }
 
@@ -268,7 +277,7 @@ class BlockImporter(
               val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-              supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally)
+              supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
               fetcher ! BlockFetcher.LastStableBlock(block.number)
             case BlockEnqueued => ()
             case DuplicateBlock => ()
@@ -278,7 +287,7 @@ class BlockImporter(
               broadcastBlocks(newBranch, weights)
               newBranch.lastOption match {
                 case Some(newBlock) =>
-                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
+                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
                   fetcher ! BlockFetcher.LastStableBlock(newBlock.number)
                 case None => ()
               }
@@ -395,11 +404,8 @@ object BlockImporter {
 
   sealed trait ImporterMsg
   case object Start extends ImporterMsg
-  case object OnTop extends ImporterMsg
-  case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
   case class NewCheckpoint(block: Block) extends ImporterMsg
-  case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
   case class ImportDone(newBehavior: NewBehavior, blockImportType: BlockImportType) extends ImporterMsg
   case object PickBlocks extends ImporterMsg
   case object PrintStatus extends ImporterMsg with NotInfluenceReceiveTimeout
@@ -444,6 +450,23 @@ object BlockImporter {
     def branchResolved(): ImporterState = copy(resolvingBranchFrom = None)
 
     def isResolvingBranch: Boolean = resolvingBranchFrom.isDefined
+
+    def withPossibleNewTopAt(top: BigInt): ImporterState =
+      if (top > knownTop) {
+        this.copy(knownTop = top)
+      } else {
+        this
+      }
+
+    def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
+      hashes
+        .asRight[String]
+        .ensure("Hashes are empty")(_.nonEmpty)
+        .ensure("Hashes should form a chain")(hashes =>
+          hashes.zip(hashes.tail).forall { case (a, b) =>
+            a.number + 1 == b.number
+          }
+        )
   }
 
   object ImporterState {

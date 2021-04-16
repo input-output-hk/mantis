@@ -57,7 +57,7 @@ class BlockFetcherStateSpec
         blocks.foreach { block =>
           assert(result.map(_.blockProviders(block.number)) === Right(peer))
         }
-        assert(result.map(_.waitingHeaders.size) === Right(blocks.size))
+        assert(result.map(_.nextBlockToFetch) === Right(blocks.last.number + 1))
       }
 
       "enqueue requested blocks fails when ready blocks is not forming a sequence with given headers" in {

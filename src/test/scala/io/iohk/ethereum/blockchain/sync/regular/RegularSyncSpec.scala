@@ -90,10 +90,6 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
-        // It's weird that we're using block number for total difficulty but I'm too scared to fight this dragon
-        peerEventBus.reply(
-          MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
-        )
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
         peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
@@ -391,7 +387,7 @@ class RegularSyncSpec
     }
 
     "catching the top" should {
-      "ignore new blocks if they are too new" in sync(new Fixture(testSystem) {
+      "include new blocks into a block queue even if they are too new" in sync(new Fixture(testSystem) {
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
         val newBlock: Block = testBlocks.last
@@ -403,7 +399,7 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (ledger.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
+        (ledger.importBlock(_: Block)(_: Scheduler)).verify(*, *).once()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
@@ -421,7 +417,7 @@ class RegularSyncSpec
           MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
         )
 
-        awaitCond(ledger.didTryToImportBlock(failingBlock))
+        awaitCond(ledger.didTryToImportBlock(testBlocks.last))
 
         peersClient.fishForMsgEq(blockHeadersChunkRequest(1))
       })
@@ -457,7 +453,7 @@ class RegularSyncSpec
       "fetch hashes if received NewHashes message" in sync(new OnTopFixture(testSystem) {
         goToTop()
 
-        blockFetcher !
+        blockImporter !
           MessageFromPeer(NewBlockHashes(List(BlockHash(newBlock.hash, newBlock.number))), defaultPeer.id)
 
         peersClient.expectMsgPF() { case PeersClient.Request(GetBlockHeaders(_, _, _, _), _, _) =>
@@ -480,7 +476,7 @@ class RegularSyncSpec
           MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
         )
 
-        awaitCond(ledger.didTryToImportBlock(testBlocks.head))
+        awaitCond(ledger.didTryToImportBlock(testBlocks.last))
         regularSync ! SyncProtocol.MinedBlock(minedBlock)
         headPromise.success(BlockImportedToTop(Nil))
         Thread.sleep(remainingOrDefault.toMillis)
@@ -603,7 +599,7 @@ class RegularSyncSpec
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(Map(peerWithPV63._1 -> peerWithPV63._2)))
 
-          blockFetcher ! MessageFromPeer(CommonMessages.NewBlock(newBlock, newBlock.number), defaultPeer.id)
+          blockImporter ! MessageFromPeer(CommonMessages.NewBlock(newBlock, newBlock.number), defaultPeer.id)
 
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
@@ -626,7 +622,7 @@ class RegularSyncSpec
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(handshakedPeers))
 
-          blockFetcher ! MessageFromPeer(NewBlock(newBlock, ChainWeight(num, newBlock.number)), defaultPeer.id)
+          blockImporter ! MessageFromPeer(NewBlock(newBlock, ChainWeight(num, newBlock.number)), defaultPeer.id)
 
           etcPeerManager.fishForSpecificMessageMatching() {
             case EtcPeerManagerActor.SendMessage(message, _) =>
@@ -718,32 +714,32 @@ class RegularSyncSpec
         }
       }
 
-//      "return updated status after importing blocks" in testCaseT { fixture =>
-//        import fixture._
-//
-//        for {
-//          _ <- Task {
-//            testBlocks.take(6).foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
-//
-//            peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(6)))
-//
-//            regularSync ! SyncProtocol.Start
-//
-//            peerEventBus.expectMsgClass(classOf[Subscribe])
-//            peerEventBus.reply(
-//              MessageFromPeer(
-//                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
-//                defaultPeer.id
-//              )
-//            )
-//          }
-//          _ <- ledger.importedBlocks.take(5).lastL
-//          _ <- fishForStatus {
-//            case s: Status.Syncing if s.blocksProgress == Progress(5, 20) && s.startingBlockNumber == 0 =>
-//              s
-//          }
-//        } yield succeed
-//      }
+      "return updated status after importing blocks" in testCaseT { fixture =>
+        import fixture._
+
+        for {
+          _ <- Task {
+            testBlocks.take(6).foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
+
+            peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(6)))
+
+            regularSync ! SyncProtocol.Start
+
+            peerEventBus.expectMsgClass(classOf[Subscribe])
+            peerEventBus.reply(
+              MessageFromPeer(
+                NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+                defaultPeer.id
+              )
+            )
+          }
+          _ <- ledger.importedBlocks.take(5).lastL
+          _ <- fishForStatus {
+            case s: Status.Syncing if s.blocksProgress == Progress(5, 20) && s.startingBlockNumber == 0 =>
+              s
+          }
+        } yield succeed
+      }
 
       "return SyncDone when on top" in customTestCaseResourceM(actorSystemResource.map(new OnTopFixture(_))) {
         fixture =>

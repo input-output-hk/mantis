@@ -8,6 +8,7 @@ import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
 import cats.syntax.either._
+import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
@@ -111,13 +112,29 @@ class BlockFetcher(
           state.appendHeaders(headers) match {
             case Left(err) =>
               log.info("Dismissed received headers due to: {}", err)
-              processBodies(state)
+              fetchBlocks(state)
             case Right(updatedState) =>
-              processBodies(updatedState)
+              fetchBlocks(updatedState)
           }
         case RetryHeadersRequest =>
           log.debug("Something failed on a headers request, cancelling the request and re-fetching")
           fetchBlocks(state)
+        case AdaptedMessage(peer, BlockBodies(bodies)) =>
+          log.debug(s"Received ${bodies.size} block bodies")
+          val newState =
+            state.validateBodies(bodies) match {
+              case Left(err) =>
+                peersClient ! BlacklistPeer(peer.id, err)
+                state
+              case Right(newBlocks) =>
+                state.handleRequestedBlocks(newBlocks, peer.id)
+            }
+          val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
+          log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
+          processBlockImporterCommands(newState)
+        case RetryBodiesRequest =>
+          log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
+          processBlockImporterCommands(state)
         case _ =>
           Behaviors.unhandled
       }
@@ -211,14 +228,14 @@ class BlockFetcher(
 
     val resp = makeRequest(Request.create(msg, BestPeer), RetryHeadersRequest)
       .flatMap {
-        case Response(_, BlockHeaders(headers)) if headers.isEmpty =>
+        case AdaptedMessage(_, BlockHeaders(headers)) if headers.isEmpty =>
           log.debug("Empty BlockHeaders response. Retry in {}", syncConfig.syncRetryInterval)
           Task.now(RetryHeadersRequest).delayResult(syncConfig.syncRetryInterval)
         case res => Task.now(res)
       }
 
     context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res.asInstanceOf[FetchCommand]
+      case Success(res) => res
       case Failure(_) => RetryHeadersRequest
     }
   }
@@ -235,7 +252,7 @@ class BlockFetcher(
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
     val resp = makeRequest(Request.create(GetBlockBodies(hashes), BestPeer), RetryBodiesRequest)
     context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res.asInstanceOf[FetchCommand]
+      case Success(res) => res
       case Failure(_) => RetryBodiesRequest
     }
   }
@@ -244,14 +261,14 @@ class BlockFetcher(
     log.debug("Fetching state node for hash {}", ByteStringUtils.hash2string(hash))
     val resp = makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), RetryFetchStateNode)
     context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res.asInstanceOf[FetchCommand]
+      case Success(res) => res
       case Failure(_) => RetryFetchStateNode
     }
     val newState = state.fetchingStateNode(hash, originalSender)
     processStateNode(newState)
   }
 
-  private def makeRequest(request: Request[_], responseFallback: FetchCommand): Task[Any] =
+  private def makeRequest(request: Request[_], responseFallback: FetchCommand): Task[FetchCommand] =
     Task
       .deferFuture(peersClient ? request)
       .tap(blacklistPeerOnFailedRequest)
@@ -266,7 +283,7 @@ class BlockFetcher(
     case _ => ()
   }
 
-  private def handleRequestResult(fallback: FetchCommand)(msg: Any): Task[Any] = msg match {
+  private def handleRequestResult(fallback: FetchCommand)(msg: Any): Task[FetchCommand] = msg match {
     case failed: RequestFailed =>
       log.debug("Request failed due to {}", failed)
       Task.now(fallback)
@@ -275,8 +292,8 @@ class BlockFetcher(
     case Failure(cause) =>
       log.error("Unexpected error on the request result", cause)
       Task.now(fallback)
-    case m =>
-      Task.now(m)
+    case PeersClient.Response(peer, msg) =>
+      Task.now(AdaptedMessage(peer, msg))
   }
 }
 

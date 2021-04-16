@@ -100,7 +100,7 @@ class EthashMiner(
 
   private def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
-      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
+      case (Some(_), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
         val seed = EthashUtils.seed(blockNumber)
         val dagSize = EthashUtils.dagSize(epoch)

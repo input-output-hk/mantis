@@ -85,16 +85,6 @@ case class BlockFetcherState(
     }
   }
 
-  def validateNewBlockHashes(hashes: Seq[BlockHash]): Either[String, Seq[BlockHash]] =
-    hashes
-      .asRight[String]
-      .ensure("Hashes are empty")(_.nonEmpty)
-      .ensure("Hashes should form a chain")(hashes =>
-        hashes.zip(hashes.tail).forall { case (a, b) =>
-          a.number + 1 == b.number
-        }
-      )
-
   /**
     * When bodies are requested, the response don't need to be a complete sub chain,
     * even more, we could receive an empty chain and that will be considered valid. Here we just

@@ -290,7 +290,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
 
-    var blockFetcher: ActorRef = _
+    var blockImporter: ActorRef = _
 
     var importedNewBlock = false
     var importedLastTestBlock = false
@@ -316,13 +316,13 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def waitForSubscription(): Unit = {
       peerEventBus.expectMsgClass(classOf[Subscribe])
-      blockFetcher = peerEventBus.sender()
+      blockImporter = peerEventBus.sender()
     }
 
     def sendLastTestBlockAsTop(): Unit = sendNewBlock(testBlocks.last)
 
     def sendNewBlock(block: Block = newBlock, peer: Peer = defaultPeer): Unit =
-      blockFetcher ! MessageFromPeer(NewBlock(block, ChainWeight.totalDifficultyOnly(block.number)), peer.id)
+      blockImporter ! MessageFromPeer(NewBlock(block, ChainWeight.totalDifficultyOnly(block.number)), peer.id)
 
     def goToTop(): Unit = {
       regularSync ! SyncProtocol.Start
