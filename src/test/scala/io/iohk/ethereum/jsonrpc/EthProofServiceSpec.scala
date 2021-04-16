@@ -6,7 +6,7 @@ import akka.util.ByteString
 import com.softwaremill.diffx.scalatest.DiffMatcher
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthUserService.{
   GetBalanceRequest,
@@ -215,7 +215,7 @@ class EthProofServiceSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
 
-    val blockGenerator = mock[EthashBlockGenerator]
+    val blockGenerator = mock[PoWBlockGenerator]
     val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
     val balance = UInt256(0)
     val nonce = 0

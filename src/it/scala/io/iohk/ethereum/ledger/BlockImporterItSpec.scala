@@ -8,9 +8,8 @@ import io.iohk.ethereum.blockchain.sync.regular.{BlockFetcher, BlockImporter}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
+import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.validators.std.StdOmmersValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config.SyncConfig

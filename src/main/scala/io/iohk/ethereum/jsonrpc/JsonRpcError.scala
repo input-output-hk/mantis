@@ -39,7 +39,7 @@ object JsonRpcError extends JsonMethodsImplicits {
   //
   // Note Error Code "2", "Action not allowed" could be a candidate here, but the description they provide
   //      probably does not match this use-case.
-  final val ConsensusIsNotEthash = JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.Ethash}", None)
+  final val ConsensusIsNotEthash = JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.PoW}", None)
 
   def executionError(reasons: List[EthCustomError]): JsonRpcError = JsonRpcError(3, "Execution error", reasons)
   val NodeNotFound = executionError(List(EthCustomError.DoesntExist("State node")))

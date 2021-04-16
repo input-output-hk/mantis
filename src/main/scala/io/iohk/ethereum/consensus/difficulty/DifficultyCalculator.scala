@@ -1,6 +1,6 @@
 package io.iohk.ethereum.consensus.difficulty
 
-import io.iohk.ethereum.consensus.ethash.difficulty.{TargetTimeDifficultyCalculator, EthashDifficultyCalculator}
+import io.iohk.ethereum.consensus.pow.difficulty.{TargetTimeDifficultyCalculator, EthashDifficultyCalculator}
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 

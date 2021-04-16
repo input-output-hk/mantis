@@ -7,7 +7,7 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
@@ -140,7 +140,7 @@ class EthServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[EthashBlockGenerator]
+    val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
     override lazy val ledger = mock[Ledger]

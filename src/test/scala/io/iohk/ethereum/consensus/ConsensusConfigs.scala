@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.consensus.ethash.EthashConfig
+import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.domain.Address
 
 /** Provides utility values used throughout tests */
@@ -20,7 +20,7 @@ object ConsensusConfigs {
   )
 
   final val consensusConfig: ConsensusConfig = new ConsensusConfig(
-    protocol = Protocol.Ethash,
+    protocol = Protocol.PoW,
     coinbase = coinbase,
     headerExtraData = ByteString.empty,
     blockCacheSize = blockCacheSize,

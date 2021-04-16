@@ -2,7 +2,7 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
-import io.iohk.ethereum.consensus.ethash.EthashConsensus
+import io.iohk.ethereum.consensus.pow.PoWConsensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.{Block, BlockHeader}
 
@@ -40,12 +40,12 @@ package object consensus {
       * There are APIs that expect that the standard Ethash consensus is running and so depend
       * on either its configuration or general PoW semantics.
       * This is a method that can handle such cases via a respective if/then/else construct:
-      * if we run under [[io.iohk.ethereum.consensus.ethash.EthashConsensus EthashConsensus]]
+      * if we run under [[io.iohk.ethereum.consensus.pow.PoWConsensus EthashConsensus]]
       * then the `_then` function is called, otherwise the `_else` value is computed.
       */
-    def ifEthash[A](_then: EthashConsensus => A)(_else: => A): A =
+    def ifEthash[A](_then: PoWConsensus => A)(_else: => A): A =
       consensus match {
-        case ethash: EthashConsensus => _then(ethash)
+        case ethash: PoWConsensus => _then(ethash)
         case _ => _else
       }
   }

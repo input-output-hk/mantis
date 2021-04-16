@@ -2,8 +2,8 @@ package io.iohk.ethereum.blockchain.sync
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.validators.std.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -27,7 +27,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected lazy val monixScheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
-  protected lazy val ethashValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.Ethash)
+  protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.PoW)
 
   /**
     * The default validators for the test cases.
@@ -41,8 +41,6 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   //+ cake overrides
   /**
     * The default VM for the test cases.
-    * Override it for the same reason explained in
-    * [[io.iohk.ethereum.ledger.LedgerSpec.TestSetup#validators() validators]].
     */
   override lazy val vm: VMImpl = new MockVM()
 
@@ -85,7 +83,6 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
     *
     * @note You can use this method to override the existing ledger instance that is provided by the cake.
     */
-  // TODO: change type to trait instead of specific implementation
   protected def newTestLedger(consensus: Consensus): LedgerImpl =
     new LedgerImpl(
       blockchain = blockchain,
