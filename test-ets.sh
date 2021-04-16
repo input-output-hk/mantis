@@ -5,13 +5,17 @@ fi
 git submodule init;
 git submodule update;
 
-echo "running ETS"
-$SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run | tee mantis-output.txt &
+echo "booting Mantis and waiting for RPC API to be up"
+$SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run > mantis-stdout.txt 2> mantis-stderr.txt &
 
 while ! nc -z localhost 8546; do   
   sleep 0.1
 done
 
-retesteth -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis | tee retesteth-output.txt
+echo "running retesteth"
+retesteth -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis > retesteth-stdout.txt 2> retesteth-stderr.txt
+code=$?
 
 kill %1
+
+exit $code

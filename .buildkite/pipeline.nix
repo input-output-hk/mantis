@@ -138,8 +138,10 @@ in
       '';
       softFail = true;
       artifactPaths = [
-        "mantis-output.txt"
-        "retesteth-output.txt"
+        "mantis-stdout.txt"
+        "mantis-stderr.txt"
+        "retesteth-stdout.txt"
+        "retesteth-stderr.txt"
       ];
     };
 
