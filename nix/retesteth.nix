@@ -1,9 +1,10 @@
 { stdenv
+, lib
 , cmake
 , solc
 , lllc
 , fetchFromGitHub
-, pkgconfig
+, pkg-config
 , libyamlcpp
 , boost175
 , cryptopp
@@ -56,7 +57,9 @@ let
     '';
   };
 
-  cryptopp_5_6_5 = cryptopp.overrideAttrs (oldAttrs: {
+  cryptopp_5_6_5 = cryptopp.overrideAttrs (oldAttrs: rec {
+    version = "5.6.5";
+    outputs = [ "out" "dev" ];
     src = fetchFromGitHub {
       owner = "weidai11";
       repo = "cryptopp";
@@ -70,7 +73,8 @@ let
     postInstall = ''
       mkdir -p $dev/lib/pkgconfig
       substituteAll ${cryptoPcFile} $dev/lib/pkgconfig/libcryptopp.pc
-      ln -s $out/lib/libcryptopp.so $out/lib/libcryptopp.so.5.6
+      ln -sr $dev/lib/libcryptopp.so.${version} $dev/lib/libcryptopp.so.${lib.versions.majorMinor version}
+      ln -sr $dev/lib/libcryptopp.so.${version} $dev/lib/libcryptopp.so.${lib.versions.major version}
     '';
   });
 
@@ -83,11 +87,10 @@ stdenv.mkDerivation rec {
     owner = "input-output-hk";
     repo = "retesteth";
     rev = "remove-hunter";
-    sha256 = "sha256-UbX//st3yEosvnkhy8aQzqsMXbIBKbY6N3kzVGNe8Xo=";
+    sha256 = "sha256-aYRq+uZTm1RicF0Jx/eT4H8EhOGPuW+LSqKSBOPC/oA=";
   };
 
-  nativeBuildInputs = [ cmake pkgconfig ];
-
+  nativeBuildInputs = [ cmake pkg-config ];
 
   buildInputs = [
     solc
