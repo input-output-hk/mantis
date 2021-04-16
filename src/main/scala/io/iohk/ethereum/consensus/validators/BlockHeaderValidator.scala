@@ -29,7 +29,7 @@ sealed trait BlockHeaderError
 object BlockHeaderError {
   case object HeaderParentNotFoundError extends BlockHeaderError
   case object HeaderExtraDataError extends BlockHeaderError
-  case object RestrictedEthashHeaderExtraDataError extends BlockHeaderError
+  case object RestrictedPoWHeaderExtraDataError extends BlockHeaderError
   case object DaoHeaderExtraDataError extends BlockHeaderError
   case object HeaderTimestampError extends BlockHeaderError
   case object HeaderDifficultyError extends BlockHeaderError

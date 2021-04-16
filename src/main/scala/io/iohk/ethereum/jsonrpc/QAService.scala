@@ -7,9 +7,9 @@ import enumeratum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.MinerResponses._
-import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
-import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.consensus.pow.MinerResponses._
+import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
+import io.iohk.ethereum.consensus.pow.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}

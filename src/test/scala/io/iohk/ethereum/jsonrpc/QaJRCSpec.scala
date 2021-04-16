@@ -1,8 +1,8 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.ethash.MockedMinerProtocol.MineBlocks
-import io.iohk.ethereum.consensus.ethash.{MinerResponse, MinerResponses}
+import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
+import io.iohk.ethereum.consensus.pow.{MinerResponse, MinerResponses}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Checkpoint

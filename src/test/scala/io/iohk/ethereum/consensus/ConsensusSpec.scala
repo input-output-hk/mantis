@@ -13,6 +13,6 @@ class ConsensusSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "contain ethash" in {
-    Protocol.find(Protocol.Ethash.name).isDefined shouldBe true
+    Protocol.find(Protocol.PoW.name).isDefined shouldBe true
   }
 }

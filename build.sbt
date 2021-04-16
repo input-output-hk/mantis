@@ -13,19 +13,23 @@ val nixBuild = sys.props.isDefinedAt("nix")
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
 lazy val compilerOptimizationsForProd = Seq(
-  "-opt:l:method",  // method-local optimizations
-  "-opt:l:inline",  // inlining optimizations
+  "-opt:l:method", // method-local optimizations
+  "-opt:l:inline", // inlining optimizations
   "-opt-inline-from:io.iohk.**" // inlining the project only
 )
 
 // Releasing. https://github.com/olafurpg/sbt-ci-release
-inThisBuild(List(
-  organization := "io.iohk",
-  homepage := Some(url("https://github.com/input-output-hk/mantis")),
-  scmInfo := Some(ScmInfo(url("https://github.com/input-output-hk/mantis"), "git@github.com:input-output-hk/mantis.git")),
-  licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
-  developers := List()
-))
+inThisBuild(
+  List(
+    organization := "io.iohk",
+    homepage := Some(url("https://github.com/input-output-hk/mantis")),
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/input-output-hk/mantis"), "git@github.com:input-output-hk/mantis.git")
+    ),
+    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List()
+  )
+)
 
 // https://github.com/sbt/sbt/issues/3570
 updateOptions := updateOptions.value.withGigahorse(false)

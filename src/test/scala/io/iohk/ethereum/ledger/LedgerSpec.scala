@@ -5,7 +5,7 @@ import akka.util.ByteString.{empty => bEmpty}
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransactionsHashError, BlockValid}
 import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.domain._

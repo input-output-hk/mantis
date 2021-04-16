@@ -6,6 +6,6 @@ object Hex {
 
   def decode(hex: String): Array[Byte] =
     hex.toSeq.sliding(2, 2).toArray.map { s =>
-    	Integer.parseInt(s.mkString(""), 16).toByte
+      Integer.parseInt(s.mkString(""), 16).toByte
     }
 }

@@ -5,9 +5,8 @@ import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.OmmersValidator
+import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.consensus.validators.std.StdOmmersValidator
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
