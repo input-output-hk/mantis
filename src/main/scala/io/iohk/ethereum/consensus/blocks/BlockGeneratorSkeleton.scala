@@ -4,14 +4,14 @@ import java.util.concurrent.atomic.AtomicReference
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.blocks.Ommers
+import io.iohk.ethereum.consensus.pow.blocks.Ommers
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
+import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PreparedBlock}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter, InMemoryWorldStateProxy}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}

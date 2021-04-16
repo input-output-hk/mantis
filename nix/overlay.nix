@@ -3,7 +3,7 @@ rev: final: prev: {
 
   mantis = final.callPackage ./mantis.nix {
     src = ../.;
-    depsSha256 = "sha256-csNBHVOC2bNSOjLjWleiVeS5ts3qFS7V8DxBv2nVDqE=";
+    depsSha256 = "sha256-FpBrDvN0iR/eEpUunUIRRo6I9pWqpMyPRybEClCqTFs=";
   };
 
   mantis-hash = final.mantis.override {

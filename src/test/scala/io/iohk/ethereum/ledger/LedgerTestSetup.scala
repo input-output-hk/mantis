@@ -5,7 +5,7 @@ import akka.util.ByteString.{empty => bEmpty}
 import cats.data.NonEmptyList
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
@@ -434,7 +434,7 @@ trait OmmersTestSetup extends EphemBlockchain {
         getBlockHeaderByHash: GetBlockHeaderByHash,
         getNBlocksBack: GetNBlocksBack
     ) =>
-      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+      new StdOmmersValidator(blockHeaderValidator)
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 

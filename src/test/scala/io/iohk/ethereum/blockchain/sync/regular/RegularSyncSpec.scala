@@ -295,7 +295,7 @@ class RegularSyncSpec
     "fetching state node" should {
       abstract class MissingStateNodeFixture(system: ActorSystem) extends Fixture(system) {
         val failingBlock: Block = testBlocksChunked.head.head
-        ledger.setImportResult(failingBlock, Task.raiseError(new MissingNodeException(failingBlock.hash)))
+        ledger.setImportResult(failingBlock, Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
       }
 
       "blacklist peer which returns empty response" in sync(new MissingStateNodeFixture(testSystem) {
@@ -366,7 +366,7 @@ class RegularSyncSpec
         (ledger
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
-          .returns(Task.raiseError(new MissingNodeException(failingBlock.hash)))
+          .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
 
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))

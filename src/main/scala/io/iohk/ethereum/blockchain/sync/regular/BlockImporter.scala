@@ -15,10 +15,12 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
+import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 
@@ -206,13 +208,20 @@ class BlockImporter(
           case DuplicateBlock | BlockEnqueued =>
             tryImportBlocks(restOfBlocks, importedBlocks)
 
+          case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
+            Task.now((importedBlocks, Some(missingNodeException)))
+
+          case BlockImportFailedDueToMissingNode(missingNodeException) =>
+            Task.raiseError(missingNodeException)
+
           case err @ (UnknownParent | BlockImportFailed(_)) =>
-            log.error("Block {} import failed", blocks.head.number)
+            log.error(
+              "Block {} import failed, with hash {} and parent hash {}",
+              blocks.head.number,
+              blocks.head.header.hashAsHexString,
+              ByteStringUtils.hash2string(blocks.head.header.parentHash)
+            )
             Task.now((importedBlocks, Some(err)))
-        }
-        .onErrorHandle {
-          case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-            (importedBlocks, Some(missingNodeEx))
         }
     }
 
@@ -246,18 +255,18 @@ class BlockImporter(
                   supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
                 case None => ()
               }
+            case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
+              // state node re-download will be handled when downloading headers
+              doLog(importMessages.missingStateNode(missingNodeException))
+              Running
+            case BlockImportFailedDueToMissingNode(missingNodeException) =>
+              Task.raiseError(missingNodeException)
             case BlockImportFailed(error) =>
               if (informFetcherOnFail) {
                 fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
               }
           }
           .map(_ => Running)
-          .recover {
-            case missingNodeEx: MissingNodeException if syncConfig.redownloadMissingStateNodes =>
-              // state node re-download will be handled when downloading headers
-              doLog(importMessages.missingStateNode(missingNodeEx))
-              Running
-          }
       },
       blockImportType
     )

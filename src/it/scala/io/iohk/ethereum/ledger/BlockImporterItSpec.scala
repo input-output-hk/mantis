@@ -8,19 +8,19 @@ import io.iohk.ethereum.blockchain.sync.regular.{BlockFetcher, BlockImporter}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.{OmmersValidator, StdOmmersValidator}
+import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators, crypto}
+import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience, ObjectGenerators, Timeouts, crypto}
 import io.iohk.ethereum.ledger.Ledger.BlockResult
 import monix.execution.Scheduler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
-import org.scalatest.concurrent.Eventually.eventually
-import org.scalatest.flatspec.AsyncFlatSpecLike
+import org.scalatest.concurrent.Eventually
+import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
@@ -28,9 +28,11 @@ import scala.concurrent.duration._
 class BlockImporterItSpec
     extends MockFactory
     with TestSetupWithVmAndValidators
-    with AsyncFlatSpecLike
+    with AnyFlatSpecLike
     with Matchers
-    with BeforeAndAfterAll {
+    with BeforeAndAfterAll
+    with Eventually
+    with NormalPatience {
 
   implicit val testScheduler = Scheduler.fixedPool("test", 32)
 
@@ -74,7 +76,7 @@ class BlockImporterItSpec
         getBlockHeaderByHash: GetBlockHeaderByHash,
         getNBlocksBack: GetNBlocksBack
     ) =>
-      new StdOmmersValidator(blockchainConfig, blockHeaderValidator)
+      new StdOmmersValidator(blockHeaderValidator)
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
@@ -162,7 +164,7 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    eventually { Thread.sleep(200); blockchain.getBestBlock().get shouldEqual newBlock3 }
+    eventually { blockchain.getBestBlock().get shouldEqual newBlock3 }
   }
 
   it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
@@ -235,9 +237,41 @@ class BlockImporterItSpec
     val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
     blockImporter ! NewCheckpoint(checkpointBlock)
 
-    eventually { Thread.sleep(1000); blockchain.getBestBlock().get shouldEqual checkpointBlock }
+    eventually { blockchain.getBestBlock().get shouldEqual checkpointBlock }
+    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1 }
+  }
+
+  it should "ask BlockFetcher to resolve missing node" in {
+    val parent = blockchain.getBestBlock().get
+    val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
+    val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
+
+    val ledger = new TestLedgerImpl(successValidators)
+    val blockImporter = system.actorOf(
+      BlockImporter.props(
+        fetcherProbe.ref,
+        ledger,
+        blockchain,
+        syncConfig,
+        ommersPoolProbe.ref,
+        broadcasterProbe.ref,
+        pendingTransactionsManagerProbe.ref,
+        supervisor.ref
+      )
+    )
+
+    blockImporter ! BlockImporter.Start
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
+
     eventually {
-      Thread.sleep(1000); blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1
+
+      val msg = fetcherProbe.fishForMessage(Timeouts.longTimeout) {
+        case BlockFetcher.FetchStateNode(_) => true
+        case _ => false
+      }.asInstanceOf[BlockFetcher.FetchStateNode]
+
+      msg.hash.length should be > 0
     }
+
   }
 }

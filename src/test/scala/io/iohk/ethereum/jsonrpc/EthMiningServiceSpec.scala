@@ -6,8 +6,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.ethash.blocks.{EthashBlockGenerator, RestrictedEthashBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.ethash.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGenerator, RestrictedPoWBlockGeneratorImpl}
+import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -216,7 +216,7 @@ class EthMiningServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
-    val blockGenerator = mock[EthashBlockGenerator]
+    val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     override lazy val ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
@@ -235,7 +235,7 @@ class EthMiningServiceSpec
 
     lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
-    lazy val restrictedGenerator = new RestrictedEthashBlockGeneratorImpl(
+    lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       validators = MockValidatorsAlwaysSucceed,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,

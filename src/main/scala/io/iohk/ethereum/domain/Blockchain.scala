@@ -446,7 +446,7 @@ class BlockchainImpl(
   private def removeBlock(block: Block, withState: Boolean): Unit = {
     val blockHash = block.hash
 
-    log.debug(s"Trying to remove block block ${block.idTag}")
+    log.debug(s"Trying to remove block ${block.idTag}")
 
     val txList = block.body.transactionList
     val bestBlockNumber = getBestBlockNumber()

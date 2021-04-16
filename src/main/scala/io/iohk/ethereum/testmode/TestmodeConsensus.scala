@@ -4,8 +4,8 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.ethash.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.ethash.{MinerProtocol, MinerResponse}
+import io.iohk.ethereum.consensus.pow.MinerResponses.MinerNotExist
+import io.iohk.ethereum.consensus.pow.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, Receipt}
@@ -26,7 +26,7 @@ class TestmodeConsensus(
     extends Consensus {
 
   override type Config = AnyRef
-  override def protocol: Protocol = Protocol.Ethash
+  override def protocol: Protocol = Protocol.PoW
   override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
 
   class TestValidators extends Validators {

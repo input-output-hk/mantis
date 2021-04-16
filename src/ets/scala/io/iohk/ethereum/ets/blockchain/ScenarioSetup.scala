@@ -1,10 +1,10 @@
 package io.iohk.ethereum.ets.blockchain
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
-import io.iohk.ethereum.consensus.ethash.EthashConsensus
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, ethash}
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.pow.{EthashConfig, PoWConsensus}
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, TestConsensus, pow}
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -18,11 +18,12 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.{BlockchainConfig, Config}
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
+
 import scala.util.{Failure, Success, Try}
 
 object ScenarioSetup {
   val testContext = Scheduler.fixedPool("scenario-setup-pool", 4)
-  val specificConfig = ethash.EthashConfig(Config.config)
+  val specificConfig = EthashConfig(Config.config)
   val fullConfig = FullConsensusConfig(ConsensusConfig(Config.config), specificConfig)
 
   def loadEthashConsensus(
@@ -30,8 +31,8 @@ object ScenarioSetup {
       blockchain: BlockchainImpl,
       blockchainConfig: BlockchainConfig,
       validators: ValidatorsExecutor
-  ): ethash.EthashConsensus = {
-    val consensus = EthashConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, NoAdditionalEthashData)
+  ): PoWConsensus = {
+    val consensus = PoWConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, NoAdditionalPoWData)
     consensus
   }
 

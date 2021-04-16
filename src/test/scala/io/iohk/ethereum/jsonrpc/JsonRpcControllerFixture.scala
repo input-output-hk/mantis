@@ -5,8 +5,8 @@ import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.blocks.EthashBlockGenerator
-import io.iohk.ethereum.consensus.ethash.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -40,7 +40,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     encodeAsHex(RawTransactionCodec.asRawTransaction(x))
 
   val version = Config.clientVersion
-  val blockGenerator = mock[EthashBlockGenerator]
+  val blockGenerator = mock[PoWBlockGenerator]
 
   val syncingController = TestProbe()
   override lazy val ledger = mock[Ledger]

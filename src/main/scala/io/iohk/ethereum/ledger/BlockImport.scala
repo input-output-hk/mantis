@@ -3,8 +3,9 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockExecutionError.{MPTError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -35,7 +36,10 @@ class BlockImport(
 
     Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(
-        error => handleImportTopValidationError(error, block, importResult),
+        error => {
+          log.error("Error while validation block before execution: {}", error.reason)
+          handleImportTopValidationError(error, block, importResult)
+        },
         _ => importResult
       )
     }
@@ -53,6 +57,9 @@ class BlockImport(
         val result = maybeError match {
           case None =>
             BlockImportedToTop(importedBlocks)
+
+          case Some(MPTError(reason)) if reason.isInstanceOf[MissingNodeException] =>
+            BlockImportFailedDueToMissingNode(reason.asInstanceOf[MissingNodeException])
 
           case Some(error) if importedBlocks.isEmpty =>
             blockQueue.removeSubtree(block.header.hash)
@@ -161,7 +168,10 @@ class BlockImport(
     reorgResult match {
       case Some(execResult) =>
         execResult.fold(
-          err => BlockImportFailed(s"Error while trying to reorganise chain: $err"),
+          {
+            case MPTError(reason: MissingNodeException) => BlockImportFailedDueToMissingNode(reason)
+            case err => BlockImportFailed(s"Error while trying to reorganise chain: $err")
+          },
           ChainReorganised.tupled
         )
 
@@ -270,5 +280,7 @@ case class ChainReorganised(
 ) extends BlockImportResult
 
 case class BlockImportFailed(error: String) extends BlockImportResult
+
+case class BlockImportFailedDueToMissingNode(reason: MissingNodeException) extends BlockImportResult
 
 case object UnknownParent extends BlockImportResult

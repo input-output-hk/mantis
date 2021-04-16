@@ -7,14 +7,20 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
-import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
+import io.iohk.ethereum.blockchain.sync.regular.{
+  BlockBroadcast,
+  BlockBroadcasterActor,
+  BlockFetcher,
+  BlockImporter,
+  RegularSync
+}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalEthashData
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.ethash.{EthashConfig, EthashConsensus}
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, ethash}
+import io.iohk.ethereum.consensus.pow.{EthashConfig, PoWConsensus}
+import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, pow}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -48,13 +54,13 @@ object RegularSyncItSpecUtils {
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
-    def buildEthashConsensus(): ethash.EthashConsensus = {
+    def buildEthashConsensus(): pow.PoWConsensus = {
       val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)
-      val specificConfig: EthashConfig = ethash.EthashConfig(config)
+      val specificConfig: EthashConfig = pow.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
       val consensus =
-        EthashConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalEthashData)
+        PoWConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalPoWData)
       consensus
     }
 
@@ -96,7 +102,8 @@ object RegularSyncItSpecUtils {
         broadcasterRef,
         pendingTransactionsManager,
         regularSync
-      ))
+      )
+    )
 
     lazy val regularSync = system.actorOf(
       RegularSync.props(

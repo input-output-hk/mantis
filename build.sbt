@@ -12,11 +12,39 @@ val nixBuild = sys.props.isDefinedAt("nix")
 // Enable dev mode: disable certain flags, etc.
 val mantisDev = sys.props.get("mantisDev").contains("true") || sys.env.get("MANTIS_DEV").contains("true")
 
+lazy val compilerOptimizationsForProd = Seq(
+  "-opt:l:method", // method-local optimizations
+  "-opt:l:inline", // inlining optimizations
+  "-opt-inline-from:io.iohk.**" // inlining the project only
+)
+
+// Releasing. https://github.com/olafurpg/sbt-ci-release
+inThisBuild(
+  List(
+    organization := "io.iohk",
+    homepage := Some(url("https://github.com/input-output-hk/mantis")),
+    scmInfo := Some(
+      ScmInfo(url("https://github.com/input-output-hk/mantis"), "git@github.com:input-output-hk/mantis.git")
+    ),
+    licenses := List("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0")),
+    developers := List()
+  )
+)
+
+// https://github.com/sbt/sbt/issues/3570
+updateOptions := updateOptions.value.withGigahorse(false)
+
+// artifact name will include scala version
+crossPaths := true
+
+val `scala-2.12` = "2.12.10"
+val `scala-2.13` = "2.13.4"
+val supportedScalaVersions = List(`scala-2.12`, `scala-2.13`)
+
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
   organization := "io.iohk",
-  version := "3.2.1",
-  scalaVersion := "2.13.4",
+  scalaVersion := `scala-2.13`,
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
@@ -29,6 +57,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-encoding",
     "utf-8"
   ),
+  scalacOptions ++= (if (mantisDev) Seq.empty else compilerOptimizationsForProd),
   scalacOptions in (Compile, console) ~= (_.filterNot(
     Set(
       "-Ywarn-unused-import",
@@ -38,7 +67,14 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options),
   Test / parallelExecution := true,
   testOptions in Test += Tests.Argument("-oDG"),
-  (scalastyleConfig in Test) := file("scalastyle-test-config.xml")
+  (scalastyleConfig in Test) := file("scalastyle-test-config.xml"),
+  // Only publish selected libraries.
+  skip in publish := true
+)
+
+val publishSettings = Seq(
+  publish / skip := false,
+  crossScalaVersions := supportedScalaVersions
 )
 
 // Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
@@ -50,6 +86,7 @@ lazy val bytes = {
     .in(file("bytes"))
     .configs(Integration)
     .settings(commonSettings("mantis-bytes"))
+    .settings(publishSettings)
     .settings(
       libraryDependencies ++=
         Dependencies.akkaUtil ++
@@ -65,6 +102,7 @@ lazy val crypto = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-crypto"))
+    .settings(publishSettings)
     .settings(
       libraryDependencies ++=
         Dependencies.akkaUtil ++
@@ -81,6 +119,7 @@ lazy val rlp = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-rlp"))
+    .settings(publishSettings)
     .settings(
       libraryDependencies ++=
         Dependencies.akkaUtil ++
@@ -201,6 +240,9 @@ lazy val node = {
       batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\conf\app.conf"""",
       batScriptExtraDefines += """call :add_java "-Dlogback.configurationFile=%APP_HOME%\conf\logback.xml""""
     )
+    .settings(
+      crossScalaVersions := List(`scala-2.13`)
+    )
 
   if (!nixBuild)
     node
@@ -252,5 +294,7 @@ addCommandAlias(
     |""".stripMargin
 )
 
-scapegoatVersion in ThisBuild := "1.4.7"
+// Scala 2.12 only has up to 1.4.5, while 2.13 only from 1.4.7
+// In theory we should be able to switch on `scalaVersion.value` but it doesn't seem to work.
+scapegoatVersion in ThisBuild := (sys.env.getOrElse("SCAPEGOAT_VERSION", "1.4.7"))
 scapegoatReports := Seq("xml")

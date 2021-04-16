@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.ethash.blocks.OmmersSeqEnc
+import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, Receipt, SignedTransaction}

@@ -8,7 +8,7 @@ class VersionInfoSpec extends AnyFlatSpec with Matchers {
 
   it should "match ethstats expected structure and preserve major and minor Java version" in {
     VersionInfo
-      .nodeName() should fullyMatch regex """mantis/v\d(\.\d+)*-[a-z0-9]{7}/[^/]+-[^/]+/[^/]+-.[^/]+-java-\d+\.\d+[._0-9]*"""
+      .nodeName() should fullyMatch regex """mantis/v\d(\.\d+)*(-SNAPSHOT)?-[a-z0-9]{7}/[^/]+-[^/]+/[^/]+-.[^/]+-java-\d+\.\d+[._0-9]*"""
   }
 
   it should "augment the name with an identity" in {
