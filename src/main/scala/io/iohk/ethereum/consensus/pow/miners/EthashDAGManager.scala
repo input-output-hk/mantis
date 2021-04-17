@@ -1,7 +1,7 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.utils.{ByteUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
 
