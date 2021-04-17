@@ -1,17 +1,17 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.consensus.pow.MinerResponses.{MinerIsWorking, MinerNotSupport, MiningError, MiningOrdered}
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.ByteStringUtils
 import monix.eval.Task
 import org.scalatest._
-import scala.concurrent.duration._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.concurrent.duration._
 
 class MockedMinerSpec
     extends TestKit(ActorSystem("MockedPowMinerSpec_System"))

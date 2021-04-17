@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.ActorSystem
 import akka.testkit.{TestActorRef, TestProbe}
@@ -6,6 +6,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.consensus.pow.PoWConsensus
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.domain._
@@ -14,6 +15,7 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
 abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
