@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.actor.testkit.typed.scaladsl.BehaviorTestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
@@ -18,9 +18,9 @@ import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
+abstract class KeccakSpecSetup extends ScenarioSetup with MockFactory {
 
-  def miner: TestActorRef[Nothing]
+  def miner: BehaviorTestKit[MinerProtocol]
 
   val origin = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
@@ -93,8 +93,6 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
     )
   }
 
-  val parentActor = TestProbe()
-
   val fakeWorld = mock[InMemoryWorldStateProxy]
 
   def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
@@ -120,15 +118,15 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
   }
 
   def withStartedMiner(behaviour: => Unit) = {
-    miner ! MinerProtocol.StartMining
+    miner.run(MinerProtocol.StartMining)
 
     behaviour
 
-    miner ! MinerProtocol.StopMining
+    miner.run(MinerProtocol.StopMining)
   }
 
   def sendToMiner(msg: MinerProtocol) = {
-    miner.tell(msg, parentActor.ref)
+    miner.run(msg)
   }
 
 }
