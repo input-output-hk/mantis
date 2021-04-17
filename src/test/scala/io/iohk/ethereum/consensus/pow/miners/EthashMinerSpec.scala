@@ -1,25 +1,25 @@
-package io.iohk.ethereum.consensus
-package pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestKit, TestProbe}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
+import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
+import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Tag
-
-import scala.concurrent.duration._
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
 
 class EthashMinerSpec
     extends TestKit(ActorSystem("EthashMinerSpec_System"))
