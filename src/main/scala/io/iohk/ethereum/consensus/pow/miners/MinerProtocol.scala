@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
 

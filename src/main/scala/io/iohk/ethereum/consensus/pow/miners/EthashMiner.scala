@@ -1,11 +1,11 @@
-package io.iohk.ethereum.consensus
-package pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.pow.MinerProtocol.{StartMining, StopMining}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, KeccakCalculation, PoWConsensus}
+import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest

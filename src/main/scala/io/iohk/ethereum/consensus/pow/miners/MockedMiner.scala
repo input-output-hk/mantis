@@ -1,19 +1,17 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
-import io.iohk.ethereum.consensus.pow.MinerProtocol.{StartMining, StopMining}
-import io.iohk.ethereum.consensus.pow.MinerResponses.{MinerIsWorking, MiningError, MiningOrdered}
-import io.iohk.ethereum.consensus.pow.MockedMiner.MineBlock
-import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
+import io.iohk.ethereum.consensus.pow.PoWConsensus
 import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 
 class MockedMiner(
@@ -23,7 +21,6 @@ class MockedMiner(
 ) extends Actor
     with ActorLogging
     with MinerUtils {
-  import akka.pattern.pipe
   implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
   override def receive: Receive = stopped
