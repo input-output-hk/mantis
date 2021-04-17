@@ -1,27 +1,20 @@
 package io.iohk.ethereum.consensus.pow.miners
 
+import akka.actor.typed.ActorRef
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.pow.PoWMinerCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.domain.Block
 
-sealed trait MinerProtocol
+trait MinerProtocol
 
 object MinerProtocol {
   case object StartMining extends MinerProtocol
   case object StopMining extends MinerProtocol
-}
+  final case class ProcessMining(currentBestBlock: Block, replyTo: ActorRef[CoordinatorProtocol]) extends MinerProtocol
 
-sealed trait MockedMinerProtocol extends MinerProtocol
-
-object MockedMinerProtocol {
-  case class MineBlocks(numBlocks: Int, withTransactions: Boolean, parentBlock: Option[ByteString] = None)
-      extends MockedMinerProtocol
-}
-
-sealed trait MinerResponse
-
-object MinerResponses {
-  case object MinerIsWorking extends MinerResponse
-  case object MiningOrdered extends MinerResponse
-  case object MinerNotExist extends MinerResponse
-  case class MiningError(errorMsg: String) extends MinerResponse
-  case class MinerNotSupport(msg: MinerProtocol) extends MinerResponse
+  sealed trait MiningResult {
+    def triedHashes: Int
+  }
+  case class MiningSuccessful(triedHashes: Int, mixHash: ByteString, nonce: ByteString) extends MiningResult
+  case class MiningUnsuccessful(triedHashes: Int) extends MiningResult
 }
