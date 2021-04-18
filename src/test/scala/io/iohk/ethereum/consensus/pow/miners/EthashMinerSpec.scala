@@ -1,10 +1,12 @@
 package io.iohk.ethereum.consensus.pow.miners
 
+import akka.actor.testkit.typed.scaladsl.TestInbox
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.{TestActor, TestActorRef, TestKit, TestProbe}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.consensus.pow.PoWMinerCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.EthashUtils
+import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator, PoWMinerCoordinator, PoWMinerCoordinatorSpec}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
@@ -27,18 +29,18 @@ class EthashMinerSpec
     with WithActorSystemShutDown
     with Matchers {
 
-  final val EthashMinerSpecTag = Tag("EthashMinerSpec")
-
   private implicit val timeout: Duration = 10.minutes
 
-  "EthashMiner" should "mine valid blocks" taggedAs (EthashMinerSpecTag) in new TestSetup {
+  final val PoWMinerSpecTag = Tag("PowMinerSpec") // TODO Add tag // taggedAs PoWMinerSpecTag
+
+  "EthashMiner" should "mine valid blocks" in new TestSetup {
     val parentBlock: Block = origin
     val bfm: Block = blockForMining(parentBlock.header)
 
     executeTest(parentBlock, bfm)
   }
 
-  it should "mine valid block on the beginning of the new epoch" taggedAs EthashMinerSpecTag in new TestSetup {
+  it should "mine valid block on the beginning of the new epoch" in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
     val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
@@ -47,7 +49,7 @@ class EthashMinerSpec
     executeTest(parentBlock, bfm)
   }
 
-  it should "mine valid blocks on the end of the epoch" taggedAs EthashMinerSpecTag in new TestSetup {
+  it should "mine valid blocks on the end of the epoch" in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int =
       2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)
@@ -57,6 +59,7 @@ class EthashMinerSpec
     executeTest(parentBlock, bfm)
   }
 
+  // TODO handle duplicated code with KeccakMinerSpec
   trait TestSetup extends MinerSpecSetup with MockFactory {
 
     override val origin: Block = Block(
@@ -71,6 +74,7 @@ class EthashMinerSpec
 
     val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
 
+    val coordinatorRef = TestInbox[CoordinatorProtocol]("coordinator")
     val ommersPool: TestProbe = TestProbe()
     val pendingTransactionsManager: TestProbe = TestProbe()
 
@@ -78,7 +82,7 @@ class EthashMinerSpec
     val ethMiningService: EthMiningService = mock[EthMiningService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-    override val blockCreator = new EthashBlockCreator(
+    override val blockCreator = new PoWBlockCreator(
       pendingTransactionsManager = pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
       consensus = consensus,
@@ -87,23 +91,20 @@ class EthashMinerSpec
 
     val miner: TestActorRef[Nothing] = TestActorRef(
       EthashMiner.props(
-        blockchain,
         blockCreator,
         sync.ref,
         ethService,
-        ethMiningService,
-        blockchainConfig.ecip1049BlockNumber
+        ethMiningService
       )
     )
 
     protected def executeTest(parentBlock: Block, blockForMining: Block): Unit = {
       prepareMocks(parentBlock, blockForMining)
-      val minedBlock = startMining()
+      val minedBlock = startMining(parentBlock, coordinatorRef.ref)
       checkAssertions(minedBlock, parentBlock)
     }
 
     private def prepareMocks(parentBlock: Block, blockForMining: Block): Unit = {
-      (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
       (ethMiningService.submitHashRate _)
         .expects(*)
         .returns(Task.now(Right(SubmitHashRateResponse(true))))
@@ -124,11 +125,9 @@ class EthashMinerSpec
       })
     }
 
-    private def startMining(): Block = {
-      miner ! MinerProtocol.StartMining
+    private def startMining(parentBlock: Block, replyTo: akka.actor.typed.ActorRef[CoordinatorProtocol]): Block = {
+      miner ! MinerProtocol.ProcessMining(parentBlock, replyTo)
       val block = waitForMinedBlock
-      miner ! MinerProtocol.StopMining
-
       block
     }
 
@@ -136,6 +135,7 @@ class EthashMinerSpec
       minedBlock.body.transactionList shouldBe Seq(txToMine)
       minedBlock.header.nonce.length shouldBe 8
       powBlockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
+      coordinatorRef.expectMessage(PoWMinerCoordinator.MiningCompleted)
     }
   }
 }
