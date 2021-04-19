@@ -2,7 +2,7 @@
     "name" : "IOHK Mantis on TCP",
     "socketType" : "tcp",
     "socketAddress" : [
-        "0.0.0.0:8546"
+        "192.168.65.2:8546"
     ],
     "initializeTime" : "5",
     "forks" : [
