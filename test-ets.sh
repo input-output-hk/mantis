@@ -14,23 +14,34 @@ while ! nc -z localhost 8546; do
   sleep 0.1
 done
 
-echo "running retesteth GeneralStateTests"
-retesteth -t GeneralStateTests -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis > retesteth-log.txt
-code=$?
-summary=$(sed -n '/Total Tests Run/,$p' retesteth-log.txt)
+final_exit_code=0
 
-echo "retesteth exited with code $code"
+function run_and_annotate {
+  echo "running retesteth $1"
+  retesteth -t "$1" -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis &> "retesteth-$1-log.txt"
+  exit_code=$?
+  echo "retesteth $1 exit code: $exit_code"
 
-cat <<EOF | buildkite-agent annotate --context "retesteth" --style "info"
+  style="info"
+  if [[ "$exit_code" -gt "0" ]]; then
+    final_exit_code="$exit_code"
+    style="error"
+  fi;
+
+  cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
   <details>
-    <summary>retesteth: GeneralStateTests</summary>
-    ```term
-      $summary
-    ```
+    <summary>retesteth: $1</summary>
+    \`\`\`term
+      $(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
+    \`\`\`
   </details>
 EOF
+}
+
+run_and_annotate "GeneralStateTests"
+run_and_annotate "BlockchainTests"
 
 echo "shutting down mantis"
 kill %1
 
-exit $code
+exit $final_exit_code
