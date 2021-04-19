@@ -139,10 +139,9 @@ in
       softFail = true;
       retry.automatic = false;
       artifactPaths = [
-        "mantis-stdout.txt"
-        "mantis-stderr.txt"
-        "retesteth-stdout.txt"
-        "retesteth-stderr.txt"
+        "mantis-log.txt"
+        "retesteth-GeneralStateTests.txt"
+        "retesteth-BlockchainTests.txt"
       ];
     };
 
