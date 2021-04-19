@@ -140,8 +140,8 @@ in
       retry.automatic = false;
       artifactPaths = [
         "mantis-log.txt"
-        "retesteth-GeneralStateTests.txt"
-        "retesteth-BlockchainTests.txt"
+        "retesteth-GeneralStateTests-log.txt"
+        "retesteth-BlockchainTests-log.txt"
       ];
     };
 
