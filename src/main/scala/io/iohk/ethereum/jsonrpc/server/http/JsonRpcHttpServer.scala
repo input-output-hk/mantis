@@ -17,22 +17,24 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.utils.{BuildInfo, ConfigUtils, Logger}
+import io.iohk.ethereum.utils.{ConfigUtils, Logger}
+
 import javax.net.ssl.SSLContext
 import monix.eval.Task
-import monix.execution.Scheduler.Implicits.global
-import org.json4s.native.Serialization
-import org.json4s.{DefaultFormats, JInt, native}
+import monix.execution.Scheduler
+import org.json4s.{DefaultFormats, Formats, JInt, Serialization, native}
+
 import scala.concurrent.duration.{FiniteDuration, _}
 
-trait JsonRpcHttpServer extends Json4sSupport with Logger {
+trait JsonRpcHttpServer extends Json4sSupport with Logger with MonitoringHttpEndpoints {
   val jsonRpcController: JsonRpcBaseController
-  val jsonRpcHealthChecker: JsonRpcHealthChecker
   val config: JsonRpcHttpServerConfig
 
-  implicit val serialization = native.Serialization
+  implicit val serialization: Serialization = native.Serialization
 
-  implicit val formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
+  implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
+
+  implicit val scheduler: Scheduler = monix.execution.Scheduler.Implicits.global
 
   def corsAllowedOrigins: HttpOriginMatcher
 
@@ -101,35 +103,6 @@ trait JsonRpcHttpServer extends Json4sSupport with Logger {
     * Try to start JSON RPC server
     */
   def run(): Unit
-
-  private def handleHealthcheck(): StandardRoute = {
-    val responseF = jsonRpcHealthChecker.healthCheck()
-    val httpResponseF =
-      responseF.map {
-        case response if response.isOK =>
-          HttpResponse(
-            status = StatusCodes.OK,
-            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-          )
-        case response =>
-          HttpResponse(
-            status = StatusCodes.InternalServerError,
-            entity = HttpEntity(ContentTypes.`application/json`, serialization.writePretty(response))
-          )
-      }
-    complete(httpResponseF.runToFuture)
-  }
-
-  private def handleBuildInfo(): StandardRoute = {
-    val buildInfo = Serialization.writePretty(BuildInfo.toMap)(DefaultFormats)
-    complete(
-      HttpResponse(
-        status = StatusCodes.OK,
-        entity = HttpEntity(ContentTypes.`application/json`, buildInfo)
-      )
-    )
-  }
-
 }
 
 object JsonRpcHttpServer extends Logger {
