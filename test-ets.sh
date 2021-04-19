@@ -29,12 +29,12 @@ function run_and_annotate {
   fi;
 
   cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
-  <details>
-    <summary>retesteth: $1</summary>
-    \`\`\`term
-      $(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
-    \`\`\`
-  </details>
+<details>
+<summary>retesteth: $1</summary>
+\`\`\`term
+$(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
+\`\`\`
+</details>
 EOF
 }
 
