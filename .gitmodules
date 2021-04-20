@@ -1,6 +1,7 @@
-[submodule "src/ets/resources/ets"]
+[submodule "ets/tests"]
 	path = ets/tests
 	url = https://github.com/ethereum/tests
+
 [submodule "src/main/protobuf/extvm"]
 	path = src/main/protobuf/extvm
 	url = https://github.com/input-output-hk/mantis-extvm-pb
