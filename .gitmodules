@@ -1,5 +1,5 @@
 [submodule "src/ets/resources/ets"]
-	path = src/ets/resources/ets
+	path = ets/tests
 	url = https://github.com/ethereum/tests
 [submodule "src/main/protobuf/extvm"]
 	path = src/main/protobuf/extvm

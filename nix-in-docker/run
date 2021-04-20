@@ -3,7 +3,7 @@
 dir="$(cd "$(dirname "$0")" && pwd)"
 
 docker volume create mantis-root
-docker volume create mantis-ops-nix
+docker volume create mantis-ops-nix # reuse nix volume from mantis-ops
 docker run \
   -it \
   --network="host" \

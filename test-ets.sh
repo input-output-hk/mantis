@@ -1,9 +1,5 @@
 #!/usr/bin/env bash
 
-if [ -z "$IN_NIX_SHELL" ]; then
-    export SBT_NIX="-Dnix=true"
-fi
-
 git submodule init
 git submodule update
 
@@ -18,7 +14,7 @@ final_exit_code=0
 
 function run_and_annotate {
   echo "running retesteth $1"
-  retesteth -t "$1" -- --testpath src/ets/resources/ets --datadir src/ets/resources/config --clients mantis &> "retesteth-$1-log.txt"
+  ets/retesteth -t "$1" &> "retesteth-$1-log.txt"
   exit_code=$?
   echo "retesteth $1 exit code: $exit_code"
 

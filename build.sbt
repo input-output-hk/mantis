@@ -135,8 +135,6 @@ lazy val node = {
 
   val Evm = config("evm") extend Test
 
-  val Ets = config("ets") extend Test
-
   val Rpc = config("rpcTest") extend Test
 
   val malletDeps = Seq(
@@ -182,7 +180,7 @@ lazy val node = {
 
   val node = project
     .in(file("."))
-    .configs(Integration, Benchmark, Evm, Ets, Rpc)
+    .configs(Integration, Benchmark, Evm, Rpc)
     .enablePlugins(BuildInfoPlugin)
     .dependsOn(bytes, crypto, rlp)
     .settings(
@@ -217,7 +215,6 @@ lazy val node = {
     )
     .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Evm)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
-    .settings(inConfig(Ets)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(inConfig(Rpc)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)
     .settings(
       // protobuf compilation
@@ -266,7 +263,6 @@ addCommandAlias(
     |;test:compile
     |;evm:compile
     |;it:compile
-    |;ets:compile
     |;rpcTest:compile
     |;benchmark:compile
     |""".stripMargin

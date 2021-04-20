@@ -116,6 +116,13 @@ In the root of the project:
 nix-build
 ```
 
+##### On a Mac
+
+This project uses Nix for CI, deployment and, optionally, local development.
+Some of the dependencies are not available for Darwin (macOS) however. To work
+with Nix on a Mac you can instead use Docker via the `nix-in-docker/run` script,
+which will start a `nix-shell` with the same environment as CI.
+
 ##### Update sbt+nix dependencies
 
 When updating project dependencies, the nix fixed-output-derivation
