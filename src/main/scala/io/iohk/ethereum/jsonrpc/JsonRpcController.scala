@@ -245,16 +245,8 @@ case class JsonRpcController(
       handle[ModifyTimestampRequest, ModifyTimestampResponse](testService.modifyTimestamp, req)
     case req @ JsonRpcRequest(_, "test_rewindToBlock", _, _) =>
       handle[RewindToBlockRequest, RewindToBlockResponse](testService.rewindToBlock, req)
-    case req @ JsonRpcRequest(_, "test_importRawBlock", _, _) =>
-      handle[ImportRawBlockRequest, ImportRawBlockResponse](testService.importRawBlock, req)
-    case req @ JsonRpcRequest(_, "test_getLogHash", _, _) =>
-      handle[GetLogHashRequest, GetLogHashResponse](testService.getLogHash, req)
     case req @ JsonRpcRequest(_, "miner_setEtherbase", _, _) =>
       handle[SetEtherbaseRequest, SetEtherbaseResponse](testService.setEtherbase, req)
-    case req @ JsonRpcRequest(_, "debug_accountRange", _, _) =>
-      handle[AccountsInRangeRequest, AccountsInRangeResponse](testService.getAccountsInRange, req)
-    case req @ JsonRpcRequest(_, "debug_storageRangeAt", _, _) =>
-      handle[StorageRangeRequest, StorageRangeResponse](testService.storageRangeAt, req)
   }
 
   private def handleIeleRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
