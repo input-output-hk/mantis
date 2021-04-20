@@ -4,8 +4,8 @@ if [ -z "$IN_NIX_SHELL" ]; then
     export SBT_NIX="-Dnix=true"
 fi
 
-git submodule init;
-git submodule update;
+git submodule init
+git submodule update
 
 echo "booting Mantis and waiting for RPC API to be up"
 $SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run &> mantis-log.txt &
@@ -26,14 +26,19 @@ function run_and_annotate {
   if [[ "$exit_code" -gt "0" ]]; then
     final_exit_code="$exit_code"
     style="error"
-  fi;
+  fi
+
+  summary=$(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
+  if [[ -z "$summary" ]]; then
+    summary="retesteth crashed; check the artifacts"
+  fi
 
   cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
 <details>
 <summary>retesteth: $1</summary>
-\`\`\`term
-$(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
-\`\`\`
+<pre class="term"><code>
+$summary
+</code></pre>
 </details>
 EOF
 }
