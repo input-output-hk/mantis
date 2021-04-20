@@ -16,12 +16,13 @@
 , mantis-extvm-pb
 , depsSha256
 }:
-
 let
-  version = let
-    versionSbt = builtins.readFile ../version.sbt;
-    captures = builtins.match ''.*version in ThisBuild := "([^"]+)".*'' versionSbt;
-  in builtins.elemAt captures 0;
+  version =
+    let
+      versionSbt = builtins.readFile ../version.sbt;
+      captures = builtins.match ''.*version in ThisBuild := "([^"]+)".*'' versionSbt;
+    in
+    builtins.elemAt captures 0;
 
   PATH = lib.makeBinPath [ jre solc coreutils gawk gnused ];
   LD_LIBRARY_PATH = ''''; #lib.makeLibraryPath [ libsonic ];
@@ -37,7 +38,8 @@ let
     exec ${protobuf}/bin/protoc "$@"
   '';
 
-in sbt.mkDerivation rec {
+in
+sbt.mkDerivation rec {
   pname = "mantis";
   inherit src version;
 
