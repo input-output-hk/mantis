@@ -50,5 +50,6 @@
       (mkHydraSet [ "mantis" ] [ "x86_64-linux" ])
       (mkHydraSet [ "mantis-entrypoint" ] [ "x86_64-linux" ])
       (mkHydraSet [ "retesteth" ] [ "x86_64-linux" ])
+      (mkHydraSet [ "lllc" ] [ "x86_64-linux" ])
     ]);
 }
