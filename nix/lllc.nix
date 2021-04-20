@@ -25,8 +25,6 @@ stdenv.mkDerivation rec {
     echo ${version} > commit_hash.txt
   '';
 
-  # nativeBuildInputs = [ cacert cmake gcc gnumake perl psmisc ];
-
   cmakeFlags = [
     "-DBoost_USE_STATIC_LIBS=OFF"
     "-DCMAKE_BUILD_TYPE=Release"
