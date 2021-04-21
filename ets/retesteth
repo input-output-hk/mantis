@@ -1,0 +1,5 @@
+#!/usr/bin/env sh
+
+dir="$(cd "$(dirname "$0")" && pwd)"
+
+retesteth $@ -- --testpath $dir/tests --datadir $dir/config --clients mantis

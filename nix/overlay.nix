@@ -39,4 +39,7 @@ rev: final: prev: {
     name = "mantis";
     paths = with final; [ mantis mantis-entrypoint-script ];
   };
+
+  retesteth = final.callPackage ./retesteth.nix { };
+  lllc = final.callPackage ./lllc.nix { };
 }

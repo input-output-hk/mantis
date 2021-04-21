@@ -21,7 +21,11 @@ let
       mantis = final.callPackage ./pkgs/mantis.nix {
         src = cleanedSrc;
       };
+
+      retesteth = final.callPackage ./retesteth.nix { };
+      lllc = final.callPackage ./lllc.nix { };
     };
+
   sbt-derivation-overlay = import sources.sbt-derivation;
 in
 import sources.nixpkgs {

@@ -1,0 +1,12 @@
+{
+    "params" : {
+       "homesteadForkBlock" : "0x00",
+       "EIP150ForkBlock" : "0x00",
+       "EIP158ForkBlock" : "0x00",
+       "byzantiumForkBlock" : "0x00",
+       "constantinopleForkBlock" : "0x00",
+       "constantinopleFixForkBlock" : "0x00"
+    },
+    "accounts" : {
+    }
+}

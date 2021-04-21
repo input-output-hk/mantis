@@ -1,32 +1,48 @@
-# this script is meant to run the Ethereum Test Suite (https://github.com/ethereum/tests) on CircleCI
-# to skip these tests, set SKIP_ETS_TEST variable CircleCI UI
-# to differentiate by branch, use CIRCLE_BRANCH variable in the conditional below
+#!/usr/bin/env bash
 
-echo "current branch: $BUILDKITE_BRANCH"
+git submodule init
+git submodule update
 
-echo "memory:"
-free -m
+echo "booting Mantis and waiting for RPC API to be up"
+$SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run &> mantis-log.txt &
 
-if [ -z "$IN_NIX_SHELL" ]; then
-    export SBT_NIX="-Dnix=true"
-fi
+while ! nc -z localhost 8546; do   
+  sleep 0.1
+done
 
-# at least 1.5G of heap space and 10M of stack size is required for ETS.
-export JAVA_OPTS="-Xmx2g -Xss16m -XX:MaxMetaspaceSize=512m"
-export SBT = "sbt -v -mem 2048 $SBT_NIX";
+final_exit_code=0
 
-if [ -z $SKIP_ETS_TESTS ]; then
-    git submodule init;
-    git submodule update;
-    if [ "$BUILDKITE_BRANCH" == "master" -o -n "$RUN_FULL_ETS" ]; then
-        export JAVA_OPTS="-Xmx3g -Xss16m -XX:MaxMetaspaceSize=512m"
-        echo "running full ETS"
-        $SBT "ets:testOnly * -- -DuseLocalVM=true -Dexg=vmPerf*";
-    else
-        echo "running a subset of ETS"
-        $SBT "ets:testOnly *VMSuite -- -Dexg=vmPerf*" &&
-        $SBT "ets:testOnly *BlockchainSuite -- -DuseLocalVM=true -Ding=bcForkStress*,bcMulti*,bcState*,bcTotalDiff*,bcValidBlock*,Transition*";
-    fi
-else
-    echo "SKIP_ETS_TESTS variable is set - skipping the tests";
-fi
+function run_and_annotate {
+  echo "running retesteth $1"
+  ets/retesteth -t "$1" &> "retesteth-$1-log.txt"
+  exit_code=$?
+  echo "retesteth $1 exit code: $exit_code"
+
+  style="info"
+  if [[ "$exit_code" -gt "0" ]]; then
+    final_exit_code="$exit_code"
+    style="error"
+  fi
+
+  summary=$(sed -n '/Total Tests Run/,$p' "retesteth-$1-log.txt")
+  if [[ -z "$summary" ]]; then
+    summary="retesteth crashed; check the artifacts"
+  fi
+
+  cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
+<details>
+<summary>retesteth: $1</summary>
+<pre class="term"><code>
+$summary
+</code></pre>
+</details>
+EOF
+}
+
+run_and_annotate "GeneralStateTests"
+run_and_annotate "BlockchainTests"
+
+echo "shutting down mantis"
+kill %1
+
+exit $final_exit_code
