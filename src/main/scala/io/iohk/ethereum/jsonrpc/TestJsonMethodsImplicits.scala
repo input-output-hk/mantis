@@ -15,17 +15,26 @@ import org.json4s.Extraction
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
-  implicit val test_setChainParams = new JsonMethodDecoder[SetChainParamsRequest]
-    with JsonEncoder[SetChainParamsResponse] {
+  implicit val test_setChainParams: JsonMethodDecoder[SetChainParamsRequest] with JsonEncoder[SetChainParamsResponse] =
+    new JsonMethodDecoder[SetChainParamsRequest] with JsonEncoder[SetChainParamsResponse] {
+
+    private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, GenesisAccount]] =
+      for {
+        mapping <- Try(accountsJson.extract[JObject]).toEither.leftMap(e => InvalidParams(e.toString))
+        accounts <- mapping.obj.traverse { case (key, value) =>
+          for {
+            address <- extractBytes(key)
+            account <- extractAccount(value)
+          } yield address -> account
+        }
+      } yield accounts.toMap
 
     private def extractAccount(accountJson: JValue): Either[JsonRpcError, GenesisAccount] =
       for {
-        storageObject <- Try((accountJson \ "storage").extract[JObject]).toEither.left.map(e =>
-          InvalidParams(e.toString)
-        )
+        storageObject <- Try((accountJson \ "storage").extract[JObject]).toEither.leftMap(e => InvalidParams(e.toString))
         storage <- storageObject.obj.traverse {
           case (key, JString(value)) =>
-            Try(UInt256(decode(key)) -> UInt256(decode(value))).toEither.left.map(e => InvalidParams(e.toString))
+            Try(UInt256(decode(key)) -> UInt256(decode(value))).toEither.leftMap(e => InvalidParams(e.toString))
           case _ => Left(InvalidParams())
         }
         balance = UInt256(decode((accountJson \ "balance").extract[String]))
@@ -41,16 +50,30 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
         Some(storage.toMap)
       )
 
-    private def extractAccounts(accountsJson: JValue): Either[JsonRpcError, Map[ByteString, GenesisAccount]] =
-      for {
-        mapping <- Try(accountsJson.extract[JObject]).toEither.left.map(e => InvalidParams(e.toString()))
-        accounts <- mapping.obj.traverse { case (key, value) =>
+    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetChainParamsRequest] =
+      params match {
+        case Some(JArray(paramsObj :: Nil)) =>
           for {
-            address <- extractBytes(key)
-            account <- extractAccount(value)
-          } yield address -> account
-        }
-      } yield accounts.toMap
+            genesis <- extractGenesis(paramsObj \ "genesis")
+            blockchainParams <- extractBlockchainParams(paramsObj \ "params")
+            sealEngine <- Try((paramsObj \ "sealEngine").extract[String]).toEither.leftMap(_ => InvalidParams())
+            accounts <- extractAccounts(paramsObj \ "accounts")
+          } yield SetChainParamsRequest(ChainParams(genesis, blockchainParams, sealEngine, accounts))
+        case _ => Left(InvalidParams())
+      }
+
+    private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
+      for {
+        author <- extractBytes((genesisJson \ "author").extract[String])
+        difficulty = (genesisJson \ "difficulty").extractOrElse("0")
+        extraData <- extractBytes((genesisJson \ "extraData").extract[String])
+        gasLimit <- extractQuantity(genesisJson \ "gasLimit")
+        parentHash <- extractBytes((genesisJson \ "parentHash").extractOrElse(""))
+        timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
+        nonce <- extractBytes((genesisJson \ "nonce").extract[String])
+        mixHash <- extractBytes((genesisJson \ "mixHash").extract[String])
+      } yield GenesisParams(author, difficulty, extraData, gasLimit, parentHash, timestamp, nonce, mixHash)
+    }
 
     private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
       for {
@@ -77,35 +100,11 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       )
     }
 
-    private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
-      for {
-        author <- extractBytes((genesisJson \ "author").extract[String])
-        difficulty = (genesisJson \ "difficulty").extractOrElse("0")
-        extraData <- extractBytes((genesisJson \ "extraData").extract[String])
-        gasLimit <- extractQuantity(genesisJson \ "gasLimit")
-        parentHash <- extractBytes((genesisJson \ "parentHash").extractOrElse(""))
-        timestamp <- extractBytes((genesisJson \ "timestamp").extract[String])
-        nonce <- extractBytes((genesisJson \ "nonce").extract[String])
-        mixHash <- extractBytes((genesisJson \ "mixHash").extract[String])
-      } yield GenesisParams(author, difficulty, extraData, gasLimit, parentHash, timestamp, nonce, mixHash)
-    }
-
-    def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetChainParamsRequest] =
-      params match {
-        case Some(JArray(paramsObj :: Nil)) =>
-          for {
-            genesis <- extractGenesis(paramsObj \ "genesis")
-            blockchainParams <- extractBlockchainParams(paramsObj \ "params")
-            sealEngine <- Try((paramsObj \ "sealEngine").extract[String]).toEither.left.map(_ => InvalidParams())
-            accounts <- extractAccounts(paramsObj \ "accounts")
-          } yield SetChainParamsRequest(ChainParams(genesis, blockchainParams, sealEngine, accounts))
-        case _ => Left(InvalidParams())
-      }
-
     override def encodeJson(t: SetChainParamsResponse): JValue = true
   }
 
-  implicit val test_mineBlocks = new JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] {
+  implicit val test_mineBlocks: JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] =
+    new JsonMethodDecoder[MineBlocksRequest] with JsonEncoder[MineBlocksResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] =
       params match {
         case Some(JArray(JInt(numBlocks) :: Nil)) =>
@@ -116,8 +115,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: MineBlocksResponse): JValue = true
   }
 
-  implicit val test_modifyTimestamp = new JsonMethodDecoder[ModifyTimestampRequest]
-    with JsonEncoder[ModifyTimestampResponse] {
+  implicit val test_modifyTimestamp: JsonMethodDecoder[ModifyTimestampRequest] with JsonEncoder[ModifyTimestampResponse] =
+    new JsonMethodDecoder[ModifyTimestampRequest] with JsonEncoder[ModifyTimestampResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ModifyTimestampRequest] =
       params match {
         case Some(JArray(JInt(timestamp) :: Nil)) =>
@@ -128,8 +127,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: ModifyTimestampResponse): JValue = true
   }
 
-  implicit val test_rewindToBlock = new JsonMethodDecoder[RewindToBlockRequest]
-    with JsonEncoder[RewindToBlockResponse] {
+  implicit val test_rewindToBlock: JsonMethodDecoder[RewindToBlockRequest] with JsonEncoder[RewindToBlockResponse] =
+    new JsonMethodDecoder[RewindToBlockRequest] with JsonEncoder[RewindToBlockResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, RewindToBlockRequest] =
       params match {
         case Some(JArray(JInt(blockNum) :: Nil)) =>
@@ -140,8 +139,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: RewindToBlockResponse): JValue = true
   }
 
-  implicit val test_importRawBlock = new JsonMethodDecoder[ImportRawBlockRequest]
-    with JsonEncoder[ImportRawBlockResponse] {
+  implicit val test_importRawBlock: JsonMethodDecoder[ImportRawBlockRequest] with JsonEncoder[ImportRawBlockResponse] =
+    new JsonMethodDecoder[ImportRawBlockRequest] with JsonEncoder[ImportRawBlockResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, ImportRawBlockRequest] =
       params match {
         case Some(JArray(JString(blockRlp) :: Nil)) =>
@@ -152,21 +151,20 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     override def encodeJson(t: ImportRawBlockResponse): JValue = t.blockHash
   }
 
-  implicit val miner_setEtherbase = new JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] {
+  implicit val miner_setEtherbase: JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] =
+    new JsonMethodDecoder[SetEtherbaseRequest] with JsonEncoder[SetEtherbaseResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, SetEtherbaseRequest] =
       params match {
         case Some(JArray((addressStr: JString) :: Nil)) =>
-          for {
-            address <- extractAddress(addressStr)
-          } yield SetEtherbaseRequest(address)
+          extractAddress(addressStr).map(address => SetEtherbaseRequest(address))
         case _ => Left(InvalidParams())
       }
 
     def encodeJson(t: SetEtherbaseResponse): JValue = true
   }
 
-  implicit val debug_accountRange = new JsonMethodDecoder[AccountsInRangeRequest]
-    with JsonEncoder[AccountsInRangeResponse] {
+  implicit val debug_accountRange: JsonMethodDecoder[AccountsInRangeRequest] with JsonEncoder[AccountsInRangeResponse] =
+    new JsonMethodDecoder[AccountsInRangeRequest] with JsonEncoder[AccountsInRangeResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, AccountsInRangeRequest] =
       params match {
         case Some(JArray(blockHashOrNumber :: txIndex :: addressHash :: maxResults :: Nil)) =>
@@ -182,8 +180,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     private def extractBlockHashOrNumber(blockHash: String): Either[BigInt, ByteString] =
-      extractHash(blockHash)
-        .fold(_ => Left(BigInt(blockHash)), Right(_))
+      extractHash(blockHash).fold(_ => Left(BigInt(blockHash)), Right(_))
 
     override def encodeJson(t: AccountsInRangeResponse): JValue = JObject(
       "addressMap" -> JObject(
@@ -193,8 +190,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
     )
   }
 
-  implicit val debug_storageRangeAt = new JsonMethodDecoder[StorageRangeRequest]
-    with JsonEncoder[StorageRangeResponse] {
+  implicit val debug_storageRangeAt: JsonMethodDecoder[StorageRangeRequest] with JsonEncoder[StorageRangeResponse] =
+    new JsonMethodDecoder[StorageRangeRequest] with JsonEncoder[StorageRangeResponse] {
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, StorageRangeRequest] =
       params match {
         case Some(JArray(blockHashOrNumber :: txIndex :: address :: begin :: maxResults :: Nil)) =>
@@ -211,19 +208,17 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
     private def extractBlockHashOrNumber(blockHash: String): Either[BigInt, ByteString] =
-      extractHash(blockHash)
-        .fold(_ => Left(BigInt(blockHash)), Right(_))
+      extractHash(blockHash).fold(_ => Left(BigInt(blockHash)), Right(_))
 
     override def encodeJson(t: StorageRangeResponse): JValue = Extraction.decompose(t)
   }
 
-  implicit val test_getLogHash = new JsonMethodDecoder[GetLogHashRequest] with JsonEncoder[GetLogHashResponse] {
+  implicit val test_getLogHash: JsonMethodDecoder[GetLogHashRequest] with JsonEncoder[GetLogHashResponse] =
+    new JsonMethodDecoder[GetLogHashRequest] with JsonEncoder[GetLogHashResponse] {
     def decodeJson(params: Option[JArray]): Either[JsonRpcError, GetLogHashRequest] =
       params match {
         case Some(JArray(JString(transactionHashString) :: Nil)) =>
-          for {
-            transactionHash <- extractHash(transactionHashString)
-          } yield GetLogHashRequest(transactionHash)
+          extractHash(transactionHashString).map(th => GetLogHashRequest(th))
         case _ => Left(InvalidParams())
       }
 

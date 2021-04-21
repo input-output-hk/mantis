@@ -201,12 +201,7 @@ object GenesisDataLoader {
     }
 
     object UInt256JsonSerializer
-        extends CustomSerializer[UInt256](formats =>
-          (
-            { case jv => deserializeUint256String(jv) },
-            PartialFunction.empty
-          )
-        )
+        extends CustomSerializer[UInt256](_ => ({ case jv => deserializeUint256String(jv) }, PartialFunction.empty))
   }
 }
 
