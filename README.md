@@ -84,7 +84,9 @@ ex.
 
 ### Building the client
 
-#### SBT
+As an alternative to downloading the client, build the client from source.
+
+#### With SBT
 
 ##### Prerequisites to build
 
@@ -94,19 +96,20 @@ ex.
 
 ##### Build the client
 
-As an alternative to downloading the client build the client from source.
-
+In the root of the project:
 
 ```
 git submodule update --recursive --init
 sbt dist
 ```
 
-in the root of the project.
-
 This updates all submodules and creates a distribution zip in `~/target/universal/`.
 
-#### Nix
+Note: building in _dev_ mode allows faster and incremental compilation, for this:
+   - set environment variable `MANTIS_DEV` to `true`, or
+   - use the system property `-DmantisDev=true`
+
+#### With Nix
 
 In the root of the project:
 
