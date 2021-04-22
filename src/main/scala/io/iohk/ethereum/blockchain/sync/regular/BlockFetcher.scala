@@ -72,6 +72,8 @@ class BlockFetcher(
           log.debug("{}", state.statusDetailed)
           Behaviors.same
 
+        case UpdateKnownTop(blockNr) => state.withKnownTopAt(blockNr).withLastBlock(blockNr) |> fetchBlocks
+
         case LastImportedBlock(blockNr) =>
           log.debug("Last imported block number {}", blockNr)
           state.withLastBlock(blockNr).withUpdatedReadyBlocks(blockNr) |> fetchBlocks
@@ -118,24 +120,23 @@ class BlockFetcher(
           state.appendHeaders(headers) match {
             case Left(err) =>
               log.info("Dismissed received headers due to: {}", err)
-              fetchBlocks(state)
+              fetchBlocks(state.withHeaderFetchReceived)
             case Right(updatedState) =>
-              fetchBlocks(updatedState)
+              fetchBlocks(updatedState.withHeaderFetchReceived)
           }
 
         case RetryHeadersRequest if state.isFetchingHeaders =>
           log.debug("Something failed on a headers request, cancelling the request and re-fetching")
-          val newState = state.withHeaderFetchReceived
-          fetchBlocks(newState)
+          fetchBlocks(state.withHeaderFetchReceived)
 
         case ReceivedBodies(peer, bodies) =>
           val newState =
             state.validateBodies(bodies) match {
               case Left(err) =>
                 peersClient ! BlacklistPeer(peer.id, err)
-                state
+                state.withBodiesFetchReceived
               case Right(newBlocks) =>
-                state.handleRequestedBlocks(newBlocks, peer.id)
+                state.withBodiesFetchReceived.handleRequestedBlocks(newBlocks, peer.id)
             }
           val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
           log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
@@ -205,6 +206,7 @@ object BlockFetcher {
   sealed trait FetchCommand
   final case class Start(fromBlock: BigInt) extends FetchCommand
   final case class LastImportedBlock(blockNr: BigInt) extends FetchCommand
+  final case class UpdateKnownTop(blockNr: BigInt) extends FetchCommand
   final case class FetchStateNode(hash: ByteString, replyTo: ClassicActorRef) extends FetchCommand
   final case class PickBlocks(amount: Int, replyTo: ClassicActorRef) extends FetchCommand
   final case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt, replyTo: ClassicActorRef) extends FetchCommand

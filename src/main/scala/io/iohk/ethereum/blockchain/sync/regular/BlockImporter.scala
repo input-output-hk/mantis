@@ -26,6 +26,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHash, BlockHeaders, NewBlockHashes}
 import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import akka.actor.typed.scaladsl.adapter._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.UpdateKnownTop
 
 import scala.concurrent.duration._
 
@@ -123,8 +124,9 @@ class BlockImporter(
       context become running(newState)
 
       //TODO: why doesn't work with a flag fitsOnTop
-    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing && state.fitsOnTop(block.number) =>
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
+      fetcher ! UpdateKnownTop(block.number)
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
@@ -132,8 +134,9 @@ class BlockImporter(
         internally = false
       )(state)
 
-    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing  =>
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
+      fetcher ! UpdateKnownTop(block.number)
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
