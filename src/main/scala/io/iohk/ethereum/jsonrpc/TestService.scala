@@ -164,7 +164,7 @@ class TestService(
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
 
-    Task.now(Right(SetChainParamsResponse()))
+    SetChainParamsResponse().rightNow
   }
 
   private def storeGenesisAccountCodes(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
@@ -225,7 +225,7 @@ class TestService(
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
     consensus.blockTimestamp = request.timestamp
-    Task.now(Right(ModifyTimestampResponse()))
+    ModifyTimestampResponse().rightNow
   }
 
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
@@ -233,37 +233,35 @@ class TestService(
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
-    Task.now(Right(RewindToBlockResponse()))
+    RewindToBlockResponse().rightNow
   }
 
   def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] = {
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
-      case Success(value) => {
+      case Success(value) =>
         testLedgerWrapper.ledger
           .importBlock(value)
           .flatMap(handleResult)
-      }
     }
   }
 
   private def handleResult(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
     blockImportResult match {
-      case BlockImportedToTop(blockImportData) => {
+      case BlockImportedToTop(blockImportData) =>
         val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
-        Task.now(Right(ImportRawBlockResponse(blockHash)))
-      }
+        ImportRawBlockResponse(blockHash).rightNow
       case _ => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
     }
   }
 
   def setEtherbase(req: SetEtherbaseRequest): ServiceResponse[SetEtherbaseResponse] = {
     etherbase = req.etherbase
-    Task.now(Right(SetEtherbaseResponse()))
+    SetEtherbaseResponse().rightNow
   }
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
-    implicit val timeout = Timeout(5.seconds)
+    implicit val timeout: Timeout = Timeout(5.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .timeout(timeout.duration)
@@ -287,34 +285,30 @@ class TestService(
       .fold(number => blockchain.getBlockByNumber(number), blockHash => blockchain.getBlockByHash(blockHash))
 
     if (blockOpt.isEmpty) {
-      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
+      AccountsInRangeResponse(Map(), ByteString(0)).rightNow
+    } else {
+      val accountBatch = accountAddresses
+        .slice(accountRangeOffset, accountRangeOffset + request.parameters.maxResults.toInt + 1)
+
+      val addressesForExistingAccounts = accountBatch
+        .filter(key => {
+          val accountOpt = blockchain.getAccount(Address(key), blockOpt.get.header.number)
+          accountOpt.isDefined
+        })
+        .map(key => (key, Address(crypto.kec256(Hex.decode(key)))))
+
+      AccountsInRangeResponse(
+        addressMap = addressesForExistingAccounts
+          .take(request.parameters.maxResults.toInt)
+          .foldLeft(Map[ByteString, ByteString]())((el, addressPair) =>
+            el + (addressPair._2.bytes -> ByteStringUtils.string2hash(addressPair._1))
+          ),
+        nextKey =
+          if (accountBatch.size > request.parameters.maxResults)
+            ByteStringUtils.string2hash(addressesForExistingAccounts.last._1)
+          else UInt256(0).bytes
+      ).rightNow
     }
-
-    val accountBatch = accountAddresses
-      .slice(accountRangeOffset, accountRangeOffset + request.parameters.maxResults.toInt + 1)
-
-    val addressesForExistingAccounts = accountBatch
-      .filter(key => {
-        val accountOpt = blockchain.getAccount(Address(key), blockOpt.get.header.number)
-        accountOpt.isDefined
-      })
-      .map(key => (key, Address(crypto.kec256(Hex.decode(key)))))
-
-    Task.now(
-      Right(
-        AccountsInRangeResponse(
-          addressMap = addressesForExistingAccounts
-            .take(request.parameters.maxResults.toInt)
-            .foldLeft(Map[ByteString, ByteString]())((el, addressPair) =>
-              el + (addressPair._2.bytes -> ByteStringUtils.string2hash(addressPair._1))
-            ),
-          nextKey =
-            if (accountBatch.size > request.parameters.maxResults)
-              ByteStringUtils.string2hash(addressesForExistingAccounts.last._1)
-            else UInt256(0).bytes
-        )
-      )
-    )
   }
 
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
@@ -322,35 +316,24 @@ class TestService(
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(number => blockchain.getBlockByNumber(number), hash => blockchain.getBlockByHash(hash))
 
-    if (blockOpt.isEmpty) {
-      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
-    }
-
-    val accountOpt = blockchain.getAccount(Address(request.parameters.address), blockOpt.get.header.number)
-
-    if (accountOpt.isEmpty) {
-      Task.now(Right(AccountsInRangeResponse(Map(), ByteString(0))))
-    }
-
-    val storage = blockchain.getAccountStorageAt(accountOpt.get.storageRoot, request.parameters.begin, true)
-
-    Task.now(
-      Right(
-        StorageRangeResponse(
-          complete = true,
-          storage = Map(
-            encodeAsHex(request.parameters.address).values -> StorageEntry(
-              encodeAsHex(request.parameters.begin).values,
-              encodeAsHex(storage).values
-            )
-          )
+    (for {
+      block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
+      accountOpt = blockchain.getAccount(Address(request.parameters.address), block.header.number)
+      account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
+      storage = blockchain.getAccountStorageAt(account.storageRoot, request.parameters.begin, ethCompatibleStorage = true)
+    } yield StorageRangeResponse(
+      complete = true,
+      storage = Map(
+        encodeAsHex(request.parameters.address).values -> StorageEntry(
+          encodeAsHex(request.parameters.begin).values,
+          encodeAsHex(storage).values
         )
       )
-    )
+    )).fold(identity, identity).rightNow
   }
 
   def getLogHash(request: GetLogHashRequest): ServiceResponse[GetLogHashResponse] = {
-    import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits._
+    import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits.TxLogEntryEnc
 
     val result = for {
       transactionLocation <- blockchain.getTransactionLocation(request.transactionHash)
@@ -361,8 +344,12 @@ class TestService(
       rlpList: RLPList = RLPList(logs.map(_.toRLPEncodable).toList: _*)
     } yield ByteString(crypto.kec256(rlp.encode(rlpList)))
 
-    result
-      .map(rlpHash => Task.now(Right(GetLogHashResponse(rlpHash))))
-      .getOrElse(Task.now(Right(GetLogHashResponse(ByteString(crypto.kec256(rlp.encode(RLPList(List(): _*))))))))
+    result.fold(GetLogHashResponse(emptyLogRlpHash))(rlpHash => GetLogHashResponse(rlpHash)).rightNow
+  }
+
+  private val emptyLogRlpHash: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
+
+  private implicit class RichResponse[A](response: A) {
+    def rightNow: Task[Either[JsonRpcError, A]] = Task.now(Right(response))
   }
 }
