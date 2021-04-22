@@ -315,7 +315,11 @@ class TestService(
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
       accountOpt = blockchain.getAccount(Address(request.parameters.address), block.header.number)
       account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
-      storage = blockchain.getAccountStorageAt(account.storageRoot, request.parameters.begin, ethCompatibleStorage = true)
+      storage = blockchain.getAccountStorageAt(
+        account.storageRoot,
+        request.parameters.begin,
+        ethCompatibleStorage = true
+      )
     } yield StorageRangeResponse(
       complete = true,
       storage = Map(

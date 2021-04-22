@@ -10,9 +10,9 @@ import io.iohk.ethereum.utils.ByteStringUtils
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])
 
 /*
-  * this trait has been introduced to deal with ETS requirements and discrepancies between mantis and the spec
-  * it should be considered a band-aid solution and replaced with something robust and non-intrusive
-  */
+ * this trait has been introduced to deal with ETS requirements and discrepancies between mantis and the spec
+ * it should be considered a band-aid solution and replaced with something robust and non-intrusive
+ */
 trait BaseBlockResponse {
   def number: BigInt
   def hash: Option[ByteString]

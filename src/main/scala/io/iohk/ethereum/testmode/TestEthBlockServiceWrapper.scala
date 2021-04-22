@@ -2,7 +2,13 @@ package io.iohk.ethereum.testmode
 
 import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, SignedTransaction, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
-import io.iohk.ethereum.jsonrpc.{BaseBlockResponse, BaseTransactionResponse, EthBlocksService, ServiceResponse, TransactionData}
+import io.iohk.ethereum.jsonrpc.{
+  BaseBlockResponse,
+  BaseTransactionResponse,
+  EthBlocksService,
+  ServiceResponse,
+  TransactionData
+}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.consensus.Consensus
@@ -128,7 +134,7 @@ object EthTransactionResponse {
       stx: SignedTransaction,
       blockHeader: Option[BlockHeader] = None,
       transactionIndex: Option[Int] = None
-   ): EthTransactionResponse =
+  ): EthTransactionResponse =
     EthTransactionResponse(
       hash = stx.hash,
       nonce = stx.tx.nonce,
