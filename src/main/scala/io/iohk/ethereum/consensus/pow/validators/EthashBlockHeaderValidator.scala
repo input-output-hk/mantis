@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.{BlockchainConfig, Hex}
 import monix.execution.atomic.{Atomic, AtomicAny}
 
 /**
@@ -41,17 +41,20 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
       }
     }
 
+    println(blockchainConfig.ecip1099BlockNumber.toLong)
+    println(blockHeader.number.toLong)
     val epoch = EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
     val seed = EthashUtils.seed(blockHeader.number.toLong)
     val powCacheData = getPowCacheData(epoch, seed)
 
-    val proofOfWork = hashimotoLight(
+    val proofOfWork: EthashProofOfWork = hashimotoLight(
       crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
       blockHeader.nonce.toArray[Byte],
       powCacheData.dagSize,
       powCacheData.cache
     )
 
+    println(checkDifficulty(blockHeader.difficulty.toLong, proofOfWork))
     if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader.difficulty.toLong, proofOfWork))
       Right(BlockHeaderValid)
     else Left(HeaderPoWError)

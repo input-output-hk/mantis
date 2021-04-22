@@ -43,7 +43,7 @@ class PeersClient(
         val requester = sender()
         selectPeer(peerSelector) match {
           case Some(peer) =>
-            log.debug("Selected peer {} with address {}", peer.id, peer.remoteAddress.getHostString)
+            log.info("Selected peer {} with address {}", peer.id, peer.remoteAddress.getHostString)
             val handler =
               makeRequest(peer, message, responseMsgCode(message), toSerializable)(scheduler, responseClassTag(message))
             val newRequesters = requesters + (handler -> requester)
