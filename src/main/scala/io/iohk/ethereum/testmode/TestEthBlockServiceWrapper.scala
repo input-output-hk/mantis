@@ -25,9 +25,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     .map(
       _.map(blockByBlockResponse => {
         val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
-        BlockByBlockHashResponse(
-          blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response))
-        )
+        BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )
 
@@ -44,10 +42,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     .map(
       _.map(blockByBlockResponse => {
         val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
-        BlockByNumberResponse(
-          blockByBlockResponse.blockResponse
-            .map(response => toEthResponse(fullBlock, response))
-        )
+        BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )
 
