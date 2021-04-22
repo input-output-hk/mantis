@@ -8,7 +8,6 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -19,7 +18,14 @@ import scala.collection.immutable.Queue
   *
   * @param readyBlocks
   * @param waitingHeaders
-  * @param stateNodeFetcher
+  * @param fetchingHeadersState the current state of the headers fetching, whether we
+  *                             - haven't fetched any yet
+  *                             - are awaiting a response
+  *                             - are awaiting a response but it should be ignored due to blocks being invalidated
+  * @param fetchingBodiesState the current state of the bodies fetching, whether we
+  *                             - haven't fetched any yet
+  *                             - are awaiting a response
+  *                             - are awaiting a response but it should be ignored due to blocks being invalidated
   * @param lastBlock
   * @param blockProviders
   */
@@ -27,12 +33,16 @@ case class BlockFetcherState(
     blockValidator: BlockValidator,
     readyBlocks: Queue[Block],
     waitingHeaders: Queue[BlockHeader],
-    stateNodeFetcher: Option[StateNodeFetcher],
+    fetchingHeadersState: FetchingHeadersState,
+    fetchingBodiesState: FetchingBodiesState,
     lastBlock: BigInt,
+    knownTop: BigInt,
     blockProviders: Map[BigInt, PeerId]
 ) {
 
-  def isFetchingStateNode: Boolean = stateNodeFetcher.isDefined
+  def isFetching: Boolean = isFetchingHeaders || isFetchingBodies
+
+  def hasFetchedTopHeader: Boolean = nextBlockToFetch == knownTop + 1
 
   def hasReachedSize(size: Int): Boolean = (readyBlocks.size + waitingHeaders.size) >= size
 
@@ -56,10 +66,18 @@ case class BlockFetcherState(
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
   def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
-    validatedHeaders(headers.sortBy(_.number)).map(validHeaders =>
-        copy(
+    validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
+      val lastNumber = HeadersSeq.lastNumber(validHeaders)
+      withPossibleNewTopAt(lastNumber)
+        .copy(
           waitingHeaders = waitingHeaders ++ validHeaders
-        ))
+        )
+    })
+
+  def withUpdatedReadyBlocks(nr: BigInt): BlockFetcherState = copy(
+    waitingHeaders = Queue(),
+    readyBlocks = readyBlocks.dropWhile(_.number > nr)
+  )
 
   /**
     * Validates received headers consistency and their compatibility with the state
@@ -139,6 +157,7 @@ case class BlockFetcherState(
       .map { case (waitingHeader, waitingHeadersTail) =>
         if (waitingHeader.hash == block.hash) {
           enqueueReadyBlock(block, fromPeer)
+            .withPossibleNewTopAt(block.number)
             .copy(
               waitingHeaders = waitingHeadersTail
             )
@@ -177,9 +196,17 @@ case class BlockFetcherState(
   }
 
   def clearQueues(): BlockFetcherState = {
+    // We can't start completely from scratch as requests could be in progress, we have to keep special track of them
+    val newFetchingHeadersState =
+      if (fetchingHeadersState == AwaitingHeaders) AwaitingHeadersToBeIgnored else fetchingHeadersState
+    val newFetchingBodiesState =
+      if (fetchingBodiesState == AwaitingBodies) AwaitingBodiesToBeIgnored else fetchingBodiesState
+
     copy(
       readyBlocks = Queue(),
-      waitingHeaders = Queue()
+      waitingHeaders = Queue(),
+      fetchingHeadersState = newFetchingHeadersState,
+      fetchingBodiesState = newFetchingBodiesState
     )
   }
 
@@ -205,26 +232,37 @@ case class BlockFetcherState(
 
   def withLastBlock(nr: BigInt): BlockFetcherState = copy(lastBlock = nr)
 
-  def withUpdatedReadyBlocks(nr: BigInt): BlockFetcherState = copy(
-    waitingHeaders = Queue(),
-    readyBlocks = readyBlocks.dropWhile(_.number > nr)
-  )
+  def withKnownTopAt(nr: BigInt): BlockFetcherState = copy(knownTop = nr)
+
+  def withPossibleNewTopAt(nr: BigInt): BlockFetcherState =
+    if (nr > knownTop) {
+      withKnownTopAt(nr)
+    } else {
+      this
+    }
+  def withPossibleNewTopAt(nr: Option[BigInt]): BlockFetcherState = nr.map(withPossibleNewTopAt).getOrElse(this)
 
   def withPeerForBlocks(peerId: PeerId, blocks: Seq[BigInt]): BlockFetcherState =
     copy(blockProviders = blockProviders ++ blocks.map(block => block -> peerId))
 
-  def fetchingStateNode(hash: ByteString, requestor: ActorRef): BlockFetcherState =
-    copy(stateNodeFetcher = Some(StateNodeFetcher(hash, requestor)))
+  def isFetchingHeaders: Boolean = fetchingHeadersState != NotFetchingHeaders
+  def withNewHeadersFetch: BlockFetcherState = copy(fetchingHeadersState = AwaitingHeaders)
+  def withHeaderFetchReceived: BlockFetcherState = copy(fetchingHeadersState = NotFetchingHeaders)
 
-  def notFetchingStateNode(): BlockFetcherState = copy(stateNodeFetcher = None)
+  def isFetchingBodies: Boolean = fetchingBodiesState != NotFetchingBodies
+  def withNewBodiesFetch: BlockFetcherState = copy(fetchingBodiesState = AwaitingBodies)
+  def withBodiesFetchReceived: BlockFetcherState = copy(fetchingBodiesState = NotFetchingBodies)
 
   def status: Map[String, Any] = Map(
     "ready blocks" -> readyBlocks.size,
+    "known top" -> knownTop
   )
 
   def statusDetailed: Map[String, Any] = Map(
     "fetched headers" -> waitingHeaders.size,
-    "fetching state node" -> isFetchingStateNode,
+    "fetching headers" -> isFetchingHeaders,
+    "fetching bodies" -> isFetchingBodies,
+    "fetched top header" -> hasFetchedTopHeader,
     "first header" -> waitingHeaders.headOption.map(_.number),
     "first block" -> readyBlocks.headOption.map(_.number),
     "last block" -> lastBlock
@@ -239,8 +277,30 @@ object BlockFetcherState {
       blockValidator = blockValidator,
       readyBlocks = Queue(),
       waitingHeaders = Queue(),
-      stateNodeFetcher = None,
+      fetchingHeadersState = NotFetchingHeaders,
+      fetchingBodiesState = NotFetchingBodies,
       lastBlock = lastBlock,
+      knownTop = lastBlock + 1,
       blockProviders = Map()
     )
+
+  trait FetchingHeadersState
+  case object NotFetchingHeaders extends FetchingHeadersState
+  case object AwaitingHeaders extends FetchingHeadersState
+
+  /**
+    * Headers request in progress but will be ignored due to invalidation
+    * State used to keep track of pending request to prevent multiple requests in parallel
+    */
+  case object AwaitingHeadersToBeIgnored extends FetchingHeadersState
+
+  trait FetchingBodiesState
+  case object NotFetchingBodies extends FetchingBodiesState
+  case object AwaitingBodies extends FetchingBodiesState
+
+  /**
+    * Bodies request in progress but will be ignored due to invalidation
+    * State used to keep track of pending request to prevent multiple requests in parallel
+    */
+  case object AwaitingBodiesToBeIgnored extends FetchingBodiesState
 }

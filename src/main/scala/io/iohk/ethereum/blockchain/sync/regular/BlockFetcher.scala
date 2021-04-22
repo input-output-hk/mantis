@@ -1,32 +1,26 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.typed.Behavior
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.{ActorRef => ClassicActorRef}
-import akka.pattern.ask
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
-import cats.syntax.either._
-import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.RetryHeadersRequest
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
-import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import mouse.all._
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success}
 
 class BlockFetcher(
     val peersClient: ClassicActorRef,
@@ -37,6 +31,27 @@ class BlockFetcher(
 ) extends AbstractBehavior[BlockFetcher.FetchCommand](context) {
 
   import BlockFetcher._
+
+  val headersFetcher: ActorRef[HeadersFetcher.HeadersFetcherCommand] =
+    context.spawn(
+      HeadersFetcher(peersClient, syncConfig, context.self),
+      "headers-fetcher"
+    )
+  context.watch(headersFetcher)
+
+  val bodiesFetcher: ActorRef[BodiesFetcher.BodiesFetcherCommand] =
+    context.spawn(
+      BodiesFetcher(peersClient, syncConfig, context.self),
+      "bodies-fetcher"
+    )
+  context.watch(bodiesFetcher)
+
+  val stateNodeFetcher: ActorRef[StateNodeFetcher.StateNodeFetcherCommand] =
+    context.spawn(
+      StateNodeFetcher(peersClient, syncConfig, context.self),
+      "state-node-fetcher"
+    )
+  context.watch(stateNodeFetcher)
 
   implicit val ec: MonixScheduler = MonixScheduler(context.executionContext)
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
@@ -57,7 +72,7 @@ class BlockFetcher(
           log.debug("{}", state.statusDetailed)
           Behaviors.same
 
-        case LastStableBlock(blockNr) =>
+        case LastImportedBlock(blockNr) =>
           log.debug("Last imported block number {}", blockNr)
           state.withLastBlock(blockNr).withUpdatedReadyBlocks(blockNr) |> fetchBlocks
 
@@ -87,25 +102,16 @@ class BlockFetcher(
           fetchBlocks(newState)
 
         case FetchStateNode(hash, replyTo) =>
-          fetchStateNode(hash, replyTo, state)
+          log.debug("Fetching state node for hash {}", ByteStringUtils.hash2string(hash))
+          stateNodeFetcher ! StateNodeFetcher.FetchStateNode(hash, replyTo)
+          Behaviors.same
 
         case BlockImportFailed(blockNr, reason) =>
           val (peerId, newState) = state.invalidateBlocksFrom(blockNr)
           peerId.foreach(id => peersClient ! BlacklistPeer(id, reason))
           fetchBlocks(newState)
 
-        case _ =>
-          Behaviors.unhandled
-      }
-    }
-
-
-  private def processHeaders(state: BlockFetcherState): Behavior[FetchCommand] =
-    Behaviors.receive { (_, message) =>
-      message match {
-        case AdaptedMessage(_, BlockHeaders(headers)) =>
-          log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
-          //First successful fetch
+        case ReceivedHeaders(headers) =>
           if (state.waitingHeaders.isEmpty) {
             supervisor ! ProgressProtocol.StartedFetching
           }
@@ -116,11 +122,13 @@ class BlockFetcher(
             case Right(updatedState) =>
               fetchBlocks(updatedState)
           }
-        case RetryHeadersRequest =>
+
+        case RetryHeadersRequest if state.isFetchingHeaders =>
           log.debug("Something failed on a headers request, cancelling the request and re-fetching")
-          fetchBlocks(state)
-        case AdaptedMessage(peer, BlockBodies(bodies)) =>
-          log.debug(s"Received ${bodies.size} block bodies")
+          val newState = state.withHeaderFetchReceived
+          fetchBlocks(newState)
+
+        case ReceivedBodies(peer, bodies) =>
           val newState =
             state.validateBodies(bodies) match {
               case Left(err) =>
@@ -131,67 +139,12 @@ class BlockFetcher(
             }
           val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
           log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
-          processBlockImporterCommands(newState)
-        case RetryBodiesRequest =>
+          fetchBlocks(newState)
+
+        case RetryBodiesRequest if state.isFetchingBodies =>
           log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
-          processBlockImporterCommands(state)
-        case _ =>
-          Behaviors.unhandled
-      }
-    }
-
-  private def processBodies(state: BlockFetcherState): Behavior[FetchCommand] =
-    Behaviors.receive { (_, message) =>
-      message match {
-        case AdaptedMessage(peer, BlockBodies(bodies)) =>
-          log.debug(s"Received ${bodies.size} block bodies")
-          val newState =
-            state.validateBodies(bodies) match {
-              case Left(err) =>
-                peersClient ! BlacklistPeer(peer.id, err)
-                state
-              case Right(newBlocks) =>
-                state.handleRequestedBlocks(newBlocks, peer.id)
-            }
-          val waitingHeadersDequeued = state.waitingHeaders.size - newState.waitingHeaders.size
-          log.debug(s"Processed $waitingHeadersDequeued new blocks from received block bodies")
-          processBlockImporterCommands(newState)
-        case RetryBodiesRequest =>
-          log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
-          processBlockImporterCommands(state)
-        case _ =>
-          Behaviors.unhandled
-      }
-    }
-
-
-  private def processStateNode(state: BlockFetcherState): Behavior[FetchCommand] =
-    Behaviors.receive { (_, message) =>
-      message match {
-        case AdaptedMessage(peer, NodeData(values)) if state.isFetchingStateNode =>
-          log.debug("Received state node response from peer {}", peer)
-          state.stateNodeFetcher.collect(fetcher => {
-            val validatedNode = values
-              .asRight[String]
-              .ensure(s"Empty response from peer $peer, blacklisting")(_.nonEmpty)
-              .ensure("Fetched node state hash doesn't match requested one, blacklisting peer")(nodes =>
-                fetcher.hash == kec256(nodes.head)
-              )
-
-            validatedNode match {
-              case Left(err) =>
-                log.debug(err)
-                peersClient ! BlacklistPeer(peer.id, err)
-                fetchStateNode(fetcher.hash, fetcher.replyTo, state)
-              case Right(node) =>
-                fetcher.replyTo ! FetchedStateNode(NodeData(node))
-                processBlockImporterCommands(state.notFetchingStateNode())
-            }
-          }).getOrElse(processBlockImporterCommands(state.notFetchingStateNode()))
-
-        case RetryFetchStateNode if state.isFetchingStateNode =>
-          state.stateNodeFetcher.collect(fetcher => fetchStateNode(fetcher.hash, fetcher.replyTo, state)).
-            getOrElse(processBlockImporterCommands(state.notFetchingStateNode()))
+          val newState = state.withBodiesFetchReceived
+          fetchBlocks(newState)
 
         case _ =>
           Behaviors.unhandled
@@ -210,90 +163,35 @@ class BlockFetcher(
 
   private def fetchBlocks(state: BlockFetcherState): Behavior[FetchCommand] = {
     val newState = state |> tryFetchHeaders |> tryFetchBodies
-    processHeaders(newState)
+    processBlockImporterCommands(newState)
   }
 
   private def tryFetchHeaders(fetcherState: BlockFetcherState): BlockFetcherState =
     Some(fetcherState)
+      .filter(!_.isFetchingHeaders)
+      .filter(!_.hasFetchedTopHeader)
       .filter(!_.hasReachedSize(syncConfig.maxFetcherQueueSize))
       .tap(fetchHeaders)
+      .map(_.withNewHeadersFetch)
       .getOrElse(fetcherState)
 
   private def fetchHeaders(state: BlockFetcherState): Unit = {
     val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
-
-    log.debug("Fetching headers from block {}", blockNr)
-    val msg = GetBlockHeaders(Left(blockNr), amount, skip = 0, reverse = false)
-
-    val resp = makeRequest(Request.create(msg, BestPeer), RetryHeadersRequest)
-      .flatMap {
-        case AdaptedMessage(_, BlockHeaders(headers)) if headers.isEmpty =>
-          log.debug("Empty BlockHeaders response. Retry in {}", syncConfig.syncRetryInterval)
-          Task.now(RetryHeadersRequest).delayResult(syncConfig.syncRetryInterval)
-        case res => Task.now(res)
-      }
-
-    context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res
-      case Failure(_) => RetryHeadersRequest
-    }
+    headersFetcher ! HeadersFetcher.FetchHeaders(blockNr, amount)
   }
 
   private def tryFetchBodies(fetcherState: BlockFetcherState): BlockFetcherState =
     Some(fetcherState)
+      .filter(!_.isFetchingBodies)
       .filter(_.waitingHeaders.nonEmpty)
       .tap(fetchBodies)
+      .map(_.withNewBodiesFetch)
       .getOrElse(fetcherState)
 
   private def fetchBodies(state: BlockFetcherState): Unit = {
-    log.debug("Fetching bodies")
-
     val hashes = state.takeHashes(syncConfig.blockBodiesPerRequest)
-    val resp = makeRequest(Request.create(GetBlockBodies(hashes), BestPeer), RetryBodiesRequest)
-    context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res
-      case Failure(_) => RetryBodiesRequest
-    }
-  }
-
-  private def fetchStateNode(hash: ByteString, originalSender: ClassicActorRef, state: BlockFetcherState): Behavior[FetchCommand] = {
-    log.debug("Fetching state node for hash {}", ByteStringUtils.hash2string(hash))
-    val resp = makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), RetryFetchStateNode)
-    context.pipeToSelf(resp.runToFuture) {
-      case Success(res) => res
-      case Failure(_) => RetryFetchStateNode
-    }
-    val newState = state.fetchingStateNode(hash, originalSender)
-    processStateNode(newState)
-  }
-
-  private def makeRequest(request: Request[_], responseFallback: FetchCommand): Task[FetchCommand] =
-    Task
-      .deferFuture(peersClient ? request)
-      .tap(blacklistPeerOnFailedRequest)
-      .flatMap(handleRequestResult(responseFallback))
-      .onErrorHandle { error =>
-        log.error("Unexpected error while doing a request", error)
-        responseFallback
-      }
-
-  private def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
-    case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
-    case _ => ()
-  }
-
-  private def handleRequestResult(fallback: FetchCommand)(msg: Any): Task[FetchCommand] = msg match {
-    case failed: RequestFailed =>
-      log.debug("Request failed due to {}", failed)
-      Task.now(fallback)
-    case NoSuitablePeer =>
-      Task.now(fallback).delayExecution(syncConfig.syncRetryInterval)
-    case Failure(cause) =>
-      log.error("Unexpected error on the request result", cause)
-      Task.now(fallback)
-    case PeersClient.Response(peer, msg) =>
-      Task.now(AdaptedMessage(peer, msg))
+    bodiesFetcher ! BodiesFetcher.FetchBodies(hashes)
   }
 }
 
@@ -306,17 +204,19 @@ object BlockFetcher {
 
   sealed trait FetchCommand
   final case class Start(fromBlock: BigInt) extends FetchCommand
-  final case class LastStableBlock(blockNr: BigInt) extends FetchCommand
+  final case class LastImportedBlock(blockNr: BigInt) extends FetchCommand
   final case class FetchStateNode(hash: ByteString, replyTo: ClassicActorRef) extends FetchCommand
-  final case object RetryFetchStateNode extends FetchCommand
   final case class PickBlocks(amount: Int, replyTo: ClassicActorRef) extends FetchCommand
   final case class StrictPickBlocks(from: BigInt, atLEastWith: BigInt, replyTo: ClassicActorRef) extends FetchCommand
   final case object PrintStatus extends FetchCommand
-  final case object RetryBodiesRequest extends FetchCommand
-  final case object RetryHeadersRequest extends FetchCommand
   final case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchCommand
   final case class InvalidateBlocksFrom(fromBlock: BigInt, reason: String, shouldBlacklist: Option[BigInt]) extends FetchCommand
   private final case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends FetchCommand
+  final case class ReceivedHeaders(headers: Seq[BlockHeader]) extends FetchCommand
+  final case class ReceivedBodies(peer: Peer, bodies: Seq[BlockBody]) extends FetchCommand
+  final case object RetryBodiesRequest extends FetchCommand
+  final case object RetryHeadersRequest extends FetchCommand
+
   object InvalidateBlocksFrom {
     def apply(from: BigInt, reason: String, shouldBlacklist: Boolean = true): InvalidateBlocksFrom =
       new InvalidateBlocksFrom(from, reason, if (shouldBlacklist) Some(from) else None)

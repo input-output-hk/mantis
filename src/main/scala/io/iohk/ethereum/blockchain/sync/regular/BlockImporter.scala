@@ -122,7 +122,8 @@ class BlockImporter(
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       context become running(newState)
 
-    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing =>
+      //TODO: why doesn't work with a flag fitsOnTop
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing && state.fitsOnTop(block.number) =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
       importBlock(
         block,
@@ -131,7 +132,7 @@ class BlockImporter(
         internally = false
       )(state)
 
-    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing =>
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing  =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
       importBlock(
         block,
@@ -166,7 +167,7 @@ class BlockImporter(
     log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
     fetcher ! BlockFetcher.Start(startingBlockNumber)
     supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
-    context become running(ImporterState.initial(startingBlockNumber))
+    context become running(ImporterState.initial(startingBlockNumber, startingBlockNumber))
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
@@ -178,7 +179,7 @@ class BlockImporter(
     fetcher ! msg
   }
 
-  private def importBlocks(blocks: NonEmptyList[Block], blockImportType: BlockImportType): ImportFn = importWith(
+  private def importBlocks(blocks: NonEmptyList[Block], blockImportType: BlockImportType)(state: ImporterState): Unit = importWith(
     {
       Task(
         log.debug(
@@ -189,21 +190,29 @@ class BlockImporter(
       )
         .flatMap(_ => Task.now(resolveBranch(blocks)))
         .flatMap {
-          case Right(blocksToImport) => handleBlocksImport(blocksToImport)
+          case Right(blocksToImport) => handleBlocksImport(blocksToImport)(state)
           case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
         }
     },
     blockImportType
-  )
+  )(state)
 
-  private def handleBlocksImport(blocks: List[Block]): Task[NewBehavior] =
+  private def handleBlocksImport(blocks: List[Block])(state:ImporterState): Task[NewBehavior] =
     tryImportBlocks(blocks)
       .map { value =>
         val (importedBlocks, errorOpt) = value
         importedBlocks.size match {
           case 0 => log.debug("Imported no blocks")
-          case 1 => log.debug("Imported block {}", importedBlocks.head.number)
-          case _ => log.debug("Imported blocks {} - {}", importedBlocks.head.number, importedBlocks.last.number)
+          case 1 => {
+            log.debug("Imported block {}", importedBlocks.head.number)
+            fetcher ! BlockFetcher.LastImportedBlock(importedBlocks.head.number)
+            context become running(state.withLastImportedBlock(importedBlocks.head.number))
+          }
+          case _ => {
+            log.debug("Imported blocks {} - {}", importedBlocks.head.number, importedBlocks.last.number)
+            fetcher ! BlockFetcher.LastImportedBlock(importedBlocks.last.number)
+            context become running(state.withLastImportedBlock(importedBlocks.last.number))
+          }
         }
 
         errorOpt match {
@@ -265,7 +274,7 @@ class BlockImporter(
       importMessages: ImportMessages,
       blockImportType: BlockImportType,
       internally: Boolean
-  ): ImportFn = {
+  )(state: ImporterState): Unit = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
     importWith(
       {
@@ -278,7 +287,8 @@ class BlockImporter(
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
               supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-              fetcher ! BlockFetcher.LastStableBlock(block.number)
+              fetcher ! BlockFetcher.LastImportedBlock(block.number)
+              context become running(state.withLastImportedBlock(block.number))
             case BlockEnqueued => ()
             case DuplicateBlock => ()
             case UnknownParent => () // This is normal when receiving broadcast blocks
@@ -288,7 +298,8 @@ class BlockImporter(
               newBranch.lastOption match {
                 case Some(newBlock) =>
                   supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
-                  fetcher ! BlockFetcher.LastStableBlock(newBlock.number)
+                  fetcher ! BlockFetcher.LastImportedBlock(newBlock.number)
+                  context become running(state.withLastImportedBlock(newBlock.number))
                 case None => ()
               }
               //TODO: return flag "informFetcherOnFail"?
@@ -304,7 +315,7 @@ class BlockImporter(
           }
       },
       blockImportType
-    )
+    )(state)
   }
 
   private def broadcastBlocks(blocks: List[Block], weights: List[ChainWeight]): Unit = {
@@ -400,7 +411,6 @@ object BlockImporter {
     )
 
   type Behavior = ImporterState => Receive
-  type ImportFn = ImporterState => Unit
 
   sealed trait ImporterMsg
   case object Start extends ImporterMsg
@@ -437,6 +447,7 @@ object BlockImporter {
 
   case class ImporterState(
       knownTop: BigInt,
+      lastImportedBlock: BigInt,
       importing: Boolean,
       resolvingBranchFrom: Option[BigInt]
   ) {
@@ -450,6 +461,14 @@ object BlockImporter {
     def branchResolved(): ImporterState = copy(resolvingBranchFrom = None)
 
     def isResolvingBranch: Boolean = resolvingBranchFrom.isDefined
+
+    def withLastImportedBlock(lastImportedBlock: BigInt): ImporterState = copy(lastImportedBlock = lastImportedBlock)
+
+    def fitsOnTop(blockNumber: BigInt): Boolean = {
+      println("1 " + blockNumber)
+      println("2 " + lastImportedBlock)
+      blockNumber == lastImportedBlock + 1
+    }
 
     def withPossibleNewTopAt(top: BigInt): ImporterState =
       if (top > knownTop) {
@@ -470,8 +489,9 @@ object BlockImporter {
   }
 
   object ImporterState {
-    def initial(knownTop: BigInt): ImporterState = ImporterState(
+    def initial(knownTop: BigInt, lastImportedBlock: BigInt): ImporterState = ImporterState(
       knownTop = knownTop,
+      lastImportedBlock = lastImportedBlock,
       importing = false,
       resolvingBranchFrom = None
     )
