@@ -172,8 +172,7 @@ class TestService(
     val world =
       blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
 
-    val accountsWithCodes = accounts
-      .filter(pair => pair._2.code.isDefined)
+    val accountsWithCodes = accounts.filter(pair => pair._2.code.isDefined)
 
     val worldToPersist = accountsWithCodes.foldLeft(world)((world, addressAccountPair) => {
       world.saveCode(Address(addressAccountPair._1), addressAccountPair._2.code.get)
@@ -187,8 +186,7 @@ class TestService(
     val world =
       blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
 
-    val accountsWithStorageData = accounts
-      .filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
+    val accountsWithStorageData = accounts.filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
 
     val worldToPersist = accountsWithStorageData.foldLeft(world)((world, addressAccountPair) => {
       val address = Address(addressAccountPair._1)
@@ -291,10 +289,7 @@ class TestService(
         .slice(accountRangeOffset, accountRangeOffset + request.parameters.maxResults.toInt + 1)
 
       val addressesForExistingAccounts = accountBatch
-        .filter(key => {
-          val accountOpt = blockchain.getAccount(Address(key), blockOpt.get.header.number)
-          accountOpt.isDefined
-        })
+        .filter(key => blockchain.getAccount(Address(key), blockOpt.get.header.number).isDefined)
         .map(key => (key, Address(crypto.kec256(Hex.decode(key)))))
 
       AccountsInRangeResponse(
