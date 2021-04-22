@@ -59,10 +59,8 @@ class BlockPreparator(
   private[ledger] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy = {
-    if (Config.testmode) {
-      worldStateProxy
-    } else {
+  ): InMemoryWorldStateProxy =
+    if (!Config.testmode) {
       val blockNumber = block.header.number
       val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
       val minerRewardForOmmers =
@@ -103,8 +101,10 @@ class BlockPreparator(
         log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
         increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
       }
+    } else {
+      //FIXME needs to be part of setting up the application and not a runtime flag
+      worldStateProxy
     }
-  }
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
