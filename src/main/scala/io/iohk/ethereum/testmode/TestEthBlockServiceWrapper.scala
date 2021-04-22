@@ -2,15 +2,7 @@ package io.iohk.ethereum.testmode
 
 import io.iohk.ethereum.domain.{Block, Blockchain, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
-import io.iohk.ethereum.jsonrpc.{
-  BaseBlockResponse,
-  BaseTransactionResponse,
-  EthBlockResponse,
-  EthBlocksService,
-  EthTransactionResponse,
-  ServiceResponse,
-  TransactionData
-}
+import io.iohk.ethereum.jsonrpc.{BaseBlockResponse, BaseTransactionResponse, EthBlocksService, EthTransactionResponse, ServiceResponse, TransactionData}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.consensus.Consensus
@@ -91,3 +83,26 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     }
   })
 }
+
+case class EthBlockResponse(
+    number: BigInt,
+    hash: Option[ByteString],
+    mixHash: Option[ByteString],
+    parentHash: ByteString,
+    nonce: Option[ByteString],
+    sha3Uncles: ByteString,
+    logsBloom: ByteString,
+    transactionsRoot: ByteString,
+    stateRoot: ByteString,
+    receiptsRoot: ByteString,
+    miner: Option[ByteString],
+    difficulty: BigInt,
+    totalDifficulty: Option[BigInt],
+    extraData: ByteString,
+    size: BigInt,
+    gasLimit: BigInt,
+    gasUsed: BigInt,
+    timestamp: BigInt,
+    transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]],
+    uncles: Seq[ByteString]
+) extends BaseBlockResponse

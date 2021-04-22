@@ -9,6 +9,10 @@ import io.iohk.ethereum.utils.ByteStringUtils
 
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])
 
+/*
+  * this trait has been introduced to deal with ETS requirements and discrepancies between mantis and the spec
+  * it should be considered a band-aid solution and replaced with something robust and non-intrusive
+  */
 trait BaseBlockResponse {
   def number: BigInt
   def hash: Option[ByteString]
@@ -30,29 +34,6 @@ trait BaseBlockResponse {
   def transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
   def uncles: Seq[ByteString]
 }
-
-case class EthBlockResponse(
-    number: BigInt,
-    hash: Option[ByteString],
-    mixHash: Option[ByteString],
-    parentHash: ByteString,
-    nonce: Option[ByteString],
-    sha3Uncles: ByteString,
-    logsBloom: ByteString,
-    transactionsRoot: ByteString,
-    stateRoot: ByteString,
-    receiptsRoot: ByteString,
-    miner: Option[ByteString],
-    difficulty: BigInt,
-    totalDifficulty: Option[BigInt],
-    extraData: ByteString,
-    size: BigInt,
-    gasLimit: BigInt,
-    gasUsed: BigInt,
-    timestamp: BigInt,
-    transactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]],
-    uncles: Seq[ByteString]
-) extends BaseBlockResponse
 
 //scalastyle:off method.length
 case class BlockResponse(
