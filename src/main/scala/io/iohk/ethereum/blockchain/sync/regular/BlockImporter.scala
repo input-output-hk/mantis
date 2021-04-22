@@ -124,7 +124,7 @@ class BlockImporter(
       context become running(newState)
 
       //TODO: why doesn't work with a flag fitsOnTop
-    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing =>
+    case MessageFromPeer(CommonMessages.NewBlock(block, _), peerId) if !state.importing && state.fitsOnTop(block.number) =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
       fetcher ! UpdateKnownTop(block.number)
       importBlock(
@@ -134,7 +134,7 @@ class BlockImporter(
         internally = false
       )(state)
 
-    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing =>
+    case MessageFromPeer(PV64.NewBlock(block, _), peerId) if !state.importing && state.fitsOnTop(block.number) =>
       supervisor ! ProgressProtocol.GotNewBlock(block.number)
       fetcher ! UpdateKnownTop(block.number)
       importBlock(
