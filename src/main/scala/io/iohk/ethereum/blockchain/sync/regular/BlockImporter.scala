@@ -129,8 +129,8 @@ class BlockImporter(
 
   private def pickBlocks(state: ImporterState): Unit = {
     val msg =
-      state.resolvingBranchFrom.fold[BlockFetcher.FetchMsg](BlockFetcher.PickBlocks(syncConfig.blocksBatchSize))(from =>
-        BlockFetcher.StrictPickBlocks(from, startingBlockNumber)
+      state.resolvingBranchFrom.fold[BlockFetcher.FetchCommand](BlockFetcher.PickBlocks(syncConfig.blocksBatchSize, self))(from =>
+        BlockFetcher.StrictPickBlocks(from, startingBlockNumber, self)
       )
 
     fetcher ! msg
@@ -172,7 +172,7 @@ class BlockImporter(
 
             err match {
               case e: MissingNodeException =>
-                fetcher ! BlockFetcher.FetchStateNode(e.hash)
+                fetcher ! BlockFetcher.FetchStateNode(e.hash, self)
                 ResolvingMissingNode(NonEmptyList(notImportedBlocks.head, notImportedBlocks.tail))
               case _ =>
                 val invalidBlockNr = notImportedBlocks.head.number
@@ -189,7 +189,7 @@ class BlockImporter(
     if (blocks.isEmpty) {
       importedBlocks.headOption match {
         case Some(block) =>
-          supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally = false)
+          supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
         case None => ()
       }
 
@@ -243,7 +243,7 @@ class BlockImporter(
               val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-              supervisor ! ProgressProtocol.ImportedBlock(block.number, block.hasCheckpoint, internally)
+              supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
             case BlockEnqueued => ()
             case DuplicateBlock => ()
             case UnknownParent => () // This is normal when receiving broadcast blocks
@@ -252,7 +252,7 @@ class BlockImporter(
               broadcastBlocks(newBranch, weights)
               newBranch.lastOption match {
                 case Some(newBlock) =>
-                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, block.hasCheckpoint, internally)
+                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
                 case None => ()
               }
             case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
