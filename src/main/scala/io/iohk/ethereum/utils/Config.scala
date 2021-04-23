@@ -20,16 +20,18 @@ object Config {
 
   val config = ConfigFactory.load().getConfig("mantis")
 
-  val testmode: Boolean = config.getBoolean("testmode")
+  println(config)
+
+  val testmode: Boolean = false //config.getBoolean("testmode")
 
   val clientId: String =
     VersionInfo.nodeName(ConfigUtils.getOptionalValue(config, _.getString, "client-identity"))
 
   val clientVersion: String = VersionInfo.nodeName()
 
-  val nodeKeyFile: String = config.getString("node-key-file")
+  val nodeKeyFile: String = "" //config.getString("node-key-file")
 
-  val shutdownTimeout: Duration = config.getDuration("shutdown-timeout").toMillis.millis
+  val shutdownTimeout: Duration = 10.seconds //config.getDuration("shutdown-timeout").toMillis.millis
 
   val secureRandomAlgo: Option[String] =
     if (config.hasPath("secure-random-algo")) Some(config.getString("secure-random-algo"))
