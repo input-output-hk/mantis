@@ -1,16 +1,17 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
+import akka.actor.typed.{ActorRef => TypedActorRef}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{InternalCheckpointImport, InternalLastBlockImport}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
+import akka.actor.typed.scaladsl.adapter._
 
 class RegularSync(
     peersClient: ActorRef,
@@ -26,11 +27,14 @@ class RegularSync(
 ) extends Actor
     with ActorLogging {
 
-  val fetcher: ActorRef =
-    context.actorOf(
-      BlockFetcher.props(peersClient, peerEventBus, self, syncConfig, blockValidator),
+  val fetcher: TypedActorRef[BlockFetcher.FetchCommand] =
+    context.spawn(
+      BlockFetcher(peersClient, peerEventBus,  self, syncConfig, blockValidator),
       "block-fetcher"
     )
+
+  context.watch(fetcher)
+
   val broadcaster: ActorRef = context.actorOf(
     BlockBroadcasterActor
       .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, scheduler),
@@ -40,6 +44,7 @@ class RegularSync(
     context.actorOf(
       BlockImporter.props(
         fetcher,
+        peerEventBus,
         ledger,
         blockchain,
         syncConfig,
@@ -55,7 +60,7 @@ class RegularSync(
     scheduler.scheduleWithFixedDelay(
       syncConfig.printStatusInterval,
       syncConfig.printStatusInterval,
-      fetcher,
+      fetcher.toClassic,
       BlockFetcher.PrintStatus
     )(context.dispatcher)
   val printImporterSchedule: Cancellable =
@@ -95,14 +100,9 @@ class RegularSync(
       log.info(s"Got information about new block [number = $blockNumber]")
       val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
       context become running(newState)
-    case ProgressProtocol.ImportedBlock(blockNumber, isCheckpoint, internally) =>
+    case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
       log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
       val newState = progressState.copy(currentBlock = blockNumber)
-      if (internally && isCheckpoint) {
-        fetcher ! InternalCheckpointImport(blockNumber)
-      } else if (internally) {
-        fetcher ! InternalLastBlockImport(blockNumber)
-      }
       context become running(newState)
   }
 
@@ -166,6 +166,6 @@ object RegularSync {
     case object StartedFetching extends ProgressProtocol
     case class StartingFrom(blockNumber: BigInt) extends ProgressProtocol
     case class GotNewBlock(blockNumber: BigInt) extends ProgressProtocol
-    case class ImportedBlock(blockNumber: BigInt, isCheckpoint: Boolean, internally: Boolean) extends ProgressProtocol
+    case class ImportedBlock(blockNumber: BigInt, internally: Boolean) extends ProgressProtocol
   }
 }

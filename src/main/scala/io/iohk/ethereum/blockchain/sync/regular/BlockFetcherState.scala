@@ -18,7 +18,6 @@ import scala.collection.immutable.Queue
 /**
   * State used by the BlockFetcher
   *
-  * @param importer the BlockImporter actor reference
   * @param readyBlocks
   * @param waitingHeaders
   * @param fetchingHeadersState the current state of the headers fetching, whether we
@@ -29,9 +28,7 @@ import scala.collection.immutable.Queue
   *                             - haven't fetched any yet
   *                             - are awaiting a response
   *                             - are awaiting a response but it should be ignored due to blocks being invalidated
-  * @param stateNodeFetcher
   * @param lastBlock
-  * @param knownTop
   * @param blockProviders
   */
 case class BlockFetcherState(
@@ -41,16 +38,12 @@ case class BlockFetcherState(
     waitingHeaders: Queue[BlockHeader],
     fetchingHeadersState: FetchingHeadersState,
     fetchingBodiesState: FetchingBodiesState,
-    pausedFetching: Boolean = false,
-    stateNodeFetcher: Option[StateNodeFetcher],
     lastBlock: BigInt,
     knownTop: BigInt,
     blockProviders: Map[BigInt, PeerId]
 ) {
 
   def isFetching: Boolean = isFetchingHeaders || isFetchingBodies
-
-  def isFetchingStateNode: Boolean = stateNodeFetcher.isDefined
 
   private def hasEmptyBuffer: Boolean = readyBlocks.isEmpty && waitingHeaders.isEmpty
 
@@ -88,30 +81,10 @@ case class BlockFetcherState(
         )
     })
 
-  def tryInsertBlock(block: Block, peerId: PeerId): Either[String, BlockFetcherState] = {
-    val blockHash = block.hash
-    if (isExist(blockHash)) {
-      Right(this)
-    } else if (isExistInReadyBlocks(block.header.parentHash)) {
-      val newState = clearQueues()
-        .copy(
-          readyBlocks = readyBlocks.takeWhile(_.number < block.number).enqueue(block)
-        )
-        .withPeerForBlocks(peerId, Seq(block.number))
-        .withKnownTopAt(block.number)
-      Right(newState)
-    } else if (isExistInWaitingHeaders(block.header.parentHash)) {
-      // ignore already requested bodies
-      val newFetchingBodiesState =
-        if (fetchingBodiesState == AwaitingBodies) AwaitingBodiesToBeIgnored else fetchingBodiesState
-      val newState = copy(
-        waitingHeaders = waitingHeaders.takeWhile(_.number < block.number).enqueue(block.header),
-        fetchingBodiesState = newFetchingBodiesState
-      )
-        .withKnownTopAt(block.number)
-      Right(newState)
-    } else Left(s"Cannot insert block [${ByteStringUtils.hash2string(blockHash)}] into the queues")
-  }
+  def withUpdatedReadyBlocks(nr: BigInt): BlockFetcherState = copy(
+    waitingHeaders = Queue(),
+    readyBlocks = readyBlocks.dropWhile(_.number > nr)
+  )
 
   /**
     * Validates received headers consistency and their compatibility with the state
@@ -227,6 +200,7 @@ case class BlockFetcherState(
     * - lower = min(from, atLeastWith)
     * - upper = max(from, atLeastWith)
     */
+    //TODO: update thee last block here?
   def strictPickBlocks(from: BigInt, atLeastWith: BigInt): Option[(NonEmptyList[Block], BlockFetcherState)] = {
     val lower = from.min(atLeastWith)
     val upper = from.max(atLeastWith)
@@ -296,14 +270,6 @@ case class BlockFetcherState(
   def withNewBodiesFetch: BlockFetcherState = copy(fetchingBodiesState = AwaitingBodies)
   def withBodiesFetchReceived: BlockFetcherState = copy(fetchingBodiesState = NotFetchingBodies)
 
-  def withPausedFetching: BlockFetcherState = copy(pausedFetching = true)
-  def withResumedFetching: BlockFetcherState = copy(pausedFetching = false)
-
-  def fetchingStateNode(hash: ByteString, requestor: ActorRef): BlockFetcherState =
-    copy(stateNodeFetcher = Some(StateNodeFetcher(hash, requestor)))
-
-  def notFetchingStateNode(): BlockFetcherState = copy(stateNodeFetcher = None)
-
   def status: Map[String, Any] = Map(
     "ready blocks" -> readyBlocks.size,
     "known top" -> knownTop,
@@ -314,7 +280,6 @@ case class BlockFetcherState(
     "fetched headers" -> waitingHeaders.size,
     "fetching headers" -> isFetchingHeaders,
     "fetching bodies" -> isFetchingBodies,
-    "fetching state node" -> isFetchingStateNode,
     "fetched top header" -> hasFetchedTopHeader,
     "first header" -> waitingHeaders.headOption.map(_.number),
     "first block" -> readyBlocks.headOption.map(_.number),
@@ -333,7 +298,6 @@ object BlockFetcherState {
       waitingHeaders = Queue(),
       fetchingHeadersState = NotFetchingHeaders,
       fetchingBodiesState = NotFetchingBodies,
-      stateNodeFetcher = None,
       lastBlock = lastBlock,
       knownTop = lastBlock + 1,
       blockProviders = Map()
