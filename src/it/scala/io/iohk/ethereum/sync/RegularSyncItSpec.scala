@@ -28,24 +28,6 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
     testScheduler.awaitTermination(120.second)
   }
 
-  "a peer should reorganise when receives a checkpoint older than the current best from a peer" in customTestCaseResourceM(
-    FakePeer.start2FakePeersRes()
-  ) { case (peer1, peer2) =>
-    for {
-      _ <- peer1.importBlocksUntil(20)(IdentityUpdate)
-      _ <- peer2.importBlocksUntil(30)(IdentityUpdate)
-      _ <- peer1.startRegularSync()
-      _ <- peer2.startRegularSync()
-      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
-      _ <- peer1.waitForRegularSyncLoadLastBlock(21)
-      _ <- peer2.getCheckpointFromPeer(peer1.bl.getBestBlock().get, PeerId("Peer1"))
-      _ <- peer2.waitForRegularSyncLoadLastBlock(21)
-    } yield {
-      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
-    }
-  }
-
   "peer 2 should sync to the top of peer1 blockchain" - {
     "given a previously imported blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
       case (peer1, peer2) =>

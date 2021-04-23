@@ -1,19 +1,13 @@
 package io.iohk.ethereum.sync.util
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, typed}
 import akka.util.ByteString
 import cats.effect.Resource
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
-import io.iohk.ethereum.blockchain.sync.regular.{
-  BlockBroadcast,
-  BlockBroadcasterActor,
-  BlockFetcher,
-  BlockImporter,
-  RegularSync
-}
+import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
@@ -36,6 +30,8 @@ import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
 import monix.eval.Task
 import monix.execution.Scheduler
+import akka.actor.typed.scaladsl.adapter._
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
 
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
@@ -86,15 +82,15 @@ object RegularSyncItSpecUtils {
       "block-broadcaster"
     )
 
-    val fetcher: ActorRef =
-      system.actorOf(
-        BlockFetcher.props(peersClient, peerEventBus, regularSync, syncConfig, validators.blockValidator),
+    val fetcher: typed.ActorRef[BlockFetcher.FetchCommand] =
+      system.spawn(
+        BlockFetcher(peersClient, peerEventBus, regularSync, syncConfig, validators.blockValidator),
         "block-fetcher"
       )
 
     lazy val blockImporter = system.actorOf(
       BlockImporter.props(
-        fetcher,
+        fetcher.toClassic,
         ledger,
         bl,
         syncConfig,
@@ -181,7 +177,7 @@ object RegularSyncItSpecUtils {
 
     def getCheckpointFromPeer(checkpoint: Block, peerId: PeerId): Task[Unit] = Task {
       blockImporter ! Start
-      fetcher ! MessageFromPeer(NewBlock(checkpoint, checkpoint.header.difficulty), peerId)
+      fetcher ! AdaptedMessageFromEventBus(NewBlock(checkpoint, checkpoint.header.difficulty), peerId)
     }
 
     private def getMptForBlock(block: Block) = {
