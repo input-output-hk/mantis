@@ -10,6 +10,8 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.annotation.tailrec
 import io.iohk.ethereum.SuperSlow
+import io.iohk.ethereum.utils.ByteStringUtils
+import org.scalatest.prop.TableFor2
 
 class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SuperSlow {
 
@@ -18,8 +20,21 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   val ecip1099forkBlockNumber: Long = 11460000
 
   "Ethash" should "generate correct hash" in {
-    forAll(Gen.choose[Long](0, 15000000L)) { blockNumber =>
-      seed(blockNumber, ecip1099forkBlockNumber) shouldBe seedForBlockReference(blockNumber)
+    val seedEpoch0 = ByteStringUtils.string2hash("0000000000000000000000000000000000000000000000000000000000000000")
+    val seedEpoch1 = ByteStringUtils.string2hash("290decd9548b62a8d60345a988386fc84ba6bc95484008f6362f93160ef3e563")
+    val seedEpoch382 = ByteStringUtils.string2hash("d3d0aa11197dcdcfcb3ad3c73d415af47299bddb47fda6081d31d9dd06462f6a")
+    val seedEpoch383 = ByteStringUtils.string2hash("bf532874eb434842e7a3e4acd113fe454541651872760d9b95d11d7f90ca25dc")
+    val table: TableFor2[Long, ByteString] = Table(
+      ("blockNumber", "referenceSeed"),
+      (0, seedEpoch0),
+      (1, seedEpoch0),
+      (30_000, seedEpoch1),
+      (ecip1099forkBlockNumber, seedEpoch382),
+      (ecip1099forkBlockNumber + 30_000, seedEpoch382),
+      (ecip1099forkBlockNumber + 60_000, seedEpoch383)
+    )
+    forAll(table) { (blockNumber, referenceSeed) =>
+      seed(blockNumber, ecip1099forkBlockNumber) shouldBe referenceSeed
     }
   }
 
@@ -136,18 +151,5 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
         proofOfWork.mixHash shouldBe ByteString(Hex.decode(mixHash))
       }
     }
-  }
-
-  def seedForBlockReference(blockNumber: BigInt): ByteString = {
-    @tailrec
-    def go(current: BigInt, currentHash: ByteString): ByteString = {
-      if (current < EPOCH_LENGTH_BEFORE_ECIP_1099) {
-        currentHash
-      } else {
-        go(current - EPOCH_LENGTH_BEFORE_ECIP_1099, kec256(currentHash))
-      }
-    }
-
-    go(blockNumber, ByteString(Hex.decode("00" * 32)))
   }
 }
