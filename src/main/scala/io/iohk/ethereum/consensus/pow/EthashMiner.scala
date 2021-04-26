@@ -100,7 +100,8 @@ class EthashMiner(
   private def doEthashMining(blockNumber: Long, block: Block): (Long, MiningResult) = {
     val epoch =
       EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
-    val (dag, dagSize) = dagManager.calculateDagSize(blockNumber, epoch)
+    val (dag, dagSize) =
+      dagManager.calculateDagSize(blockNumber, epoch, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
     val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
     val startTime = System.nanoTime()
     val mineResult =

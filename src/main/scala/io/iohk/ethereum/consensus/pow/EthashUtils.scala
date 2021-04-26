@@ -63,12 +63,17 @@ object EthashUtils {
 
   private def epochBeforeEcip1099(blockNumber: Long): Long = blockNumber / EPOCH_LENGTH_BEFORE_ECIP_1099
 
-  def seed(blockNumber: Long): ByteString = {
-    val epoch = epochBeforeEcip1099(blockNumber) // <-- this is wrong
-    println(s">>>> $blockNumber $epoch")
+  def seed(blockNumber: Long, ecip1099ActivationBlock: Long): ByteString = {
+    val epoch: Long = epochBeforeEcip1099(startBlock(blockNumber, ecip1099ActivationBlock))
     (BigInt(0) until epoch)
       .foldLeft(ByteString(Hex.decode("00" * 32))) { case (b, _) => kec256(b) }
   }
+
+  def startBlock(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
+    (blockNumber / calcEpochLength(blockNumber, ecip1099ActivationBlock)) * calcEpochLength(
+      blockNumber,
+      ecip1099ActivationBlock
+    ) + 1
 
   private def calcEpochLength(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
     if (blockNumber < ecip1099ActivationBlock) EPOCH_LENGTH_BEFORE_ECIP_1099 else EPOCH_LENGTH_AFTER_ECIP_1099

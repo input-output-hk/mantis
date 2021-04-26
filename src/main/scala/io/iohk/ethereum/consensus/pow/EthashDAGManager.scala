@@ -13,11 +13,11 @@ class EthashDAGManager(blockCreator: EthashBlockCreator) extends Logger {
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
-  def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
+  def calculateDagSize(blockNumber: Long, epoch: Long, ecip1099ActivationBlock: Long): (Array[Array[Int]], Long) = {
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = EthashUtils.seed(blockNumber)
+        val seed = EthashUtils.seed(blockNumber, ecip1099ActivationBlock)
         val dagSize = EthashUtils.dagSize(epoch)
         val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =

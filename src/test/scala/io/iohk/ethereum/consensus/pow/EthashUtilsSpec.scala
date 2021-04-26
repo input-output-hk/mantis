@@ -19,7 +19,7 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   "Ethash" should "generate correct hash" in {
     forAll(Gen.choose[Long](0, 15000000L)) { blockNumber =>
-      seed(blockNumber) shouldBe seedForBlockReference(blockNumber)
+      seed(blockNumber, ecip1099forkBlockNumber) shouldBe seedForBlockReference(blockNumber)
     }
   }
 
@@ -55,7 +55,7 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
     val blockNumber = 486382
     val _epoch = epoch(blockNumber, ecip1099forkBlockNumber)
-    val _seed = seed(blockNumber)
+    val _seed = seed(blockNumber, ecip1099forkBlockNumber)
     val cache = makeCache(_epoch, _seed)
     val proofOfWork = hashimotoLight(hash, nonce, dagSize(_epoch), cache)
 
@@ -129,7 +129,7 @@ class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
       forAll(table) { (blockNumber, hashWithoutNonce, nonce, mixHash) =>
         val _epoch = epoch(blockNumber, ecip1099forkBlockNumber)
-        val _seed = seed(blockNumber)
+        val _seed = seed(blockNumber, ecip1099forkBlockNumber)
         val cache = makeCache(_epoch, _seed)
         val proofOfWork =
           hashimotoLight(Hex.decode(hashWithoutNonce), Hex.decode(nonce), dagSize(_epoch), cache)

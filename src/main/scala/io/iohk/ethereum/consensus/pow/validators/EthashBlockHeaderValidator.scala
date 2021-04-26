@@ -42,9 +42,8 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
     }
 
     val epoch = EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
-    val seed = EthashUtils.seed(blockHeader.number.toLong)
+    val seed = EthashUtils.seed(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
     val powCacheData = getPowCacheData(epoch, seed)
-
 
     val proofOfWork: EthashProofOfWork = hashimotoLight(
       crypto.kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)),
@@ -53,7 +52,6 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
       powCacheData.cache
     )
 
-    println(s"""${proofOfWork.mixHash == blockHeader.mixHash} ${checkDifficulty(blockHeader.difficulty.toLong, proofOfWork)} n: ${blockHeader.number.toLong} e: $epoch s: $seed""")
     if (proofOfWork.mixHash == blockHeader.mixHash && checkDifficulty(blockHeader.difficulty.toLong, proofOfWork))
       Right(BlockHeaderValid)
     else Left(HeaderPoWError)
