@@ -1,7 +1,21 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction}
+import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256}
+
+trait BaseTransactionResponse {
+  def hash: ByteString
+  def nonce: BigInt
+  def blockHash: Option[ByteString]
+  def blockNumber: Option[BigInt]
+  def transactionIndex: Option[BigInt]
+  def from: Option[ByteString]
+  def to: Option[ByteString]
+  def value: BigInt
+  def gasPrice: BigInt
+  def gas: BigInt
+  def input: ByteString
+}
 
 final case class TransactionResponse(
     hash: ByteString,
@@ -15,7 +29,7 @@ final case class TransactionResponse(
     gasPrice: BigInt,
     gas: BigInt,
     input: ByteString
-)
+) extends BaseTransactionResponse
 
 final case class TransactionData(
     stx: SignedTransaction,

@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 
@@ -15,19 +14,19 @@ object EthBlocksService {
   case class TxCountByBlockHashResponse(txsQuantity: Option[Int])
 
   case class BlockByBlockHashRequest(blockHash: ByteString, fullTxs: Boolean)
-  case class BlockByBlockHashResponse(blockResponse: Option[BlockResponse])
+  case class BlockByBlockHashResponse(blockResponse: Option[BaseBlockResponse])
 
   case class BlockByNumberRequest(block: BlockParam, fullTxs: Boolean)
-  case class BlockByNumberResponse(blockResponse: Option[BlockResponse])
+  case class BlockByNumberResponse(blockResponse: Option[BaseBlockResponse])
 
   case class GetBlockTransactionCountByNumberRequest(block: BlockParam)
   case class GetBlockTransactionCountByNumberResponse(result: BigInt)
 
   case class UncleByBlockHashAndIndexRequest(blockHash: ByteString, uncleIndex: BigInt)
-  case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+  case class UncleByBlockHashAndIndexResponse(uncleBlockResponse: Option[BaseBlockResponse])
 
   case class UncleByBlockNumberAndIndexRequest(block: BlockParam, uncleIndex: BigInt)
-  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BlockResponse])
+  case class UncleByBlockNumberAndIndexResponse(uncleBlockResponse: Option[BaseBlockResponse])
 
   case class GetUncleCountByBlockNumberRequest(block: BlockParam)
   case class GetUncleCountByBlockNumberResponse(result: BigInt)

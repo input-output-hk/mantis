@@ -5,6 +5,7 @@ import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.MinerResponses.MinerNotExist
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.pow.{MinerProtocol, MinerResponse}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
@@ -14,6 +15,7 @@ import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, Bloc
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 
 class TestmodeConsensus(
     override val vm: VMImpl,
@@ -64,7 +66,7 @@ class TestmodeConsensus(
     }
   }
 
-  override def validators: Validators = new TestValidators
+  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
 
   override val blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,

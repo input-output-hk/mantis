@@ -1,15 +1,19 @@
 package io.iohk.ethereum.blockchain.data
 
 import java.io.FileNotFoundException
-
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
+  ByteStringJsonSerializer,
+  UInt256JsonSerializer
+}
+import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
@@ -75,7 +79,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
 
   private def loadGenesisData(genesisJson: String): Try[Unit] = {
     import org.json4s.native.JsonMethods.parse
-    implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer
+    implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer + UInt256JsonSerializer
     for {
       genesisData <- Try(parse(genesisJson).extract[GenesisData])
       _ <- loadGenesisData(genesisData)
@@ -89,19 +93,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
-    val stateMptRootHash = genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) {
-      case (rootHash, (((address, AllocAccount(balance)), idx))) =>
-        val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
-        val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
-        val stateRoot = mpt
-          .put(
-            crypto.kec256(Hex.decode(paddedAddress)),
-            Account(blockchainConfig.accountStartNonce, UInt256(BigInt(balance)), emptyTrieRootHash, emptyEvmHash)
-          )
-          .getRootHash
-        stateRoot
-    }
-
+    val stateMptRootHash = getGenesisStateRoot(genesisData, initalRootHash, storage)
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
     log.debug(s"Prepared genesis header: $header")
@@ -127,6 +119,27 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
           saveAsBestBlock = true
         )
         Success(())
+    }
+  }
+
+  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage) = {
+    import MerklePatriciaTrie.defaultByteArraySerializable
+
+    genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, ((address, genesisAccount), _)) =>
+      val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
+      val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
+      val stateRoot = mpt
+        .put(
+          crypto.kec256(Hex.decode(paddedAddress)),
+          Account(
+            nonce = genesisAccount.nonce
+              .getOrElse(blockchainConfig.accountStartNonce),
+            balance = genesisAccount.balance,
+            codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash)
+          )
+        )
+        .getRootHash
+      stateRoot
     }
   }
 
@@ -178,5 +191,18 @@ object GenesisDataLoader {
           )
         )
 
+    def deserializeUint256String(jv: JValue): UInt256 = jv match {
+      case JString(s) =>
+        Try(UInt256(BigInt(s))) match {
+          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Success(value) => value
+        }
+      case other => throw new RuntimeException("Expected hex string, but got: " + other)
+    }
+
+    object UInt256JsonSerializer
+        extends CustomSerializer[UInt256](_ => ({ case jv => deserializeUint256String(jv) }, PartialFunction.empty))
   }
 }
+
+object Implicits extends JsonMethodsImplicits
