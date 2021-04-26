@@ -61,19 +61,18 @@ object EthashUtils {
 
   // scalastyle:on magic.number
 
-  private def epochBeforeEcip1099(blockNumber: Long): Long = blockNumber / EPOCH_LENGTH_BEFORE_ECIP_1099
-
+  // computes seed for epoch of given blockNumber
+  // this also involves the non-ECIP1099 epoch of the first blocks of the
+  // ECIP1099 epoch, to make sure every block in the latter results in the same
+  // seed being calculated, would there be a cache miss.
   def seed(blockNumber: Long, ecip1099ActivationBlock: Long): ByteString = {
-    val epoch: Long = epochBeforeEcip1099(startBlock(blockNumber, ecip1099ActivationBlock))
+    val epochLength = calcEpochLength(blockNumber, ecip1099ActivationBlock)
+    val startBlock = (blockNumber / epochLength) * epochLength + 1
+    val epoch = startBlock / EPOCH_LENGTH_BEFORE_ECIP_1099
+
     (BigInt(0) until epoch)
       .foldLeft(ByteString(Hex.decode("00" * 32))) { case (b, _) => kec256(b) }
   }
-
-  def startBlock(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
-    (blockNumber / calcEpochLength(blockNumber, ecip1099ActivationBlock)) * calcEpochLength(
-      blockNumber,
-      ecip1099ActivationBlock
-    ) + 1
 
   private def calcEpochLength(blockNumber: Long, ecip1099ActivationBlock: Long): Long =
     if (blockNumber < ecip1099ActivationBlock) EPOCH_LENGTH_BEFORE_ECIP_1099 else EPOCH_LENGTH_AFTER_ECIP_1099
