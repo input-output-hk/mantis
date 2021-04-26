@@ -21,6 +21,7 @@ import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.utils.BlockchainConfig
 
 object EthMiningService {
 
@@ -45,6 +46,7 @@ object EthMiningService {
 
 class EthMiningService(
     blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
     ledger: Ledger,
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
@@ -92,7 +94,7 @@ class EthMiningService(
             Right(
               GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-                dagSeed = EthashUtils.seed(pb.block.header.number.toLong),
+                dagSeed = EthashUtils.seed(pb.block.header.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong),
                 target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
               )
             )

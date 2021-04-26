@@ -400,6 +400,7 @@ trait EthInfoServiceBuilder {
 
 trait EthMiningServiceBuilder {
   self: BlockchainBuilder
+    with BlockchainConfigBuilder
     with LedgerBuilder
     with JSONRpcConfigBuilder
     with OmmersPoolBuilder
@@ -409,6 +410,7 @@ trait EthMiningServiceBuilder {
 
   lazy val ethMiningService = new EthMiningService(
     blockchain,
+    blockchainConfig,
     ledger,
     jsonRpcConfig,
     ommersPool,

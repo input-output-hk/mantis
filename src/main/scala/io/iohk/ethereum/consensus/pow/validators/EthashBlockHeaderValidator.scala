@@ -42,7 +42,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
     }
 
     val epoch = EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
-    val seed = EthashUtils.seed(blockHeader.number.toLong)
+    val seed = EthashUtils.seed(blockHeader.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong)
     val powCacheData = getPowCacheData(epoch, seed)
 
     val proofOfWork = hashimotoLight(
