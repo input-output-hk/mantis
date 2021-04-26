@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.DebugService._
+import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
 import io.iohk.ethereum.jsonrpc.EthInfoService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
@@ -227,8 +227,6 @@ case class JsonRpcController(
   private def handleDebugRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "debug_listPeersInfo", _, _) =>
       handle[ListPeersInfoRequest, ListPeersInfoResponse](debugService.listPeersInfo, req)
-    case req @ JsonRpcRequest(_, "debug_getSpecificBlock", _, _) =>
-      handle[GetSpecificBlockRequest, GetSpecificBlockResponse](debugService.getSpecificBlock, req)
   }
 
   private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
