@@ -249,6 +249,7 @@ class EthMiningServiceSpec
 
     lazy val ethMiningService = new EthMiningService(
       blockchain,
+      blockchainConfig,
       ledger,
       jsonRpcConfig,
       ommersPool.ref,
