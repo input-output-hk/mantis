@@ -1,6 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.{ActorRef => TActorRef, Behavior}
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
 import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.{ByteString, Timeout}
@@ -18,8 +18,8 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.{Peer, PeerId}
+import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, PeerSelector, Subscribe, Unsubscribe}
+import io.iohk.ethereum.network.{Peer, PeerEventBusActor, PeerId}
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
@@ -33,6 +33,7 @@ import mouse.all._
 
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
+import akka.actor.typed.scaladsl.adapter._
 
 class BlockFetcher(
     val peersClient: ClassicActorRef,
@@ -49,14 +50,23 @@ class BlockFetcher(
   implicit val timeout: Timeout = syncConfig.peerResponseTimeout + 2.second // some margin for actor communication
   private val log = context.log
 
+  private def subscribeAdapter(fetcher: TActorRef[BlockFetcher.AdaptedMessageFromEventBus]) = Behaviors.receiveMessage[PeerEventBusActor.PeerEvent] {
+    case MessageFromPeer(message, peerId) =>
+      println("like a glove")
+      fetcher ! AdaptedMessageFromEventBus(message, peerId)
+      Behaviors.same
+    case _ => Behaviors.same
+  }
+
   override def onMessage(message: FetchCommand): Behavior[FetchCommand] = {
     message match {
       case Start(importer, fromBlock) =>
-        peerEventBus ! Subscribe(
+        val sa = context.spawn(subscribeAdapter(context.self), "fetcher-subscribe-adapter") //TODO does it need to be stored somewhere?
+        peerEventBus.tell(Subscribe(
           MessageClassifier(
             Set(Codes.NewBlockCode, Codes.NewBlockHashesCode, Codes.BlockHeadersCode),
             PeerSelector.AllPeers
-          ))
+          )), sa.toClassic)
         BlockFetcherState.initial(importer, blockValidator, fromBlock) |> fetchBlocks
       case _ => Behaviors.unhandled
     }
@@ -212,7 +222,8 @@ class BlockFetcher(
 
           fetchBlocks(newState)
 
-        case _ =>
+        case a =>
+          println(">>>> " + a)
           Behaviors.unhandled
       }
     }
@@ -235,11 +246,11 @@ class BlockFetcher(
       processFetchCommands(newState)
     } else {
       handleFutureBlock(block, state)
-      processFetchCommands(state)
+//      processFetchCommands(state)
     }
   }
 
-  private def handleFutureBlock(block: Block, state: BlockFetcherState): Unit = {
+  private def handleFutureBlock(block: Block, state: BlockFetcherState): Behavior[FetchCommand] = {
     log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
     val newState = state.withPossibleNewTopAt(block.number)
     supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)

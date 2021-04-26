@@ -86,11 +86,11 @@ object RegularSyncItSpecUtils {
       "block-broadcaster"
     )
 
-    val fetcher: ActorRef =
-      system.actorOf(
-        BlockFetcher.props(peersClient, peerEventBus, regularSync, syncConfig, validators.blockValidator),
-        "block-fetcher"
-      )
+    val fetcher: ActorRef = ???
+//      system.actorOf(
+//        BlockFetcher.props(peersClient, peerEventBus, regularSync, syncConfig, validators.blockValidator),
+//        "block-fetcher"
+//      )
 
     lazy val blockImporter = system.actorOf(
       BlockImporter.props(

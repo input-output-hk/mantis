@@ -86,7 +86,7 @@ class RegularSyncSpec
     }
 
     "fetching blocks" should {
-      "fetch headers and bodies concurrently" in sync(new Fixture(testSystem) {
+      "abcdefgh fetch headers and bodies concurrently" in sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         peerEventBus.expectMsgClass(classOf[Subscribe])
