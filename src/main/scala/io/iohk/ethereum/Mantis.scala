@@ -2,9 +2,12 @@ package io.iohk.ethereum
 
 import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
 import io.iohk.ethereum.utils.{Config, Logger}
+import java.util.logging.LogManager
 
 object Mantis extends Logger {
   def main(args: Array[String]): Unit = {
+    LogManager.getLogManager().reset();
+
     val node =
       if (Config.testmode) {
         log.info("Starting Mantis in test mode")
