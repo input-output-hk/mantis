@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-
 import akka.actor.ActorRef
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.crypto
@@ -15,10 +14,11 @@ import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{BlockchainConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger, TxPoolConfig}
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import monix.eval.Task
 
 import scala.util.Try
@@ -72,7 +72,7 @@ class PersonalService(
     appStateStorage: AppStateStorage,
     blockchainConfig: BlockchainConfig,
     txPoolConfig: TxPoolConfig
-) {
+) extends Logger {
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 
@@ -212,6 +212,7 @@ class PersonalService(
       } else {
         wallet.signTx(tx, None)
       }
+      log.debug("Trying to add personal transaction: {}", stx.tx.hash.toHex)
 
       txPool ! AddOrOverrideTransaction(stx.tx)
 

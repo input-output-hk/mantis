@@ -30,6 +30,10 @@ object ByteStringUtils {
     }
   }
 
+  implicit class ByteStringOps(val bytes: ByteString) extends AnyVal {
+    def toHex: String = Hex.toHexString(bytes.toArray[Byte])
+  }
+
   sealed trait ByteStringElement {
     def len: Int
     def asByteArray: Array[Byte]

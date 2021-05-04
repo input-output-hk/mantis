@@ -13,7 +13,9 @@ import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import monix.execution.Scheduler
+
 import scala.concurrent.duration._
 
 class MockedMiner(
@@ -79,7 +81,7 @@ class MockedMiner(
       log.info(
         s"Mining mocked block {} successful. Included transactions: {}",
         minedBlock.idTag,
-        minedBlock.body.transactionList.map(_.hashAsHexString)
+        minedBlock.body.transactionList.map(_.hash.toHex)
       )
       syncEventListener ! SyncProtocol.MinedBlock(minedBlock)
       // because of using seconds to calculate block timestamp, we can't mine blocks faster than one block per second
