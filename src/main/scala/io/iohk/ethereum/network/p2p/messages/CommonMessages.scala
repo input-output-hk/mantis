@@ -7,6 +7,7 @@ import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
@@ -204,6 +205,6 @@ object CommonMessages {
   case class SignedTransactions(txs: Seq[SignedTransaction]) extends Message {
     override def code: Int = Codes.SignedTransactionsCode
     override def toShortString: String =
-      s"SignedTransactions { txs: ${txs.map(_.hashAsHexString)} }"
+      s"SignedTransactions { txs: ${txs.map(_.hash.toHex)} }"
   }
 }

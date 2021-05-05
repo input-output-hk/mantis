@@ -1,6 +1,6 @@
 package io.iohk.ethereum.transactions
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.{ByteString, Timeout}
 import com.google.common.cache.{Cache, CacheBuilder, RemovalNotification}
 import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
@@ -10,7 +10,9 @@ import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.TxPoolConfig
+
 import scala.jdk.CollectionConverters._
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
@@ -52,7 +54,8 @@ class PendingTransactionsManager(
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef
 ) extends Actor
-    with MetricsContainer {
+    with MetricsContainer
+    with ActorLogging {
 
   import PendingTransactionsManager._
   import akka.pattern.ask
@@ -77,16 +80,17 @@ class PendingTransactionsManager(
     .maximumSize(txPoolConfig.txPoolSize)
     .removalListener((notification: RemovalNotification[ByteString, PendingTransaction]) =>
       if (notification.wasEvicted()) {
+        log.debug("Evicting transaction: {} due to {}", notification.getKey.toHex, notification.getCause)
         knownTransactions = knownTransactions.filterNot(_._1 == notification.getKey)
       }
     )
     .build()
 
-  implicit val timeout = Timeout(3.seconds)
+  implicit val timeout: Timeout = Timeout(3.seconds)
 
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
-  val transactionFilter = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
+  val transactionFilter: ActorRef = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
 
   // scalastyle:off method.length
   override def receive: Receive = {
@@ -101,6 +105,7 @@ class PendingTransactionsManager(
 
     case AddTransactions(signedTransactions) =>
       pendingTransactions.cleanUp()
+      log.debug("Adding transactions: {}", signedTransactions.map(_.tx.hash.toHex))
       val stxs = pendingTransactions.asMap().values().asScala.map(_.stx).toSet
       val transactionsToAdd = signedTransactions.diff(stxs)
       if (transactionsToAdd.nonEmpty) {
@@ -115,6 +120,7 @@ class PendingTransactionsManager(
 
     case AddOrOverrideTransaction(newStx) =>
       pendingTransactions.cleanUp()
+      log.debug("Overriding transaction: {}", newStx.hash.toHex)
       // Only validated transactions are added this way, it is safe to call get
       val newStxSender = SignedTransaction.getSender(newStx).get
       val obsoleteTxs = pendingTransactions
@@ -135,6 +141,11 @@ class PendingTransactionsManager(
 
     case NotifyPeers(signedTransactions, peers) =>
       pendingTransactions.cleanUp()
+      log.debug(
+        "Notifying peers {} about transactions {}",
+        peers.map(_.nodeId.map(_.toHex)),
+        signedTransactions.map(_.tx.hash.toHex)
+      )
       val pendingTxMap = pendingTransactions.asMap()
       val stillPending = signedTransactions
         .filter(stx => pendingTxMap.containsKey(stx.tx.hash)) // signed transactions that are still pending
@@ -153,6 +164,7 @@ class PendingTransactionsManager(
 
     case RemoveTransactions(signedTransactions) =>
       pendingTransactions.invalidateAll(signedTransactions.map(_.hash).asJava)
+      log.debug("Removing transactions: {}", signedTransactions.map(_.hash.toHex))
       knownTransactions = knownTransactions -- signedTransactions.map(_.hash)
 
     case ProperSignedTransactions(transactions, peerId) =>
@@ -160,6 +172,7 @@ class PendingTransactionsManager(
       transactions.foreach(stx => setTxKnown(stx.tx, peerId))
 
     case ClearPendingTransactions =>
+      log.debug("Dropping all cached transactions")
       pendingTransactions.invalidateAll()
   }
 

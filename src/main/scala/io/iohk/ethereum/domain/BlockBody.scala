@@ -2,13 +2,14 @@ package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 
 case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
   override def toString: String =
     s"BlockBody{ transactionList: $transactionList, uncleNodesList: $uncleNodesList }"
 
   def toShortString: String =
-    s"BlockBody { transactionsList: ${transactionList.map(_.hashAsHexString)}, uncleNodesList: ${uncleNodesList.map(_.hashAsHexString)} }"
+    s"BlockBody { transactionsList: ${transactionList.map(_.hash.toHex)}, uncleNodesList: ${uncleNodesList.map(_.hashAsHexString)} }"
 
   lazy val numberOfTxs: Int = transactionList.size
 

@@ -170,7 +170,6 @@ case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
     signature.v != ECDSASignature.negativePointSign && signature.v != ECDSASignature.positivePointSign
 
   lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
-  lazy val hashAsHexString: String = Hex.toHexString(hash.toArray[Byte])
 }
 
 case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Address)

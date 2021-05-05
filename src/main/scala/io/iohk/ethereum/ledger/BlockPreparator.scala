@@ -7,6 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
 import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.ledger.BlockPreparator._
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}
 import io.iohk.ethereum.vm.{PC => _, _}
 
@@ -237,7 +238,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy
   ): TxResult = {
-    log.debug(s"Transaction ${stx.hashAsHexString} execution start")
+    log.debug(s"Transaction ${stx.hash.toHex} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = stx.tx.gasLimit
 
@@ -266,7 +267,7 @@ class BlockPreparator(
 
     val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
 
-    log.debug(s"""Transaction ${stx.hashAsHexString} execution end. Summary:
+    log.debug(s"""Transaction ${stx.hash.toHex} execution end. Summary:
          | - Error: ${result.error}.
          | - Total Gas to Refund: $totalGasToRefund
          | - Execution gas paid to miner: $executionGasToPayToMiner""".stripMargin)
@@ -339,7 +340,7 @@ class BlockPreparator(
               logs = logs
             )
 
-            log.debug(s"Receipt generated for tx ${stx.hashAsHexString}, $receipt")
+            log.debug(s"Receipt generated for tx ${stx.hash.toHex}, $receipt")
 
             executeTransactions(otherStxs, newWorld, blockHeader, receipt.cumulativeGasUsed, acumReceipts :+ receipt)
           case Left(error) =>
@@ -361,7 +362,7 @@ class BlockPreparator(
 
     result match {
       case Left(TxsExecutionError(stx, StateBeforeFailure(worldState, gas, receipts), reason)) =>
-        log.debug(s"failure while preparing block because of $reason in transaction with hash ${stx.hashAsHexString}")
+        log.debug(s"failure while preparing block because of $reason in transaction with hash ${stx.hash.toHex}")
         val txIndex = signedTransactions.indexWhere(tx => tx.hash == stx.hash)
         executePreparedTransactions(
           signedTransactions.drop(txIndex + 1),
