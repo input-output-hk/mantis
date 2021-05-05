@@ -304,14 +304,14 @@ class BlockFetcher(
       }
     //keep fetcher state updated in case new mined block was imported
     case InternalLastBlockImport(blockNr) =>
-      log.debug("New mined block {} imported from the inside", blockNr)
+      log.debug("New mined block {} imported internally", blockNr)
       val newState = state.withLastBlock(blockNr).withPossibleNewTopAt(blockNr)
 
       fetchBlocks(newState)
 
     //keep fetcher state updated in case new checkpoint block was imported
     case InternalCheckpointImport(blockNr) =>
-      log.debug("New checkpoint block {} imported from the inside", blockNr)
+      log.debug("New checkpoint block {} imported internally", blockNr)
 
       val newState = state
         .clearQueues()
