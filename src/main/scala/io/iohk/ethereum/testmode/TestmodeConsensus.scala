@@ -4,9 +4,9 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.pow.MinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.pow.{MinerProtocol, MinerResponse}
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, Receipt}
@@ -96,7 +96,7 @@ class TestmodeConsensus(
   /**
     * Sends msg to the internal miner and waits for the response
     */
-  override def askMiner(msg: MinerProtocol): Task[MinerResponse] = Task.now(MinerNotExist)
+  override def askMiner(msg: MinerProtocol): Task[MockedMinerResponse] = Task.now(MinerNotExist)
 
   /**
     * Sends msg to the internal miner
