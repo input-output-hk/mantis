@@ -1,17 +1,20 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestKit}
+import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.consensus.pow.MinerResponses.{MinerIsWorking, MinerNotSupport, MiningError, MiningOrdered}
+import io.iohk.ethereum.consensus.pow.MinerSpecSetup
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.domain.{Block, SignedTransaction}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.ByteStringUtils
 import monix.eval.Task
 import org.scalatest._
-import scala.concurrent.duration._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
+
+import scala.concurrent.duration._
 
 class MockedMinerSpec
     extends TestKit(ActorSystem("MockedPowMinerSpec_System"))
@@ -21,7 +24,7 @@ class MockedMinerSpec
 
   private implicit val timeout: Duration = 1.minute
 
-  "MockedPowMiner" should {
+  "MockedPowMiner actor" should {
     "not mine blocks" when {
       "there is no request" in new MockedMinerSetup {
         expectNoNewBlockMsg(noMessageTimeOut)
@@ -30,19 +33,19 @@ class MockedMinerSpec
 
     "not mine block and return MinerNotSupport msg" when {
       "the request comes before miner started" in new MockedMinerSetup {
-        val msg = MockedMinerProtocol.MineBlocks(1, false, None)
+        val msg = MineBlocks(1, false, None)
         sendToMiner(msg)
         expectNoNewBlockMsg(noMessageTimeOut)
-        parentActor.expectMsg(MinerNotSupport(msg))
+        parentActor.expectMsg(MinerNotSupported(msg))
       }
     }
 
     "stop mining in case of error" when {
       "Unable to get block for mining" in new MockedMinerSetup {
         val parent = origin
-        val bfm1 = blockForMining(parent.header, Seq.empty)
+        val bfm1 = setBlockForMining(parent, Seq.empty)
 
-        blockCreatorBehaviour(parent, false, bfm1)
+        blockCreatorBehaviour(parent, withTransactions = false, bfm1)
 
         (blockCreator
           .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
@@ -53,7 +56,7 @@ class MockedMinerSpec
           .atLeastOnce()
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, None))
+          sendToMiner(MineBlocks(2, withTransactions = false, None))
 
           parentActor.expectMsg(MiningOrdered)
 
@@ -75,7 +78,7 @@ class MockedMinerSpec
         (blockchain.getBlockByHash _).expects(parentHash).returns(None)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, Some(parentHash)))
+          sendToMiner(MineBlocks(2, withTransactions = false, Some(parentHash)))
 
           expectNoNewBlockMsg(noMessageTimeOut)
 
@@ -87,14 +90,14 @@ class MockedMinerSpec
     "return MinerIsWorking to requester" when {
       "miner is working during next mine request" in new MockedMinerSetup {
         val parent = origin
-        val bfm = blockForMining(parent.header, Seq.empty)
+        val bfm = setBlockForMining(parent, Seq.empty)
 
-        blockCreatorBehaviour(parent, false, bfm)
+        blockCreatorBehaviour(parent, withTransactions = false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, withTransactions = false, None))
           parentActor.expectMsg(MiningOrdered)
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, withTransactions = false, None))
           parentActor.expectMsg(MinerIsWorking)
 
           val block = waitForMinedBlock
@@ -110,14 +113,14 @@ class MockedMinerSpec
       "there is request for block with other parent than best block" in new MockedMinerSetup {
         val parent = origin
         val parentHash = origin.hash
-        val bfm = blockForMining(parent.header, Seq.empty)
+        val bfm = setBlockForMining(parent, Seq.empty)
 
         (blockchain.getBlockByHash _).expects(parentHash).returns(Some(parent))
 
-        blockCreatorBehaviour(parent, false, bfm)
+        blockCreatorBehaviour(parent, withTransactions = false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, Some(parentHash)))
+          sendToMiner(MineBlocks(1, withTransactions = false, Some(parentHash)))
 
           parentActor.expectMsg(MiningOrdered)
 
@@ -129,12 +132,12 @@ class MockedMinerSpec
 
       "there is request for one block without transactions" in new MockedMinerSetup {
         val parent = origin
-        val bfm = blockForMining(parent.header, Seq.empty)
+        val bfm = setBlockForMining(parent, Seq.empty)
 
-        blockCreatorBehaviour(parent, false, bfm)
+        blockCreatorBehaviour(parent, withTransactions = false, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, false, None))
+          sendToMiner(MineBlocks(1, withTransactions = false, None))
 
           val block = waitForMinedBlock
 
@@ -146,12 +149,12 @@ class MockedMinerSpec
 
       "there is request for one block with transactions" in new MockedMinerSetup {
         val parent = origin
-        val bfm = blockForMining(parent.header)
+        val bfm = setBlockForMining(parent)
 
-        blockCreatorBehaviour(parent, true, bfm)
+        blockCreatorBehaviour(parent, withTransactions = true, bfm)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(1, true, None))
+          sendToMiner(MineBlocks(1, withTransactions = true, None))
 
           val block = waitForMinedBlock
 
@@ -163,15 +166,15 @@ class MockedMinerSpec
 
       "there is request for few blocks without transactions" in new MockedMinerSetup {
         val parent = origin
-        val bfm1 = blockForMining(parent.header, Seq.empty)
-        val bfm2 = blockForMining(bfm1.header, Seq.empty)
+        val bfm1 = setBlockForMining(parent, Seq.empty)
+        val bfm2 = setBlockForMining(bfm1, Seq.empty)
 
-        blockCreatorBehaviour(parent, false, bfm1)
+        blockCreatorBehaviour(parent, withTransactions = false, bfm1)
 
-        blockCreatorBehaviourExpectingInitialWorld(bfm1, false, bfm2)
+        blockCreatorBehaviourExpectingInitialWorld(bfm1, withTransactions = false, bfm2)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, false, None))
+          sendToMiner(MineBlocks(2, withTransactions = false, None))
 
           val block1 = waitForMinedBlock
           val block2 = waitForMinedBlock
@@ -185,15 +188,15 @@ class MockedMinerSpec
 
       "there is request for few blocks with transactions" in new MockedMinerSetup {
         val parent = origin
-        val bfm1 = blockForMining(parent.header)
-        val bfm2 = blockForMining(bfm1.header, Seq.empty)
+        val bfm1 = setBlockForMining(parent)
+        val bfm2 = setBlockForMining(bfm1, Seq.empty)
 
-        blockCreatorBehaviour(parent, true, bfm1)
+        blockCreatorBehaviour(parent, withTransactions = true, bfm1)
 
-        blockCreatorBehaviourExpectingInitialWorld(bfm1, true, bfm2)
+        blockCreatorBehaviourExpectingInitialWorld(bfm1, withTransactions = true, bfm2)
 
         withStartedMiner {
-          sendToMiner(MockedMinerProtocol.MineBlocks(2, true, None))
+          sendToMiner(MineBlocks(2, withTransactions = true, None))
 
           val block1 = waitForMinedBlock
 
@@ -225,6 +228,16 @@ class MockedMinerSpec
       block.body.transactionList shouldBe txs
       block.header.nonce.length shouldBe 0
       block.header.parentHash shouldBe parent.hash
+    }
+
+    protected def withStartedMiner(behaviour: => Unit) = {
+      miner ! MinerProtocol.StartMining
+      behaviour
+      miner ! MinerProtocol.StopMining
+    }
+
+    protected def sendToMiner(msg: MinerProtocol) = {
+      miner.tell(msg, parentActor.ref)
     }
   }
 }
