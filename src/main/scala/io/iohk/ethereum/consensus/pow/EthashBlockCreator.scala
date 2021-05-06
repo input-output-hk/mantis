@@ -10,6 +10,7 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import monix.eval.Task
 import scala.concurrent.duration.FiniteDuration
 
@@ -32,8 +33,10 @@ class EthashBlockCreator(
       withTransactions: Boolean = true,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
   ): Task[PendingBlockAndState] = {
+    log.debug("Getting block for mining, withTxs: {}", withTransactions)
     val transactions = if (withTransactions) getTransactionsFromPool else Task.now(PendingTransactionsResponse(Nil))
     Task.parZip2(getOmmersFromPool(parentBlock.hash), transactions).map { case (ommers, pendingTxs) =>
+      log.debug("Transactions for block {}", pendingTxs.pendingTransactions.map(_.stx.tx.hash.toHex))
       blockGenerator.generateBlock(
         parentBlock,
         pendingTxs.pendingTransactions.map(_.stx.tx),
