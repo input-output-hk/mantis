@@ -1,6 +1,7 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
+import java.util.concurrent.TimeUnit
 
 import akka.actor._
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
@@ -25,7 +26,13 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen}, Arbitrary.arbitrary
+import org.scalacheck.{Arbitrary, Gen}
+import Arbitrary.arbitrary
+import com.github.blemale.scaffeine.Scaffeine
+import com.google.common.testing.FakeTicker
+import io.iohk.ethereum.blockchain.sync.Blacklist.{BlacklistId, BlacklistReason}
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
+
 import scala.concurrent.duration._
 
 // scalastyle:off magic.number
@@ -61,7 +68,7 @@ class PeerManagerSpec
     peerManager ! PeerClosedConnection(peer.remoteAddress.getHostString, Disconnect.Reasons.Other)
 
     eventually {
-      peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
+      peerManager.underlyingActor.blacklist.keys.size shouldEqual 1
     }
   }
 
@@ -318,10 +325,10 @@ class PeerManagerSpec
 
     peerManager ! PeerClosedConnection(discoveredNodes.head.addr.getHostAddress, Disconnect.Reasons.TooManyPeers)
 
-    peerManager.underlyingActor.blacklistedPeers.size shouldEqual 1
+    peerManager.underlyingActor.blacklist.keys.size shouldEqual 1
     peerManager.underlyingActor.triedNodes.size shouldEqual 2
 
-    time.advance(360000) // wait till the peer is out of the blacklist
+    ticker.advance(6, TimeUnit.MINUTES)
 
     val newRoundDiscoveredNodes = discoveredNodes + Node.fromUri(
       new java.net.URI(
@@ -337,7 +344,7 @@ class PeerManagerSpec
     val probe3: TestProbe = createdPeers(2).probe
     probe3.expectMsgClass(classOf[PeerActor.ConnectTo])
 
-    peerManager.underlyingActor.blacklistedPeers.size shouldEqual 0
+    peerManager.underlyingActor.blacklist.keys.size shouldEqual 0
     peerManager.underlyingActor.triedNodes.size shouldEqual 3
   }
 
@@ -563,6 +570,19 @@ class PeerManagerSpec
     val incomingConnection3 = TestProbe()
     val incomingNodeId3 = ByteString(3)
     val incomingPeerAddress3 = new InetSocketAddress("127.0.0.4", port)
+    val ticker = new FakeTicker()
+    val cache = Scaffeine()
+      .expireAfter[BlacklistId, BlacklistReason.BlacklistReasonType](
+        create = (_, _) => 60.minutes,
+        update = (_, _, _) => 60.minutes,
+        read = (_, _, duration) => duration
+      )
+      .maximumSize(
+        10
+      )
+      .ticker(ticker.read _)
+      .build[BlacklistId, BlacklistReason.BlacklistReasonType]()
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist(cache)
 
     val peerStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.PV63,
@@ -589,6 +609,7 @@ class PeerManagerSpec
           peerStatistics.ref,
           peerFactory,
           discoveryConfig,
+          blacklist,
           Some(time.scheduler)
         )
       )

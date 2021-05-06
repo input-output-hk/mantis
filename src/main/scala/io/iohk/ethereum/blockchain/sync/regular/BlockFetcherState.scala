@@ -4,6 +4,7 @@ import akka.actor.ActorRef
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.implicits._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
@@ -122,10 +123,10 @@ case class BlockFetcherState(
     * even more, we could receive an empty chain and that will be considered valid. Here we just
     * validate that the received bodies corresponds to an ordered subset of the requested headers.
     */
-  def validateBodies(receivedBodies: Seq[BlockBody]): Either[String, Seq[Block]] =
+  def validateBodies(receivedBodies: Seq[BlockBody]): Either[BlacklistReason, Seq[Block]] =
     bodiesAreOrderedSubsetOfRequested(waitingHeaders.toList, receivedBodies)
       .toRight(
-        "Received unrequested bodies"
+        BlacklistReason.UnrequestedBodies
       )
 
   // Checks that the received block bodies are an ordered subset of the ones requested

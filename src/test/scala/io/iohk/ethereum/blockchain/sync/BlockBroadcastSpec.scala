@@ -1,8 +1,10 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
+
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
@@ -30,7 +32,7 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer -> initialPeerInfo))
+    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -52,7 +54,7 @@ class BlockBroadcastSpec
     //when
     blockBroadcast.broadcastBlock(
       BlockToBroadcast(newBlock.block, ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty)),
-      Map(peer -> peerInfo)
+      Map(peer.id -> PeerWithInfo(peer, peerInfo))
     )
 
     //then
@@ -69,7 +71,7 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer -> initialPeerInfo))
+    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
 
     //then
     etcPeerManagerProbe.expectNoMessage()
@@ -83,7 +85,7 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer -> initialPeerInfo))
+    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -99,7 +101,7 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer -> initialPeerInfo))
+    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
 
     //then
     etcPeerManagerProbe.expectNoMessage()
@@ -122,7 +124,7 @@ class BlockBroadcastSpec
     //when
     val peers = Seq(peer, peer2, peer3, peer4)
     val peersIds = peers.map(_.id)
-    val peersWithInfo = peers.map(_ -> initialPeerInfo).toMap
+    val peersWithInfo = peers.map(peer => peer.id -> PeerWithInfo(peer, initialPeerInfo)).toMap
     blockBroadcast.broadcastBlock(BlockToBroadcast(firstBlock.block, firstBlock.chainWeight), peersWithInfo)
 
     //then

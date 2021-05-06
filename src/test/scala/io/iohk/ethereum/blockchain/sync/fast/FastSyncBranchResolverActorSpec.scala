@@ -9,7 +9,6 @@ import akka.testkit.{TestKit, TestProbe}
 import akka.util.{ByteString, Timeout}
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.{BranchResolvedSuccessful, StartBranchResolver}
 import io.iohk.ethereum.domain.{Block, BlockHeader, ChainWeight}
@@ -265,13 +264,13 @@ class FastSyncBranchResolverActorSpec
       )
     }
 
-    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
+    val handshakedPeers: Map[Peer, PeerInfo] = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
 
     def saveBlocks(blocks: List[Block]): Unit = {
       blocks.foreach(block => blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true))
     }
 
-    def createEtcPeerManager(peers: PeersMap, blocks: Map[Int, List[Block]])(implicit
+    def createEtcPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
         scheduler: Scheduler
     ): ActorRef = {
       val etcPeerManager = TestProbe("etc_peer_manager")
@@ -330,7 +329,7 @@ object FastSyncBranchResolverActorSpec extends Logger {
   class EtcPeerManagerAutoPilot(
       responses: Subject[MessageFromPeer, MessageFromPeer],
       peersConnected: Deferred[Task, Unit],
-      peers: PeersMap,
+      peers: Map[Peer, PeerInfo],
       blocks: Map[Int, List[Block]]
   )(implicit scheduler: Scheduler)
       extends AutoPilot {

@@ -2,22 +2,22 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.blockchain.sync.{BlacklistSupport, PeerListSupport}
+import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class BlockBroadcasterActor(
     broadcast: BlockBroadcast,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
+    val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     val scheduler: Scheduler
 ) extends Actor
     with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport {
+    with PeerListSupportNg {
   import BlockBroadcasterActor._
 
-  override def receive: Receive = handlePeerListMessages orElse handleBlacklistMessages orElse handleBroadcastMessages
+  override def receive: Receive = handlePeerListMessages orElse handleBroadcastMessages
 
   private def handleBroadcastMessages: Receive = {
     case BroadcastBlock(newBlock) => broadcast.broadcastBlock(newBlock, handshakedPeers)
@@ -33,6 +33,7 @@ object BlockBroadcasterActor {
       broadcast: BlockBroadcast,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
+      blacklist: Blacklist,
       syncConfig: SyncConfig,
       scheduler: Scheduler
   ): Props =
@@ -41,6 +42,7 @@ object BlockBroadcasterActor {
         broadcast = broadcast,
         peerEventBus = peerEventBus,
         etcPeerManager = etcPeerManager,
+        blacklist = blacklist,
         syncConfig = syncConfig,
         scheduler = scheduler
       )
