@@ -19,7 +19,7 @@ import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class PoWMinerCoordinatorSpec
+class PoWMiningCoordinatorSpec
 // avoid exception "Only adapted classic ActorContext permissible" by using untyped TestKit
     extends TestKit(ActorSystem("PoWMinerCoordinatorSpec_System"))
     with AnyFlatSpecLike
