@@ -72,9 +72,10 @@ class PoWMiningCoordinator private (
       log.info("Received message ProcessMining")
       blockchain
         .getBestBlock()
-        .fold(
+        .fold {
           log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
-        ) { block =>
+          context.self ! DoMining
+        } { block =>
           if (shouldMineWithKeccak(block.header.number)) mineWithKeccak(block) else mineWithEthash(block)
         }
       Behaviors.same
