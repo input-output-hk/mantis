@@ -188,13 +188,25 @@ class EthashBlockHeaderValidatorSpec
     res shouldBe Right(BlockHeaderValid)
   }
 
-  it should "mark as valid a post ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
+  it should "mark as invalid a post ecip1098 block opt-out with opt out defined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number / 2
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
       blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
     val validHeader = validBlockHeader.copy(extraFields = HefPostEcip1098(treasuryOptOut = true))
+
+    val validationResult = blockHeaderValidator.validate(validHeader, validParentBlockHeader)
+    validationResult shouldBe Left(BlockHeaderTreasuryOptOutError)
+  }
+
+  it should "mark as valid a post ecip1098 block opt-out with opt out undefined" in new EphemBlockchainTestSetup {
+    val ecip1098BlockNumber = validBlockHeader.number / 2
+    val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
+      blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
+
+    val validHeader = validBlockHeader.copy(extraFields = HefPostEcip1098(treasuryOptOut = false))
 
     val validationResult = blockHeaderValidator.validate(validHeader, validParentBlockHeader)
     validationResult shouldBe Right(BlockHeaderValid)

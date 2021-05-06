@@ -31,7 +31,6 @@ object ConsensusConfig extends Logger {
     final val HeaderExtraData = "header-extra-data"
     final val BlockCacheSize = "block-cashe-size"
     final val MiningEnabled = "mining-enabled"
-    final val TreasuryOptOut = "treasury-opt-out"
   }
 
   final val AllowedProtocols = Set(
@@ -69,7 +68,8 @@ object ConsensusConfig extends Logger {
       .take(BlockHeaderValidator.MaxExtraDataSize)
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
-    val optOut = config.getBoolean(Keys.TreasuryOptOut)
+    // treasuryOptOut should always be false(no funds burned), keep for backwards compatibility
+    val treasuryOptOut = false
 
     new ConsensusConfig(
       protocol = protocol,
@@ -77,7 +77,7 @@ object ConsensusConfig extends Logger {
       headerExtraData = headerExtraData,
       blockCacheSize = blockCacheSize,
       miningEnabled = miningEnabled,
-      treasuryOptOut = optOut
+      treasuryOptOut = treasuryOptOut
     )
   }
 }

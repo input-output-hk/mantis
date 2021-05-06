@@ -49,6 +49,7 @@ object BlockHeaderError {
   case class HeaderFieldNotEmptyError(msg: String) extends BlockHeaderError
   case class HeaderNotMatchParentError(msg: String) extends BlockHeaderError
   case object CheckpointHeaderTreasuryOptOutError extends BlockHeaderError
+  case object BlockHeaderTreasuryOptOutError extends BlockHeaderError
 
   case class HeaderUnexpectedError(msg: String) extends BlockHeaderError
 }

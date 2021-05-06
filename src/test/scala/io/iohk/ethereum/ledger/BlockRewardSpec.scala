@@ -130,13 +130,17 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
         MinerRewardPercentageAfterECIP1098 * blockReward / 100,
         TreasuryRewardPercentageAfterECIP1098 * blockReward / 100
       ),
-      (Some(true), true, MinerRewardPercentageAfterECIP1098 * blockReward / 100, 0)
+      (
+        Some(true),
+        true,
+        MinerRewardPercentageAfterECIP1098 * blockReward / 100,
+        TreasuryRewardPercentageAfterECIP1098 * blockReward / 100
+      )
     )
 
     forAll(table) { case (minerOptsOut, contractDeployed, minerReward, treasuryReward) =>
       val minerAddress = validAccountAddress
       val block = sampleBlock(minerAddress, Nil, minerOptsOut)
-
       val worldBeforeExecution =
         if (contractDeployed) worldState
         else {
