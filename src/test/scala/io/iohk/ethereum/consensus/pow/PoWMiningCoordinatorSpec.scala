@@ -58,6 +58,7 @@ class PoWMiningCoordinatorSpec
   it should "[Recurrent Mining] ProcessMining starts EthashMiner if mineWithKeccak is false" in new TestSetup(
     "EthashMining"
   ) {
+    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
     LoggingTestKit.info("Spawning an EthashMiner").expect {
       coordinator ! StartMining(RecurrentMining)
@@ -79,6 +80,7 @@ class PoWMiningCoordinatorSpec
       ),
       "KeccakMining"
     )
+    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
 
     LoggingTestKit
@@ -106,6 +108,34 @@ class PoWMiningCoordinatorSpec
       "AutomaticMining"
     )
 
+    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+    setBlockForMining(parentBlock)
+    coordinator ! StartMining(RecurrentMining)
+
+    sync.expectMsgType[MinedBlock]
+    sync.expectMsgType[MinedBlock]
+    sync.expectMsgType[MinedBlock]
+
+    coordinator ! StopMining
+  }
+
+  it should "[Recurrent Mining] Continue to attempt to mine if blockchain.getBestBlock() return None" in new TestSetup(
+    "AllwaysAttempToMine"
+  ) {
+    override val coordinator = system.spawn(
+      PoWMiningCoordinator(
+        sync.ref,
+        ethMiningService,
+        blockCreator,
+        blockchain,
+        Some(0)
+      ),
+      "AllwaysAttempToMine"
+    )
+
+    (blockchain.getBestBlock _).expects().returns(None).twice()
+    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+
     setBlockForMining(parentBlock)
     coordinator ! StartMining(RecurrentMining)
 
@@ -130,6 +160,7 @@ class PoWMiningCoordinatorSpec
     )
     probe.watch(coordinator.ref.toClassic)
 
+    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
     coordinator ! StartMining(RecurrentMining)
     coordinator ! StopMining
@@ -173,7 +204,6 @@ class PoWMiningCoordinatorSpec
       coordinatorName
     )
 
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     (ethMiningService.submitHashRate _)
       .expects(*)
       .returns(Task.now(Right(SubmitHashRateResponse(true))))
