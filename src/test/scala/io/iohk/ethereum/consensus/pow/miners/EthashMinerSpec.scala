@@ -134,6 +134,7 @@ class EthashMinerSpec
       minedBlock.body.transactionList shouldBe Seq(txToMine)
       minedBlock.header.nonce.length shouldBe 8
       powBlockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
+      coordinator.expectMsg(PoWMiningCoordinator.MiningSuccessful)
     }
   }
 }
