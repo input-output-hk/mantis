@@ -4,13 +4,12 @@ import akka.actor.testkit.typed.scaladsl.{BehaviorTestKit, ScalaTestWithActorTes
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWConsensus}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWConsensus, PoWMiningCoordinator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.EthInfoService
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config
-import org.scalatest.Tag
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
@@ -66,7 +65,7 @@ class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike w
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig.copy(ecip1049BlockNumber = Some(0))
     val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
 
-    val coordinatorRef = TestInbox[CoordinatorProtocol]("coordinator")
+    val coordinatorRef = testKit.createTestProbe[CoordinatorProtocol]()
     val ethService: EthInfoService = mock[EthInfoService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
@@ -95,6 +94,7 @@ class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike w
       minedBlock.body.transactionList shouldBe Seq(txToMine)
       minedBlock.header.nonce.length shouldBe 8
       powBlockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
+      coordinatorRef.expectMessage(PoWMiningCoordinator.MiningSuccessful)
     }
   }
 }
