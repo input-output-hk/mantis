@@ -15,7 +15,8 @@ import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.ledger.Ledger.{BlockResult, PreparedBlock}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter, InMemoryWorldStateProxy}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import io.iohk.ethereum.utils.ByteUtils.or
 
 /**
@@ -27,7 +28,7 @@ abstract class BlockGeneratorSkeleton(
     consensusConfig: ConsensusConfig,
     difficultyCalc: DifficultyCalculator,
     _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
-) extends TestBlockGenerator {
+) extends TestBlockGenerator with Logger {
 
   protected val headerExtraData = consensusConfig.headerExtraData
 
@@ -152,6 +153,7 @@ abstract class BlockGeneratorSkeleton(
       .reverse
       .flatMap { case (_, txs) => txs }
 
+    log.debug("Preparing transactions: {}", sortedTransactions.map(_.hash.toHex))
     val transactionsForBlock: Seq[SignedTransaction] = sortedTransactions
       .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) =>
         (accumulatedGas + stx.tx.gasLimit, Some(stx))
@@ -159,7 +161,7 @@ abstract class BlockGeneratorSkeleton(
       .collect { case (gas, Some(stx)) => (gas, stx) }
       .takeWhile { case (gas, _) => gas <= blockGasLimit }
       .map { case (_, stx) => stx }
-
+    log.debug("Selecting transactions: {}", transactionsForBlock.map(_.hash.toHex))
     transactionsForBlock
   }
 
