@@ -12,6 +12,7 @@ import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.jsonrpc.{EthInfoService, EthMiningService}
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils}
 import monix.execution.Scheduler
 
@@ -58,6 +59,7 @@ class EthashMiner(
           .getBlockForMining(blockValue)
           .map { case PendingBlockAndState(PendingBlock(block, _), _) =>
             val blockNumber = block.header.number
+            log.debug("Processing mining block {}", blockNumber)
             val (startTime, mineResult) =
               // ECIP-1049 //TODO refactoring in ETCM-759 to remove the if clause
               if (isKeccak(blockNumber)) doKeccakMining(block, blockCreator.miningConfig.mineRounds)
@@ -72,6 +74,7 @@ class EthashMiner(
                 log.info(
                   s"Mining successful with ${ByteStringUtils.hash2string(mixHash)} and nonce ${ByteStringUtils.hash2string(nonce)}"
                 )
+                log.debug("Block txs {}", block.body.transactionList.map(_.hash.toHex))
                 syncController ! SyncProtocol.MinedBlock(
                   block.copy(header = block.header.copy(nonce = nonce, mixHash = mixHash))
                 )
