@@ -6,6 +6,7 @@ import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.{ByteString, Timeout}
 import cats.data.NonEmptyList
 import cats.instances.option._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
@@ -126,7 +127,7 @@ class BlockFetcher(
       case InvalidateBlocksFrom(blockNr, reason, withBlacklist) =>
         val (blockProvider, newState) = state.invalidateBlocksFrom(blockNr, withBlacklist)
         log.debug("Invalidate blocks from {}", blockNr)
-        blockProvider.foreach(peersClient ! BlacklistPeer(_, reason))
+        blockProvider.foreach(peersClient ! BlacklistPeer(_, BlacklistReason.BlockImportError(reason)))
         fetchBlocks(newState)
 
       case ReceivedHeaders(headers) if state.isFetchingHeaders =>
@@ -326,7 +327,7 @@ object BlockFetcher {
     def apply(from: BigInt, reason: String, toBlacklist: Option[BigInt]): InvalidateBlocksFrom =
       new InvalidateBlocksFrom(from, reason, toBlacklist)
   }
-  final case class BlockImportFailed(blockNr: BigInt, reason: String) extends FetchCommand
+  final case class BlockImportFailed(blockNr: BigInt, reason: BlacklistReason) extends FetchCommand
   final case class InternalLastBlockImport(blockNr: BigInt) extends FetchCommand
   final case object RetryBodiesRequest extends FetchCommand
   final case object RetryHeadersRequest extends FetchCommand

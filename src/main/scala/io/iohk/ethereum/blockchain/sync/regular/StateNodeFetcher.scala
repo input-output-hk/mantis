@@ -12,6 +12,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import cats.syntax.either._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import monix.execution.Scheduler
 
 import scala.util.{Failure, Success}
@@ -46,15 +47,13 @@ class StateNodeFetcher(
         requester
           .collect(stateNodeRequester => {
             val validatedNode = values
-              .asRight[String]
-              .ensure(s"Empty response from peer $peer, blacklisting")(_.nonEmpty)
-              .ensure("Fetched node state hash doesn't match requested one, blacklisting peer")(nodes =>
-                stateNodeRequester.hash == kec256(nodes.head)
-              )
+              .asRight[BlacklistReason]
+              .ensure(BlacklistReason.EmptyStateNodeResponse)(_.nonEmpty)
+              .ensure(BlacklistReason.WrongStateNodeResponse)(nodes => stateNodeRequester.hash == kec256(nodes.head))
 
             validatedNode match {
               case Left(err) =>
-                log.debug(err)
+                log.debug(err.description)
                 peersClient ! BlacklistPeer(peer.id, err)
                 context.self ! StateNodeFetcher.FetchStateNode(stateNodeRequester.hash, stateNodeRequester.replyTo)
                 Behaviors.same[StateNodeFetcherCommand]

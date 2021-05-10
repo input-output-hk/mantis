@@ -4,6 +4,7 @@ import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
 import cats.data.NonEmptyList
 import cats.implicits._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
@@ -20,7 +21,6 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
 import monix.eval.Task
 import monix.execution.Scheduler
-import org.bouncycastle.util.encoders.Hex
 
 import scala.concurrent.duration._
 
@@ -263,7 +263,7 @@ class BlockImporter(
               Task.raiseError(missingNodeException)
             case BlockImportFailed(error) =>
               if (informFetcherOnFail) {
-                fetcher ! BlockFetcher.BlockImportFailed(block.number, error)
+                fetcher ! BlockFetcher.BlockImportFailed(block.number, BlacklistReason.BlockImportError(error))
               }
           }
           .map(_ => Running)
