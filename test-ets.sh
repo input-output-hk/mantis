@@ -28,10 +28,12 @@ function run_and_annotate {
   if [[ -z "$summary" ]]; then
     summary="retesteth crashed; check the artifacts"
   fi
+  passed=$(grep -oP 'Total Tests Run: \d+' "retesteth-$1-log.txt")
+  failed=$(grep -oP 'TOTAL ERRORS DETECTED: \d+' "retesteth-$1-log.txt")
 
   cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
 <details>
-<summary>retesteth: $1</summary>
+<summary>retesteth: $1 -- $passed -- $failed</summary>
 <pre class="term"><code>
 $summary
 </code></pre>
