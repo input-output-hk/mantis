@@ -267,7 +267,7 @@ class BlockImporterItSpec
 
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
-          case BlockFetcher.FetchStateNode(_) => true
+          case BlockFetcher.FetchStateNode(_, _) => true
           case _ => false
         }
         .asInstanceOf[BlockFetcher.FetchStateNode]
