@@ -1,18 +1,34 @@
 package io.iohk.ethereum.healthcheck
 
-final case class HealthcheckResult private (description: String, status: String, error: Option[String]) {
-  assert(
-    status == HealthcheckStatus.OK && error.isEmpty || status == HealthcheckStatus.ERROR && error.isDefined
-  )
+final case class HealthcheckResult private (
+    name: String,
+    status: String,
+    info: Option[String]
+) {
 
   def isOK: Boolean = status == HealthcheckStatus.OK
 }
 
 object HealthcheckResult {
-  def apply(description: String, error: Option[String]): HealthcheckResult =
+
+  def ok(name: String, info: Option[String] = None): HealthcheckResult =
     new HealthcheckResult(
-      description = description,
-      status = error.fold(HealthcheckStatus.OK)(_ => HealthcheckStatus.ERROR),
-      error = error
+      name = name,
+      status = HealthcheckStatus.OK,
+      info = info
+    )
+
+  def error(name: String, error: String): HealthcheckResult =
+    new HealthcheckResult(
+      name = name,
+      status = HealthcheckStatus.ERROR,
+      info = Some(error)
+    )
+
+  def customStatus(name: String, status: String): HealthcheckResult =
+    new HealthcheckResult(
+      name = name,
+      status = status,
+      info = None
     )
 }

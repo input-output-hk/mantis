@@ -10,6 +10,7 @@ import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.testkit.ScalatestRouteTest
 import akka.util.ByteString
 import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
+import org.json4s.native.JsonMethods._
 import io.iohk.ethereum.healthcheck.{HealthcheckResponse, HealthcheckResult}
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
@@ -32,20 +33,44 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
   it should "respond to healthcheck" in new TestSetup {
     (mockJsonRpcHealthChecker.healthCheck _)
       .expects()
-      .returning(Task.now(HealthcheckResponse(List(HealthcheckResult("listening", "OK", None)))))
+      .returning(Task.now(HealthcheckResponse(List(HealthcheckResult.ok("peerCount", Some("2"))))))
 
     val getRequest = HttpRequest(HttpMethods.GET, uri = "/healthcheck")
 
     getRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
       status shouldEqual StatusCodes.OK
-      responseAs[String] shouldEqual """{
+      parse(responseAs[String]) shouldEqual parse("""{
                                        |  "checks":[
-                                       |    {
-                                       |      "description":"listening",
-                                       |      "status":"OK"
-                                       |    }
+                                       |    { "name": "peerCount", "status": "OK", "info": "2" }
                                        |  ]
-                                       |}""".stripMargin
+                                       |}""".stripMargin)
+    }
+  }
+
+  it should "respond to healthcheck with an error if one healtcheck fails" in new TestSetup {
+    (mockJsonRpcHealthChecker.healthCheck _)
+      .expects()
+      .returning(
+        Task.now(
+          HealthcheckResponse(
+            List(
+              HealthcheckResult.ok("otherCheck"),
+              HealthcheckResult.error("peerCount", "peer count is 0")
+            )
+          )
+        )
+      )
+
+    val getRequest = HttpRequest(HttpMethods.GET, uri = "/healthcheck")
+
+    getRequest ~> Route.seal(mockJsonRpcHttpServer.route) ~> check {
+      status shouldEqual StatusCodes.InternalServerError
+      parse(responseAs[String]) shouldEqual parse("""{
+                                       |  "checks":[
+                                       |    { "name": "otherCheck", "status": "OK" },
+                                       |    { "name": "peerCount", "status": "ERROR", "info": "peer count is 0" }
+                                       |  ]
+                                       |}""".stripMargin)
     }
   }
 
