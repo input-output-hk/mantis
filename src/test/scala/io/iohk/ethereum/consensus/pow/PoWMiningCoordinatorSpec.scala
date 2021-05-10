@@ -21,7 +21,7 @@ import scala.concurrent.duration._
 
 class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers {
 
-  "PoWMinerCoordinator actor" should "throw exception when starting with other message than StartMining(mode)" ignore new TestSetup(
+  "PoWMinerCoordinator actor" should "throw exception when starting with other message than StartMining(mode)" in new TestSetup(
     "FailedCoordinator"
   ) {
     LoggingTestKit.error("StopMining").expect {
@@ -29,7 +29,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     }
   }
 
-  it should "start recurrent mining when receiving message StartMining(RecurrentMining)" ignore new TestSetup(
+  it should "start recurrent mining when receiving message StartMining(RecurrentMining)" in new TestSetup(
     "RecurrentMining"
   ) {
     setBlockForMining(parentBlock)
@@ -39,7 +39,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     coordinator ! StopMining
   }
 
-  it should "start on demand mining when receiving message StartMining(OnDemandMining)" ignore new TestSetup(
+  it should "start on demand mining when receiving message StartMining(OnDemandMining)" in new TestSetup(
     "OnDemandMining"
   ) {
     LoggingTestKit.info("Received message StartMining(OnDemandMining)").expect {
@@ -48,7 +48,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     coordinator ! StopMining
   }
 
-  it should "[Recurrent Mining] ProcessMining starts EthashMiner if mineWithKeccak is false" ignore new TestSetup(
+  it should "[Recurrent Mining] ProcessMining starts EthashMiner if mineWithKeccak is false" in new TestSetup(
     "EthashMining"
   ) {
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
@@ -60,7 +60,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     coordinator ! StopMining
   }
 
-  it should "[Recurrent Mining] ProcessMining starts KeccakMiner if mineWithKeccak is true" ignore new TestSetup(
+  it should "[Recurrent Mining] ProcessMining starts KeccakMiner if mineWithKeccak is true" in new TestSetup(
     "KeccakMining"
   ) {
     override val coordinator = system.systemActorOf(
@@ -88,7 +88,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
   }
 
   it should "[Recurrent Mining] Miners mine recurrently" in new TestSetup(
-    "AutomaticMining"
+    "RecurrentMining"
   ) {
     override val coordinator = testKit.spawn(
       PoWMiningCoordinator(
@@ -112,8 +112,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     coordinator ! StopMining
   }
 
-  it should "[Recurrent Mining] Continue to attempt to mine if blockchain.getBestBlock() return None" ignore new TestSetup(
-    "AlwaysAttemptToMine"
+  it should "[Recurrent Mining] Continue to attempt to mine if blockchain.getBestBlock() return None" in new TestSetup(
+    "AlwaysMine"
   ) {
     override val coordinator = testKit.spawn(
       PoWMiningCoordinator(
@@ -123,7 +123,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
         blockchain,
         Some(0)
       ),
-      "AllwaysAttempToMine"
+      "AlwaysAttemptToMine"
     )
 
     (blockchain.getBestBlock _).expects().returns(None).twice()
@@ -139,7 +139,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     coordinator ! StopMining
   }
 
-  it should "[Recurrent Mining] StopMining stops PoWMinerCoordinator" ignore new TestSetup("StoppingMining") {
+  it should "[Recurrent Mining] StopMining stops PoWMinerCoordinator" in new TestSetup("StoppingMining") {
     val probe = TestProbe()
     override val coordinator = testKit.spawn(
       PoWMiningCoordinator(
