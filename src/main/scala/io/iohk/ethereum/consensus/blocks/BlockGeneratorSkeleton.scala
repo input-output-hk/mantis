@@ -140,6 +140,7 @@ abstract class BlockGeneratorSkeleton(
           .sortBy(-_.tx.gasPrice)
           .sortBy(_.tx.nonce)
           .foldLeft(Seq.empty[SignedTransaction]) { case (txs, tx) =>
+            log.debug("Sorting and filtering: {}, limit {}, price {}, nonce {}", tx.hash.toHex, tx.tx.gasLimit, tx.tx.gasPrice, tx.tx.nonce)
             if (txs.exists(_.tx.nonce == tx.tx.nonce)) {
               txs
             } else {
