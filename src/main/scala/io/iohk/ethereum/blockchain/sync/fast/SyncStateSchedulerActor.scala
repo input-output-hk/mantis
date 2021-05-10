@@ -184,7 +184,9 @@ class SyncStateSchedulerActor(
       case RequestFailed(from, reason) =>
         log.debug("Processing failed request from {}. Failure reason {}", from, reason)
         val newDownloaderState = currentState.currentDownloaderState.handleRequestFailure(from)
-        ProcessingResult(Left(DownloaderError(newDownloaderState, from, Some(BlacklistReason.RequestFailed(reason)))))
+        ProcessingResult(
+          Left(DownloaderError(newDownloaderState, from, Some(BlacklistReason.FastSyncRequestFailed(reason))))
+        )
     }
   }
 
