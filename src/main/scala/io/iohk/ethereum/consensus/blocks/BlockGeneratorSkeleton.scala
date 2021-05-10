@@ -130,6 +130,7 @@ abstract class BlockGeneratorSkeleton(
       blockGasLimit: BigInt
   ): Seq[SignedTransaction] = {
 
+    log.debug("Block gas limit {}", blockGasLimit)
     val sortedTransactions: Seq[SignedTransaction] = transactions
       //should be safe to call get as we do not insert improper transactions to pool.
       .groupBy(tx => SignedTransaction.getSender(tx).get)
