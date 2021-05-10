@@ -2,9 +2,11 @@ package io.iohk.ethereum.txExecTest.util
 
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
@@ -100,6 +102,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
 
   val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30)(Clock.systemUTC()))
 
+  val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
+
   val peerManager = actorSystem.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
@@ -111,6 +115,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       authHandshaker = authHandshaker,
       messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
+      blacklist = blacklist,
       bestProtocolVersion = Config.Network.protocolVersion
     ),
     "peer-manager"

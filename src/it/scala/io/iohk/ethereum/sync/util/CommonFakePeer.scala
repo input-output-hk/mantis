@@ -10,7 +10,7 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, TestSyncConfig}
+import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, CacheBasedBlacklist, TestSyncConfig}
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
@@ -27,15 +27,7 @@ import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfigur
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{
-  EtcPeerManagerActor,
-  ForkResolver,
-  KnownNodesManager,
-  PeerEventBusActor,
-  PeerManagerActor,
-  PeerStatisticsActor,
-  ServerActor
-}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, ForkResolver, KnownNodesManager, PeerEventBusActor, PeerManagerActor, PeerStatisticsActor, ServerActor}
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
@@ -179,6 +171,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val peerStatistics =
     system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
 
+  lazy val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(1000)
+
   lazy val peerManager: ActorRef = system.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager,
@@ -190,6 +184,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       authHandshaker,
       EthereumMessageDecoder,
       discoveryConfig,
+      blacklist,
       Config.Network.protocolVersion
     ),
     "peer-manager"
@@ -231,7 +226,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   lazy val broadcaster = new BlockBroadcast(etcPeerManager)
 
   lazy val broadcasterActor = system.actorOf(
-    BlockBroadcasterActor.props(broadcaster, peerEventBus, etcPeerManager, testSyncConfig, system.scheduler)
+    BlockBroadcasterActor.props(broadcaster, peerEventBus, etcPeerManager, blacklist, testSyncConfig, system.scheduler)
   )
 
   private def getMptForBlock(block: Block) = {

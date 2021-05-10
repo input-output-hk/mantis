@@ -62,7 +62,7 @@ object RegularSyncItSpecUtils {
 
     lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
     lazy val peersClient: ActorRef =
-      system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, testSyncConfig, system.scheduler), "peers-client")
+      system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, blacklist, testSyncConfig, system.scheduler), "peers-client")
 
     lazy val ledger: Ledger =
       new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
@@ -78,7 +78,7 @@ object RegularSyncItSpecUtils {
 
     val broadcasterRef: ActorRef = system.actorOf(
       BlockBroadcasterActor
-        .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, system.scheduler),
+        .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, blacklist, syncConfig, system.scheduler),
       "block-broadcaster"
     )
 
@@ -109,6 +109,7 @@ object RegularSyncItSpecUtils {
         ledger,
         bl,
         validators.blockValidator,
+        blacklist,
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
