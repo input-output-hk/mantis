@@ -130,10 +130,21 @@ abstract class BlockGeneratorSkeleton(
       blockGasLimit: BigInt
   ): Seq[SignedTransaction] = {
 
+    transactions.foreach { tx =>
+      log.debug("Incoming transactions: {}, limit {}, price {}, nonce {}", tx.hash.toHex, tx.tx.gasLimit, tx.tx.gasPrice, tx.tx.nonce)
+    }
+
     log.debug("Block gas limit {}", blockGasLimit)
-    val sortedTransactions: Seq[SignedTransaction] = transactions
+    val groupped = transactions
       //should be safe to call get as we do not insert improper transactions to pool.
       .groupBy(tx => SignedTransaction.getSender(tx).get)
+
+    groupped.foreach { case (k, vs) =>
+      log.debug("Group: {}", k.toString)
+      vs.foreach(tx =>
+        log.debug("Tx in group: {}, limit {}, price {}, nonce {}", tx.hash.toHex, tx.tx.gasLimit, tx.tx.gasPrice, tx.tx.nonce))
+    }
+    val sortedTransactions: Seq[SignedTransaction] = groupped
       .values
       .toList
       .flatMap { txsFromSender =>
