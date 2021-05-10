@@ -1,22 +1,20 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.testkit.typed.scaladsl.{BehaviorTestKit, ScalaTestWithActorTestKit, TestInbox}
-import io.iohk.ethereum.Timeouts
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import io.iohk.ethereum.{MiningPatience, Timeouts}
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWConsensus, PoWMiningCoordinator}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.EthInfoService
-import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.utils.Config
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration.{Duration, FiniteDuration, _}
 
-class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike with Matchers {
-
+class KeccakMinerSpec extends AnyFlatSpec with Matchers {
   "KeccakMiner actor" should "mine valid blocks" in new TestSetup {
     val parentBlock: Block = origin
     setBlockForMining(parentBlock)
@@ -44,23 +42,20 @@ class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike w
     executeTest(parentBlock)
   }
 
-  // BehaviorTestKit is not stopping itself https://github.com/akka/akka/issues/29780
-  it should "shutdown itself after mining" ignore
-    new TestSetup {
-      val parentBlock: Block = origin
-      setBlockForMining(parentBlock)
+  // test is failing. Through the PoWMiningCoordinator this has been tested successfully :/
+  it should "shutdown itself after mining" ignore new TestSetup {
+    val probe = testKit.createTestProbe[MinerProtocol]()
+    val parentBlock: Block = origin
+    setBlockForMining(parentBlock)
 
-      executeTest(parentBlock)
-      eventually {
-        miner.isAlive shouldBe false
-      }
+    executeTest(parentBlock)
+    eventually {
+      probe.expectTerminated(miner)
     }
+  }
 
-  trait TestSetup extends MinerSpecSetup {
+  trait TestSetup extends ScalaTestWithActorTestKit with MinerSpecSetup {
     private implicit val durationTimeout: Duration = Timeouts.miningTimeout
-
-    override lazy val vm: VMImpl = new VMImpl
-    override lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig.copy(ecip1049BlockNumber = Some(0))
     val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
@@ -76,7 +71,7 @@ class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike w
       ommersPool = ommersPool.ref
     )
 
-    val miner = BehaviorTestKit(KeccakMiner(blockCreator, sync.ref, ethMiningService))
+    val miner = testKit.spawn(KeccakMiner(blockCreator, sync.ref, ethMiningService))
 
     protected def executeTest(parentBlock: Block): Unit = {
       prepareMocks()
@@ -85,7 +80,7 @@ class KeccakMinerSpec extends ScalaTestWithActorTestKit() with AnyFlatSpecLike w
     }
 
     private def startMining(parentBlock: Block, replyTo: akka.actor.typed.ActorRef[CoordinatorProtocol]): Block = {
-      miner.run(MinerProtocol.ProcessMining(parentBlock, replyTo))
+      miner ! MinerProtocol.ProcessMining(parentBlock, replyTo)
       val block = waitForMinedBlock
       block
     }

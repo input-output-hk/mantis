@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.actor.{ActorSystem => ClassicSystem}
+import akka.testkit.{TestActorRef, TestKit}
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.consensus.pow.MinerSpecSetup
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
@@ -17,7 +17,7 @@ import org.scalatest.wordspec.AnyWordSpecLike
 import scala.concurrent.duration._
 
 class MockedMinerSpec
-    extends TestKit(ActorSystem("MockedPowMinerSpec_System"))
+    extends TestKit(ClassicSystem("MockedPowMinerSpec_System"))
     with AnyWordSpecLike
     with Matchers
     with WithActorSystemShutDown {
@@ -26,13 +26,13 @@ class MockedMinerSpec
 
   "MockedPowMiner actor" should {
     "not mine blocks" when {
-      "there is no request" in new MockedMinerSetup {
+      "there is no request" in new TestSetup {
         expectNoNewBlockMsg(noMessageTimeOut)
       }
     }
 
     "not mine block and return MinerNotSupport msg" when {
-      "the request comes before miner started" in new MockedMinerSetup {
+      "the request comes before miner started" in new TestSetup {
         val msg = MineBlocks(1, false, None)
         sendToMiner(msg)
         expectNoNewBlockMsg(noMessageTimeOut)
@@ -41,7 +41,7 @@ class MockedMinerSpec
     }
 
     "stop mining in case of error" when {
-      "Unable to get block for mining" in new MockedMinerSetup {
+      "Unable to get block for mining" in new TestSetup {
         val parent = origin
         val bfm1 = setBlockForMining(parent, Seq.empty)
 
@@ -70,7 +70,7 @@ class MockedMinerSpec
         }
       }
 
-      "Unable to get parent block for mining" in new MockedMinerSetup {
+      "Unable to get parent block for mining" in new TestSetup {
         val parentHash = origin.hash
 
         val errorMsg = s"Unable to get parent block with hash ${ByteStringUtils.hash2string(parentHash)} for mining"
@@ -88,7 +88,7 @@ class MockedMinerSpec
     }
 
     "return MinerIsWorking to requester" when {
-      "miner is working during next mine request" in new MockedMinerSetup {
+      "miner is working during next mine request" in new TestSetup {
         val parent = origin
         val bfm = setBlockForMining(parent, Seq.empty)
 
@@ -110,7 +110,7 @@ class MockedMinerSpec
     }
 
     "mine valid blocks" when {
-      "there is request for block with other parent than best block" in new MockedMinerSetup {
+      "there is request for block with other parent than best block" in new TestSetup {
         val parent = origin
         val parentHash = origin.hash
         val bfm = setBlockForMining(parent, Seq.empty)
@@ -130,7 +130,7 @@ class MockedMinerSpec
         }
       }
 
-      "there is request for one block without transactions" in new MockedMinerSetup {
+      "there is request for one block without transactions" in new TestSetup {
         val parent = origin
         val bfm = setBlockForMining(parent, Seq.empty)
 
@@ -147,7 +147,7 @@ class MockedMinerSpec
         }
       }
 
-      "there is request for one block with transactions" in new MockedMinerSetup {
+      "there is request for one block with transactions" in new TestSetup {
         val parent = origin
         val bfm = setBlockForMining(parent)
 
@@ -164,7 +164,7 @@ class MockedMinerSpec
         }
       }
 
-      "there is request for few blocks without transactions" in new MockedMinerSetup {
+      "there is request for few blocks without transactions" in new TestSetup {
         val parent = origin
         val bfm1 = setBlockForMining(parent, Seq.empty)
         val bfm2 = setBlockForMining(bfm1, Seq.empty)
@@ -186,7 +186,7 @@ class MockedMinerSpec
         }
       }
 
-      "there is request for few blocks with transactions" in new MockedMinerSetup {
+      "there is request for few blocks with transactions" in new TestSetup {
         val parent = origin
         val bfm1 = setBlockForMining(parent)
         val bfm2 = setBlockForMining(bfm1, Seq.empty)
@@ -211,7 +211,7 @@ class MockedMinerSpec
     }
   }
 
-  class MockedMinerSetup extends MinerSpecSetup {
+  class TestSetup(implicit system: ClassicSystem) extends MinerSpecSetup {
     val noMessageTimeOut = 3.seconds
 
     val miner = TestActorRef(

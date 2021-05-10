@@ -1,14 +1,13 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.ActorSystem
+import akka.actor.{ActorSystem => ClassicSystem}
 import akka.actor.typed.scaladsl.adapter._
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWConsensus, PoWMiningCoordinator}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.{Fixtures, MiningPatience, Timeouts, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.Tag
@@ -19,7 +18,7 @@ import org.scalatest.matchers.should.Matchers
 import scala.concurrent.duration._
 
 class EthashMinerSpec
-    extends TestKit(ActorSystem("EthashMinerSpec_System"))
+    extends TestKit(ClassicSystem("EthashMinerSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
     with Matchers {
@@ -52,7 +51,6 @@ class EthashMinerSpec
   }
 
   it should "shutdown itself after mining" taggedAs PoWMinerSpecTag in new TestSetup {
-    val probe = TestProbe()
     probe.watch(miner.ref)
 
     val parentBlock: Block = origin
@@ -66,11 +64,9 @@ class EthashMinerSpec
     probe.expectTerminated(miner.ref)
   }
 
-  trait TestSetup extends MinerSpecSetup with Eventually with MiningPatience {
+  class TestSetup(implicit system: ClassicSystem) extends MinerSpecSetup with Eventually with MiningPatience {
+    val probe = TestProbe()
     val coordinator = TestProbe()
-
-    override lazy val vm: VMImpl = new VMImpl
-    override lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
 
     override val origin: Block = Block(
       Fixtures.Blocks.Genesis.header.copy(
@@ -134,7 +130,6 @@ class EthashMinerSpec
       minedBlock.body.transactionList shouldBe Seq(txToMine)
       minedBlock.header.nonce.length shouldBe 8
       powBlockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
-      coordinator.expectMsg(PoWMiningCoordinator.MiningSuccessful)
     }
   }
 }

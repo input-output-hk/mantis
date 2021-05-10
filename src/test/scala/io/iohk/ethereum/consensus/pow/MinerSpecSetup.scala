@@ -1,27 +1,32 @@
 package io.iohk.ethereum.consensus.pow
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, ActorSystem => ClassicSystem}
 import akka.testkit.{TestActor, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
-import io.iohk.ethereum.consensus.ConsensusConfigBuilder
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.{ConsensusConfigBuilder, FullConsensusConfig}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.Config
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-class MinerSpecSetup extends ScenarioSetup with ConsensusConfigBuilder with MockFactory {
+trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+  implicit val classicSystem = ClassicSystem()
   val parentActor = TestProbe()
   val sync = TestProbe()
   val ommersPool: TestProbe = TestProbe()
@@ -29,11 +34,13 @@ class MinerSpecSetup extends ScenarioSetup with ConsensusConfigBuilder with Mock
 
   val origin = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
-  override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
+  val blockchain: BlockchainImpl = mock[BlockchainImpl]
   val blockCreator = mock[PoWBlockCreator]
   val fakeWorld = mock[InMemoryWorldStateProxy]
   val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
   val ethMiningService: EthMiningService = mock[EthMiningService]
+
+  lazy val vm: VMImpl = new VMImpl
 
   val txToMine = SignedTransaction(
     tx = Transaction(
@@ -50,11 +57,25 @@ class MinerSpecSetup extends ScenarioSetup with ConsensusConfigBuilder with Mock
     chainId = 0x3d.toByte
   )
 
-  val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+  lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
+  lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
   val blockForMiningTimestamp = System.currentTimeMillis()
 
   protected def getParentBlock(parentBlockNumber: Int) =
     origin.copy(header = origin.header.copy(number = parentBlockNumber))
+
+  def buildPoWConsensus(): PoWConsensus = {
+    val mantisConfig = Config.config
+    val specificConfig = EthashConfig(mantisConfig)
+
+    val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
+
+    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+
+    val additionalPoWData = NoAdditionalPoWData
+    PoWConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalPoWData)
+  }
 
   protected def setBlockForMining(parentBlock: Block, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {
     val parentHeader: BlockHeader = parentBlock.header
