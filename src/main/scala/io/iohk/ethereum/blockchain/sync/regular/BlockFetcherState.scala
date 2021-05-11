@@ -125,9 +125,7 @@ case class BlockFetcherState(
     */
   def validateBodies(receivedBodies: Seq[BlockBody]): Either[BlacklistReason, Seq[Block]] =
     bodiesAreOrderedSubsetOfRequested(waitingHeaders.toList, receivedBodies)
-      .toRight(
-        BlacklistReason.UnrequestedBodies
-      )
+      .toRight(BlacklistReason.UnrequestedBodies)
 
   // Checks that the received block bodies are an ordered subset of the ones requested
   @tailrec

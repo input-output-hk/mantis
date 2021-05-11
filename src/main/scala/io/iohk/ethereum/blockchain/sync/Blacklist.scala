@@ -43,8 +43,8 @@ object Blacklist {
       val group = "RegularSyncBlacklistGroup"
     }
     //this group is directly translated from WireProtocol
-    trait Peer2PeerBlacklistGroup {
-      val group = "Peer2PeerBlacklistGroup"
+    trait P2PBlacklistGroup {
+      val group = "P2PBlacklistGroup"
     }
   }
 
@@ -103,51 +103,51 @@ object Blacklist {
         val code: Int = 12
         val name: String = "PivotBlockElectionTimeout"
       }
-      case object DisconnectRequestedType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object DisconnectRequestedType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 13
         val name: String = "DisconnectRequested"
       }
-      case object TcpSubsystemErrorType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object TcpSubsystemErrorType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 14
         val name: String = "TcpSubsystemError"
       }
-      case object UselessPeerType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object UselessPeerType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 15
         val name: String = "UselessPeer"
       }
-      case object TooManyPeersType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object TooManyPeersType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 16
         val name: String = "TooManyPeers"
       }
-      case object AlreadyConnectedType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object AlreadyConnectedType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 17
         val name: String = "AlreadyConnected"
       }
-      case object IncompatibleP2pProtocolVersionType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object IncompatibleP2pProtocolVersionType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 18
         val name: String = "IncompatibleP2pProtocolVersion"
       }
-      case object NullNodeIdentityReceivedType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object NullNodeIdentityReceivedType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 19
         val name: String = "NullNodeIdentityReceived"
       }
-      case object ClientQuittingType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object ClientQuittingType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 20
         val name: String = "ClientQuitting"
       }
-      case object UnexpectedIdentityType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object UnexpectedIdentityType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 21
         val name: String = "UnexpectedIdentity"
       }
-      case object IdentityTheSameType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object IdentityTheSameType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 22
         val name: String = "IdentityTheSame"
       }
-      case object TimeoutOnReceivingAMessageType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object TimeoutOnReceivingAMessageType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 23
         val name: String = "TimeoutOnReceivingAMessage"
       }
-      case object OtherSubprotocolSpecificReasonType extends BlacklistReasonType with Peer2PeerBlacklistGroup {
+      case object OtherSubprotocolSpecificReasonType extends BlacklistReasonType with P2PBlacklistGroup {
         val code: Int = 24
         val name: String = "OtherSubprotocolSpecificReason"
       }
@@ -290,7 +290,7 @@ object Blacklist {
       val description: String = s"Block import error: $error"
     }
 
-    private val allPeer2PeerReasons = List(
+    private val allP2PReasons = List(
       DisconnectRequested,
       TcpSubsystemError,
       UselessPeer,
@@ -305,8 +305,8 @@ object Blacklist {
       OtherSubprotocolSpecificReason
     )
 
-    def getPeer2PeerBlacklistReasonByDescription(description: String): BlacklistReason = {
-      allPeer2PeerReasons.find(_.description == description).getOrElse(OtherSubprotocolSpecificReason)
+    def getP2PBlacklistReasonByDescription(description: String): BlacklistReason = {
+      allP2PReasons.find(_.description == description).getOrElse(OtherSubprotocolSpecificReason)
     }
   }
 }

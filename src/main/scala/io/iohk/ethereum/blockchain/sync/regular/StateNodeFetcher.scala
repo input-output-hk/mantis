@@ -53,7 +53,7 @@ class StateNodeFetcher(
 
             validatedNode match {
               case Left(err) =>
-                log.debug(err.description)
+                log.debug("State node validation failed with {}", err.description)
                 peersClient ! BlacklistPeer(peer.id, err)
                 context.self ! StateNodeFetcher.FetchStateNode(stateNodeRequester.hash, stateNodeRequester.replyTo)
                 Behaviors.same[StateNodeFetcherCommand]

@@ -187,7 +187,7 @@ class PeerManagerActor(
       blacklist.add(
         PeerAddress(peerAddress),
         getBlacklistDuration(reason),
-        Blacklist.BlacklistReason.getPeer2PeerBlacklistReasonByDescription(Disconnect.reasonToString(reason))
+        Blacklist.BlacklistReason.getP2PBlacklistReasonByDescription(Disconnect.reasonToString(reason))
       )
 
     case HandlePeerConnection(connection, remoteAddress) =>
