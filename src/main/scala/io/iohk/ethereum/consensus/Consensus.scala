@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import io.iohk.ethereum.consensus.blocks.{BlockGenerator, TestBlockGenerator}
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -64,7 +64,7 @@ trait Consensus {
   /**
     * Sends msg to the internal miner and waits for the response
     */
-  def askMiner(msg: MinerProtocol): Task[MockedMinerResponse]
+  def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse]
 
   /**
     * Sends msg to the internal miner

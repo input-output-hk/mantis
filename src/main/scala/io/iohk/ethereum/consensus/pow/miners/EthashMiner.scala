@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.{Actor, ActorLogging, Props, ActorRef => ClassicActorRef}
+import akka.actor.typed.{ActorRef => TypedActorRef}
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
@@ -34,6 +35,8 @@ class EthashMiner(
 
   private implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
+  private val NUM_BITS: Int = 64
+
   override def receive: Receive = started
 
   def started: Receive = { case ProcessMining(bestBlock, coordinatorRef) =>
@@ -41,14 +44,14 @@ class EthashMiner(
     processMining(bestBlock, coordinatorRef)
   }
 
-  private def processMining(bestBlock: Block, coordinatorRef: akka.actor.typed.ActorRef[CoordinatorProtocol]): Unit = {
+  private def processMining(bestBlock: Block, coordinatorRef: TypedActorRef[CoordinatorProtocol]): Unit =
     blockCreator
       .getBlockForMining(bestBlock)
       .map { case PendingBlockAndState(PendingBlock(block, _), _) =>
         val blockNumber = block.header.number
         val (startTime, mineResult) = doMining(blockNumber.toLong, block)
 
-        submiteHashRate(System.nanoTime() - startTime, mineResult)
+        submitHashRate(System.nanoTime() - startTime, mineResult)
 
         mineResult match {
           case MiningSuccessful(_, mixHash, nonce) =>
@@ -75,9 +78,8 @@ class EthashMiner(
         context.stop(self)
       }
       .runAsyncAndForget
-  }
 
-  private def submiteHashRate(time: Long, mineResult: MiningResult): Unit = {
+  private def submitHashRate(time: Long, mineResult: MiningResult): Unit = {
     val hashRate = if (time > 0) (mineResult.triedHashes.toLong * 1000000000) / time else Long.MaxValue
     ethMiningService.submitHashRate(SubmitHashRateRequest(hashRate, ByteString("mantis-miner")))
   }
@@ -100,8 +102,7 @@ class EthashMiner(
       dag: Array[Array[Int]],
       numRounds: Int
   ): MiningResult = {
-    val numBits = 64
-    val initNonce = BigInt(numBits, new Random())
+    val initNonce = BigInt(NUM_BITS, new Random())
 
     (0 to numRounds).iterator
       .map { round =>

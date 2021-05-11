@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGenerator, PoWBlockGeneratorImpl, RestrictedPoWBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -68,11 +68,10 @@ class PoWConsensus private (
     }
 
   // no interactions are done with minerCoordinatorRef using the ask pattern
-  override def askMiner(msg: MinerProtocol): Task[MockedMinerResponse] = {
+  override def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse] = {
     mockedMinerRef
       .map(_.askFor[MockedMinerResponse](msg))
       .getOrElse(Task.now(MinerNotExist))
-    Task.now(MinerNotExist)
   }
 
   private[this] val mutex = new Object
@@ -83,7 +82,7 @@ class PoWConsensus private (
    *
    * TODO further refactors should focus on extracting two types - one with a miner, one without - based on the config
    */
-  private[this] def startMiningProcess(node: Node, blocKCreator: PoWBlockCreator): Unit = {
+  private[this] def startMiningProcess(node: Node, blockCreator: PoWBlockCreator): Unit = {
     if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
       mutex.synchronized {
         if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
@@ -95,7 +94,7 @@ class PoWConsensus private (
                   PoWMiningCoordinator(
                     node.syncController,
                     node.ethMiningService,
-                    blocKCreator,
+                    blockCreator,
                     blockchain,
                     blockchainConfig.ecip1049BlockNumber
                   ),

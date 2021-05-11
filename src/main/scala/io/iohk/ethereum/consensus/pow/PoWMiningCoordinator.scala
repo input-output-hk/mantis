@@ -81,7 +81,7 @@ class PoWMiningCoordinator private (
       Behaviors.same
 
     case MiningSuccessful | MiningUnsuccessful =>
-      log.info("Assigned miner has completed mining")
+      log.debug("Assigned miner has completed mining")
       context.self ! DoMining
       Behaviors.same
 
@@ -115,7 +115,7 @@ class PoWMiningCoordinator private (
     log.info("Spawning an EthashMiner")
 
     val props = EthashMiner.props(dagManager, blockCreator, syncController, ethMiningService)
-    val ethashMiner = context.toClassic.actorOf(props, geMinerName("EthashMiner", bestBlock.number))
+    val ethashMiner = context.toClassic.actorOf(props, generateMinerName("EthashMiner", bestBlock.number))
     ethashMiner ! MinerProtocol.ProcessMining(bestBlock, context.self.toClassic)
   }
 
@@ -125,7 +125,7 @@ class PoWMiningCoordinator private (
     val keccakMiner =
       context.spawn(
         KeccakMiner(blockCreator, syncController, ethMiningService),
-        name = geMinerName("KeccakMiner", bestBlock.number),
+        name = generateMinerName("KeccakMiner", bestBlock.number),
         DispatcherSelector.sameAsParent()
       )
     keccakMiner ! MinerProtocol.ProcessMining(bestBlock, context.self)
@@ -133,7 +133,7 @@ class PoWMiningCoordinator private (
 
   // The suffix is to make sure we never have two miners with the same name
   // in case we spawn one while the previous is still shutting down
-  private def geMinerName(prefix: String, blockNumber: BigInt): String = {
+  private def generateMinerName(prefix: String, blockNumber: BigInt): String = {
     val randomNumber = 5
     val suffix = Random.alphanumeric.take(randomNumber).mkString
     s"$prefix${blockNumber}_$suffix"
