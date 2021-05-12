@@ -12,7 +12,7 @@ class FaucetJsonRpcHealthCheck(faucetRpcService: FaucetRpcService) extends JsonR
   final val statusHC = JsonRpcHealthcheck.fromServiceResponse("status", faucetRpcService.status(StatusRequest()))
 
   override def healthCheck(): Task[HealthcheckResponse] = {
-    val statusF = statusHC.toTask
+    val statusF = statusHC.map(_.toResult)
     val responseF = statusF.map(check => HealthcheckResponse(List(check)))
 
     handleResponse(responseF)

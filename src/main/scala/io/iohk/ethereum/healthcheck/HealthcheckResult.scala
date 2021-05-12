@@ -24,11 +24,4 @@ object HealthcheckResult {
       status = HealthcheckStatus.ERROR,
       info = Some(error)
     )
-
-  def customStatus(name: String, status: String): HealthcheckResult =
-    new HealthcheckResult(
-      name = name,
-      status = status,
-      info = None
-    )
 }

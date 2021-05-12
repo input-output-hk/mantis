@@ -37,45 +37,55 @@ class NodeJsonRpcHealthChecker(
 
   final val peerCountHC = JsonRpcHealthcheck
     .fromServiceResponse("peerCount", netService.peerCount(PeerCountRequest()))
-    .withInfo(_.value.toString)
-    .withPredicate("peer count is 0")(_.value > 0)
+    .map(healthcheck => healthcheck.withInfo(_.value.toString).withPredicate("peer count is 0")(_.value > 0))
 
   final val storedBlockHC = JsonRpcHealthcheck
     .fromServiceResponse(
       "bestStoredBlock",
       ethBlocksService.getBlockByNumber(BlockByNumberRequest(BlockParam.Latest, fullTxs = true))
     )
-    .collect("No block is currently stored") { case EthBlocksService.BlockByNumberResponse(Some(v)) => v }
-    .withInfo(_.number.toString)
+    .map(healthcheck =>
+      healthcheck
+        .collect("No block is currently stored") { case EthBlocksService.BlockByNumberResponse(Some(v)) => v }
+        .withInfo(_.number.toString)
+    )
 
   final val bestKnownBlockHC = JsonRpcHealthcheck
     .fromServiceResponse("bestKnownBlock", getBestKnownBlockTask)
-    .withInfo(_.toString)
+    .map(healthcheck => healthcheck.withInfo(_.toString))
 
   final val fetchingBlockHC = JsonRpcHealthcheck
     .fromServiceResponse("bestFetchingBlock", getBestFetchingBlockTask)
-    .collect("no best fetching block") { case Some(v) => v }
-    .withInfo(_.toString)
+    .map(healthcheck =>
+      healthcheck
+        .collect("no best fetching block") { case Some(v) => v }
+        .withInfo(_.toString)
+    )
 
   final val updateStatusHC = JsonRpcHealthcheck
     .fromServiceResponse("updateStatus", getBestFetchingBlockTask)
-    .collect("no best fetching block") { case Some(v) => v }
-    .withPredicate(s"block did not change for more than ${config.noUpdateDurationThreshold.getSeconds()} s")(
-      blockNumberHasChanged
+    .map(healthcheck =>
+      healthcheck
+        .collect("no best fetching block") { case Some(v) => v }
+        .withPredicate(s"block did not change for more than ${config.noUpdateDurationThreshold.getSeconds()} s")(
+          blockNumberHasChanged
+        )
     )
 
   final val syncStatusHC =
     JsonRpcHealthcheck
       .fromTask("syncStatus", syncingController.askFor[SyncProtocol.Status](SyncProtocol.GetStatus))
-      .withInfo {
-        case NotSyncing => "STARTING"
-        case s: Syncing if isConsideredSyncing(s.blocksProgress) => "SYNCING"
-        case _ => "SYNCED"
-      }
+      .map(healthcheck =>
+        healthcheck.withInfo {
+          case NotSyncing => "STARTING"
+          case s: Syncing if isConsideredSyncing(s.blocksProgress) => "SYNCING"
+          case _ => "SYNCED"
+        }
+      )
 
   override def healthCheck(): Task[HealthcheckResponse] = {
     val responseTask = Task
-      .parTraverse(
+      .sequence(
         List(
           peerCountHC,
           storedBlockHC,
@@ -84,7 +94,8 @@ class NodeJsonRpcHealthChecker(
           updateStatusHC,
           syncStatusHC
         )
-      )(_.toTask)
+      )
+      .map(_.map(_.toResult))
       .map(HealthcheckResponse)
 
     handleResponse(responseTask)

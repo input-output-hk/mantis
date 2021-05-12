@@ -5,46 +5,47 @@ import monix.eval.Task
 
 final case class JsonRpcHealthcheck[Response](
     description: String,
-    healthCheckTask: Task[Either[String, Response]],
-    getInfo: Option[Response => String] = None
+    healthCheck: Either[String, Response],
+    info: Option[String] = None
 ) {
 
-  def toTask: Task[HealthcheckResult] = {
-    healthCheckTask
-      .map {
-        case Left(errorMsg) =>
-          HealthcheckResult.error(description, errorMsg)
-        case Right(result) =>
-          HealthcheckResult.ok(description, getInfo.map(get => get(result)))
-      }
-      .onErrorHandle(t => HealthcheckResult.error(description, t.getMessage()))
+  def toResult: HealthcheckResult = {
+    healthCheck
+      .fold(
+        HealthcheckResult.error(description, _),
+        result => HealthcheckResult.ok(description, info)
+      )
   }
 
   def withPredicate(message: String)(predicate: Response => Boolean): JsonRpcHealthcheck[Response] =
-    copy(healthCheckTask = healthCheckTask.map(_.filterOrElse(predicate, message)))
+    copy(healthCheck = healthCheck.filterOrElse(predicate, message))
 
   def collect[T](message: String)(collectFn: PartialFunction[Response, T]): JsonRpcHealthcheck[T] =
-    JsonRpcHealthcheck(
+    copy(
       description = description,
-      healthCheckTask = healthCheckTask.map(_.flatMap(collectFn.lift(_).toRight(message)))
+      healthCheck = healthCheck.flatMap(collectFn.lift(_).toRight(message))
     )
 
   def withInfo(getInfo: Response => String): JsonRpcHealthcheck[Response] =
-    copy(getInfo = Some(getInfo))
+    copy(info = healthCheck.toOption.map(getInfo))
 }
 
 object JsonRpcHealthcheck {
 
-  def fromServiceResponse[Response](name: String, f: ServiceResponse[Response]): JsonRpcHealthcheck[Response] =
-    JsonRpcHealthcheck(
-      name,
-      f.map(_.left.map[String](_.message))
-    )
+  def fromServiceResponse[Response](name: String, f: ServiceResponse[Response]): Task[JsonRpcHealthcheck[Response]] =
+    f.map(result =>
+      JsonRpcHealthcheck(
+        name,
+        result.left.map[String](_.message)
+      )
+    ).onErrorHandle(t => JsonRpcHealthcheck(name, Left(t.getMessage())))
 
-  def fromTask[Response](name: String, f: Task[Response]): JsonRpcHealthcheck[Response] =
-    JsonRpcHealthcheck(
-      name,
-      f.map(Right.apply)
-    )
+  def fromTask[Response](name: String, f: Task[Response]): Task[JsonRpcHealthcheck[Response]] =
+    f.map(result =>
+      JsonRpcHealthcheck(
+        name,
+        Right(result)
+      )
+    ).onErrorHandle(t => JsonRpcHealthcheck(name, Left(t.getMessage())))
 
 }
