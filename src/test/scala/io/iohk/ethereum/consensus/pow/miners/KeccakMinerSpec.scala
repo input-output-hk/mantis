@@ -1,10 +1,10 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import io.iohk.ethereum.{MiningPatience, Timeouts}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MiningSuccessful, MiningUnsuccessful}
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{MiningSuccessful, MiningUnsuccessful}
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.EthInfoService

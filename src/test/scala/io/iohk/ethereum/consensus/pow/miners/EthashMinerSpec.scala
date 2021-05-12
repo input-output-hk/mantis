@@ -1,14 +1,11 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import akka.actor.{ActorSystem => ClassicSystem}
-import akka.actor.typed.scaladsl.adapter._
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MiningSuccessful, MiningUnsuccessful}
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{MiningSuccessful, MiningUnsuccessful}
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
+import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.{Fixtures, MiningPatience, Timeouts, WithActorSystemShutDown}
+import io.iohk.ethereum.{Fixtures, MiningPatience}
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.Tag
 import org.scalatest.concurrent.Eventually
@@ -20,14 +17,14 @@ import scala.concurrent.duration._
 class EthashMinerSpec extends AnyFlatSpec with Matchers {
   final val PoWMinerSpecTag = Tag("EthashMinerSpec")
 
-  "EthashMiner actor" should "mine valid blocks" in new TestSetup {
+  "EthashMiner actor" should "mine valid blocks" taggedAs PoWMinerSpecTag in new TestSetup {
     val parentBlock: Block = origin
     setBlockForMining(origin)
 
     executeTest(parentBlock)
   }
 
-  it should "mine valid block on the beginning of the new epoch" in new TestSetup {
+  it should "mine valid block on the beginning of the new epoch" taggedAs PoWMinerSpecTag in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
     val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
@@ -36,7 +33,7 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers {
     executeTest(parentBlock)
   }
 
-  it should "mine valid blocks on the end of the epoch" in new TestSetup {
+  it should "mine valid blocks on the end of the epoch" taggedAs PoWMinerSpecTag in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int =
       2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)

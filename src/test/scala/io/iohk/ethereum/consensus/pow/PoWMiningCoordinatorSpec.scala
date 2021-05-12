@@ -14,151 +14,155 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpecLike with Matchers {
+class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpecLike with Matchers {
 
-  "PoWMinerCoordinator actor" should "throw exception when starting with other message than StartMining(mode)" in new TestSetup(
-    "FailedCoordinator"
-  ) {
-    LoggingTestKit.error("StopMining").expect {
-      coordinator ! StopMining
-    }
-  }
-
-  it should "start recurrent mining when receiving message StartMining(RecurrentMining)" in new TestSetup(
-    "RecurrentMining"
-  ) {
-    setBlockForMining(parentBlock)
-    LoggingTestKit.info("Received message SetMiningMode(RecurrentMining)").expect {
-      coordinator ! SetMiningMode(RecurrentMining)
-    }
-    coordinator ! StopMining
-  }
-
-  it should "start on demand mining when receiving message StartMining(OnDemandMining)" in new TestSetup(
-    "OnDemandMining"
-  ) {
-    LoggingTestKit.info("Received message SetMiningMode(OnDemandMining)").expect {
-      coordinator ! SetMiningMode(OnDemandMining)
-    }
-    coordinator ! StopMining
-  }
-
-  it should "[Recurrent Mining] ProcessMining starts EthashMiner if mineWithKeccak is false" in new TestSetup(
-    "EthashMining"
-  ) {
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
-    setBlockForMining(parentBlock)
-    LoggingTestKit.debug("Mining with Ethash").expect {
-      coordinator ! SetMiningMode(RecurrentMining)
-    }
-
-    coordinator ! StopMining
-  }
-
-  it should "[Recurrent Mining] ProcessMining starts KeccakMiner if mineWithKeccak is true" in new TestSetup(
-    "KeccakMining"
-  ) {
-    override val coordinator = system.systemActorOf(
-      PoWMiningCoordinator(
-        sync.ref,
-        ethMiningService,
-        blockCreator,
-        blockchain,
-        Some(0)
-      ),
-      "KeccakMining"
-    )
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
-    setBlockForMining(parentBlock)
-
-    LoggingTestKit
-      .debug("Mining with Keccak")
-      .withCustom { case msg: LoggingEvent =>
+  "PoWMinerCoordinator actor" - {
+    "should throw exception when starting with other message than StartMining(mode)" in new TestSetup(
+      "FailedCoordinator"
+    ) {
+      LoggingTestKit.error("StopMining").expect {
         coordinator ! StopMining
-        true
       }
-      .expect {
+    }
+
+    "should start recurrent mining when receiving message StartMining(RecurrentMining)" in new TestSetup(
+      "RecurrentMining"
+    ) {
+      setBlockForMining(parentBlock)
+      LoggingTestKit.info("Received message SetMiningMode(RecurrentMining)").expect {
         coordinator ! SetMiningMode(RecurrentMining)
       }
-  }
+      coordinator ! StopMining
+    }
 
-  it should "[Recurrent Mining] Miners mine recurrently" in new TestSetup(
-    "RecurrentMining"
-  ) {
-    override val coordinator = testKit.spawn(
-      PoWMiningCoordinator(
-        sync.ref,
-        ethMiningService,
-        blockCreator,
-        blockchain,
-        Some(0)
-      ),
-      "AutomaticMining"
-    )
+    "should start on demand mining when receiving message StartMining(OnDemandMining)" in new TestSetup(
+      "OnDemandMining"
+    ) {
+      LoggingTestKit.info("Received message SetMiningMode(OnDemandMining)").expect {
+        coordinator ! SetMiningMode(OnDemandMining)
+      }
+      coordinator ! StopMining
+    }
 
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
-    setBlockForMining(parentBlock)
-    coordinator ! SetMiningMode(RecurrentMining)
+    "in Recurrent Mining" - {
+      "MineNext starts EthashMiner if mineWithKeccak is false" in new TestSetup(
+        "EthashMining"
+      ) {
+        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        setBlockForMining(parentBlock)
+        LoggingTestKit.debug("Mining with Ethash").expect {
+          coordinator ! SetMiningMode(RecurrentMining)
+        }
 
-    sync.expectMsgType[MinedBlock]
-    sync.expectMsgType[MinedBlock]
-    sync.expectMsgType[MinedBlock]
+        coordinator ! StopMining
+      }
 
-    coordinator ! StopMining
-  }
+      "MineNext starts KeccakMiner if mineWithKeccak is true" in new TestSetup(
+        "KeccakMining"
+      ) {
+        override val coordinator = system.systemActorOf(
+          PoWMiningCoordinator(
+            sync.ref,
+            ethMiningService,
+            blockCreator,
+            blockchain,
+            Some(0)
+          ),
+          "KeccakMining"
+        )
+        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        setBlockForMining(parentBlock)
 
-  it should "[Recurrent Mining] Continue to attempt to mine if blockchain.getBestBlock() return None" in new TestSetup(
-    "AlwaysMine"
-  ) {
-    override val coordinator = testKit.spawn(
-      PoWMiningCoordinator(
-        sync.ref,
-        ethMiningService,
-        blockCreator,
-        blockchain,
-        Some(0)
-      ),
-      "AlwaysAttemptToMine"
-    )
+        LoggingTestKit
+          .debug("Mining with Keccak")
+          .withCustom { case msg: LoggingEvent =>
+            coordinator ! StopMining
+            true
+          }
+          .expect {
+            coordinator ! SetMiningMode(RecurrentMining)
+          }
+      }
 
-    (blockchain.getBestBlock _).expects().returns(None).twice()
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+      "Miners mine recurrently" in new TestSetup(
+        "RecurrentMining"
+      ) {
+        override val coordinator = testKit.spawn(
+          PoWMiningCoordinator(
+            sync.ref,
+            ethMiningService,
+            blockCreator,
+            blockchain,
+            Some(0)
+          ),
+          "AutomaticMining"
+        )
 
-    setBlockForMining(parentBlock)
-    coordinator ! SetMiningMode(RecurrentMining)
+        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        setBlockForMining(parentBlock)
+        coordinator ! SetMiningMode(RecurrentMining)
 
-    sync.expectMsgType[MinedBlock]
-    sync.expectMsgType[MinedBlock]
-    sync.expectMsgType[MinedBlock]
+        sync.expectMsgType[MinedBlock]
+        sync.expectMsgType[MinedBlock]
+        sync.expectMsgType[MinedBlock]
 
-    coordinator ! StopMining
-  }
+        coordinator ! StopMining
+      }
 
-  it should "[Recurrent Mining] StopMining stops PoWMinerCoordinator" in new TestSetup("StoppingMining") {
-    val probe = TestProbe()
-    override val coordinator = testKit.spawn(
-      PoWMiningCoordinator(
-        sync.ref,
-        ethMiningService,
-        blockCreator,
-        blockchain,
-        Some(0)
-      ),
-      "StoppingMining"
-    )
-    probe.watch(coordinator.ref.toClassic)
+      "Continue to attempt to mine if blockchain.getBestBlock() return None" in new TestSetup(
+        "AlwaysMine"
+      ) {
+        override val coordinator = testKit.spawn(
+          PoWMiningCoordinator(
+            sync.ref,
+            ethMiningService,
+            blockCreator,
+            blockchain,
+            Some(0)
+          ),
+          "AlwaysAttemptToMine"
+        )
 
-    (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
-    setBlockForMining(parentBlock)
-    coordinator ! SetMiningMode(RecurrentMining)
-    coordinator ! StopMining
+        (blockchain.getBestBlock _).expects().returns(None).twice()
+        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
 
-    probe.expectTerminated(coordinator.ref.toClassic)
+        setBlockForMining(parentBlock)
+        coordinator ! SetMiningMode(RecurrentMining)
+
+        sync.expectMsgType[MinedBlock]
+        sync.expectMsgType[MinedBlock]
+        sync.expectMsgType[MinedBlock]
+
+        coordinator ! StopMining
+      }
+
+      "StopMining stops PoWMinerCoordinator" in new TestSetup("StoppingMining") {
+        val probe = TestProbe()
+        override val coordinator = testKit.spawn(
+          PoWMiningCoordinator(
+            sync.ref,
+            ethMiningService,
+            blockCreator,
+            blockchain,
+            Some(0)
+          ),
+          "StoppingMining"
+        )
+        probe.watch(coordinator.ref.toClassic)
+
+        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        setBlockForMining(parentBlock)
+        coordinator ! SetMiningMode(RecurrentMining)
+        coordinator ! StopMining
+
+        probe.expectTerminated(coordinator.ref.toClassic)
+      }
+    }
   }
 
   class TestSetup(coordinatorName: String) extends MinerSpecSetup {
