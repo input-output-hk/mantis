@@ -4,7 +4,7 @@ import io.iohk.ethereum.healthcheck.HealthcheckResult
 import monix.eval.Task
 
 final case class JsonRpcHealthcheck[Response](
-    description: String,
+    name: String,
     healthCheck: Either[String, Response],
     info: Option[String] = None
 ) {
@@ -12,8 +12,8 @@ final case class JsonRpcHealthcheck[Response](
   def toResult: HealthcheckResult = {
     healthCheck
       .fold(
-        HealthcheckResult.error(description, _),
-        result => HealthcheckResult.ok(description, info)
+        HealthcheckResult.error(name, _),
+        result => HealthcheckResult.ok(name, info)
       )
   }
 
@@ -22,7 +22,7 @@ final case class JsonRpcHealthcheck[Response](
 
   def collect[T](message: String)(collectFn: PartialFunction[Response, T]): JsonRpcHealthcheck[T] =
     copy(
-      description = description,
+      name = name,
       healthCheck = healthCheck.flatMap(collectFn.lift(_).toRight(message))
     )
 
