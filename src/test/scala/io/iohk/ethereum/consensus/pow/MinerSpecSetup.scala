@@ -20,6 +20,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
 import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 
@@ -27,6 +28,7 @@ import scala.concurrent.duration.{Duration, FiniteDuration}
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   implicit val classicSystem = ClassicSystem()
+  implicit val scheduler = Scheduler(classicSystem.dispatcher)
   val parentActor = TestProbe()
   val sync = TestProbe()
   val ommersPool: TestProbe = TestProbe()

@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
 import io.iohk.ethereum.{MiningPatience, Timeouts}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MiningSuccessful, MiningUnsuccessful}
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
 import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
@@ -42,25 +42,12 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
     executeTest(parentBlock)
   }
 
-  // test is failing. Through the PoWMiningCoordinator this has been tested successfully :/
-  it should "shutdown itself after mining" ignore new TestSetup {
-    val probe = testKit.createTestProbe[MinerProtocol]()
-    val parentBlock: Block = origin
-    setBlockForMining(parentBlock)
-
-    executeTest(parentBlock)
-    eventually {
-      probe.expectTerminated(miner)
-    }
-  }
-
   trait TestSetup extends ScalaTestWithActorTestKit with MinerSpecSetup {
     private implicit val durationTimeout: Duration = Timeouts.miningTimeout
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig.copy(ecip1049BlockNumber = Some(0))
     val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
 
-    val coordinatorRef = testKit.createTestProbe[CoordinatorProtocol]()
     val ethService: EthInfoService = mock[EthInfoService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
@@ -71,25 +58,29 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
       ommersPool = ommersPool.ref
     )
 
-    val miner = testKit.spawn(KeccakMiner(blockCreator, sync.ref, ethMiningService))
+    val miner = new KeccakMiner(blockCreator, sync.ref, ethMiningService)
 
     protected def executeTest(parentBlock: Block): Unit = {
       prepareMocks()
-      val minedBlock = startMining(parentBlock, coordinatorRef.ref)
+      val minedBlock = startMining(parentBlock)
       checkAssertions(minedBlock, parentBlock)
     }
 
-    private def startMining(parentBlock: Block, replyTo: akka.actor.typed.ActorRef[CoordinatorProtocol]): Block = {
-      miner ! MinerProtocol.ProcessMining(parentBlock, replyTo)
-      val block = waitForMinedBlock
-      block
+    def startMining(parentBlock: Block): Block = {
+      eventually {
+        miner.processMining(parentBlock).map {
+          case MiningSuccessful => true
+          case MiningUnsuccessful => startMining(parentBlock)
+        }
+        val minedBlock = waitForMinedBlock
+        minedBlock
+      }
     }
 
     private def checkAssertions(minedBlock: Block, parentBlock: Block): Unit = {
       minedBlock.body.transactionList shouldBe Seq(txToMine)
       minedBlock.header.nonce.length shouldBe 8
       powBlockHeaderValidator.validate(minedBlock.header, parentBlock.header) shouldBe Right(BlockHeaderValid)
-      coordinatorRef.expectMessage(PoWMiningCoordinator.MiningSuccessful)
     }
   }
 }

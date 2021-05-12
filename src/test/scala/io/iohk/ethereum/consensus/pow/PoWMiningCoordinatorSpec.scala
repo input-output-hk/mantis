@@ -33,7 +33,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     "RecurrentMining"
   ) {
     setBlockForMining(parentBlock)
-    LoggingTestKit.info("Received message StartMining(RecurrentMining)").expect {
+    LoggingTestKit.info("Received message SetMiningMode(RecurrentMining)").expect {
       coordinator ! SetMiningMode(RecurrentMining)
     }
     coordinator ! StopMining
@@ -42,7 +42,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
   it should "start on demand mining when receiving message StartMining(OnDemandMining)" in new TestSetup(
     "OnDemandMining"
   ) {
-    LoggingTestKit.info("Received message StartMining(OnDemandMining)").expect {
+    LoggingTestKit.info("Received message SetMiningMode(OnDemandMining)").expect {
       coordinator ! SetMiningMode(OnDemandMining)
     }
     coordinator ! StopMining
@@ -53,7 +53,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
   ) {
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
-    LoggingTestKit.info("Spawning an EthashMiner").expect {
+    LoggingTestKit.debug("Mining with Ethash").expect {
       coordinator ! SetMiningMode(RecurrentMining)
     }
 
@@ -77,7 +77,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     setBlockForMining(parentBlock)
 
     LoggingTestKit
-      .info("Spawning a KeccakMiner")
+      .debug("Mining with Keccak")
       .withCustom { case msg: LoggingEvent =>
         coordinator ! StopMining
         true

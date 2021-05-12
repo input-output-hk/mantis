@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus.pow.miners
 import akka.actor.{ActorSystem => ClassicSystem}
 import akka.actor.typed.scaladsl.adapter._
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MiningSuccessful, MiningUnsuccessful}
 import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
 import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator, PoWMiningCoordinator}
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
@@ -12,26 +12,22 @@ import io.iohk.ethereum.{Fixtures, MiningPatience, Timeouts, WithActorSystemShut
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.Tag
 import org.scalatest.concurrent.Eventually
-import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.duration._
 
-class EthashMinerSpec
-    extends TestKit(ClassicSystem("EthashMinerSpec_System"))
-    with AnyFlatSpecLike
-    with WithActorSystemShutDown
-    with Matchers {
+class EthashMinerSpec extends AnyFlatSpec with Matchers {
   final val PoWMinerSpecTag = Tag("EthashMinerSpec")
 
-  "EthashMiner actor" should "mine valid blocks" taggedAs PoWMinerSpecTag in new TestSetup {
+  "EthashMiner actor" should "mine valid blocks" in new TestSetup {
     val parentBlock: Block = origin
     setBlockForMining(origin)
 
     executeTest(parentBlock)
   }
 
-  it should "mine valid block on the beginning of the new epoch" taggedAs PoWMinerSpecTag in new TestSetup {
+  it should "mine valid block on the beginning of the new epoch" in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
     val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
@@ -40,7 +36,7 @@ class EthashMinerSpec
     executeTest(parentBlock)
   }
 
-  it should "mine valid blocks on the end of the epoch" taggedAs PoWMinerSpecTag in new TestSetup {
+  it should "mine valid blocks on the end of the epoch" in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
     val parentBlockNumber: Int =
       2 * epochLength - 2 // 59998, mined block will be 59999 (last block of the current epoch)
@@ -50,24 +46,7 @@ class EthashMinerSpec
     executeTest(parentBlock)
   }
 
-  it should "shutdown itself after mining" taggedAs PoWMinerSpecTag in new TestSetup {
-    probe.watch(miner.ref)
-
-    val parentBlock: Block = origin
-    setBlockForMining(origin)
-    prepareMocks()
-    miner ! MinerProtocol.ProcessMining(parentBlock, coordinator.ref.toTyped[CoordinatorProtocol])
-    coordinator.expectMsgPF(Timeouts.miningTimeout) {
-      case PoWMiningCoordinator.MiningSuccessful => true
-      case PoWMiningCoordinator.MiningUnsuccessful => false
-    }
-    probe.expectTerminated(miner.ref)
-  }
-
-  class TestSetup(implicit system: ClassicSystem) extends MinerSpecSetup with Eventually with MiningPatience {
-    val probe = TestProbe()
-    val coordinator = TestProbe()
-
+  class TestSetup extends MinerSpecSetup with Eventually with MiningPatience {
     override val origin: Block = Block(
       Fixtures.Blocks.Genesis.header.copy(
         difficulty = UInt256(Hex.decode("0400")).toBigInt,
@@ -89,40 +68,27 @@ class EthashMinerSpec
     )
 
     val dagManager = new EthashDAGManager(blockCreator)
-    val miner: TestActorRef[Nothing] = createNewMiner()
-    private def createNewMiner(): TestActorRef[Nothing] = TestActorRef(
-      EthashMiner.props(
-        dagManager,
-        blockCreator,
-        sync.ref,
-        ethMiningService
-      )
+    val miner = new EthashMiner(
+      dagManager,
+      blockCreator,
+      sync.ref,
+      ethMiningService
     )
 
     protected def executeTest(parentBlock: Block): Unit = {
       prepareMocks()
-      val minedBlock = startMining(parentBlock, coordinator.ref.toTyped[CoordinatorProtocol])
+      val minedBlock = startMining(parentBlock)
       checkAssertions(minedBlock, parentBlock)
     }
 
-    private def startMining(parentBlock: Block, replyTo: akka.actor.typed.ActorRef[CoordinatorProtocol]): Block = {
-      miner ! MinerProtocol.ProcessMining(parentBlock, replyTo)
+    def startMining(parentBlock: Block): Block = {
       eventually {
-        waitForMiningCompleted(parentBlock) shouldBe true
-      }
-      val minedBlock = waitForMinedBlock
-      minedBlock
-    }
-
-    def waitForMiningCompleted(parentBlock: Block)(implicit timeout: Duration): Boolean = {
-      // previous miner was stopped
-      val miner = createNewMiner()
-      coordinator.expectMsgPF(timeout) {
-        case PoWMiningCoordinator.MiningSuccessful =>
-          true
-        case PoWMiningCoordinator.MiningUnsuccessful =>
-          miner ! MinerProtocol.ProcessMining(parentBlock, coordinator.ref.toTyped[CoordinatorProtocol])
-          false
+        miner.processMining(parentBlock).map {
+          case MiningSuccessful => true
+          case MiningUnsuccessful => startMining(parentBlock)
+        }
+        val minedBlock = waitForMinedBlock
+        minedBlock
       }
     }
 
