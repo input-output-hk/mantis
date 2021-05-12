@@ -133,7 +133,7 @@ class TransactionHistoryServiceSpec
           header => {
             val checkpoint =
               Checkpoint(List(ECDSASignature.sign(crypto.kec256(ByteString("foo")).toArray, checkpointKey, None)))
-            header.copy(extraFields = HefPostEcip1097(treasuryOptOut = false, Some(checkpoint)))
+            header.copy(extraFields = HefPostEcip1097(Some(checkpoint)))
           }
         )
       )

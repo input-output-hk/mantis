@@ -163,12 +163,11 @@ trait ObjectGenerators {
   } yield PV64.NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), chainWeight)
 
   def extraFieldsGen: Gen[HeaderExtraFields] = for {
-    optOut <- Arbitrary.arbitrary[Option[Boolean]]
-    checkpoint <- if (optOut.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)
-  } yield (optOut, checkpoint) match {
-    case (Some(definedOptOut), Some(definedCheckpoint)) => HefPostEcip1097(definedOptOut, definedCheckpoint)
-    case (Some(definedOptOut), None) => HefPostEcip1098(definedOptOut)
-    case _ => HefEmpty
+    shouldCheckpoint <- Arbitrary.arbitrary[Option[Boolean]]
+    checkpoint <- if (shouldCheckpoint.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)
+  } yield checkpoint match {
+    case Some(definedCheckpoint) => HefPostEcip1097(definedCheckpoint)
+    case None => HefEmpty
   }
 
   def blockHeaderGen: Gen[BlockHeader] = for {

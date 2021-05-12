@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
@@ -502,11 +502,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       (false, false, true, HefEmpty),
       (false, false, false, HefEmpty),
       // ECIP 1098 activated
-      (true, false, true, HefPostEcip1098(true)),
-      (true, false, false, HefPostEcip1098(false)),
+      (true, false, true, HefEmpty),
+      (true, false, false, HefEmpty),
       // ECIP 1097 and 1098 activated
-      (true, true, true, HefPostEcip1097(true, None)),
-      (true, true, false, HefPostEcip1097(false, None))
+      (true, true, true, HefPostEcip1097(None)),
+      (true, true, false, HefPostEcip1097(None))
     )
 
     forAll(table) { case (ecip1098Activated, ecip1097Activated, selectedOptOut, headerExtraFields) =>

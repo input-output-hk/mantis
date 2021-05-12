@@ -68,7 +68,7 @@ class BlockPreparator(
       val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
 
       val worldAfterPayingBlockReward =
-        if (block.header.treasuryOptOut.isEmpty || !existsTreasuryContract) {
+        if (!treasuryEnabled(blockNumber) || !existsTreasuryContract) {
           val minerReward = minerRewardForOmmers + minerRewardForBlock
           val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
           log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
@@ -96,6 +96,9 @@ class BlockPreparator(
       //FIXME needs to be part of setting up the application and not a runtime flag
       worldStateProxy
     }
+
+  private def treasuryEnabled(blockNo: BigInt): Boolean =
+    blockNo >= blockchainConfig.ecip1098BlockNumber
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)

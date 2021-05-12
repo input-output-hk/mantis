@@ -31,7 +31,7 @@ class CheckpointBlockGenerator {
       gasUsed = UInt256.Zero,
       mixHash = ByteString.empty,
       nonce = ByteString.empty,
-      extraFields = HefPostEcip1097(false, Some(checkpointWithSortedSignatures))
+      extraFields = HefPostEcip1097(Some(checkpointWithSortedSignatures))
     )
 
     Block(header, BlockBody.empty)

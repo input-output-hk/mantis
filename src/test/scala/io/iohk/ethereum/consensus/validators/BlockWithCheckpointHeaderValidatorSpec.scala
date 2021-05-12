@@ -85,16 +85,6 @@ class BlockWithCheckpointHeaderValidatorSpec
     )
   }
 
-  it should "return failure if treasuryOptOut is not false" in new TestSetup {
-    val invalidExtraFields = HefPostEcip1097(
-      true,
-      validBlockHeaderWithCheckpoint.checkpoint
-    )
-    val blockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidExtraFields)
-    val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
-    assert(validateResult == Left(CheckpointHeaderTreasuryOptOutError))
-  }
-
   it should "return failure if stateRoot is not the same as parent stateRoot" in new TestSetup {
     testOfTheSameValueAsParent(
       byteString => validBlockHeaderWithCheckpoint.copy(stateRoot = byteString),
@@ -159,10 +149,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint signatures aren't sorted lexicographically" in new TestSetup {
-    val invalidBlockHeaderExtraFields = HefPostEcip1097(
-      false,
-      Some(Checkpoint(validCheckpoint.signatures.reverse))
-    )
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(Some(Checkpoint(validCheckpoint.signatures.reverse)))
     val invalidBlockHeader =
       validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
@@ -171,10 +158,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint has not enough valid signatures" in new TestSetup {
-    val invalidBlockHeaderExtraFields = HefPostEcip1097(
-      false,
-      Some(Checkpoint(Seq(validCheckpoint.signatures.head)))
-    )
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(Some(Checkpoint(Seq(validCheckpoint.signatures.head))))
     val invalidBlockHeader =
       validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
@@ -187,10 +171,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     val invalidSignatures =
       CheckpointingTestHelpers.createCheckpointSignatures(Seq(invalidKeys), validBlockParent.hash)
     val signatures = invalidSignatures ++ validCheckpoint.signatures
-    val invalidBlockHeaderExtraFields = HefPostEcip1097(
-      false,
-      Some(Checkpoint(signatures.sorted))
-    )
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(Some(Checkpoint(signatures.sorted)))
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderInvalidCheckpointSignatures(
@@ -203,7 +184,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure when checkpoint has no signatures" in new TestSetup {
-    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(Checkpoint(Nil)))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(Some(Checkpoint(Nil)))
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(
       HeaderWrongNumberOfCheckpointSignatures(0)
@@ -249,7 +230,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   it should "return when failure when checkpoint has too many signatures" in new TestSetup {
     val invalidCheckpoint =
       validCheckpoint.copy(signatures = (validCheckpoint.signatures ++ validCheckpoint.signatures).sorted)
-    val invalidBlockHeaderExtraFields = HefPostEcip1097(false, Some(invalidCheckpoint))
+    val invalidBlockHeaderExtraFields = HefPostEcip1097(Some(invalidCheckpoint))
     val invalidBlockHeader = validBlockHeaderWithCheckpoint.copy(extraFields = invalidBlockHeaderExtraFields)
 
     blockHeaderValidator.validate(invalidBlockHeader, validBlockParentHeader) shouldBe Left(

@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
@@ -85,7 +85,6 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validateExtraFields(blockHeader)
       _ <- validateEvenMore(blockHeader)
-      _ <- validateExtraFieldsTreasuryOptOut(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -231,30 +230,12 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     val isECIP1097Activated = blockHeader.number >= blockchainConfig.ecip1097BlockNumber
 
     blockHeader.extraFields match {
-      case HefPostEcip1097(_, _) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
-      case HefPostEcip1098(_) if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefPostEcip1097(_) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefEmpty if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
       case HefEmpty if !isECIP1097Activated && !isECIP1098Activated => Right(BlockHeaderValid)
       case _ =>
         val error = HeaderExtraFieldsError(blockHeader.extraFields, isECIP1097Activated, isECIP1098Activated)
         Left(error)
-    }
-  }
-
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.extraFields]] match extrafields - treasuryOptOut when enabled always to false(not burning rewards)
-    *
-    * @param blockHeader BlockHeader to validate.
-    * @return BlockHeader if valid, an [[BlockHeaderTreasuryOptOutError]] otherwise
-    */
-  private def validateExtraFieldsTreasuryOptOut(
-      blockHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] = {
-
-    blockHeader.extraFields match {
-      case HefPostEcip1097(treasuryOptOut, _) if !treasuryOptOut => Right(BlockHeaderValid)
-      case HefPostEcip1098(treasuryOptOut) if !treasuryOptOut => Right(BlockHeaderValid)
-      case HefEmpty => Right(BlockHeaderValid)
-      case _ => Left(BlockHeaderTreasuryOptOutError)
     }
   }
 

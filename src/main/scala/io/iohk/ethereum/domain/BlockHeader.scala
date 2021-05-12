@@ -40,14 +40,8 @@ case class BlockHeader(
   def dropRightNExtraDataBytes(n: Int): BlockHeader =
     copy(extraData = extraData.dropRight(n))
 
-  val treasuryOptOut: Option[Boolean] = extraFields match {
-    case HefPostEcip1097(definedOptOut, _) => Some(definedOptOut)
-    case HefPostEcip1098(definedOptOut) => Some(definedOptOut)
-    case HefEmpty => None
-  }
-
   val checkpoint: Option[Checkpoint] = extraFields match {
-    case HefPostEcip1097(_, maybeCheckpoint) => maybeCheckpoint
+    case HefPostEcip1097(maybeCheckpoint) => maybeCheckpoint
     case _ => None
   }
 
@@ -57,11 +51,8 @@ case class BlockHeader(
 
   override def toString: String = {
     val (treasuryOptOutString: String, checkpointString: String) = extraFields match {
-      case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>
-        (definedOptOut.toString, maybeCheckpoint.isDefined.toString)
-
-      case HefPostEcip1098(definedOptOut) =>
-        (definedOptOut.toString, "Pre-ECIP1097 block")
+      case HefPostEcip1097(maybeCheckpoint) =>
+        ("ECIP1098 block", maybeCheckpoint.isDefined.toString)
 
       case HefEmpty =>
         ("Pre-ECIP1098 block", "Pre-ECIP1097 block")
@@ -124,8 +115,7 @@ object BlockHeader {
 
     val numberOfPowFields = 2
     val numberOfExtraFields = blockHeader.extraFields match {
-      case HefPostEcip1097(_, _) => 2
-      case HefPostEcip1098(_) => 1
+      case HefPostEcip1097(_) => 1
       case HefEmpty => 0
     }
 
@@ -139,8 +129,7 @@ object BlockHeader {
   sealed trait HeaderExtraFields
   object HeaderExtraFields {
     case object HefEmpty extends HeaderExtraFields
-    case class HefPostEcip1098(treasuryOptOut: Boolean) extends HeaderExtraFields
-    case class HefPostEcip1097(treasuryOptOut: Boolean, checkpoint: Option[Checkpoint]) extends HeaderExtraFields
+    case class HefPostEcip1097(checkpoint: Option[Checkpoint]) extends HeaderExtraFields
   }
 }
 
@@ -154,7 +143,7 @@ object BlockHeaderImplicits {
     override def toRLPEncodable: RLPEncodeable = {
       import blockHeader._
       extraFields match {
-        case HefPostEcip1097(definedOptOut, maybeCheckpoint) =>
+        case HefPostEcip1097(maybeCheckpoint) =>
           RLPList(
             parentHash,
             ommersHash,
@@ -171,28 +160,7 @@ object BlockHeaderImplicits {
             extraData,
             mixHash,
             nonce,
-            definedOptOut,
             maybeCheckpoint
-          )
-
-        case HefPostEcip1098(definedOptOut) =>
-          RLPList(
-            parentHash,
-            ommersHash,
-            beneficiary,
-            stateRoot,
-            transactionsRoot,
-            receiptsRoot,
-            logsBloom,
-            difficulty,
-            number,
-            gasLimit,
-            gasUsed,
-            unixTimestamp,
-            extraData,
-            mixHash,
-            nonce,
-            definedOptOut
           )
 
         case HefEmpty =>
@@ -225,7 +193,6 @@ object BlockHeaderImplicits {
     // scalastyle:off method.length
     def toBlockHeader: BlockHeader = {
       val checkpointOptionDecoder = implicitly[RLPDecoder[Option[Checkpoint]]]
-      val treasuryOptOutDecoder = implicitly[RLPDecoder[Boolean]]
 
       rlpEncodeable match {
         case RLPList(
@@ -244,11 +211,9 @@ object BlockHeaderImplicits {
               extraData,
               mixHash,
               nonce,
-              encodedOptOut,
               encodedCheckpoint
             ) =>
           val extraFields = HefPostEcip1097(
-            treasuryOptOutDecoder.decode(encodedOptOut),
             checkpointOptionDecoder.decode(encodedCheckpoint)
           )
           BlockHeader(
@@ -285,10 +250,8 @@ object BlockHeaderImplicits {
               unixTimestamp,
               extraData,
               mixHash,
-              nonce,
-              encodedOptOut
+              nonce
             ) =>
-          val extraFields = HefPostEcip1098(treasuryOptOutDecoder.decode(encodedOptOut))
           BlockHeader(
             parentHash,
             ommersHash,
@@ -304,8 +267,7 @@ object BlockHeaderImplicits {
             unixTimestamp,
             extraData,
             mixHash,
-            nonce,
-            extraFields
+            nonce
           )
 
         case RLPList(
