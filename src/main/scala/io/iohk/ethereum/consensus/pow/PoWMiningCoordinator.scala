@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.pow
 
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{Behavior, DispatcherSelector}
+import akka.actor.typed.{Behavior, DispatcherSelector, SupervisorStrategy}
 import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.Timeout
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
@@ -16,18 +16,26 @@ import scala.util.Random
 object PoWMiningCoordinator {
   // TODO in ETCM-773 make trait sealed
   trait CoordinatorProtocol
+
   final case class StartMining(mode: MiningMode) extends CoordinatorProtocol
-  case object DoMining extends CoordinatorProtocol
+
+  case object MineNext extends CoordinatorProtocol
+
   case object StopMining extends CoordinatorProtocol
+
   case object MiningSuccessful extends CoordinatorProtocol
+
   case object MiningUnsuccessful extends CoordinatorProtocol
 
   // MiningMode will allow to remove MockerMiner
   sealed trait MiningMode
+
   case object RecurrentMining extends MiningMode // for normal mining
+
   case object OnDemandMining extends MiningMode // for testing
 
   sealed trait MiningResponse
+
   case object MiningComplete extends MiningResponse
 
   def apply(
@@ -37,9 +45,17 @@ object PoWMiningCoordinator {
       blockchain: Blockchain,
       ecip1049BlockNumber: Option[BigInt]
   ): Behavior[CoordinatorProtocol] =
-    Behaviors.setup(context =>
-      new PoWMiningCoordinator(context, syncController, ethMiningService, blockCreator, blockchain, ecip1049BlockNumber)
-    )
+    Behaviors
+      .setup[CoordinatorProtocol](context =>
+        new PoWMiningCoordinator(
+          context,
+          syncController,
+          ethMiningService,
+          blockCreator,
+          blockchain,
+          ecip1049BlockNumber
+        )
+      )
 }
 
 class PoWMiningCoordinator private (
@@ -68,13 +84,13 @@ class PoWMiningCoordinator private (
       log.info("Received message {}", StartMining(mode))
       switchMiningMode(mode)
 
-    case DoMining =>
+    case MineNext =>
       log.info("Received message ProcessMining")
       blockchain
         .getBestBlock()
         .fold {
           log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
-          context.self ! DoMining
+          context.self ! MineNext
         } { block =>
           if (shouldMineWithKeccak(block.header.number)) mineWithKeccak(block) else mineWithEthash(block)
         }
@@ -82,7 +98,7 @@ class PoWMiningCoordinator private (
 
     case MiningSuccessful | MiningUnsuccessful =>
       log.debug("Assigned miner has completed mining")
-      context.self ! DoMining
+      context.self ! MineNext
       Behaviors.same
 
     case StopMining =>
@@ -99,7 +115,7 @@ class PoWMiningCoordinator private (
 
   private def switchMiningMode(mode: MiningMode): Behavior[CoordinatorProtocol] = mode match {
     case RecurrentMining =>
-      context.self ! DoMining
+      context.self ! MineNext
       handleMiningRecurrent()
     case OnDemandMining => handleMiningOnDemand()
   }
