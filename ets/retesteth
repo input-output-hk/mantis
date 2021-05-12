@@ -2,4 +2,9 @@
 
 dir="$(cd "$(dirname "$0")" && pwd)"
 
-retesteth $@ -- --testpath $dir/tests --datadir $dir/config --clients mantis
+separator="--"
+if [[ $@ =~ "--" ]]; then
+  separator=""
+fi
+
+retesteth $@ $separator --testpath $dir/tests --datadir $dir/config --clients mantis
