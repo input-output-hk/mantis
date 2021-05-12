@@ -17,7 +17,7 @@ object PoWMiningCoordinator {
   // TODO in ETCM-773 make trait sealed
   trait CoordinatorProtocol
 
-  final case class StartMining(mode: MiningMode) extends CoordinatorProtocol
+  final case class SetMiningMode(mode: MiningMode) extends CoordinatorProtocol
 
   case object MineNext extends CoordinatorProtocol
 
@@ -74,14 +74,14 @@ class PoWMiningCoordinator private (
   private val dagManager = new EthashDAGManager(blockCreator)
 
   override def onMessage(msg: CoordinatorProtocol): Behavior[CoordinatorProtocol] = msg match {
-    case StartMining(mode) =>
-      log.info("Received message {}", StartMining(mode))
+    case SetMiningMode(mode) =>
+      log.info("Received message {}", SetMiningMode(mode))
       switchMiningMode(mode)
   }
 
   private def handleMiningRecurrent(): Behavior[CoordinatorProtocol] = Behaviors.receiveMessage {
-    case StartMining(mode) =>
-      log.info("Received message {}", StartMining(mode))
+    case SetMiningMode(mode) =>
+      log.info("Received message {}", SetMiningMode(mode))
       switchMiningMode(mode)
 
     case MineNext =>
@@ -108,8 +108,8 @@ class PoWMiningCoordinator private (
 
   // TODO To be used for testing and finished on ETCM-773
   private def handleMiningOnDemand(): Behavior[CoordinatorProtocol] = Behaviors.receiveMessage {
-    case StartMining(mode) =>
-      log.info("Received message {}", StartMining(mode))
+    case SetMiningMode(mode) =>
+      log.info("Received message {}", SetMiningMode(mode))
       switchMiningMode(mode)
   }
 

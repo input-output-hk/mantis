@@ -60,7 +60,7 @@ class PoWConsensus private (
       case mineBlocks: MockedMiner.MineBlocks => mockedMinerRef.foreach(_ ! mineBlocks)
       case MinerProtocol.StartMining =>
         mockedMinerRef.foreach(_ ! MockedMiner.StartMining)
-        minerCoordinatorRef.foreach(_ ! PoWMiningCoordinator.StartMining(PoWMiningCoordinator.RecurrentMining))
+        minerCoordinatorRef.foreach(_ ! PoWMiningCoordinator.SetMiningMode(PoWMiningCoordinator.RecurrentMining))
       case MinerProtocol.StopMining =>
         mockedMinerRef.foreach(_ ! MockedMiner.StopMining)
         minerCoordinatorRef.foreach(_ ! PoWMiningCoordinator.StopMining)

@@ -34,7 +34,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
   ) {
     setBlockForMining(parentBlock)
     LoggingTestKit.info("Received message StartMining(RecurrentMining)").expect {
-      coordinator ! StartMining(RecurrentMining)
+      coordinator ! SetMiningMode(RecurrentMining)
     }
     coordinator ! StopMining
   }
@@ -43,7 +43,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     "OnDemandMining"
   ) {
     LoggingTestKit.info("Received message StartMining(OnDemandMining)").expect {
-      coordinator ! StartMining(OnDemandMining)
+      coordinator ! SetMiningMode(OnDemandMining)
     }
     coordinator ! StopMining
   }
@@ -54,7 +54,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
     LoggingTestKit.info("Spawning an EthashMiner").expect {
-      coordinator ! StartMining(RecurrentMining)
+      coordinator ! SetMiningMode(RecurrentMining)
     }
 
     coordinator ! StopMining
@@ -83,7 +83,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
         true
       }
       .expect {
-        coordinator ! StartMining(RecurrentMining)
+        coordinator ! SetMiningMode(RecurrentMining)
       }
   }
 
@@ -103,7 +103,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
 
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
-    coordinator ! StartMining(RecurrentMining)
+    coordinator ! SetMiningMode(RecurrentMining)
 
     sync.expectMsgType[MinedBlock]
     sync.expectMsgType[MinedBlock]
@@ -130,7 +130,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
 
     setBlockForMining(parentBlock)
-    coordinator ! StartMining(RecurrentMining)
+    coordinator ! SetMiningMode(RecurrentMining)
 
     sync.expectMsgType[MinedBlock]
     sync.expectMsgType[MinedBlock]
@@ -155,7 +155,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFlatSpe
 
     (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
     setBlockForMining(parentBlock)
-    coordinator ! StartMining(RecurrentMining)
+    coordinator ! SetMiningMode(RecurrentMining)
     coordinator ! StopMining
 
     probe.expectTerminated(coordinator.ref.toClassic)
