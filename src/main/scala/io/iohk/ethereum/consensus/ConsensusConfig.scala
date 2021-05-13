@@ -19,8 +19,7 @@ final case class ConsensusConfig(
     coinbase: Address,
     headerExtraData: ByteString, // only used in BlockGenerator
     blockCacheSize: Int, // only used in BlockGenerator
-    miningEnabled: Boolean,
-    treasuryOptOut: Boolean
+    miningEnabled: Boolean
 )
 
 object ConsensusConfig extends Logger {
@@ -68,16 +67,13 @@ object ConsensusConfig extends Logger {
       .take(BlockHeaderValidator.MaxExtraDataSize)
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
-    // treasuryOptOut should always be false(no funds burned), keep for backwards compatibility
-    val treasuryOptOut = false
 
     new ConsensusConfig(
       protocol = protocol,
       coinbase = coinbase,
       headerExtraData = headerExtraData,
       blockCacheSize = blockCacheSize,
-      miningEnabled = miningEnabled,
-      treasuryOptOut = treasuryOptOut
+      miningEnabled = miningEnabled
     )
   }
 }
