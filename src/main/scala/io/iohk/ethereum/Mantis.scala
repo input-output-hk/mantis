@@ -6,7 +6,7 @@ import java.util.logging.LogManager
 
 object Mantis extends Logger {
   def main(args: Array[String]): Unit = {
-    LogManager.getLogManager().reset();
+    LogManager.getLogManager().reset(); // disable java.util.logging, ie. in legacy parts of jupnp
 
     val node =
       if (Config.testmode) {
