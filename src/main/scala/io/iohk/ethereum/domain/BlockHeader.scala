@@ -50,12 +50,12 @@ case class BlockHeader(
   def isParentOf(child: BlockHeader): Boolean = number + 1 == child.number && child.parentHash == hash
 
   override def toString: String = {
-    val (treasuryOptOutString: String, checkpointString: String) = extraFields match {
+    val checkpointString: String = extraFields match {
       case HefPostEcip1097(maybeCheckpoint) =>
-        ("ECIP1098 block", maybeCheckpoint.isDefined.toString)
+        maybeCheckpoint.isDefined.toString
 
       case HefEmpty =>
-        ("Pre-ECIP1098 block", "Pre-ECIP1097 block")
+        "Pre-ECIP1097 block"
     }
 
     s"BlockHeader { " +
@@ -75,7 +75,6 @@ case class BlockHeader(
       s"extraData: ${ByteStringUtils.hash2string(extraData)} " +
       s"mixHash: ${ByteStringUtils.hash2string(mixHash)} " +
       s"nonce: ${ByteStringUtils.hash2string(nonce)}, " +
-      s"treasuryOptOut: $treasuryOptOutString " +
       s"isCheckpointing: $checkpointString" +
       s"}"
   }

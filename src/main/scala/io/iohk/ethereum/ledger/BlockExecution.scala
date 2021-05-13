@@ -32,8 +32,7 @@ class BlockExecution(
     val blockExecResult = {
       if (block.hasCheckpoint) {
         // block with checkpoint is not executed normally - it's not need to do after execution validation
-        preExecValidationResult
-          .map(_ => Seq.empty[Receipt])
+        preExecValidationResult.map(_ => Seq.empty[Receipt])
       } else {
         for {
           _ <- preExecValidationResult

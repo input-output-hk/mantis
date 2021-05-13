@@ -10,7 +10,12 @@ import com.miguno.akka.testing.VirtualTime
 import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
 import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
 import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{AdaptedMessageFromEventBus, InternalLastBlockImport, InvalidateBlocksFrom, PickBlocks}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{
+  AdaptedMessageFromEventBus,
+  InternalLastBlockImport,
+  InvalidateBlocksFrom,
+  PickBlocks
+}
 import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
 import io.iohk.ethereum.domain.{Block, HeadersSeq}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -29,11 +34,7 @@ import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
-class BlockFetcherSpec
-    extends ScalaTestWithActorTestKit()
-    with AnyFreeSpecLike
-    with Matchers
-    with SecureRandomBuilder {
+class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike with Matchers with SecureRandomBuilder {
 
   val as: ActorSystem = ActorSystem("BlockFetcherSpec_System")
 
@@ -130,7 +131,7 @@ class BlockFetcherSpec
       handleFirstBlockBatchHeaders()
 
       val getBlockBodiesRequest1 = GetBlockBodies(firstBlocksBatch.map(_.hash))
-      peersClient.fishForMessage() { case PeersClient.Request(`getBlockBodiesRequest1`, _, _) => true}
+      peersClient.fishForMessage() { case PeersClient.Request(`getBlockBodiesRequest1`, _, _) => true }
 
       // It will receive all the requested bodies, but splitted in 2 parts.
       val (subChain1, subChain2) = firstBlocksBatch.splitAt(syncConfig.blockBodiesPerRequest / 2)
@@ -139,7 +140,7 @@ class BlockFetcherSpec
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse1))
 
       val getBlockBodiesRequest2 = GetBlockBodies(subChain2.map(_.hash))
-      peersClient.fishForSpecificMessage() { case PeersClient.Request(`getBlockBodiesRequest2`, _, _) => true}
+      peersClient.fishForSpecificMessage() { case PeersClient.Request(`getBlockBodiesRequest2`, _, _) => true }
 
       val getBlockBodiesResponse2 = BlockBodies(subChain2.map(_.body))
       peersClient.reply(PeersClient.Response(fakePeer, getBlockBodiesResponse2))
@@ -290,12 +291,12 @@ class BlockFetcherSpec
 
     lazy val blockFetcher = spawn(
       BlockFetcher(
-          peersClient.ref,
-          peerEventBus.ref,
-          regularSync.ref,
-          syncConfig,
-          validators.blockValidator
-        )
+        peersClient.ref,
+        peerEventBus.ref,
+        regularSync.ref,
+        syncConfig,
+        validators.blockValidator
+      )
     )
 
     def startFetcher(): Unit = {
