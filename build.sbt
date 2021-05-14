@@ -5,6 +5,7 @@ javaAgents += "io.kamon" % "kanela-agent" % "1.0.6"
 import scala.sys.process.Process
 import NativePackagerHelper._
 import com.typesafe.sbt.SbtGit.GitKeys._
+import pl.project13.scala.sbt.JmhPlugin
 
 // Necessary for the nix build, please do not remove.
 val nixBuild = sys.props.isDefinedAt("nix")
@@ -129,6 +130,11 @@ lazy val rlp = {
 
   rlp
 }
+
+lazy val bench = project
+  .in(file("bench"))
+  .settings(commonSettings("mantis-bench"))
+  .enablePlugins(JmhPlugin)
 
 lazy val node = {
   val Benchmark = config("benchmark") extend Test
