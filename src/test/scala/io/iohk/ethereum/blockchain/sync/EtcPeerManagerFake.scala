@@ -4,10 +4,10 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import cats.effect.concurrent.Deferred
-import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
+import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, GetReceipts, NodeData, Receipts}
@@ -19,7 +19,7 @@ import monix.reactive.subjects.{ReplaySubject, Subject}
 
 class EtcPeerManagerFake(
     syncConfig: SyncConfig,
-    peers: PeersMap,
+    peers: Map[Peer, PeerInfo],
     blocks: List[Block],
     getMptNodes: List[ByteString] => List[ByteString]
 )(implicit system: ActorSystem, scheduler: Scheduler) {
@@ -82,7 +82,7 @@ class EtcPeerManagerFake(
     .map(_._1)
     .combineLatestMap(requestedReceipts)((blocks, _) => blocks) // a big simplification, but should be sufficient here
 
-  val fetchedState = responses.collect { case MessageFromPeer(NodeData(values), peerId) =>
+  val fetchedState = responses.collect { case MessageFromPeer(NodeData(values), _) =>
     values
   }
 
@@ -92,7 +92,7 @@ object EtcPeerManagerFake {
       requests: Subject[SendMessage, SendMessage],
       responses: Subject[MessageFromPeer, MessageFromPeer],
       peersConnected: Deferred[Task, Unit],
-      peers: PeersMap,
+      peers: Map[Peer, PeerInfo],
       blocks: List[Block],
       getMptNodes: List[ByteString] => List[ByteString]
   )(implicit scheduler: Scheduler)

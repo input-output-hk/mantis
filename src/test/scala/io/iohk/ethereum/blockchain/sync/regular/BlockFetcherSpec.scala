@@ -24,6 +24,8 @@ import io.iohk.ethereum.{BlockHelpers, Timeouts}
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 
@@ -96,7 +98,7 @@ class BlockFetcherSpec
       peersClient.expectNoMessage()
 
       // Failure of the second request should make the fetcher resume with his requests
-      peersClient.send(refExpectingReply, PeersClient.RequestFailed(fakePeer, ""))
+      peersClient.send(refExpectingReply, PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed("")))
 
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }

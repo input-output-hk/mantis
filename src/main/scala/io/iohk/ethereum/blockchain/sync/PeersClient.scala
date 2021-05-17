@@ -1,6 +1,8 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.{Peer, PeerId}
@@ -15,12 +17,12 @@ import scala.reflect.ClassTag
 class PeersClient(
     val etcPeerManager: ActorRef,
     val peerEventBus: ActorRef,
+    val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler
 ) extends Actor
     with ActorLogging
-    with PeerListSupport
-    with BlacklistSupport {
+    with PeerListSupportNg {
   import PeersClient._
 
   implicit val ec: ExecutionContext = context.dispatcher
@@ -36,9 +38,9 @@ class PeersClient(
   }
 
   def running(requesters: Requesters): Receive =
-    handleBlacklistMessages orElse handlePeerListMessages orElse {
+    handlePeerListMessages orElse {
       case PrintStatus => printStatus(requesters: Requesters)
-      case BlacklistPeer(peerId, reason) => peerById(peerId).foreach(blacklistIfHandshaked(_, reason))
+      case BlacklistPeer(peerId, reason) => blacklistIfHandshaked(peerId, syncConfig.blacklistDuration, reason)
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
         selectPeer(peerSelector) match {
@@ -56,7 +58,7 @@ class PeersClient(
         handleResponse(requesters, Response(peer, message.asInstanceOf[Message]))
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         log.warning(s"Request to peer ${peer.remoteAddress} failed - reason: $reason")
-        handleResponse(requesters, RequestFailed(peer, reason))
+        handleResponse(requesters, RequestFailed(peer, BlacklistReason.RegularSyncRequestFailed(reason)))
     }
 
   private def makeRequest[RequestMsg <: Message, ResponseMsg <: Message](
@@ -108,12 +110,12 @@ class PeersClient(
       peersToDownloadFrom.size
     )
 
-    lazy val handshakedPeersStatus = handshakedPeers.map { case (peer, info) =>
+    lazy val handshakedPeersStatus = handshakedPeers.map { case (peerId, peerWithInfo) =>
       val peerNetworkStatus = PeerNetworkStatus(
-        peer,
-        isBlacklisted = isBlacklisted(peer.id)
+        peerWithInfo.peer,
+        isBlacklisted = blacklist.isBlacklisted(peerId)
       )
-      (peerNetworkStatus, info)
+      (peerNetworkStatus, peerWithInfo.peerInfo)
     }
 
     log.debug(s"Handshaked peers status (number of peers: ${handshakedPeersStatus.size}): $handshakedPeersStatus")
@@ -122,13 +124,19 @@ class PeersClient(
 
 object PeersClient {
 
-  def props(etcPeerManager: ActorRef, peerEventBus: ActorRef, syncConfig: SyncConfig, scheduler: Scheduler): Props =
-    Props(new PeersClient(etcPeerManager, peerEventBus, syncConfig, scheduler))
+  def props(
+      etcPeerManager: ActorRef,
+      peerEventBus: ActorRef,
+      blacklist: Blacklist,
+      syncConfig: SyncConfig,
+      scheduler: Scheduler
+  ): Props =
+    Props(new PeersClient(etcPeerManager, peerEventBus, blacklist, syncConfig, scheduler))
 
   type Requesters = Map[ActorRef, ActorRef]
 
   sealed trait PeersClientMessage
-  case class BlacklistPeer(peerId: PeerId, reason: String) extends PeersClientMessage
+  case class BlacklistPeer(peerId: PeerId, reason: BlacklistReason) extends PeersClientMessage
   case class Request[RequestMsg <: Message](
       message: RequestMsg,
       peerSelector: PeerSelector,
@@ -155,16 +163,16 @@ object PeersClient {
 
   sealed trait ResponseMessage
   case object NoSuitablePeer extends ResponseMessage
-  case class RequestFailed(peer: Peer, reason: String) extends ResponseMessage
+  case class RequestFailed(peer: Peer, reason: BlacklistReason) extends ResponseMessage
   case class Response[T <: Message](peer: Peer, message: T) extends ResponseMessage
 
   sealed trait PeerSelector
   case object BestPeer extends PeerSelector
 
-  def bestPeer(peersToDownloadFrom: Map[Peer, PeerInfo]): Option[Peer] = {
-    val peersToUse = peersToDownloadFrom
-      .collect { case (ref, PeerInfo(_, chainWeight, true, _, _)) =>
-        (ref, chainWeight)
+  def bestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
+    val peersToUse = peersToDownloadFrom.values
+      .collect { case PeerWithInfo(peer, PeerInfo(_, chainWeight, true, _, _)) =>
+        (peer, chainWeight)
       }
 
     if (peersToUse.nonEmpty) {

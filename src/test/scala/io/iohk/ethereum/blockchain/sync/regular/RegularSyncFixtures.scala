@@ -10,7 +10,6 @@ import akka.util.{ByteString, Timeout}
 import cats.Eq
 import cats.implicits._
 import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.blockchain.sync.PeerListSupport.PeersMap
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -50,7 +49,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit override lazy val system: ActorSystem = _system
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(blockHeadersPerRequest = 2, blockBodiesPerRequest = 2)
-    val handshakedPeers: PeersMap = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
+    val handshakedPeers: Map[Peer, PeerInfo] = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
     val etcPeerManager: TestProbe = TestProbe()
@@ -59,6 +58,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val pendingTransactionsManager: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
+    val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
 
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
@@ -69,6 +69,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           ledger,
           blockchain,
           validators.blockValidator,
+          blacklist,
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,

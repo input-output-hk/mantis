@@ -17,16 +17,12 @@ import monix.eval.Task
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try
-import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 object FastSyncItSpecUtils {
 
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
     lazy val validators = new MockValidatorsAlwaysSucceed
-
-    val maxSize = 1000
-    val blacklist = CacheBasedBlacklist.empty(maxSize)
 
     lazy val fastSync = system.actorOf(
       FastSync.props(

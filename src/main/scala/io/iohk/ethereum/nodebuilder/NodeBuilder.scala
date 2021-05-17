@@ -224,7 +224,8 @@ trait PeerManagerActorBuilder {
     with DiscoveryConfigBuilder
     with StorageBuilder
     with KnownNodesManagerBuilder
-    with PeerStatisticsBuilder =>
+    with PeerStatisticsBuilder
+    with BlacklistBuilder =>
 
   lazy val peerConfiguration: PeerConfiguration = Config.Network.peer
 
@@ -239,6 +240,7 @@ trait PeerManagerActorBuilder {
       authHandshaker,
       EthereumMessageDecoder,
       discoveryConfig,
+      blacklist,
       Config.Network.protocolVersion
     ),
     "peer-manager"
