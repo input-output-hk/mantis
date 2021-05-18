@@ -137,7 +137,7 @@ trait PeerDiscoveryManagerBuilder {
 
 trait BlacklistBuilder {
   private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
-  val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
+  lazy val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 }
 
 trait NodeStatusBuilder {
