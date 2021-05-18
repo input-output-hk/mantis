@@ -37,6 +37,10 @@ object PoWMiningCoordinator {
 
   case object MiningComplete extends MiningResponse
 
+  sealed trait MiningAlgorithm
+  case object EthashAlgorithm extends MiningAlgorithm
+  case object KeccakAlgorithm extends MiningAlgorithm
+
   def apply(
       syncController: ClassicActorRef,
       ethMiningService: EthMiningService,
@@ -92,7 +96,10 @@ class PoWMiningCoordinator private (
           log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
           context.self ! MineNext
         } { block =>
-          if (shouldMineWithKeccak(block.header.number)) mineWithKeccak(block) else mineWithEthash(block)
+          getMiningAlgorithm(block.header.number) match {
+            case EthashAlgorithm => mineWithEthash(block)
+            case KeccakAlgorithm => mineWithKeccak(block)
+          }
         }
       Behaviors.same
 
@@ -115,10 +122,10 @@ class PoWMiningCoordinator private (
     case OnDemandMining => handleMiningOnDemand()
   }
 
-  private def shouldMineWithKeccak(currentBlockNumber: BigInt): Boolean = {
+  private def getMiningAlgorithm(currentBlockNumber: BigInt): MiningAlgorithm = {
     ecip1049BlockNumber match {
-      case None => false
-      case Some(blockNumber) => (currentBlockNumber + 1) >= blockNumber
+      case None => EthashAlgorithm
+      case Some(blockNumber) => if (currentBlockNumber + 1 >= blockNumber) KeccakAlgorithm else EthashAlgorithm
     }
   }
 

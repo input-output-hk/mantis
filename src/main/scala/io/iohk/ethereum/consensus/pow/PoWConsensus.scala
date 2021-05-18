@@ -83,31 +83,29 @@ class PoWConsensus private (
    * TODO further refactors should focus on extracting two types - one with a miner, one without - based on the config
    */
   private[this] def startMiningProcess(node: Node, blockCreator: PoWBlockCreator): Unit = {
-    if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
-      mutex.synchronized {
-        if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
-          config.generic.protocol match {
-            case PoW | RestrictedPoW =>
-              log.info("Instantiating PoWMiningCoordinator")
-              minerCoordinatorRef = Some(
-                node.system.spawn(
-                  PoWMiningCoordinator(
-                    node.syncController,
-                    node.ethMiningService,
-                    blockCreator,
-                    blockchain,
-                    blockchainConfig.ecip1049BlockNumber
-                  ),
-                  "PoWMinerCoordinator",
-                  DispatcherSelector.fromConfig(BlockForgerDispatcherId)
-                )
+    mutex.synchronized {
+      if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
+        config.generic.protocol match {
+          case PoW | RestrictedPoW =>
+            log.info("Instantiating PoWMiningCoordinator")
+            minerCoordinatorRef = Some(
+              node.system.spawn(
+                PoWMiningCoordinator(
+                  node.syncController,
+                  node.ethMiningService,
+                  blockCreator,
+                  blockchain,
+                  blockchainConfig.ecip1049BlockNumber
+                ),
+                "PoWMinerCoordinator",
+                DispatcherSelector.fromConfig(BlockForgerDispatcherId)
               )
-            case MockedPow =>
-              log.info("Instantiating MockedMiner")
-              mockedMinerRef = Some(MockedMiner(node))
-          }
-          sendMiner(MinerProtocol.StartMining)
+            )
+          case MockedPow =>
+            log.info("Instantiating MockedMiner")
+            mockedMinerRef = Some(MockedMiner(node))
         }
+        sendMiner(MinerProtocol.StartMining)
       }
     }
   }
