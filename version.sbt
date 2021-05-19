@@ -3,4 +3,4 @@
 // based on `git` tags by https://github.com/dwijnand/sbt-dynver,
 // which is a dependency of `sbt-ci-release`.
 
-version in ThisBuild := "3.2.2-SNAPSHOT"
+version in ThisBuild := "3.2.3-SNAPSHOT"
