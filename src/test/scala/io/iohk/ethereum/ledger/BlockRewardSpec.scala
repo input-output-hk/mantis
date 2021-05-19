@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -113,30 +113,30 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   it should "correctly distribute block reward according to ECIP1098" in new TestSetup {
+    val blockNoPostTreasury = blockchainConfig.ecip1098BlockNumber + 1
     val blockReward = consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(sampleBlockNumber)
+    val blockRewardPostTreasury =
+      consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(blockNoPostTreasury)
 
-    val table = Table[Option[Boolean], Boolean, BigInt, BigInt](
-      ("miner opts-out", "contract deployed", "miner reward", "treasury reward"),
+    val table = Table[Boolean, BigInt, BigInt, BigInt](
+      ("contract deployed", "miner reward", "treasury reward", "block no"),
       // ECIP1098 not activated
-      (None, true, blockReward, 0),
-      (None, false, blockReward, 0),
+      (true, blockReward, 0, sampleBlockNumber),
+      (false, blockReward, 0, sampleBlockNumber),
       // ECIP1098 previously activated but contract destroyed
-      (Some(true), false, blockReward, 0),
-      (Some(false), false, blockReward, 0),
+      (false, blockRewardPostTreasury, 0, blockNoPostTreasury),
       // ECIP1098 activated with contract in place
       (
-        Some(false),
         true,
-        MinerRewardPercentageAfterECIP1098 * blockReward / 100,
-        TreasuryRewardPercentageAfterECIP1098 * blockReward / 100
-      ),
-      (Some(true), true, MinerRewardPercentageAfterECIP1098 * blockReward / 100, 0)
+        MinerRewardPercentageAfterECIP1098 * blockRewardPostTreasury / 100,
+        TreasuryRewardPercentageAfterECIP1098 * blockRewardPostTreasury / 100,
+        blockNoPostTreasury
+      )
     )
 
-    forAll(table) { case (minerOptsOut, contractDeployed, minerReward, treasuryReward) =>
+    forAll(table) { case (contractDeployed, minerReward, treasuryReward, blockNo) =>
       val minerAddress = validAccountAddress
-      val block = sampleBlock(minerAddress, Nil, minerOptsOut)
-
+      val block = sampleBlock(minerAddress, Nil, blockNo)
       val worldBeforeExecution =
         if (contractDeployed) worldState
         else {
@@ -179,7 +179,9 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
-    override lazy val blockchainConfig = baseBlockchainConfig.copy(treasuryAddress = treasuryAddress)
+    override lazy val blockchainConfig = baseBlockchainConfig
+      .copy(treasuryAddress = treasuryAddress)
+      .copy(ecip1098BlockNumber = baseBlockchainConfig.byzantiumBlockNumber + 100)
 
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
@@ -205,17 +207,13 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     def sampleBlock(
         minerAddress: Address,
         ommerMiners: Seq[Address] = Nil,
-        treasuryOptOut: Option[Boolean] = None
+        blockNumber: BigInt = sampleBlockNumber
     ): Block = {
-      val extraFields = treasuryOptOut match {
-        case Some(definedTreasuryOptOut) => HefPostEcip1098(definedTreasuryOptOut)
-        case None => HefEmpty
-      }
-
+      val extraFields = HefEmpty
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(
           beneficiary = minerAddress.bytes,
-          number = sampleBlockNumber,
+          number = blockNumber,
           extraFields = extraFields
         ),
         body = Fixtures.Blocks.Genesis.body.copy(

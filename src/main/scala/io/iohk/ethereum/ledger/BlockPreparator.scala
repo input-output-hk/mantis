@@ -44,10 +44,7 @@ class BlockPreparator(
     *  1. Reward for block is distributed as:
     *      a. If treasury is disabled or it's has been selfdestructed:
     *            Pay 100% of it to the miner
-    *      b. If a. isn't true and the miner opted out:
-    *            Pay 80% of it to the miner
-    *            Never generate the 20% else
-    *      c. If a. isn't true and the miner opted in:
+    *      b. If a. isn't true:
     *            Pay 80% of it to the miner
     *            Pay 20% of it to the treasury contract
     *  2. Miner is payed a reward for the inclusion of ommers
@@ -71,17 +68,10 @@ class BlockPreparator(
       val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
 
       val worldAfterPayingBlockReward =
-        if (block.header.treasuryOptOut.isEmpty || !existsTreasuryContract) {
+        if (!treasuryEnabled(blockNumber) || !existsTreasuryContract) {
           val minerReward = minerRewardForOmmers + minerRewardForBlock
           val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
           log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
-          worldAfterMinerReward
-        } else if (block.header.treasuryOptOut.get) {
-          val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
-          val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
-          log.debug(
-            s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress, miner opted-out of treasury"
-          )
           worldAfterMinerReward
         } else {
           val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
@@ -106,6 +96,9 @@ class BlockPreparator(
       //FIXME needs to be part of setting up the application and not a runtime flag
       worldStateProxy
     }
+
+  private def treasuryEnabled(blockNo: BigInt): Boolean =
+    blockNo >= blockchainConfig.ecip1098BlockNumber
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)

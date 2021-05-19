@@ -91,7 +91,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         header = parent.header.copy(
           number = parent.number + 1,
           parentHash = parent.hash,
-          extraFields = HefPostEcip1097(false, None)
+          extraFields = HefPostEcip1097(None)
         ),
         body = body
       )

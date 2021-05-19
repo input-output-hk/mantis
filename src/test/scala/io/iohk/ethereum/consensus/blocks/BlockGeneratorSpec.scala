@@ -3,15 +3,15 @@ package io.iohk.ethereum.consensus.blocks
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097}
 import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
@@ -496,25 +496,25 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate blocks with the correct extra fields" in {
-    val table = Table[Boolean, Boolean, Boolean, HeaderExtraFields](
-      ("ecip1098Activated", "ecip1097Activated", "selectedOptOut", "expectedExtraFields"),
+    val table = Table[Boolean, Boolean, HeaderExtraFields](
+      ("ecip1098Activated", "ecip1097Activated", "expectedExtraFields"),
       // No ecip activated
-      (false, false, true, HefEmpty),
-      (false, false, false, HefEmpty),
+      (false, false, HefEmpty),
+      (false, false, HefEmpty),
       // ECIP 1098 activated
-      (true, false, true, HefPostEcip1098(true)),
-      (true, false, false, HefPostEcip1098(false)),
+      (true, false, HefEmpty),
+      (true, false, HefEmpty),
       // ECIP 1097 and 1098 activated
-      (true, true, true, HefPostEcip1097(true, None)),
-      (true, true, false, HefPostEcip1097(false, None))
+      (true, true, HefPostEcip1097(None)),
+      (true, true, HefPostEcip1097(None))
     )
 
-    forAll(table) { case (ecip1098Activated, ecip1097Activated, selectedOptOut, headerExtraFields) =>
+    forAll(table) { case (ecip1098Activated, ecip1097Activated, headerExtraFields) =>
       val testSetup = new TestSetup {
         override lazy val blockchainConfig =
           baseBlockchainConfig.copy(ecip1098BlockNumber = 1000, ecip1097BlockNumber = 2000)
 
-        override lazy val consensusConfig = buildConsensusConfig().copy(treasuryOptOut = selectedOptOut)
+        override lazy val consensusConfig = buildConsensusConfig()
       }
       import testSetup._
 
@@ -531,7 +531,79 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
       generatedBlock.block.header.extraFields shouldBe headerExtraFields
     }
+  }
 
+  it should "generate a failure if treasury transfer was not made" in {
+    val producer = new TestSetup {
+      override lazy val blockchainConfig = baseBlockchainConfig.copy(
+        ecip1098BlockNumber = 20000000,
+        treasuryAddress = treasuryAccount,
+        customGenesisFileOpt = Some("test-genesis-treasury.json")
+      )
+      override lazy val consensusConfig = buildConsensusConfig()
+    }
+    val block = {
+      import producer._
+      blockGenerator
+        .generateBlock(bestBlock.get, Seq.empty, Address(testAddress), blockGenerator.emptyX, None)
+        .pendingBlock
+    }
+
+    val validator = new TestSetup {
+      override lazy val blockchainConfig = baseBlockchainConfig.copy(
+        ecip1098BlockNumber = 1,
+        treasuryAddress = treasuryAccount,
+        customGenesisFileOpt = Some("test-genesis-treasury.json")
+      )
+      override lazy val consensusConfig = buildConsensusConfig()
+    }
+
+    {
+      import validator._
+
+      blockExecution.executeAndValidateBlock(block.block, alreadyValidated = true) shouldBe
+        Left(
+          ValidationAfterExecError(
+            "Block has invalid state root hash, expected 47344722e6c52a85685f9c1bb1e0fe66cfaf6be00c1a752f43cc835fb7415e81 but got 41b63e59d34b5b35a040d496582fc587887af79f762210f6cf55c24d2c307d61"
+          )
+        )
+    }
+  }
+
+  it should "generate a failure if treasury transfer was made to a different treasury account" in {
+    val producer = new TestSetup {
+      override lazy val blockchainConfig = baseBlockchainConfig.copy(
+        ecip1098BlockNumber = 1,
+        treasuryAddress = maliciousAccount,
+        customGenesisFileOpt = Some("test-genesis-treasury.json")
+      )
+      override lazy val consensusConfig = buildConsensusConfig()
+    }
+    val block = {
+      import producer._
+      blockGenerator
+        .generateBlock(bestBlock.get, Seq.empty, Address(testAddress), blockGenerator.emptyX, None)
+        .pendingBlock
+    }
+
+    val validator = new TestSetup {
+      override lazy val blockchainConfig = baseBlockchainConfig.copy(
+        ecip1098BlockNumber = 1,
+        treasuryAddress = treasuryAccount,
+        customGenesisFileOpt = Some("test-genesis-treasury.json")
+      )
+      override lazy val consensusConfig = buildConsensusConfig()
+    }
+
+    {
+      import validator._
+      blockExecution.executeAndValidateBlock(block.block, alreadyValidated = true) shouldBe
+        Left(
+          ValidationAfterExecError(
+            "Block has invalid state root hash, expected 5bfc811dfee1fecaefbaef2dba502082a8cc72e52260368d83ed6e4ebcecae75 but got 41b63e59d34b5b35a040d496582fc587887af79f762210f6cf55c24d2c307d61"
+          )
+        )
+    }
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
@@ -552,6 +624,10 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       value = txTransfer,
       payload = ByteString.empty
     )
+
+    //defined in test-genesis-treasury.json
+    val treasuryAccount = Address(0xeeeeee)
+    val maliciousAccount = Address(0x123)
 
     lazy val signedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
     lazy val duplicatedSignedTransaction =

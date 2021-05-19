@@ -46,9 +46,7 @@ abstract class BlockGeneratorSkeleton(
   ): BlockHeader = {
     val extraFields =
       if (blockNumber >= blockchainConfig.ecip1097BlockNumber)
-        HefPostEcip1097(consensusConfig.treasuryOptOut, None)
-      else if (blockNumber >= blockchainConfig.ecip1098BlockNumber)
-        HefPostEcip1098(consensusConfig.treasuryOptOut)
+        HefPostEcip1097(None)
       else
         HefEmpty
 

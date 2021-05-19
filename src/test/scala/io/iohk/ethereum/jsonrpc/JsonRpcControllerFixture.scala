@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1098
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction, UInt256}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
@@ -153,7 +153,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val blockWithCheckpoint = checkpointBlockGenerator.generate(Fixtures.Blocks.Block3125369.block, checkpoint)
   val blockWithTreasuryOptOut =
     Block(
-      Fixtures.Blocks.Block3125369.header.copy(extraFields = HefPostEcip1098(true)),
+      Fixtures.Blocks.Block3125369.header.copy(extraFields = HefEmpty),
       Fixtures.Blocks.Block3125369.body
     )
 
