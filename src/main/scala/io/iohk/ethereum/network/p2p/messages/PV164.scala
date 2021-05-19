@@ -10,10 +10,11 @@ import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
 /**
-  * This is temporal PV64 version, the real one will be implemented by ETCM-355
-  * This one will be probably PV66 in the future
+  * This is PV164 version, the real one will be implemented by ETCM-355
+  * A new version number will need to be proposed when checkpointing is reintroduced
   */
-object PV64 {
+//FIXME This PV is considered WIP and needs to be reassessed
+object PV164 {
   object Status {
     implicit class StatusEnc(val underlyingMsg: Status)
         extends MessageSerializableImplicit[Status](underlyingMsg)
@@ -51,12 +52,13 @@ object PV64 {
             genesisHash
           )
 
-        case _ => throw new RuntimeException("Cannot decode Status PV64 version")
+        case _ => throw new RuntimeException("Cannot decode Status PV164 version")
       }
     }
 
   }
 
+  //FIXME This PV is considered WIP and needs to be reassessed
   case class Status(
       protocolVersion: Int,
       networkId: Int,
@@ -79,6 +81,7 @@ object PV64 {
     override def code: Int = Codes.StatusCode
   }
 
+  //FIXME This PV is considered WIP and needs to be reassessed
   object NewBlock {
     implicit class NewBlockEnc(val underlyingMsg: NewBlock)
         extends MessageSerializableImplicit[NewBlock](underlyingMsg)
@@ -117,11 +120,12 @@ object PV64 {
             ),
             ChainWeight(lastCheckpointNumber, totalDifficulty)
           )
-        case _ => throw new RuntimeException("Cannot decode NewBlock PV64 version")
+        case _ => throw new RuntimeException("Cannot decode NewBlock PV164 version")
       }
     }
   }
 
+  //FIXME This PV is considered WIP and needs to be reassessed
   case class NewBlock(block: Block, chainWeight: ChainWeight) extends Message {
     override def toString: String =
       s"NewBlock { " +

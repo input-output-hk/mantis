@@ -75,18 +75,18 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  "PV64" when {
+  "PV164" when {
     "encoding and decoding Status" should {
-      "return same result for Status v64" in {
-        val msg = PV64.Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2"))
-        verify(msg, (m: PV64.Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.PV64)
+      "return same result for Status v164" in {
+        val msg = PV164.Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: PV164.Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.PV164)
       }
     }
 
     "encoding and decoding NewBlock" should {
       "return same result for NewBlock v64" in {
-        val msg = PV64.NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21))
-        verify(msg, (m: PV64.NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.PV64)
+        val msg = PV164.NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21))
+        verify(msg, (m: PV164.NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.PV164)
       }
     }
   }

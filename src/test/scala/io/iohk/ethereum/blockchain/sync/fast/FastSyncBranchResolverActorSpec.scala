@@ -246,7 +246,7 @@ class FastSyncBranchResolverActorSpec
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
-    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64): PeerInfo = {
+    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV164): PeerInfo = {
       val status =
         RemoteStatus(
           protocolVersion,
@@ -264,7 +264,8 @@ class FastSyncBranchResolverActorSpec
       )
     }
 
-    val handshakedPeers: Map[Peer, PeerInfo] = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
+    val handshakedPeers: Map[Peer, PeerInfo] =
+      (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
 
     def saveBlocks(blocks: List[Block]): Unit = {
       blocks.foreach(block => blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true))

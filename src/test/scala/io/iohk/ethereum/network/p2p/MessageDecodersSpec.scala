@@ -43,7 +43,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes, ProtocolVersions.PV61) shouldBe hello
     NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes, ProtocolVersions.PV62) shouldBe hello
     NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes, ProtocolVersions.PV63) shouldBe hello
-    NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes, ProtocolVersions.PV64) shouldBe hello
+    NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes, ProtocolVersions.PV164) shouldBe hello
   }
 
   it should "decode NewBlockHashes message for all supported versions of protocol" in {
@@ -58,7 +58,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     decode(Codes.NewBlockHashesCode, NewBlockHashesPV61bytes, ProtocolVersions.PV61) shouldBe newBlockHashesPV61
     decode(Codes.NewBlockHashesCode, NewBlockHashesPV62bytes, ProtocolVersions.PV62) shouldBe newBlockHashesPV62
     decode(Codes.NewBlockHashesCode, NewBlockHashesPV62bytes, ProtocolVersions.PV63) shouldBe newBlockHashesPV62
-    decode(Codes.NewBlockHashesCode, NewBlockHashesPV62bytes, ProtocolVersions.PV64) shouldBe newBlockHashesPV62
+    decode(Codes.NewBlockHashesCode, NewBlockHashesPV62bytes, ProtocolVersions.PV164) shouldBe newBlockHashesPV62
   }
 
   it should "not decode message from older version of protocol as newer version" in {
@@ -85,7 +85,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     }
     decode(Codes.GetBlockHeadersCode, getBlockHeadersBytes, ProtocolVersions.PV62) shouldBe getBlockHeaders
     decode(Codes.GetBlockHeadersCode, getBlockHeadersBytes, ProtocolVersions.PV63) shouldBe getBlockHeaders
-    decode(Codes.GetBlockHeadersCode, getBlockHeadersBytes, ProtocolVersions.PV64) shouldBe getBlockHeaders
+    decode(Codes.GetBlockHeadersCode, getBlockHeadersBytes, ProtocolVersions.PV164) shouldBe getBlockHeaders
   }
 
   it should "decode BlockHeaders message for all supported versions of protocol" in {
@@ -97,7 +97,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     }
     decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV62) shouldBe blockHeaders
     decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV63) shouldBe blockHeaders
-    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV64) shouldBe blockHeaders
+    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV164) shouldBe blockHeaders
   }
 
   it should "decode GetBlockBodies message for all supported versions of protocol" in {
@@ -109,7 +109,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     }
     decode(Codes.GetBlockBodiesCode, getBlockBodiesBytes, ProtocolVersions.PV62) shouldBe getBlockBodies
     decode(Codes.GetBlockBodiesCode, getBlockBodiesBytes, ProtocolVersions.PV63) shouldBe getBlockBodies
-    decode(Codes.GetBlockBodiesCode, getBlockBodiesBytes, ProtocolVersions.PV64) shouldBe getBlockBodies
+    decode(Codes.GetBlockBodiesCode, getBlockBodiesBytes, ProtocolVersions.PV164) shouldBe getBlockBodies
   }
 
   it should "decode BlockBodies message for all supported versions of protocol" in {
@@ -121,7 +121,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     }
     decode(Codes.BlockBodiesCode, blockBodiesBytes, ProtocolVersions.PV62) shouldBe blockBodies
     decode(Codes.BlockBodiesCode, blockBodiesBytes, ProtocolVersions.PV63) shouldBe blockBodies
-    decode(Codes.BlockBodiesCode, blockBodiesBytes, ProtocolVersions.PV64) shouldBe blockBodies
+    decode(Codes.BlockBodiesCode, blockBodiesBytes, ProtocolVersions.PV164) shouldBe blockBodies
   }
 
   it should "decode GetNodeData message for all supported versions of protocol" in {
@@ -135,7 +135,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       decode(Codes.GetNodeDataCode, getNodeDataBytes, ProtocolVersions.PV62)
     }
     decode(Codes.GetNodeDataCode, getNodeDataBytes, ProtocolVersions.PV63) shouldBe getNodeData
-    decode(Codes.GetNodeDataCode, getNodeDataBytes, ProtocolVersions.PV64) shouldBe getNodeData
+    decode(Codes.GetNodeDataCode, getNodeDataBytes, ProtocolVersions.PV164) shouldBe getNodeData
   }
 
   it should "decode NodeData message for all supported versions of protocol" in {
@@ -149,7 +149,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       decode(Codes.NodeDataCode, nodeDataBytes, ProtocolVersions.PV62)
     }
     decode(Codes.NodeDataCode, nodeDataBytes, ProtocolVersions.PV63) shouldBe nodeData
-    decode(Codes.NodeDataCode, nodeDataBytes, ProtocolVersions.PV64) shouldBe nodeData
+    decode(Codes.NodeDataCode, nodeDataBytes, ProtocolVersions.PV164) shouldBe nodeData
   }
 
   it should "decode GetReceipts message for all supported versions of protocol" in {
@@ -163,7 +163,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       decode(Codes.GetReceiptsCode, getReceiptsBytes, ProtocolVersions.PV62)
     }
     decode(Codes.GetReceiptsCode, getReceiptsBytes, ProtocolVersions.PV63) shouldBe getReceipts
-    decode(Codes.GetReceiptsCode, getReceiptsBytes, ProtocolVersions.PV64) shouldBe getReceipts
+    decode(Codes.GetReceiptsCode, getReceiptsBytes, ProtocolVersions.PV164) shouldBe getReceipts
   }
 
   it should "decode Receipts message for all supported versions of protocol" in {
@@ -177,19 +177,19 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       decode(Codes.ReceiptsCode, receiptsBytes, ProtocolVersions.PV62)
     }
     decode(Codes.ReceiptsCode, receiptsBytes, ProtocolVersions.PV63) shouldBe receipts
-    decode(Codes.ReceiptsCode, receiptsBytes, ProtocolVersions.PV64) shouldBe receipts
+    decode(Codes.ReceiptsCode, receiptsBytes, ProtocolVersions.PV164) shouldBe receipts
   }
 
   it should "decode Status message for all supported versions of protocol" in {
     val status63 = CommonMessages.Status(ProtocolVersions.PV63, 1, BigInt(100), exampleHash, exampleHash)
     val status63Bytes: Array[Byte] = status63.toBytes
-    val status64 = PV64.Status(ProtocolVersions.PV63, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
+    val status64 = PV164.Status(ProtocolVersions.PV63, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
 
     // it's not 100 % true as Status message was different in PV61, but we are not supporting old message
     decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV61) shouldBe status63
     decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV62) shouldBe status63
     decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV63) shouldBe status63
-    decode(Codes.StatusCode, status64.toBytes, ProtocolVersions.PV64) shouldBe status64
+    decode(Codes.StatusCode, status64.toBytes, ProtocolVersions.PV164) shouldBe status64
   }
 
   it should "decode NewBlock message for all supported versions of protocol" in {
@@ -200,7 +200,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV61) shouldBe newBlock63
     decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV62) shouldBe newBlock63
     decode(Codes.NewBlockCode, newBlock63Bytes, ProtocolVersions.PV63) shouldBe newBlock63
-    decode(Codes.NewBlockCode, newBlock64.toBytes, ProtocolVersions.PV64) shouldBe newBlock64
+    decode(Codes.NewBlockCode, newBlock64.toBytes, ProtocolVersions.PV164) shouldBe newBlock64
   }
 
   it should "decode SignedTransactions message for all supported versions of protocol" in {
@@ -210,7 +210,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     decode(Codes.SignedTransactionsCode, signedTransactionsBytes, ProtocolVersions.PV61) shouldBe signedTransactions
     decode(Codes.SignedTransactionsCode, signedTransactionsBytes, ProtocolVersions.PV62) shouldBe signedTransactions
     decode(Codes.SignedTransactionsCode, signedTransactionsBytes, ProtocolVersions.PV63) shouldBe signedTransactions
-    decode(Codes.SignedTransactionsCode, signedTransactionsBytes, ProtocolVersions.PV64) shouldBe signedTransactions
+    decode(Codes.SignedTransactionsCode, signedTransactionsBytes, ProtocolVersions.PV164) shouldBe signedTransactions
   }
 
   it should "not decode message not existing in given protocol" in {

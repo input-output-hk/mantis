@@ -21,7 +21,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
 
   val peer1Status =
     RemoteStatus(
-      ProtocolVersions.PV64,
+      ProtocolVersions.PV164,
       1,
       ChainWeight.totalDifficultyOnly(20),
       ByteString("peer1_bestHash"),

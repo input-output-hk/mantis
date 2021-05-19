@@ -24,7 +24,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV164.NewBlock
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{BlockHelpers, ObjectGenerators, ResourceFixtures, WordSpecBase}
@@ -108,8 +108,12 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgType[PeersClient.Request[GetBlockHeaders]]
-        peersClient.reply(PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason")))
-        peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason")))
+        peersClient.reply(
+          PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
+        peersClient.expectMsg(
+          PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
       })
 
       //TODO: To be re-enabled with ETCM-370
@@ -592,7 +596,7 @@ class RegularSyncSpec
     }
 
     "broadcasting blocks" should {
-      "send a NewBlock message without latest checkpoint number when client not support PV64" in sync(
+      "send a NewBlock message without latest checkpoint number when client not support PV164" in sync(
         new OnTopFixture(testSystem) {
           goToTop()
 
@@ -619,7 +623,7 @@ class RegularSyncSpec
         }
       )
 
-      "send a NewBlock message with latest checkpoint number when client supports PV64" in sync(
+      "send a NewBlock message with latest checkpoint number when client supports PV164" in sync(
         new OnTopFixture(testSystem) {
           goToTop()
 

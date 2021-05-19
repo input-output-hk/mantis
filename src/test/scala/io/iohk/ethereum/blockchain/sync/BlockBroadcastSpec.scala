@@ -10,7 +10,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
 import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.PV164.NewBlock
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, ProtocolVersions}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
@@ -32,7 +32,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -71,7 +74,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectNoMessage()
@@ -85,7 +91,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -101,7 +110,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectNoMessage()
@@ -152,7 +164,7 @@ class BlockBroadcastSpec
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV64,
+      protocolVersion = ProtocolVersions.PV164,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

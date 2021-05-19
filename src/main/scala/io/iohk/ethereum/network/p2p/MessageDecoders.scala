@@ -38,7 +38,7 @@ object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message = {
     protocolVersion match {
-      case PV64 => handlePV64(msgCode, payload)
+      case PV164 => handlePV164(msgCode, payload)
       case PV63 => handlePV63(msgCode, payload)
       case PV62 => handlePV62(msgCode, payload)
       case PV61 => handlePV61(msgCode, payload)
@@ -93,13 +93,13 @@ object EthereumMessageDecoder extends MessageDecoder {
     }
   }
 
-  private def handlePV64(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handlePV164(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.StatusCode =>
-        import io.iohk.ethereum.network.p2p.messages.PV64.Status._
+        import io.iohk.ethereum.network.p2p.messages.PV164.Status._
         payload.toStatus
       case Codes.NewBlockCode =>
-        import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock._
+        import io.iohk.ethereum.network.p2p.messages.PV164.NewBlock._
         payload.toNewBlock
       case _ => handlePV63(msgCode, payload)
     }

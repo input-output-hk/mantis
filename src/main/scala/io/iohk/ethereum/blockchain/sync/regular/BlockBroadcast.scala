@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain.{Block, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, PV164, ProtocolVersions}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 
 import scala.util.Random
@@ -40,7 +40,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
   private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[PeerId, PeerWithInfo]): Unit =
     obtainRandomPeerSubset(peers.values.map(_.peer).toSet).foreach { peer =>
       val message: MessageSerializable =
-        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
+        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion == ProtocolVersions.PV164) blockToBroadcast.as64
         else blockToBroadcast.as63
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
@@ -73,6 +73,6 @@ object BlockBroadcast {
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight) {
     def as63: CommonMessages.NewBlock = CommonMessages.NewBlock(block, chainWeight.totalDifficulty)
-    def as64: PV64.NewBlock = PV64.NewBlock(block, chainWeight)
+    def as64: PV164.NewBlock = PV164.NewBlock(block, chainWeight)
   }
 }

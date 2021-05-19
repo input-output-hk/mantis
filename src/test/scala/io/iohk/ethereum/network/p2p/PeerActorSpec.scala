@@ -24,7 +24,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{PV164, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
@@ -160,8 +160,8 @@ class PeerActorSpec
     knownNodesManager.expectNoMessage()
   }
 
-  it should "successfully connect to ETC peer with protocol 64" in new TestSetup {
-    override def protocol: Version = ProtocolVersions.PV64
+  it should "successfully connect to ETC peer with protocol 164" in new TestSetup {
+    override def protocol: Version = ProtocolVersions.PV164
     val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@localhost:9000")
     val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
     peer ! PeerActor.ConnectTo(uri)
@@ -171,12 +171,12 @@ class PeerActorSpec
     rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     //Hello exchange
-    val remoteHello = Hello(4, "test-client", Seq(Etc64Capability, Eth63Capability), 9000, ByteString("unused"))
+    val remoteHello = Hello(4, "test-client", Seq(Etc164Capability, Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
-    val remoteStatus = PV64.Status(
-      protocolVersion = ProtocolVersions.PV64,
+    val remoteStatus = PV164.Status(
+      protocolVersion = ProtocolVersions.PV164,
       networkId = peerConf.networkId,
       chainWeight =
         ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty + 100000), // remote is after the fork
@@ -185,7 +185,7 @@ class PeerActorSpec
     )
 
     //Node status exchange
-    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PV64.Status.StatusEnc) => () }
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PV164.Status.StatusEnc) => () }
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
 
     //Fork block exchange

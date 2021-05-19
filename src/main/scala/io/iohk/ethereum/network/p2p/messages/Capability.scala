@@ -24,8 +24,9 @@ object Capability {
 
   object Capabilities {
     val Eth63Capability: Capability = Capability("eth", ProtocolVersions.PV63.toByte)
-    val Etc64Capability: Capability = Capability("etc", ProtocolVersions.PV64.toByte)
+    //FIXME This PV is considered WIP and needs to be reassessed
+    val Etc164Capability: Capability = Capability("etc", ProtocolVersions.PV164.toByte)
 
-    val All: Seq[Capability] = Seq(Etc64Capability, Eth63Capability)
+    val All: Seq[Capability] = Seq(Etc164Capability, Eth63Capability)
   }
 }

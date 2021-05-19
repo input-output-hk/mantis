@@ -27,14 +27,14 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case hello: Hello =>
     log.debug("Protocol handshake finished with peer ({})", hello)
     if (
-      handshakerConfiguration.protocolVersion == ProtocolVersions.PV64 && hello.capabilities.contains(Etc64Capability)
+      handshakerConfiguration.protocolVersion == ProtocolVersions.PV164 && hello.capabilities.contains(Etc164Capability)
     )
       EtcNodeStatus64ExchangeState(handshakerConfiguration)
     else if (hello.capabilities.contains(Eth63Capability))
       EtcNodeStatus63ExchangeState(handshakerConfiguration)
     else {
       log.debug(
-        s"Connected peer does not support eth ${ProtocolVersions.PV63.toByte} / ${ProtocolVersions.PV64.toByte} protocol. Disconnecting."
+        s"Connected peer does not support eth ${ProtocolVersions.PV63.toByte} / ${ProtocolVersions.PV164.toByte} protocol. Disconnecting."
       )
       DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
     }
@@ -53,7 +53,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
       case ServerStatus.NotListening => 0
     }
     val capabilities =
-      if (handshakerConfiguration.protocolVersion == ProtocolVersions.PV64) Capabilities.All else Seq(Eth63Capability)
+      if (handshakerConfiguration.protocolVersion == ProtocolVersions.PV164) Capabilities.All else Seq(Eth63Capability)
 
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,

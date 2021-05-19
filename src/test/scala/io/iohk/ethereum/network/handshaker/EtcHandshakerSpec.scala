@@ -18,7 +18,7 @@ import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeader
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV164, ProtocolVersions}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils._
@@ -58,7 +58,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with total difficulty only when peer does not support PV64" in new LocalPeerPV63Setup
+  it should "send status with total difficulty only when peer does not support PV164" in new LocalPeerPV63Setup
     with RemotePeerPV63Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
@@ -84,8 +84,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with total difficulty and latest checkpoint when peer supports PV64" in new LocalPeerPV64Setup
-    with RemotePeerPV64Setup {
+  it should "send status with total difficulty and latest checkpoint when peer supports PV164" in new LocalPeerPV164Setup
+    with RemotePeerPV164Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
@@ -229,7 +229,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "fail if the remote peer doesn't support PV63/PV64" in new RemotePeerPV63Setup {
+  it should "fail if the remote peer doesn't support PV63" in new RemotePeerPV63Setup {
     val pv62Capability = Capability("eth", ProtocolVersions.PV62.toByte)
     val handshakerAfterHelloOpt =
       initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(pv62Capability)))
@@ -284,7 +284,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV64))
+    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV164))
     val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
     val firstBlock =
@@ -295,7 +295,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val localHello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Etc64Capability, Eth63Capability),
+      capabilities = Seq(Etc164Capability, Eth63Capability),
       listenPort = 0, //Local node not listening
       nodeId = ByteString(nodeStatus.nodeId)
     )
@@ -315,9 +315,9 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val localStatus = RemoteStatus(localStatusMsg)
   }
 
-  trait LocalPeerPV64Setup extends LocalPeerSetup {
-    val localStatusMsg = PV64.Status(
-      protocolVersion = ProtocolVersions.PV64,
+  trait LocalPeerPV164Setup extends LocalPeerSetup {
+    val localStatusMsg = PV164.Status(
+      protocolVersion = ProtocolVersions.PV164,
       networkId = Config.Network.peer.networkId,
       chainWeight = ChainWeight.zero.increase(genesisBlock.header),
       bestHash = genesisBlock.header.hash,
@@ -355,18 +355,18 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val remoteStatus = RemoteStatus(remoteStatusMsg)
   }
 
-  trait RemotePeerPV64Setup extends RemotePeerSetup {
+  trait RemotePeerPV164Setup extends RemotePeerSetup {
     val remoteHello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
-      capabilities = Seq(Etc64Capability, Eth63Capability),
+      capabilities = Seq(Etc164Capability, Eth63Capability),
       listenPort = remotePort,
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
     val remoteStatusMsg =
-      PV64.Status(
-        protocolVersion = ProtocolVersions.PV64,
+      PV164.Status(
+        protocolVersion = ProtocolVersions.PV164,
         networkId = Config.Network.peer.networkId,
         chainWeight = ChainWeight.zero,
         bestHash = genesisBlock.header.hash,
