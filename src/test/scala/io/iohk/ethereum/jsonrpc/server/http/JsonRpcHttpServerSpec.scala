@@ -47,7 +47,7 @@ class JsonRpcHttpServerSpec extends AnyFlatSpec with Matchers with ScalatestRout
     }
   }
 
-  it should "respond to healthcheck with an error if one healtcheck fails" in new TestSetup {
+  it should "respond to healthcheck with an error if one healthcheck fails" in new TestSetup {
     (mockJsonRpcHealthChecker.healthCheck _)
       .expects()
       .returning(
