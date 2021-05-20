@@ -25,7 +25,7 @@ import scala.annotation.tailrec
   * Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
 // scalastyle:off number.of.methods
-trait Blockchain {
+trait Blockchain extends Logger {
 
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
@@ -223,8 +223,11 @@ trait Blockchain {
     * @param hash block hash
     */
   def isInChain(hash: ByteString): Boolean = {
+    log.info("is in chain {} best {}", hash, getBestBlockNumber())
     (for {
-      header <- getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
+      header <- getBlockHeaderByHash(hash)
+      _ = log.info("header by hash {}", header)
+      _ <- getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
       hash <- getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
   }
