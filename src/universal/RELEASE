@@ -1,6 +1,6 @@
 Introduction
 
-This is the Mantis 3.2.3 release, RC1. 
+This is the Mantis 3.2.3 release. 
 It includes all updates from the previous release https://github.com/input-output-hk/mantis/releases/tag/v3.2.2.
 
 This release required a Genesis block reset in the Sagano testnet due to the removal of the treasury opt out flag in block headers.
@@ -15,7 +15,7 @@ Known Issues
 
 * If an RPC request involving the “latest block” is underway at the exact same time a new block is imported, the request may fail. The request can be retried.
 
-New features, V3.2.3 RC1:
+New features, V3.2.3:
 
 * Set Sagano target block time to 15s (#989)
 * Remove treasury opt out flag (#980)
