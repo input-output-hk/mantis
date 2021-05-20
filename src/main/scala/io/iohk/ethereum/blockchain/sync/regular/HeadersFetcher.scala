@@ -36,9 +36,9 @@ class HeadersFetcher(
         log.debug("Start fetching headers from block {}", blockNumber)
         requestHeaders(blockNumber, amount)
         Behaviors.same
-      case AdaptedMessage(_, BlockHeaders(headers)) =>
+      case AdaptedMessage(peer, BlockHeaders(headers)) =>
         log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
-        supervisor ! BlockFetcher.ReceivedHeaders(headers)
+        supervisor ! BlockFetcher.ReceivedHeaders(peer, headers)
         Behaviors.same
       case HeadersFetcher.RetryHeadersRequest =>
         supervisor ! BlockFetcher.RetryHeadersRequest

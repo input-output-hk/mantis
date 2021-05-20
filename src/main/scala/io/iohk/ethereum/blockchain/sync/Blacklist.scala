@@ -163,12 +163,16 @@ object Blacklist {
         val code: Int = 27
         val name: String = "UnrequestedBodies"
       }
-      case object RegularSyncRequestFailedType extends BlacklistReasonType with RegularSyncBlacklistGroup {
+      case object UnrequestedHeadersType extends BlacklistReasonType with RegularSyncBlacklistGroup {
         val code: Int = 28
+        val name: String = "UnrequestedHeaders"
+      }
+      case object RegularSyncRequestFailedType extends BlacklistReasonType with RegularSyncBlacklistGroup {
+        val code: Int = 29
         val name: String = "RegularSyncRequestFailed"
       }
       case object BlockImportErrorType extends BlacklistReasonType with RegularSyncBlacklistGroup {
-        val code: Int = 29
+        val code: Int = 30
         val name: String = "BlockImportError"
       }
     }
@@ -280,6 +284,10 @@ object Blacklist {
     case object UnrequestedBodies extends BlacklistReason {
       val reasonType: BlacklistReasonType = UnrequestedBodiesType
       val description: String = "Received unrequested bodies"
+    }
+    case object UnrequestedHeaders extends BlacklistReason {
+      val reasonType: BlacklistReasonType = UnrequestedHeadersType
+      val description: String = "Received unrequested headers"
     }
     final case class RegularSyncRequestFailed(error: String) extends BlacklistReason {
       val reasonType: BlacklistReasonType = RegularSyncRequestFailedType

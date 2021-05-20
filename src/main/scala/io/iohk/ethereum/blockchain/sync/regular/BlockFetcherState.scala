@@ -10,7 +10,6 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import io.iohk.ethereum.utils.ByteStringUtils
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -75,7 +74,7 @@ case class BlockFetcherState(
 
   def takeHashes(amount: Int): Seq[ByteString] = waitingHeaders.take(amount).map(_.hash)
 
-  def appendHeaders(headers: Seq[BlockHeader]): Either[String, BlockFetcherState] =
+  def appendHeaders(headers: Seq[BlockHeader]): Either[ValidationErrors, BlockFetcherState] =
     validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
       val lastNumber = HeadersSeq.lastNumber(validHeaders)
       withPossibleNewTopAt(lastNumber)
@@ -86,17 +85,16 @@ case class BlockFetcherState(
 
   /**
     * Validates received headers consistency and their compatibility with the state
-    * TODO ETCM-370: This needs to be more fine-grained and detailed so blacklisting can be re-enabled
     */
-  private def validatedHeaders(headers: Seq[BlockHeader]): Either[String, Seq[BlockHeader]] =
+  private def validatedHeaders(headers: Seq[BlockHeader]): Either[ValidationErrors, Seq[BlockHeader]] =
     if (headers.isEmpty) {
       Right(headers)
     } else {
       headers
-        .asRight[String]
-        .ensure("Given headers should form a sequence without gaps")(HeadersSeq.areChain)
-        .ensure("Given headers should form a sequence with ready blocks")(checkConsistencyWithReadyBlocks)
-        .ensure("Given headers do not form a chain with already stored ones")(headers =>
+        .asRight[ValidationErrors]
+        .ensure(HeadersNotFormingSeq)(HeadersSeq.areChain)
+        .ensure(HeadersNotMatchingReadyBlocks)(checkConsistencyWithReadyBlocks)
+        .ensure(HeadersNotMatchingWaitingHeaders)(headers =>
           (waitingHeaders.lastOption, headers.headOption).mapN(_ isParentOf _).getOrElse(true)
         )
     }
@@ -319,4 +317,17 @@ object BlockFetcherState {
     * State used to keep track of pending request to prevent multiple requests in parallel
     */
   case object AwaitingBodiesToBeIgnored extends FetchingBodiesState
+
+  sealed trait ValidationErrors {
+    def description: String
+  }
+  case object HeadersNotFormingSeq extends ValidationErrors {
+    val description = "Given headers should form a sequence without gaps"
+  }
+  case object HeadersNotMatchingReadyBlocks extends ValidationErrors {
+    val description = "Given headers should form a sequence with ready blocks"
+  }
+  case object HeadersNotMatchingWaitingHeaders extends ValidationErrors {
+    val description = "Given headers should form a chain with waiting headers"
+  }
 }
