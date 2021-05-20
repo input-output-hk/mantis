@@ -14,7 +14,9 @@ object KeccakBlockHeaderValidator {
     */
   def validateHeader(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     val rlpEncodedHeader = BlockHeader.getEncodedWithoutNonce(blockHeader)
-    val expectedHash = KeccakCalculation.hash(rlpEncodedHeader, BigInt(blockHeader.nonce.toArray))
+
+    val expectedHash =
+      KeccakCalculation.hash(rlpEncodedHeader, blockHeader.nonce.toArray)
 
     lazy val isDifficultyValid = KeccakCalculation.isMixHashValid(blockHeader.mixHash, blockHeader.difficulty)
 

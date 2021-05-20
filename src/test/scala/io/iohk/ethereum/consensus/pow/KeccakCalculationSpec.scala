@@ -3,6 +3,7 @@ package io.iohk.ethereum.consensus.pow
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.pow.KeccakCalculation.KeccakMixHash
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -14,8 +15,9 @@ class KeccakCalculationSpec extends AnyFlatSpecLike with Matchers {
     // using the same data used in Besu test to prove that the same hash is generated
     "calculate the mixhash based on header hash and a nonce (Besu example)" in {
       val nonce = BigInt(-989241412479165825L) // BigInt(56)
+      val nonceBytes = ByteUtils.bigIntToUnsignedByteArray(nonce)
       val rlpHeader = BlockHeader.getEncodedWithoutNonce(header)
-      val mixhash = KeccakCalculation.hash(rlpHeader, nonce)
+      val mixhash = KeccakCalculation.hash(rlpHeader, nonceBytes)
 
       assert(
         ByteString(mixhash.mixHash) == ByteString(

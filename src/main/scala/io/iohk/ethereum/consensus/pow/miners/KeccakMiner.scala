@@ -50,8 +50,10 @@ class KeccakMiner(
     val mined = (0 to numRounds).iterator
       .map { round =>
         val nonce = (initNonce + round) % MaxNonce
+        val nonceBytes = ByteUtils.bigIntToUnsignedByteArray(nonce)
         val difficulty = block.header.difficulty
-        val hash = KeccakCalculation.hash(rlpEncodedHeader, nonce)
+        val hash =
+          KeccakCalculation.hash(rlpEncodedHeader, nonceBytes)
         (KeccakCalculation.isMixHashValid(hash.mixHash, difficulty), hash, nonce, round)
       }
       .collectFirst { case (true, hash, nonce, n) =>

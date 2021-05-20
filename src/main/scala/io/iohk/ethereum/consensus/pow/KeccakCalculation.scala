@@ -13,10 +13,9 @@ object KeccakCalculation {
     * @param hashHeader the rlp(unsealed header)
     * @return KeccakProofOWork containing the computed mixHash
     */
-  def hash(hashHeader: Array[Byte], nonce: BigInt): KeccakMixHash = {
+  def hash(hashHeader: Array[Byte], nonce: Array[Byte]): KeccakMixHash = {
     val preHash = ByteString(kec256(hashHeader)).toArray
-    val nonceBytes = ByteUtils.bigIntToUnsignedByteArray(nonce)
-    val mixHash = kec256PoW(preHash, nonceBytes)
+    val mixHash = kec256PoW(preHash, nonce)
 
     KeccakMixHash(mixHash = ByteString(mixHash))
   }
