@@ -118,10 +118,10 @@ object BlockHeader {
       case HefEmpty => 0
     }
 
-    val preECIP1098Fields = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)
+    val baseFieldsEncoded = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)
     val extraFieldsEncoded = rlpList.items.takeRight(numberOfExtraFields)
 
-    val rlpItemsWithoutNonce = preECIP1098Fields ++ extraFieldsEncoded
+    val rlpItemsWithoutNonce = baseFieldsEncoded ++ extraFieldsEncoded
     rlpEncode(RLPList(rlpItemsWithoutNonce: _*))
   }
 
