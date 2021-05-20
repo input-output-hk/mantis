@@ -107,7 +107,7 @@ object BlockchainConfig {
     val chainId: Byte = {
       val s = blockchainConfig.getString("chain-id")
       val n = parseHexOrDecNumber(s)
-      require(n >= 0 && n <= 127, "chain-id must be a number in range [0, 127]")
+      require(n >= 0 && n <= 212, "chain-id must be a number in range [0, 212]")
       n.toByte
     }
 

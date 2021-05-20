@@ -27,7 +27,7 @@ In the `bin` directory, you can find the generic launcher. To connect to a pre-c
 Example:
   - `./bin/mantis-launcher etc` - for joining Ethereum Classic network
 
-Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`
+Possible networks: `etc`, `eth`, `mordor`, `testnet-internal`, `astor`
 
 ### Command Line Interface
 
