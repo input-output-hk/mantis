@@ -1,13 +1,19 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.Status.Failure
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
-import io.iohk.ethereum.consensus.pow.MinerProtocol.{StartMining, StopMining}
-import io.iohk.ethereum.consensus.pow.MinerResponses.{MinerIsWorking, MiningError, MiningOrdered}
-import io.iohk.ethereum.consensus.pow.MockedMiner.MineBlock
-import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MineBlock, MineBlocks, MockedMinerProtocol}
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.{
+  MinerIsWorking,
+  MinerNotSupported,
+  MiningError,
+  MiningOrdered
+}
+import io.iohk.ethereum.consensus.pow.{PoWBlockCreator, PoWConsensus}
 import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
@@ -20,11 +26,10 @@ import scala.concurrent.duration._
 
 class MockedMiner(
     blockchain: Blockchain,
-    blockCreator: EthashBlockCreator,
+    blockCreator: PoWBlockCreator,
     syncEventListener: ActorRef
 ) extends Actor
-    with ActorLogging
-    with MinerUtils {
+    with ActorLogging {
   import akka.pattern.pipe
   implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
@@ -92,6 +97,10 @@ class MockedMiner(
       log.error(t, "Unable to get block for mining")
       context.become(waiting())
   }
+
+  private def notSupportedMockedMinerMessages: Receive = { case msg: MockedMinerProtocol =>
+    sender() ! MinerNotSupported(msg)
+  }
 }
 
 object MockedMiner {
@@ -101,7 +110,7 @@ object MockedMiner {
 
   private[pow] def props(
       blockchain: Blockchain,
-      blockCreator: EthashBlockCreator,
+      blockCreator: PoWBlockCreator,
       syncEventListener: ActorRef
   ): Props =
     Props(
@@ -115,7 +124,7 @@ object MockedMiner {
   def apply(node: Node): ActorRef = {
     node.consensus match {
       case consensus: PoWConsensus =>
-        val blockCreator = new EthashBlockCreator(
+        val blockCreator = new PoWBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,
           getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
           consensus = consensus,
@@ -130,5 +139,27 @@ object MockedMiner {
       case consensus =>
         wrongConsensusArgument[PoWConsensus](consensus)
     }
+  }
+
+  // TODO to be removed in ETCM-773
+  sealed trait MockedMinerProtocol extends MinerProtocol
+  case object StartMining extends MockedMinerProtocol
+  case object StopMining extends MockedMinerProtocol
+
+  case class MineBlocks(numBlocks: Int, withTransactions: Boolean, parentBlock: Option[ByteString] = None)
+      extends MockedMinerProtocol
+
+  trait MockedMinerResponse
+
+  object MockedMinerResponses {
+    case object MinerIsWorking extends MockedMinerResponse
+
+    case object MiningOrdered extends MockedMinerResponse
+
+    case object MinerNotExist extends MockedMinerResponse
+
+    case class MiningError(errorMsg: String) extends MockedMinerResponse
+
+    case class MinerNotSupported(msg: MockedMinerProtocol) extends MockedMinerResponse
   }
 }

@@ -8,8 +8,8 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.EthashConfig
-import io.iohk.ethereum.consensus.pow.MinerResponses.MiningOrdered
-import io.iohk.ethereum.consensus.pow.MockedMinerProtocol.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.QAService._
