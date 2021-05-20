@@ -1,8 +1,13 @@
 Introduction
 
-This is the Mantis 3.2.2 release, RC1. This release includes several bug fixes around the synchronization process (fast-sync, regular sync and state download), the ability to capture several performance metrics, initial setup for Keccak-256 mining support, and several other improvements.
+This is the Mantis 3.2.3 release, RC1. 
+It includes all updates from the previous release https://github.com/input-output-hk/mantis/releases/tag/v3.2.2.
 
-In this release, Checkpointing (ECIP-1097) and proto-Treasury (ECIP-1098) are deactivated as they have not reached community consensus yet.
+This release required a Genesys block reset in Sagano testnet due to the removal of the treasury opt out flag in block headers.
+
+In V3.2.3, Checkpointing (ECIP-1097) and proto-Treasury (ECIP-1098) are deactivated as they have not reached community consensus yet.
+
+V3.2.2 includes several bug fixes around the synchronization process (fast-sync, regular sync and state download), the ability to capture several performance metrics, initial setup for Keccak-256 mining support, and several other improvements.
 
 For a more detailed description of the functionality and configuration options see the Mantis client home page (https://docs.mantisclient.io/).
 
@@ -10,7 +15,7 @@ Known Issues
 
 * If an RPC request involving the “latest block” is underway at the exact same time a new block is imported, the request may fail. The request can be retried.
 
-New features, RC1:
+New features, V3.2.3 RC1:
 
 * Set Sagano target block time to 15s (#989)
 * Remove treasury opt out flag (#980)
@@ -100,7 +105,3 @@ Config
 Feedback
 
 Feedback gratefully received through the Mantis discord channel (https://discord.gg/7vUyWrN33p)
-
-
-
-
