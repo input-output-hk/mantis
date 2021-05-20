@@ -6,7 +6,8 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
   ByteStringJsonSerializer,
   UInt256JsonSerializer
 }
-import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -86,14 +87,14 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     } yield ()
   }
 
-  def loadGenesisData(genesisData: GenesisData, storageRootHashes: Map[Address, ByteString] = Map.empty): Try[Unit] = {
+  def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     val stateStorage = blockchain.getStateStorage
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 
-    val stateMptRootHash = getGenesisStateRoot(genesisData, initalRootHash, storage, storageRootHashes)
+    val stateMptRootHash = getGenesisStateRoot(genesisData, initalRootHash, storage)
     val header: BlockHeader = prepareHeader(genesisData, stateMptRootHash)
 
     log.debug(s"Prepared genesis header: $header")
@@ -122,12 +123,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     }
   }
 
-  private def getGenesisStateRoot(
-      genesisData: GenesisData,
-      initalRootHash: Array[Byte],
-      storage: MptStorage,
-      storageRootHashes: Map[Address, ByteString]
-  ) = {
+  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage) = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, ((address, genesisAccount), _)) =>
@@ -142,12 +138,29 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
               .getOrElse(blockchainConfig.accountStartNonce),
             balance = genesisAccount.balance,
             codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash),
-            storageRoot = storageRootHashes.getOrElse(Address(Hex.decode(paddedAddress)), Account.EmptyStorageRootHash)
+            storageRoot = genesisAccount.storage.map(computeStorageRootHash).getOrElse(Account.EmptyStorageRootHash)
           )
         )
         .getRootHash
       stateRoot
     }
+  }
+
+  private def computeStorageRootHash(storage: Map[UInt256, UInt256]): ByteString = {
+    val emptyTrie = EthereumUInt256Mpt.storageMpt(
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
+    )
+
+    val storageTrie = storage.foldLeft(emptyTrie) { (trie, tuple) =>
+      val (key, value) = tuple
+      if (value.isZero)
+        trie
+      else
+        trie.put(key, value)
+    }
+
+    ByteString(storageTrie.getRootHash)
   }
 
   private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte]) =

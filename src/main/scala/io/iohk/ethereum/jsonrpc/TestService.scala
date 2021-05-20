@@ -157,13 +157,9 @@ class TestService(
 
     //save account codes to world state
     storeGenesisAccountCodes(newBlockchainConfig, genesisData.alloc)
-    val storesRootHash = storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
+    storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
-
-    // remove current genesis (Try because it may not exist)
-    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
-    genesisDataLoader.loadGenesisData(genesisData, storesRootHash)
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
@@ -185,7 +181,7 @@ class TestService(
     InMemoryWorldStateProxy.persistState(worldToPersist)
   }
 
-  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]) = {
+  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
     val genesisBlock = blockchain.getBlockByNumber(0).get
     val world =
       blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
@@ -203,9 +199,7 @@ class TestService(
       updatedWorld
     })
 
-    InMemoryWorldStateProxy.persistState(worldToPersist).contractStorages.map { case (address, values) =>
-      address -> ByteString(values.inner.getRootHash)
-    }
+    InMemoryWorldStateProxy.persistState(worldToPersist)
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
