@@ -3,7 +3,7 @@ Introduction
 This is the Mantis 3.2.3 release, RC1. 
 It includes all updates from the previous release https://github.com/input-output-hk/mantis/releases/tag/v3.2.2.
 
-This release required a Genesys block reset in Sagano testnet due to the removal of the treasury opt out flag in block headers.
+This release required a Genesis block reset in the Sagano testnet due to the removal of the treasury opt out flag in block headers.
 
 In V3.2.3, Checkpointing (ECIP-1097) and proto-Treasury (ECIP-1098) are deactivated as they have not reached community consensus yet.
 
