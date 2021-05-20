@@ -8,4 +8,5 @@ object Timeouts {
   val normalTimeout: FiniteDuration = 3.seconds
   val longTimeout: FiniteDuration = 10.seconds
   val veryLongTimeout: FiniteDuration = 30.seconds
+  val miningTimeout: FiniteDuration = 5.minutes
 }

@@ -1,21 +1,22 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator}
 import io.iohk.ethereum.utils.{ByteUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import scala.util.{Failure, Success, Try}
 
-class EthashDAGManager(blockCreator: EthashBlockCreator) extends Logger {
+class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
   def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
-      case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
+      case (_, Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
         val seed = EthashUtils.seed(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
         val dagSize = EthashUtils.dagSize(epoch)
