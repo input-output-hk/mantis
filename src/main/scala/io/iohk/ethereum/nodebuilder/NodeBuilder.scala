@@ -589,8 +589,19 @@ trait JSONRpcControllerBuilder {
 }
 
 trait JSONRpcHealthcheckerBuilder {
-  this: NetServiceBuilder with EthBlocksServiceBuilder =>
-  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker = new NodeJsonRpcHealthChecker(netService, ethBlocksService)
+  this: NetServiceBuilder
+    with EthBlocksServiceBuilder
+    with JSONRpcConfigBuilder
+    with AsyncConfigBuilder
+    with SyncControllerBuilder =>
+  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker =
+    new NodeJsonRpcHealthChecker(
+      netService,
+      ethBlocksService,
+      syncController,
+      jsonRpcConfig.healthConfig,
+      asyncConfig
+    )
 }
 
 trait JSONRpcHttpServerBuilder {

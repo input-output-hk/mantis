@@ -101,6 +101,7 @@ class JsonRpcControllerSpec
       override def minerActiveTimeout: FiniteDuration = ???
       override def httpServerConfig: JsonRpcHttpServer.JsonRpcHttpServerConfig = ???
       override def ipcServerConfig: JsonRpcIpcServer.JsonRpcIpcServerConfig = ???
+      override def healthConfig: NodeJsonRpcHealthChecker.JsonRpcHealthConfig = ???
     }
 
     val ethRpcRequest = newJsonRpcRequest("eth_protocolVersion")
