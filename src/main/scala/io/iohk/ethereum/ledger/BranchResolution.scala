@@ -10,9 +10,9 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
     if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
-      val knownParentOrGenesis = blockchain
-        .isInChain(headers.head.parentHash) || headers.head.hash == blockchain.genesisHeader.hash
-
+      val oldest = headers.sortBy(_.number).head
+      log.info("Oldest block: {}", oldest)
+      val knownParentOrGenesis = blockchain.isInChain(oldest.parentHash) || oldest.hash == blockchain.genesisHeader.hash
       if (!knownParentOrGenesis)
         UnknownBranch
       else
@@ -27,6 +27,7 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
 
   private[ledger] def compareBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
     val headersList = headers.toList
+    log.info("Supposed oldest block: {}", headers.head)
     val oldBlocksWithCommonPrefix = getTopBlocksFromNumber(headers.head.number)
 
     val commonPrefixLength = oldBlocksWithCommonPrefix
