@@ -5,14 +5,15 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.{crypto, rlp}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -156,8 +157,8 @@ class TestService(
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
-    storeGenesisAccountCodes(newBlockchainConfig, genesisData.alloc)
-    storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
+    storeGenesisAccountCodes(genesisData.alloc)
+    storeGenesisAccountStorageData(genesisData.alloc)
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
@@ -167,39 +168,23 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
-  private def storeGenesisAccountCodes(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
-
-    val accountsWithCodes = accounts.filter(pair => pair._2.code.isDefined)
-
-    val worldToPersist = accountsWithCodes.foldLeft(world)((world, addressAccountPair) => {
-      world.saveCode(Address(addressAccountPair._1), addressAccountPair._2.code.get)
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
+  private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit = {
+    for {
+      code <- accounts.map(pair => pair._2.code).collect { case Some(code) => code }
+    } {
+      blockchain.storeEvmCode(kec256(code), code).commit()
+    }
   }
 
-  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
-
-    val accountsWithStorageData = accounts.filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
-
-    val worldToPersist = accountsWithStorageData.foldLeft(world)((world, addressAccountPair) => {
-      val address = Address(addressAccountPair._1)
-      val emptyStorage = world.getStorage(address)
-      val updatedStorage = addressAccountPair._2.storage.get.foldLeft(emptyStorage) { case (storage, (key, value)) =>
-        storage.store(key, value)
-      }
-      val updatedWorld = world.saveStorage(Address(addressAccountPair._1), updatedStorage)
-      updatedWorld.contractStorages.values.foreach(cs => cs.inner.nodeStorage.persist())
-      updatedWorld
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
+  private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
+    val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
+      Account.EmptyStorageRootHash,
+      blockchain.getStateStorage.getBackingStorage(0)
+    )
+    val storagesToPersist = accounts.map(pair => pair._2.storage).collect { case Some(map) if map.nonEmpty => map }
+    for { storage <- storagesToPersist } {
+      storage.foldLeft(emptyStorage) { case (storage, (key, value)) => storage.put(key, value) }
+    }
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
