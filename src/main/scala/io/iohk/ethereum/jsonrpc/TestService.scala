@@ -244,7 +244,7 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
-    implicit val timeout: Timeout = Timeout(5.seconds)
+    implicit val timeout: Timeout = Timeout(20.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .timeout(timeout.duration)
