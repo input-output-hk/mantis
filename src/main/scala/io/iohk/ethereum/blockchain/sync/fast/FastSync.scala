@@ -140,6 +140,12 @@ class FastSync(
     private var requestedBlockBodies: Map[ActorRef, Seq[ByteString]] = Map.empty
     private var requestedReceipts: Map[ActorRef, Seq[ByteString]] = Map.empty
 
+    private var peerRequestHandlerCount = 0
+    private def countPeerRequestHandler: Int = {
+      peerRequestHandlerCount += 1
+      peerRequestHandlerCount
+    }
+
     private val syncStateStorageActor = context.actorOf(Props[StateStorageActor](), "state-storage")
     syncStateStorageActor ! fastSyncStateStorage
 
@@ -180,7 +186,7 @@ class FastSync(
         syncState = syncState.copy(downloadedNodesCount = saved, totalNodesCount = saved + missing)
     }
 
-    def receive: Receive = handlePeerListMessages orElse handleStatus orElse {
+    def receive: Receive = handlePeerListMessages orElse handleStatus orElse handleRequestFailure orElse {
       case UpdatePivotBlock(reason) => updatePivotBlock(reason)
       case WaitingForNewTargetBlock =>
         log.info("State sync stopped until receiving new pivot block")
@@ -192,10 +198,15 @@ class FastSync(
       case StateSyncFinished =>
         syncState = syncState.copy(stateSyncFinished = true)
         processSyncing()
+    }
+
+    def handleRequestFailure: Receive = {
       case PeerRequestHandler.RequestFailed(peer, reason) =>
         handleRequestFailure(peer, sender(), RequestFailed(reason))
-      case Terminated(ref) if assignedHandlers.contains(ref) =>
-        handleRequestFailure(assignedHandlers(ref), ref, PeerActorTerminated)
+      case Terminated(ref) =>
+        assignedHandlers.get(ref).foreach {
+          handleRequestFailure(_, ref, PeerActorTerminated)
+        }
     }
 
     // TODO ETCM-701 will be moved to separate actor and refactored
@@ -342,12 +353,12 @@ class FastSync(
         batchFailuresCount += 1
         if (batchFailuresCount > fastSyncMaxBatchRetries) {
           log.info("Max number of allowed failures reached. Switching branch and master peer.")
+          currentSkeletonState = None
+          blockHeadersQueue.dequeueAll(_ => true)
           handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration)
 
           // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
           context become waitingForBranchResolution
-          currentSkeletonState = None
-          blockHeadersQueue.dequeueAll(_ => true)
           branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
         }
       }
@@ -364,8 +375,11 @@ class FastSync(
       }
     }
 
-    private def waitingForBranchResolution: Receive = handleStatus orElse {
+    private def waitingForBranchResolution: Receive = handleStatus orElse handleRequestFailure orElse {
       case FastSyncBranchResolverActor.BranchResolvedSuccessful(firstCommonBlockNumber, newMasterPeer) =>
+        log.debug(
+          s"resolved branch with first common block number $firstCommonBlockNumber for new master peer $newMasterPeer"
+        )
         // Reset the batch failures count
         batchFailuresCount = 0
 
@@ -392,7 +406,8 @@ class FastSync(
       log.info("Asking for new pivot block")
       val pivotBlockSelector = {
         context.actorOf(
-          PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self, blacklist)
+          PivotBlockSelector.props(etcPeerManager, peerEventBus, syncConfig, scheduler, context.self, blacklist),
+          "pivot-block-selector-update"
         )
       }
       pivotBlockSelector ! PivotBlockSelector.SelectPivotBlock
@@ -410,7 +425,7 @@ class FastSync(
     }
 
     def waitingForPivotBlockUpdate(updateReason: PivotBlockUpdateReason): Receive =
-      handlePeerListMessages orElse handleStatus orElse {
+      handlePeerListMessages orElse handleStatus orElse handleRequestFailure orElse {
         case PivotBlockSelector.Result(pivotBlockHeader)
             if newPivotIsGoodEnough(pivotBlockHeader, syncState, updateReason) =>
           log.info("New pivot block with number {} received", pivotBlockHeader.number)
@@ -509,7 +524,9 @@ class FastSync(
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
+      log.debug(s"removing request handler ${handler.path}")
       context unwatch handler
+      skeletonHandler = skeletonHandler.filter(_ != handler)
       assignedHandlers -= handler
     }
 
@@ -687,6 +704,9 @@ class FastSync(
     }
 
     private def handleRequestFailure(peer: Peer, handler: ActorRef, reason: BlacklistReason): Unit = {
+      if (skeletonHandler == Some(handler))
+        currentSkeletonState = None
+
       removeRequestHandler(handler)
 
       requestedHeaders.get(peer).foreach(blockHeadersQueue.enqueue)
@@ -818,6 +838,16 @@ class FastSync(
 
     def processSyncing(): Unit = {
       FastSyncMetrics.measure(syncState)
+      log.debug(
+        "processSyncing: [{}]",
+        Map(
+          "fullySynced" -> fullySynced,
+          "blockchainDataToDownload" -> blockchainDataToDownload,
+          "noBlockchainWorkRemaining" -> noBlockchainWorkRemaining,
+          "stateSyncFinished" -> syncState.stateSyncFinished,
+          "notInTheMiddleOfUpdate" -> notInTheMiddleOfUpdate
+        )
+      )
       if (fullySynced) {
         finish()
       } else {
@@ -889,8 +919,9 @@ class FastSync(
         requestSkeletonHeaders(peer)
       } else {
         log.debug(
-          "Nothing to request. Waiting for responses for [{}] sent requests.",
-          assignedHandlers.size + skeletonHandler.size
+          "Nothing to request. Waiting for responses from: {} and/or {}",
+          assignedHandlers.keys,
+          skeletonHandler
         )
       }
     }
@@ -913,7 +944,8 @@ class FastSync(
           peerEventBus,
           requestMsg = GetReceipts(receiptsToGet),
           responseMsgCode = Codes.ReceiptsCode
-        )
+        ),
+        s"peer-request-handler-receipts-$countPeerRequestHandler"
       )
 
       context watch handler
@@ -936,7 +968,8 @@ class FastSync(
           peerEventBus,
           requestMsg = GetBlockBodies(blockBodiesToGet),
           responseMsgCode = Codes.BlockBodiesCode
-        )
+        ),
+        s"peer-request-handler-block-bodies-$countPeerRequestHandler"
       )
 
       context watch handler
@@ -964,7 +997,8 @@ class FastSync(
               peerEventBus,
               requestMsg = GetBlockHeaders(Left(toRequest.from), toRequest.limit, skip = 0, reverse = false),
               responseMsgCode = Codes.BlockHeadersCode
-            )
+            ),
+            s"peer-request-handler-block-headers-$countPeerRequestHandler"
           )
 
           context watch handler
@@ -1028,7 +1062,8 @@ class FastSync(
               peerEventBus,
               requestMsg = msg,
               responseMsgCode = Codes.BlockHeadersCode
-            )
+            ),
+            s"peer-request-handler-block-headers-skeleton-$countPeerRequestHandler"
           )
 
           context watch handler
