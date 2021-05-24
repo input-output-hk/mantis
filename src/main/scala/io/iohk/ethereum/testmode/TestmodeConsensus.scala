@@ -20,7 +20,7 @@ import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 class TestmodeConsensus(
     override val vm: VMImpl,
     blockchain: BlockchainImpl,
-    blockchainConfig: BlockchainConfig,
+    var blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val difficultyCalculator: DifficultyCalculator,
     var blockTimestamp: Long = 0
@@ -68,14 +68,14 @@ class TestmodeConsensus(
 
   override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
 
-  override val blockPreparator: BlockPreparator = new BlockPreparator(
+  override def blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
     blockchainConfig = blockchainConfig
   )
 
-  override val blockGenerator =
+  override def blockGenerator =
     new NoOmmersBlockGenerator(
       blockchain,
       blockchainConfig,

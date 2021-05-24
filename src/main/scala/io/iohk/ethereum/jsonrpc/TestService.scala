@@ -35,16 +35,16 @@ object TestService {
       mixHash: ByteString
   )
   case class BlockchainParams(
-      EIP150ForkBlock: BigInt,
-      EIP158ForkBlock: BigInt,
+      EIP150ForkBlock: Option[BigInt],
+      EIP158ForkBlock: Option[BigInt],
       accountStartNonce: BigInt,
       allowFutureBlocks: Boolean,
       blockReward: BigInt,
-      byzantiumForkBlock: BigInt,
-      homesteadForkBlock: BigInt,
+      byzantiumForkBlock: Option[BigInt],
+      homesteadForkBlock: Option[BigInt],
       maximumExtraDataSize: BigInt,
-      constantinopleForkBlock: BigInt,
-      istanbulForkBlock: BigInt
+      constantinopleForkBlock: Option[BigInt],
+      istanbulForkBlock: Option[BigInt]
   )
 
   case class ChainParams(
@@ -155,17 +155,42 @@ class TestService(
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
+
     //save account codes to world state
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
 
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
+    consensus.blockchainConfig = newBlockchainConfig
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
 
     SetChainParamsResponse().rightNow
+  }
+
+  private def buildNewConfig(blockchainParams: BlockchainParams) = {
+    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(Int.MaxValue)
+    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(Int.MaxValue)
+
+    // For block number which are not specified by retesteth, we try to align the number to another fork
+    testLedgerWrapper.blockchainConfig.copy(
+      homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(Int.MaxValue),
+      eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(Int.MaxValue),
+      eip160BlockNumber = byzantiumBlockNumber,
+      eip161BlockNumber = byzantiumBlockNumber,
+      byzantiumBlockNumber = byzantiumBlockNumber,
+      constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(Int.MaxValue),
+      petersburgBlockNumber = istanbulForkBlockNumber,
+      aghartaBlockNumber = istanbulForkBlockNumber,
+      istanbulBlockNumber = istanbulForkBlockNumber,
+      atlantisBlockNumber = istanbulForkBlockNumber,
+      phoenixBlockNumber = istanbulForkBlockNumber,
+      accountStartNonce = UInt256(blockchainParams.accountStartNonce),
+      networkId = 1,
+      bootstrapNodes = Set()
+    )
   }
 
   private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
