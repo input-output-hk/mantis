@@ -137,8 +137,8 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
             nonce = genesisAccount.nonce
               .getOrElse(blockchainConfig.accountStartNonce),
             balance = genesisAccount.balance,
-            codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash),
-            storageRoot = genesisAccount.storage.map(computeStorageRootHash).getOrElse(Account.EmptyStorageRootHash)
+            codeHash = genesisAccount.code.fold(Account.EmptyCodeHash)(codeValue => crypto.kec256(codeValue)),
+            storageRoot = genesisAccount.storage.fold(Account.EmptyStorageRootHash)(computeStorageRootHash)
           )
         )
         .getRootHash
@@ -152,12 +152,9 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
       new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
     )
 
-    val storageTrie = storage.foldLeft(emptyTrie) { (trie, tuple) =>
-      val (key, value) = tuple
-      if (value.isZero)
-        trie
-      else
-        trie.put(key, value)
+    val storageTrie = storage.foldLeft(emptyTrie) {
+      case (trie, (key, UInt256.Zero)) => trie
+      case (trie, (key, value)) => trie.put(key, value)
     }
 
     ByteString(storageTrie.getRootHash)

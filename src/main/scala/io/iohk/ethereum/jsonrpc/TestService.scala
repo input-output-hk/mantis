@@ -155,10 +155,10 @@ class TestService(
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
-
     //save account codes to world state
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
+
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
@@ -168,13 +168,10 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
-  private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit = {
-    for {
-      code <- accounts.map(pair => pair._2.code).collect { case Some(code) => code }
-    } {
-      blockchain.storeEvmCode(kec256(code), code).commit()
-    }
-  }
+  private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
+    accounts
+      .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
+      .foreach { code => blockchain.storeEvmCode(kec256(code), code).commit() }
 
   private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
     val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
@@ -185,9 +182,9 @@ class TestService(
       .flatMap(pair => pair._2.storage)
       .map(accountStorage => accountStorage.filterNot { case (_, v) => v.isZero })
       .filter(_.nonEmpty)
-    for { storage <- storagesToPersist } {
-      storage.foldLeft(emptyStorage) { case (storage, (key, value)) => storage.put(key, value) }
-    }
+
+    val toBigInts: ((UInt256, UInt256)) => (BigInt, BigInt) = { case (a, b) => (a, b) }
+    storagesToPersist.foreach(storage => emptyStorage.update(Nil, storage.toSeq.map(toBigInts)))
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
