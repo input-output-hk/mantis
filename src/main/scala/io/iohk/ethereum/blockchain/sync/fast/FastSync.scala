@@ -388,9 +388,9 @@ class FastSync(
           bestBlockHeaderNumber = firstCommonBlockNumber,
           nextBlockToFullyValidate = firstCommonBlockNumber + 1
         )
-        masterPeer = Some(newMasterPeer)
-        context become receive
-        processSyncing()
+        // masterPeer = Some(newMasterPeer)
+        startWithState(syncState)
+      // processSyncing()
       case _: FastSyncBranchResolverActor.BranchResolutionFailed =>
         // there isn't much we can do if we don't find a branch/peer to continue syncing, so let's try again
         branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
