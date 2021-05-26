@@ -10,7 +10,7 @@ import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.{Config, ForkBlockNumbers}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
@@ -113,7 +113,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   }
 
   it should "correctly distribute block reward according to ECIP1098" in new TestSetup {
-    val blockNoPostTreasury = blockchainConfig.ecip1098BlockNumber + 1
+    val blockNoPostTreasury = blockchainConfig.forkBlockNumbers.ecip1098BlockNumber + 1
     val blockReward = consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(sampleBlockNumber)
     val blockRewardPostTreasury =
       consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(blockNoPostTreasury)
@@ -179,9 +179,12 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
+    private val forkBlockNumbers: ForkBlockNumbers = baseBlockchainConfig.forkBlockNumbers
     override lazy val blockchainConfig = baseBlockchainConfig
-      .copy(treasuryAddress = treasuryAddress)
-      .copy(ecip1098BlockNumber = baseBlockchainConfig.byzantiumBlockNumber + 100)
+      .copy(treasuryAddress = treasuryAddress,
+        forkBlockNumbers = forkBlockNumbers
+          .copy(ecip1098BlockNumber = forkBlockNumbers.byzantiumBlockNumber + 100)
+      )
 
     val minerTwoOmmersReward = BigInt("5312500000000000000")
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
@@ -225,7 +228,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     }
 
     def sampleBlockAfterByzantium(minerAddress: Address, ommerMiners: Seq[Address] = Nil): Block = {
-      val baseBlockNumber = blockchainConfig.byzantiumBlockNumber
+      val baseBlockNumber = forkBlockNumbers.byzantiumBlockNumber
       Block(
         header = Fixtures.Blocks.Genesis.header.copy(beneficiary = minerAddress.bytes, number = baseBlockNumber),
         body = Fixtures.Blocks.Genesis.body.copy(

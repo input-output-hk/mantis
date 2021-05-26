@@ -1,7 +1,6 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
-
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
@@ -14,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
 import io.iohk.ethereum.keystore.{KeyStore, Wallet}
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig, TxPoolConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig, TxPoolConfig}
 import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
@@ -112,7 +111,7 @@ class PersonalServiceSpec
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -133,7 +132,7 @@ class PersonalServiceSpec
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -166,7 +165,7 @@ class PersonalServiceSpec
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req).runToFuture
@@ -325,7 +324,7 @@ class PersonalServiceSpec
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber - 1)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -345,7 +344,7 @@ class PersonalServiceSpec
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     val forkBlock = new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.eip155BlockNumber)
+    (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -397,20 +396,30 @@ class PersonalServiceSpec
     val txValue = 128000
 
     val blockchainConfig = BlockchainConfig(
-      eip155BlockNumber = 12345,
       chainId = 0x03.toByte,
       //unused
       networkId = 1,
       maxCodeSize = None,
-      eip161BlockNumber = 0,
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 0,
-      eip150BlockNumber = 0,
-      eip160BlockNumber = 0,
-      eip106BlockNumber = 0,
-      byzantiumBlockNumber = 0,
-      constantinopleBlockNumber = 0,
-      istanbulBlockNumber = 0,
+      forkBlockNumbers = ForkBlockNumbers(
+        eip155BlockNumber = 12345,
+        eip161BlockNumber = 0,
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = 0,
+        eip150BlockNumber = 0,
+        eip160BlockNumber = 0,
+        eip106BlockNumber = 0,
+        byzantiumBlockNumber = 0,
+        constantinopleBlockNumber = 0,
+        istanbulBlockNumber = 0,
+        atlantisBlockNumber = 0,
+        aghartaBlockNumber = 0,
+        phoenixBlockNumber = 0,
+        petersburgBlockNumber = 0,
+        ecip1098BlockNumber = 0,
+        ecip1097BlockNumber = 0,
+        ecip1099BlockNumber = Long.MaxValue,
+        ecip1049BlockNumber = None
+      ),
       difficultyBombPauseBlockNumber = 0,
       difficultyBombContinueBlockNumber = 0,
       difficultyBombRemovalBlockNumber = Long.MaxValue,
@@ -422,15 +431,7 @@ class PersonalServiceSpec
       bootstrapNodes = Set(),
       gasTieBreaker = false,
       ethCompatibleStorage = true,
-      atlantisBlockNumber = 0,
-      aghartaBlockNumber = 0,
-      phoenixBlockNumber = 0,
-      petersburgBlockNumber = 0,
-      ecip1098BlockNumber = 0,
       treasuryAddress = Address(0),
-      ecip1097BlockNumber = 0,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None
     )
 
     val wallet = Wallet(address, prvKey)

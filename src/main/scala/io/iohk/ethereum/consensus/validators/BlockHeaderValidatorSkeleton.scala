@@ -192,7 +192,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
       parentHeader: BlockHeader
   ): Either[BlockHeaderError, BlockHeaderValid] = {
 
-    if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.eip106BlockNumber)
+    if (blockHeader.gasLimit > MaxGasLimit && blockHeader.number >= blockchainConfig.forkBlockNumbers.eip106BlockNumber)
       Left(HeaderGasLimitError)
     else {
       val gasLimitDiff = (blockHeader.gasLimit - parentHeader.gasLimit).abs
@@ -226,8 +226,8 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     * @return BlockHeader if valid, an [[HeaderExtraFieldsError]] otherwise
     */
   private def validateExtraFields(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
-    val isECIP1098Activated = blockHeader.number >= blockchainConfig.ecip1098BlockNumber
-    val isECIP1097Activated = blockHeader.number >= blockchainConfig.ecip1097BlockNumber
+    val isECIP1098Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.ecip1098BlockNumber
+    val isECIP1097Activated = blockHeader.number >= blockchainConfig.forkBlockNumbers.ecip1097BlockNumber
 
     blockHeader.extraFields match {
       case HefPostEcip1097(_) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)

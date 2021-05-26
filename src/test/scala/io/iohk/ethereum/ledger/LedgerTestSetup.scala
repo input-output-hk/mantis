@@ -48,7 +48,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
   val defaultBlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
-    number = blockchainConfig.homesteadBlockNumber + 1,
+    number = blockchainConfig.forkBlockNumbers.homesteadBlockNumber + 1,
     gasLimit = 1000000,
     gasUsed = 0,
     unixTimestamp = 1486752441
@@ -206,20 +206,21 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val refundContract: Option[Address] = Some(Address(4))
   }
 
-  val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig.copy(
-    chainId = 0x01.toByte,
-    networkId = 1,
-    daoForkConfig = Some(supportDaoForkConfig),
-    customGenesisFileOpt = None,
+  val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(_.copy(
     eip106BlockNumber = Long.MaxValue,
-    maxCodeSize = None,
-    bootstrapNodes = Set(),
-    gasTieBreaker = false,
-    ethCompatibleStorage = true,
     atlantisBlockNumber = Long.MaxValue,
     aghartaBlockNumber = Long.MaxValue,
     phoenixBlockNumber = Long.MaxValue,
     petersburgBlockNumber = Long.MaxValue
+  )).copy(
+    chainId = 0x01.toByte,
+    networkId = 1,
+    daoForkConfig = Some(supportDaoForkConfig),
+    customGenesisFileOpt = None,
+    maxCodeSize = None,
+    bootstrapNodes = Set(),
+    gasTieBreaker = false,
+    ethCompatibleStorage = true,
   )
 
   val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header

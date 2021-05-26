@@ -1,11 +1,10 @@
 package io.iohk.ethereum.txExecTest
 
 import java.util.concurrent.Executors
-
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, Receipt, UInt256}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{BlockchainConfig, MonetaryPolicyConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -22,16 +21,26 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       maxCodeSize = None,
       chainId = 0x3d.toByte,
       networkId = 1,
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 1150000,
-      eip106BlockNumber = Long.MaxValue,
-      eip150BlockNumber = 2500000,
-      eip160BlockNumber = 3000000,
-      eip155BlockNumber = 3000000,
-      eip161BlockNumber = Long.MaxValue,
-      byzantiumBlockNumber = Long.MaxValue,
-      constantinopleBlockNumber = Long.MaxValue,
-      istanbulBlockNumber = Long.MaxValue,
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = 1150000,
+        eip106BlockNumber = Long.MaxValue,
+        eip150BlockNumber = 2500000,
+        eip160BlockNumber = 3000000,
+        eip155BlockNumber = 3000000,
+        eip161BlockNumber = Long.MaxValue,
+        byzantiumBlockNumber = Long.MaxValue,
+        constantinopleBlockNumber = Long.MaxValue,
+        istanbulBlockNumber = Long.MaxValue,
+        atlantisBlockNumber = Long.MaxValue,
+        aghartaBlockNumber = Long.MaxValue,
+        phoenixBlockNumber = Long.MaxValue,
+        petersburgBlockNumber = Long.MaxValue,
+        ecip1098BlockNumber = Long.MaxValue,
+        ecip1097BlockNumber = Long.MaxValue,
+        ecip1099BlockNumber = Long.MaxValue,
+        ecip1049BlockNumber = None
+      ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,
       daoForkConfig = None,
@@ -42,15 +51,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       accountStartNonce = UInt256.Zero,
       ethCompatibleStorage = true,
       gasTieBreaker = false,
-      atlantisBlockNumber = Long.MaxValue,
-      aghartaBlockNumber = Long.MaxValue,
-      phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue,
-      treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None
+      treasuryAddress = Address(0)
     )
     val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
 

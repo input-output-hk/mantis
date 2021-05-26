@@ -8,7 +8,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -68,22 +68,32 @@ class RestrictedEthashBlockHeaderValidatorSpec
     )
     def createBlockchainConfig(allowedMiners: Set[ByteString]): BlockchainConfig = {
       BlockchainConfig(
-        frontierBlockNumber = 0,
-        homesteadBlockNumber = 1150000,
+        forkBlockNumbers = ForkBlockNumbers(
+          frontierBlockNumber = 0,
+          homesteadBlockNumber = 1150000,
+          byzantiumBlockNumber = 4370000,
+          constantinopleBlockNumber = 7280000,
+          istanbulBlockNumber = 9069000,
+          eip155BlockNumber = Long.MaxValue,
+          eip160BlockNumber = Long.MaxValue,
+          eip161BlockNumber = Long.MaxValue,
+          eip150BlockNumber = Long.MaxValue,
+          eip106BlockNumber = 0,
+          atlantisBlockNumber = Long.MaxValue,
+          aghartaBlockNumber = Long.MaxValue,
+          phoenixBlockNumber = Long.MaxValue,
+          petersburgBlockNumber = Long.MaxValue,
+          ecip1098BlockNumber = Long.MaxValue,
+          ecip1097BlockNumber = Long.MaxValue,
+          ecip1099BlockNumber = Long.MaxValue,
+          ecip1049BlockNumber = None
+        ),
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
         difficultyBombRemovalBlockNumber = 5900000,
-        byzantiumBlockNumber = 4370000,
-        constantinopleBlockNumber = 7280000,
-        istanbulBlockNumber = 9069000,
         daoForkConfig = None,
         // unused
         maxCodeSize = None,
-        eip155BlockNumber = Long.MaxValue,
-        eip160BlockNumber = Long.MaxValue,
-        eip161BlockNumber = Long.MaxValue,
-        eip150BlockNumber = Long.MaxValue,
-        eip106BlockNumber = 0,
         chainId = 0x3d.toByte,
         networkId = 1,
         monetaryPolicyConfig = null,
@@ -93,17 +103,9 @@ class RestrictedEthashBlockHeaderValidatorSpec
         bootstrapNodes = Set(),
         gasTieBreaker = false,
         ethCompatibleStorage = true,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        ecip1098BlockNumber = Long.MaxValue,
         treasuryAddress = Address(0),
-        ecip1097BlockNumber = Long.MaxValue,
         checkpointPubKeys = Set.empty,
         allowedMinersPublicKeys = allowedMiners,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
       )
     }
 

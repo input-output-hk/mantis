@@ -13,7 +13,7 @@ import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{ByteStringUtils, ForkBlockNumbers, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -170,24 +170,33 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
+  val neverOccuringBlock: Int = Int.MaxValue
   private def buildNewConfig(blockchainParams: BlockchainParams) = {
-    val neverOccuringBlock = Int.MaxValue
     val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccuringBlock)
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     testLedgerWrapper.blockchainConfig.copy(
-      homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
-      eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
-      eip160BlockNumber = byzantiumBlockNumber,
-      eip161BlockNumber = byzantiumBlockNumber,
-      byzantiumBlockNumber = byzantiumBlockNumber,
-      constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
-      petersburgBlockNumber = istanbulForkBlockNumber,
-      aghartaBlockNumber = istanbulForkBlockNumber,
-      istanbulBlockNumber = istanbulForkBlockNumber,
-      atlantisBlockNumber = istanbulForkBlockNumber,
-      phoenixBlockNumber = istanbulForkBlockNumber,
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
+        eip106BlockNumber = neverOccuringBlock,
+        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
+        eip155BlockNumber = byzantiumBlockNumber,
+        eip160BlockNumber = byzantiumBlockNumber,
+        eip161BlockNumber = byzantiumBlockNumber,
+        byzantiumBlockNumber = byzantiumBlockNumber,
+        ecip1049BlockNumber = None,
+        ecip1097BlockNumber = neverOccuringBlock,
+        ecip1098BlockNumber = neverOccuringBlock,
+        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
+        petersburgBlockNumber = istanbulForkBlockNumber,
+        aghartaBlockNumber = istanbulForkBlockNumber,
+        istanbulBlockNumber = istanbulForkBlockNumber,
+        atlantisBlockNumber = istanbulForkBlockNumber,
+        phoenixBlockNumber = istanbulForkBlockNumber,
+        ecip1099BlockNumber = neverOccuringBlock
+      ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce),
       networkId = 1,
       bootstrapNodes = Set()

@@ -26,7 +26,7 @@ class PoWBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     else ethashBlockHeaderValidator.validateHeader(blockHeader)
 
   private def isKeccak(currentBlockNumber: BigInt): Boolean =
-    blockchainConfig.ecip1049BlockNumber match {
+    blockchainConfig.forkBlockNumbers.ecip1049BlockNumber match {
       case Some(keccakBlock) => currentBlockNumber >= keccakBlock
       case None => false
     }

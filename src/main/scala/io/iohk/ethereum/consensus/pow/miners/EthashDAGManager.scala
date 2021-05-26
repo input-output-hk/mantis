@@ -18,7 +18,8 @@ class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
-        val seed = EthashUtils.seed(blockNumber, blockCreator.blockchainConfig.ecip1099BlockNumber.toLong)
+        val seed =
+          EthashUtils.seed(blockNumber, blockCreator.blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
         val dagSize = EthashUtils.dagSize(epoch)
         val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =

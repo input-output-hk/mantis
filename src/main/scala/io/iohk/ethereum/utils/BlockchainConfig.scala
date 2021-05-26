@@ -11,24 +11,8 @@ import com.typesafe.config.ConfigRenderOptions
 
 case class BlockchainConfig(
     powTargetTime: Option[Long] = None,
-    frontierBlockNumber: BigInt,
-    homesteadBlockNumber: BigInt,
-    eip106BlockNumber: BigInt,
-    eip150BlockNumber: BigInt,
-    eip155BlockNumber: BigInt,
-    eip160BlockNumber: BigInt,
-    eip161BlockNumber: BigInt,
-    byzantiumBlockNumber: BigInt,
-    constantinopleBlockNumber: BigInt,
-    istanbulBlockNumber: BigInt,
-    atlantisBlockNumber: BigInt,
-    aghartaBlockNumber: BigInt,
-    phoenixBlockNumber: BigInt,
-    petersburgBlockNumber: BigInt,
+    forkBlockNumbers: ForkBlockNumbers,
     treasuryAddress: Address,
-    ecip1098BlockNumber: BigInt,
-    ecip1097BlockNumber: BigInt,
-    ecip1049BlockNumber: Option[BigInt],
     maxCodeSize: Option[BigInt],
     difficultyBombPauseBlockNumber: BigInt,
     difficultyBombContinueBlockNumber: BigInt,
@@ -44,11 +28,34 @@ case class BlockchainConfig(
     ethCompatibleStorage: Boolean,
     bootstrapNodes: Set[String],
     checkpointPubKeys: Set[ByteString] = Set.empty,
-    allowedMinersPublicKeys: Set[ByteString] = Set.empty,
-    ecip1099BlockNumber: BigInt
+    allowedMinersPublicKeys: Set[ByteString] = Set.empty
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
+
+  def withUpdatedForkBlocks(update: (ForkBlockNumbers) => ForkBlockNumbers) =
+    copy(forkBlockNumbers = update(forkBlockNumbers))
 }
+
+case class ForkBlockNumbers(
+    frontierBlockNumber: BigInt,
+    homesteadBlockNumber: BigInt,
+    eip106BlockNumber: BigInt,
+    eip150BlockNumber: BigInt,
+    eip155BlockNumber: BigInt,
+    eip160BlockNumber: BigInt,
+    eip161BlockNumber: BigInt,
+    byzantiumBlockNumber: BigInt,
+    constantinopleBlockNumber: BigInt,
+    istanbulBlockNumber: BigInt,
+    atlantisBlockNumber: BigInt,
+    aghartaBlockNumber: BigInt,
+    phoenixBlockNumber: BigInt,
+    petersburgBlockNumber: BigInt,
+    ecip1098BlockNumber: BigInt,
+    ecip1097BlockNumber: BigInt,
+    ecip1049BlockNumber: Option[BigInt],
+    ecip1099BlockNumber: BigInt
+)
 
 object BlockchainConfig {
 
@@ -120,24 +127,27 @@ object BlockchainConfig {
 
     BlockchainConfig(
       powTargetTime = powTargetTime,
-      frontierBlockNumber = frontierBlockNumber,
-      homesteadBlockNumber = homesteadBlockNumber,
-      eip106BlockNumber = eip106BlockNumber,
-      eip150BlockNumber = eip150BlockNumber,
-      eip155BlockNumber = eip155BlockNumber,
-      eip160BlockNumber = eip160BlockNumber,
-      eip161BlockNumber = eip161BlockNumber,
-      byzantiumBlockNumber = byzantiumBlockNumber,
-      constantinopleBlockNumber = constantinopleBlockNumber,
-      istanbulBlockNumber = istanbulBlockNumber,
-      atlantisBlockNumber = atlantisBlockNumber,
-      aghartaBlockNumber = aghartaBlockNumber,
-      phoenixBlockNumber = phoenixBlockNumber,
-      petersburgBlockNumber = petersburgBlockNumber,
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = frontierBlockNumber,
+        homesteadBlockNumber = homesteadBlockNumber,
+        eip106BlockNumber = eip106BlockNumber,
+        eip150BlockNumber = eip150BlockNumber,
+        eip155BlockNumber = eip155BlockNumber,
+        eip160BlockNumber = eip160BlockNumber,
+        eip161BlockNumber = eip161BlockNumber,
+        byzantiumBlockNumber = byzantiumBlockNumber,
+        constantinopleBlockNumber = constantinopleBlockNumber,
+        istanbulBlockNumber = istanbulBlockNumber,
+        atlantisBlockNumber = atlantisBlockNumber,
+        aghartaBlockNumber = aghartaBlockNumber,
+        phoenixBlockNumber = phoenixBlockNumber,
+        petersburgBlockNumber = petersburgBlockNumber,
+        ecip1098BlockNumber = ecip1098BlockNumber,
+        ecip1097BlockNumber = ecip1097BlockNumber,
+        ecip1049BlockNumber = ecip1049BlockNumber,
+        ecip1099BlockNumber = ecip1099BlockNumber
+      ),
       treasuryAddress = treasuryAddress,
-      ecip1098BlockNumber = ecip1098BlockNumber,
-      ecip1097BlockNumber = ecip1097BlockNumber,
-      ecip1049BlockNumber = ecip1049BlockNumber,
       maxCodeSize = maxCodeSize,
       difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
       difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
@@ -153,8 +163,7 @@ object BlockchainConfig {
       ethCompatibleStorage = ethCompatibleStorage,
       bootstrapNodes = bootstrapNodes,
       checkpointPubKeys = checkpointPubKeys,
-      allowedMinersPublicKeys = allowedMinersPublicKeys,
-      ecip1099BlockNumber = ecip1099BlockNumber
+      allowedMinersPublicKeys = allowedMinersPublicKeys
     )
   }
   // scalastyle:on method.length

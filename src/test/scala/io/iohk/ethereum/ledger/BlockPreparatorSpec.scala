@@ -86,7 +86,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
           payload = ByteString.empty
         )
         val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
-        val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.byzantiumBlockNumber - 1)
+        val header: BlockHeader = defaultBlockHeader.copy(number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber - 1)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
           consensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
@@ -107,7 +107,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         )
         val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId)).tx
         val header: BlockHeader =
-          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
           consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
@@ -133,7 +133,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         )
         val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
         val header: BlockHeader =
-          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.byzantiumBlockNumber)
+          defaultBlockHeader.copy(beneficiary = minerAddress.bytes, number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
           testConsensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)

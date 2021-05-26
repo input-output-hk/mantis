@@ -6,6 +6,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
   import blockchainConfig._
+  import blockchainConfig.forkBlockNumbers._
   import DifficultyCalculator._
 
   private val ExpDifficultyPeriod: Int = 100000
@@ -19,7 +20,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
     val c: BigInt =
       if (blockNumber < homesteadBlockNumber) {
         if (blockTimestamp < parentHeader.unixTimestamp + 13) 1 else -1
-      } else if (blockNumber >= byzantiumBlockNumber || blockNumber >= blockchainConfig.atlantisBlockNumber) {
+      } else if (blockNumber >= byzantiumBlockNumber || blockNumber >= atlantisBlockNumber) {
         val parentUncleFactor = if (parentHeader.ommersHash == BlockHeader.EmptyOmmers) 1 else 2
         math.max(parentUncleFactor - (timestampDiff / 9), FrontierTimestampDiffLimit)
       } else {
