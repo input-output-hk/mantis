@@ -181,7 +181,10 @@ class TestService(
       Account.EmptyStorageRootHash,
       blockchain.getStateStorage.getBackingStorage(0)
     )
-    val storagesToPersist = accounts.map(pair => pair._2.storage).collect { case Some(map) if map.nonEmpty => map }
+    val storagesToPersist = accounts
+      .flatMap(pair => pair._2.storage)
+      .map(accountStorage => accountStorage.filterNot { case (_, v) => v.isZero })
+      .filter(_.nonEmpty)
     for { storage <- storagesToPersist } {
       storage.foldLeft(emptyStorage) { case (storage, (key, value)) => storage.put(key, value) }
     }
