@@ -171,17 +171,18 @@ class TestService(
   }
 
   private def buildNewConfig(blockchainParams: BlockchainParams) = {
-    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(Int.MaxValue)
-    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(Int.MaxValue)
+    val neverOccuringBlock = Int.MaxValue
+    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccuringBlock)
+    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     testLedgerWrapper.blockchainConfig.copy(
-      homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(Int.MaxValue),
-      eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(Int.MaxValue),
+      homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
+      eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
       eip160BlockNumber = byzantiumBlockNumber,
       eip161BlockNumber = byzantiumBlockNumber,
       byzantiumBlockNumber = byzantiumBlockNumber,
-      constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(Int.MaxValue),
+      constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
       petersburgBlockNumber = istanbulForkBlockNumber,
       aghartaBlockNumber = istanbulForkBlockNumber,
       istanbulBlockNumber = istanbulForkBlockNumber,
