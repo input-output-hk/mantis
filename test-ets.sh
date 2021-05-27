@@ -4,6 +4,8 @@ git submodule init
 git submodule update
 
 echo "booting Mantis and waiting for RPC API to be up"
+# deleting the state folder in case there is some remaining data from a previous run
+rm -rf ~/.mantis/test
 $SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run &> mantis-log.txt &
 
 while ! nc -z localhost 8546; do   

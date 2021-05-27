@@ -5,14 +5,15 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.{crypto, rlp}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -154,10 +155,10 @@ class TestService(
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
-
     //save account codes to world state
-    storeGenesisAccountCodes(newBlockchainConfig, genesisData.alloc)
-    storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
+    storeGenesisAccountCodes(genesisData.alloc)
+    storeGenesisAccountStorageData(genesisData.alloc)
+
     // update test ledger with new config
     testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
@@ -167,39 +168,23 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
-  private def storeGenesisAccountCodes(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
+  private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
+    accounts
+      .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
+      .foreach { code => blockchain.storeEvmCode(kec256(code), code).commit() }
 
-    val accountsWithCodes = accounts.filter(pair => pair._2.code.isDefined)
+  private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
+    val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
+      Account.EmptyStorageRootHash,
+      blockchain.getStateStorage.getBackingStorage(0)
+    )
+    val storagesToPersist = accounts
+      .flatMap(pair => pair._2.storage)
+      .map(accountStorage => accountStorage.filterNot { case (_, v) => v.isZero })
+      .filter(_.nonEmpty)
 
-    val worldToPersist = accountsWithCodes.foldLeft(world)((world, addressAccountPair) => {
-      world.saveCode(Address(addressAccountPair._1), addressAccountPair._2.code.get)
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
-  }
-
-  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
-
-    val accountsWithStorageData = accounts.filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
-
-    val worldToPersist = accountsWithStorageData.foldLeft(world)((world, addressAccountPair) => {
-      val address = Address(addressAccountPair._1)
-      val emptyStorage = world.getStorage(address)
-      val updatedStorage = addressAccountPair._2.storage.get.foldLeft(emptyStorage) { case (storage, (key, value)) =>
-        storage.store(key, value)
-      }
-      val updatedWorld = world.saveStorage(Address(addressAccountPair._1), updatedStorage)
-      updatedWorld.contractStorages.values.foreach(cs => cs.inner.nodeStorage.persist())
-      updatedWorld
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
+    val toBigInts: ((UInt256, UInt256)) => (BigInt, BigInt) = { case (a, b) => (a, b) }
+    storagesToPersist.foreach(storage => emptyStorage.update(Nil, storage.toSeq.map(toBigInts)))
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
@@ -259,7 +244,7 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
-    implicit val timeout: Timeout = Timeout(5.seconds)
+    implicit val timeout: Timeout = Timeout(20.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .timeout(timeout.duration)
