@@ -9,7 +9,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
 
-/** Provides a ledger instance with modifiable blockchain config (used in test mode). */
+/** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
     syncConfig: SyncConfig,
