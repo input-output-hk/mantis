@@ -32,7 +32,7 @@ case class BlockchainConfig(
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
 
-  def withUpdatedForkBlocks(update: (ForkBlockNumbers) => ForkBlockNumbers) =
+  def withUpdatedForkBlocks(update: (ForkBlockNumbers) => ForkBlockNumbers): BlockchainConfig =
     copy(forkBlockNumbers = update(forkBlockNumbers))
 }
 

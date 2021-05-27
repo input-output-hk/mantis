@@ -75,7 +75,7 @@ class TestmodeConsensus(
     blockchainConfig = blockchainConfig
   )
 
-  override def blockGenerator =
+  override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       blockchain,
       blockchainConfig,
