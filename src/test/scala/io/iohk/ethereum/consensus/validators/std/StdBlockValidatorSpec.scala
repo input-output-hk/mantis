@@ -14,14 +14,21 @@ import org.scalatest.matchers.should.Matchers
 
 class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
-  "Block" should "created based on valid data" in {
+  "Block based on valid data" should "pass validation" in {
     val block = Block(validBlockHeader, validBlockBody)
     val blockWithCheckpoint = Block(validBlockHeaderWithCheckpoint, BlockBody(Nil, Nil))
     StdBlockValidator.validate(block, validReceipts) shouldBe Right(BlockValid)
     StdBlockValidator.validate(blockWithCheckpoint, Nil) shouldBe Right(BlockValid)
   }
 
-  it should "return a failure if block with checkpoint body has a tx" in {
+  it should "correctly handle the case where a block has no receipts" in {
+    StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
+      case Right(validated) => succeed
+      case _ => fail()
+    }
+  }
+
+  "Invalid block" should "return a failure if block with checkpoint body has a tx" in {
     val block = Block(validBlockHeaderWithCheckpoint, validBlockBody)
     StdBlockValidator
       .validate(block, Nil) shouldBe Left(CheckpointBlockTransactionsNotEmptyError)
@@ -33,51 +40,44 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomB
       .validate(block, Nil) shouldBe Left(CheckpointBlockOmmersNotEmptyError)
   }
 
-  "Block" should "return a failure if created based on invalid transactions header" in {
+  it should "return a failure if created based on invalid transactions header" in {
     StdBlockValidator.validate(Block(wrongTransactionsRootHeader, validBlockBody), validReceipts) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail()
     }
   }
 
-  "Block" should "return a failure if created based on invalid ommers header" in {
+  it should "return a failure if created based on invalid ommers header" in {
     StdBlockValidator.validate(Block(wrongOmmersHashHeader, validBlockBody), validReceipts) match {
       case Left(BlockOmmersHashError) => succeed
       case _ => fail()
     }
   }
 
-  "Block" should "return a failure if created based on invalid receipts header" in {
+  it should "return a failure if created based on invalid receipts header" in {
     StdBlockValidator.validate(Block(wrongReceiptsHeader, validBlockBody), validReceipts) match {
       case Left(BlockReceiptsHashError) => succeed
       case _ => fail()
     }
   }
 
-  "Block" should "return a failure if created based on invalid log bloom header" in {
+  it should "return a failure if created based on invalid log bloom header" in {
     StdBlockValidator.validate(Block(wrongLogBloomBlockHeader, validBlockBody), validReceipts) match {
       case Left(BlockLogBloomError) => succeed
       case _ => fail()
     }
   }
 
-  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
+  it should "return a failure if a block body doesn't corresponds to a block header due to wrong tx hash" in {
     StdBlockValidator.validateHeaderAndBody(wrongTransactionsRootHeader, validBlockBody) match {
       case Left(BlockTransactionsHashError) => succeed
       case _ => fail()
     }
   }
 
-  "Block" should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
+  it should "return a failure if a block body doesn't corresponds to a block header due to wrong ommers hash" in {
     StdBlockValidator.validateHeaderAndBody(wrongOmmersHashHeader, validBlockBody) match {
       case Left(BlockOmmersHashError) => succeed
-      case _ => fail()
-    }
-  }
-
-  "Block" should "correctly handle the case where a block has no receipts" in {
-    StdBlockValidator.validate(blockWithOutReceipts, Nil) match {
-      case Right(validated) => succeed
       case _ => fail()
     }
   }

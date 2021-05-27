@@ -92,7 +92,7 @@ class SyncController(
 
   def startRegularSync(): Unit = {
     val peersClient =
-      context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, syncConfig, scheduler), "peers-client")
+      context.actorOf(PeersClient.props(etcPeerManager, peerEventBus, blacklist, syncConfig, scheduler), "peers-client")
     val regularSync = context.actorOf(
       RegularSync.props(
         peersClient,
@@ -101,6 +101,7 @@ class SyncController(
         ledger,
         blockchain,
         validators.blockValidator,
+        blacklist,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,

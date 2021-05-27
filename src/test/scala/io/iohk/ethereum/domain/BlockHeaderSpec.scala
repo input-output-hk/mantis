@@ -64,9 +64,8 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
     }
 
     "should generate the expected RLP object for post ECIP1098 headers" in {
-      val postECIP1098HeaderTreasuryOptOut = true
       val postECIP1098Header = Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostEcip1098(postECIP1098HeaderTreasuryOptOut)
+        extraFields = HefEmpty
       )
 
       val expectedRLPEncoded = RLPList(
@@ -84,18 +83,16 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
         postECIP1098Header.unixTimestamp,
         postECIP1098Header.extraData,
         postECIP1098Header.mixHash,
-        postECIP1098Header.nonce,
-        postECIP1098HeaderTreasuryOptOut
+        postECIP1098Header.nonce
       )
 
       rlp.encode(expectedRLPEncoded) shouldBe (postECIP1098Header.toBytes: Array[Byte])
     }
 
     "should generate the expected RLP object for post ECIP1097 headers with checkpoint" in {
-      val postECIP1097HeaderTreasuryOptOut = true
       val checkpoint = Checkpoint(Nil)
       val postECIP1097Header = Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostEcip1097(postECIP1097HeaderTreasuryOptOut, Some(checkpoint))
+        extraFields = HefPostEcip1097(Some(checkpoint))
       )
 
       val expectedRLPEncoded = RLPList(
@@ -114,7 +111,6 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
         postECIP1097Header.extraData,
         postECIP1097Header.mixHash,
         postECIP1097Header.nonce,
-        postECIP1097HeaderTreasuryOptOut,
         Some(checkpoint): Option[Checkpoint]
       )
 
@@ -122,9 +118,8 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
     }
 
     "should generate the expected RLP object for post ECIP1097 headers without checkpoint" in {
-      val postECIP1097HeaderTreasuryOptOut = true
       val postECIP1097Header = Fixtures.Blocks.ValidBlock.header.copy(
-        extraFields = HefPostEcip1097(postECIP1097HeaderTreasuryOptOut, None)
+        extraFields = HefPostEcip1097(None)
       )
 
       val expectedRLPEncoded = RLPList(
@@ -143,7 +138,6 @@ class BlockHeaderSpec extends AnyFreeSpec with Matchers with ScalaCheckPropertyC
         postECIP1097Header.extraData,
         postECIP1097Header.mixHash,
         postECIP1097Header.nonce,
-        postECIP1097HeaderTreasuryOptOut, // Defined as is a postECIP1098 block
         None: Option[Checkpoint]
       )
 

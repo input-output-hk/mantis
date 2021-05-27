@@ -15,11 +15,9 @@ object Picklers {
   implicit val checkpointPickler: Pickler[Checkpoint] = generatePickler[Checkpoint]
 
   implicit val hefPreEcip1098Pickler: Pickler[HefEmpty.type] = generatePickler[HefEmpty.type]
-  implicit val hefPostEcip1098Pickler: Pickler[HefPostEcip1098] = generatePickler[HefPostEcip1098]
   implicit val hefPostEcip1097Pickler: Pickler[HefPostEcip1097] = generatePickler[HefPostEcip1097]
 
   implicit val extraFieldsPickler: Pickler[HeaderExtraFields] = compositePickler[HeaderExtraFields]
-    .addConcreteType[HefPostEcip1098]
     .addConcreteType[HefPostEcip1097]
     .addConcreteType[HefEmpty.type]
 

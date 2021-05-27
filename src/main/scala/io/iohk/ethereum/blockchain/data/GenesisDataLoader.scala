@@ -6,7 +6,8 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
   ByteStringJsonSerializer,
   UInt256JsonSerializer
 }
-import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage}
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -128,6 +129,7 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
     genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, ((address, genesisAccount), _)) =>
       val mpt = MerklePatriciaTrie[Array[Byte], Account](rootHash, storage)
       val paddedAddress = address.reverse.padTo(addressLength, "0").reverse.mkString
+
       val stateRoot = mpt
         .put(
           crypto.kec256(Hex.decode(paddedAddress)),
@@ -135,12 +137,27 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
             nonce = genesisAccount.nonce
               .getOrElse(blockchainConfig.accountStartNonce),
             balance = genesisAccount.balance,
-            codeHash = genesisAccount.code.map(codeValue => crypto.kec256(codeValue)).getOrElse(Account.EmptyCodeHash)
+            codeHash = genesisAccount.code.fold(Account.EmptyCodeHash)(codeValue => crypto.kec256(codeValue)),
+            storageRoot = genesisAccount.storage.fold(Account.EmptyStorageRootHash)(computeStorageRootHash)
           )
         )
         .getRootHash
       stateRoot
     }
+  }
+
+  private def computeStorageRootHash(storage: Map[UInt256, UInt256]): ByteString = {
+    val emptyTrie = EthereumUInt256Mpt.storageMpt(
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      new SerializingMptStorage(new ArchiveNodeStorage(new NodeStorage(EphemDataSource())))
+    )
+
+    val storageTrie = storage.foldLeft(emptyTrie) {
+      case (trie, (key, UInt256.Zero)) => trie
+      case (trie, (key, value)) => trie.put(key, value)
+    }
+
+    ByteString(storageTrie.getRootHash)
   }
 
   private def prepareHeader(genesisData: GenesisData, stateMptRootHash: Array[Byte]) =

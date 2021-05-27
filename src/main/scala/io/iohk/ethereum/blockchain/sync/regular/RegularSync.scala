@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
 import akka.actor.typed.{ActorRef => TypedActorRef}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.{Blacklist, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
@@ -21,6 +22,7 @@ class RegularSync(
     ledger: Ledger,
     blockchain: Blockchain,
     blockValidator: BlockValidator,
+    blacklist: Blacklist,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -38,7 +40,7 @@ class RegularSync(
 
   val broadcaster: ActorRef = context.actorOf(
     BlockBroadcasterActor
-      .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, scheduler),
+      .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, blacklist, syncConfig, scheduler),
     "block-broadcaster"
   )
   val importer: ActorRef =
@@ -126,6 +128,7 @@ object RegularSync {
       ledger: Ledger,
       blockchain: Blockchain,
       blockValidator: BlockValidator,
+      blacklist: Blacklist,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -139,6 +142,7 @@ object RegularSync {
         ledger,
         blockchain,
         blockValidator,
+        blacklist,
         syncConfig,
         ommersPool,
         pendingTransactionsManager,

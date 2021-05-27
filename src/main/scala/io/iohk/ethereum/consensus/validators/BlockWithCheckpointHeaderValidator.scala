@@ -19,7 +19,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
       _ <- validateFieldsCopiedFromParent(blockHeader, parentHeader)
       _ <- validateGasUsed(blockHeader)
       _ <- validateTimestamp(blockHeader, parentHeader)
-      _ <- validateTreasuryOptOut(blockHeader)
     } yield BlockHeaderValid
   }
 
@@ -165,10 +164,6 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   ): Either[BlockHeaderError, BlockHeaderValid] =
     if (blockHeader.unixTimestamp == parentHeader.unixTimestamp + 1) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
-
-  private def validateTreasuryOptOut(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
-    if (blockHeader.treasuryOptOut.contains(false)) Right(BlockHeaderValid)
-    else Left(CheckpointHeaderTreasuryOptOutError)
 
 }
 

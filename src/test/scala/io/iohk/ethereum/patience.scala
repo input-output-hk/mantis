@@ -46,3 +46,17 @@ trait VeryLongPatience {
 
   implicit val taskTimeout: Duration = Timeouts.veryLongTimeout
 }
+
+trait MiningPatience {
+  self: PatienceConfiguration =>
+
+  implicit abstract override val patienceConfig: PatienceConfig =
+    PatienceConfig(
+      timeout = Timeouts.miningTimeout,
+      interval = 2000.millis
+    )
+
+  implicit val actorAskTimeout: Timeout = Timeouts.miningTimeout
+
+  implicit val taskTimeout: Duration = Timeouts.miningTimeout
+}

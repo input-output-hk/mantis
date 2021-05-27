@@ -196,7 +196,7 @@ class FastSyncBranchResolverActor(
     blacklistIfHandshaked(
       peer.id,
       syncConfig.blacklistDuration,
-      BlacklistReason.RequestFailed(reason)
+      BlacklistReason.FastSyncRequestFailed(reason)
     )
     restart()
   }

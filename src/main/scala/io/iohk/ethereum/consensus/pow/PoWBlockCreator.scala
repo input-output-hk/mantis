@@ -13,7 +13,7 @@ import io.iohk.ethereum.transactions.TransactionPicker
 import monix.eval.Task
 import scala.concurrent.duration.FiniteDuration
 
-class EthashBlockCreator(
+class PoWBlockCreator(
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
     consensus: PoWConsensus,

@@ -1,57 +1,48 @@
 package io.iohk.ethereum.consensus.pow
 
-import akka.actor.ActorSystem
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.actor.{ActorRef, ActorSystem => ClassicSystem}
+import akka.testkit.{TestActor, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.{ScenarioSetup, SyncProtocol}
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.{ConsensusConfigBuilder, FullConsensusConfig}
 import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthMiningService
+import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.Config
 import monix.eval.Task
+import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
+
 import scala.concurrent.duration.{Duration, FiniteDuration}
 
-abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetup with MockFactory {
-
-  def miner: TestActorRef[Nothing]
+trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+  implicit val classicSystem = ClassicSystem()
+  implicit val scheduler = Scheduler(classicSystem.dispatcher)
+  val parentActor = TestProbe()
+  val sync = TestProbe()
+  val ommersPool: TestProbe = TestProbe()
+  val pendingTransactionsManager: TestProbe = TestProbe()
 
   val origin = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
-  val sync = TestProbe()
-
-  def waitForMinedBlock(implicit timeout: Duration): Block = {
-    sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
-      m.block
-    }
-  }
-
-  def expectNoNewBlockMsg(timeout: FiniteDuration): Unit = {
-    sync.expectNoMessage(timeout)
-  }
-
-  private def calculateGasLimit(parentGas: UInt256): UInt256 = {
-    val GasLimitBoundDivisor: Int = 1024
-
-    val gasLimitDifference = parentGas / GasLimitBoundDivisor
-    parentGas + gasLimitDifference - 1
-  }
-
+  val blockchain: BlockchainImpl = mock[BlockchainImpl]
+  val blockCreator = mock[PoWBlockCreator]
+  val fakeWorld = mock[InMemoryWorldStateProxy]
   val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
+  val ethMiningService: EthMiningService = mock[EthMiningService]
 
-  override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
-  override lazy val vm: VMImpl = new VMImpl
-  override lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
-
-  val blockCreator = mock[EthashBlockCreator]
-
-  val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
-
-  val blockForMiningTimestamp = System.currentTimeMillis()
+  lazy val vm: VMImpl = new VMImpl
 
   val txToMine = SignedTransaction(
     tx = Transaction(
@@ -68,8 +59,30 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
     chainId = 0x3d.toByte
   )
 
-  def blockForMining(parentHeader: BlockHeader, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {
-    Block(
+  lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
+  lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+  val blockForMiningTimestamp = System.currentTimeMillis()
+
+  protected def getParentBlock(parentBlockNumber: Int) =
+    origin.copy(header = origin.header.copy(number = parentBlockNumber))
+
+  def buildPoWConsensus(): PoWConsensus = {
+    val mantisConfig = Config.config
+    val specificConfig = EthashConfig(mantisConfig)
+
+    val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
+
+    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+
+    val additionalPoWData = NoAdditionalPoWData
+    PoWConsensus(vm, blockchain, blockchainConfig, fullConfig, validators, additionalPoWData)
+  }
+
+  protected def setBlockForMining(parentBlock: Block, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {
+    val parentHeader: BlockHeader = parentBlock.header
+
+    val block = Block(
       BlockHeader(
         parentHash = parentHeader.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -89,13 +102,23 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       ),
       BlockBody(transactions, Nil)
     )
+
+    (blockGenerator.generateBlock _)
+      .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None)
+      .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
+      .atLeastOnce()
+
+    block
   }
 
-  val parentActor = TestProbe()
+  private def calculateGasLimit(parentGas: UInt256): UInt256 = {
+    val GasLimitBoundDivisor: Int = 1024
 
-  val fakeWorld = mock[InMemoryWorldStateProxy]
+    val gasLimitDifference = parentGas / GasLimitBoundDivisor
+    parentGas + gasLimitDifference - 1
+  }
 
-  def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
+  protected def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(parentBlock, withTransactions, *)
@@ -105,7 +128,11 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       .atLeastOnce()
   }
 
-  def blockCreatorBehaviourExpectingInitialWorld(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
+  protected def blockCreatorBehaviourExpectingInitialWorld(
+      parentBlock: Block,
+      withTransactions: Boolean,
+      resultBlock: Block
+  ) = {
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(where { (parent, withTxs, _) =>
@@ -117,16 +144,30 @@ abstract class MinerSpecSetup(implicit system: ActorSystem) extends ScenarioSetu
       .atLeastOnce()
   }
 
-  def withStartedMiner(behaviour: => Unit) = {
-    miner ! MinerProtocol.StartMining
+  protected def prepareMocks(): Unit = {
+    (ethMiningService.submitHashRate _)
+      .expects(*)
+      .returns(Task.now(Right(SubmitHashRateResponse(true))))
+      .atLeastOnce()
 
-    behaviour
+    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+      sender ! OmmersPool.Ommers(Nil)
+      TestActor.KeepRunning
+    })
 
-    miner ! MinerProtocol.StopMining
+    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+      sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
+      TestActor.KeepRunning
+    })
   }
 
-  def sendToMiner(msg: MinerProtocol) = {
-    miner.tell(msg, parentActor.ref)
+  protected def waitForMinedBlock(implicit timeout: Duration): Block = {
+    sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
+      m.block
+    }
   }
 
+  protected def expectNoNewBlockMsg(timeout: FiniteDuration): Unit = {
+    sync.expectNoMessage(timeout)
+  }
 }

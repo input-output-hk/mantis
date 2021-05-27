@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097, HefPostEcip1098}
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097}
 import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
 
 /**
@@ -230,8 +230,8 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
     val isECIP1097Activated = blockHeader.number >= blockchainConfig.ecip1097BlockNumber
 
     blockHeader.extraFields match {
-      case HefPostEcip1097(_, _) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
-      case HefPostEcip1098(_) if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefPostEcip1097(_) if isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
+      case HefEmpty if !isECIP1097Activated && isECIP1098Activated => Right(BlockHeaderValid)
       case HefEmpty if !isECIP1097Activated && !isECIP1098Activated => Right(BlockHeaderValid)
       case _ =>
         val error = HeaderExtraFieldsError(blockHeader.extraFields, isECIP1097Activated, isECIP1098Activated)

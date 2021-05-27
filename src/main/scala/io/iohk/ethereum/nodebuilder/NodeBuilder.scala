@@ -137,7 +137,7 @@ trait PeerDiscoveryManagerBuilder {
 
 trait BlacklistBuilder {
   private val blacklistSize: Int = 1000 // TODO ETCM-642 move to config
-  val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
+  lazy val blacklist: Blacklist = CacheBasedBlacklist.empty(blacklistSize)
 }
 
 trait NodeStatusBuilder {
@@ -224,7 +224,8 @@ trait PeerManagerActorBuilder {
     with DiscoveryConfigBuilder
     with StorageBuilder
     with KnownNodesManagerBuilder
-    with PeerStatisticsBuilder =>
+    with PeerStatisticsBuilder
+    with BlacklistBuilder =>
 
   lazy val peerConfiguration: PeerConfiguration = Config.Network.peer
 
@@ -239,6 +240,7 @@ trait PeerManagerActorBuilder {
       authHandshaker,
       EthereumMessageDecoder,
       discoveryConfig,
+      blacklist,
       Config.Network.protocolVersion
     ),
     "peer-manager"
@@ -587,8 +589,19 @@ trait JSONRpcControllerBuilder {
 }
 
 trait JSONRpcHealthcheckerBuilder {
-  this: NetServiceBuilder with EthBlocksServiceBuilder =>
-  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker = new NodeJsonRpcHealthChecker(netService, ethBlocksService)
+  this: NetServiceBuilder
+    with EthBlocksServiceBuilder
+    with JSONRpcConfigBuilder
+    with AsyncConfigBuilder
+    with SyncControllerBuilder =>
+  lazy val jsonRpcHealthChecker: JsonRpcHealthChecker =
+    new NodeJsonRpcHealthChecker(
+      netService,
+      ethBlocksService,
+      syncController,
+      jsonRpcConfig.healthConfig,
+      asyncConfig
+    )
 }
 
 trait JSONRpcHttpServerBuilder {

@@ -7,6 +7,7 @@ import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.effect.Resource
 import cats.syntax.traverse._
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
@@ -107,8 +108,8 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgType[PeersClient.Request[GetBlockHeaders]]
-        peersClient.reply(PeersClient.RequestFailed(defaultPeer, "a random reason"))
-        peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, "a random reason"))
+        peersClient.reply(PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason")))
+        peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason")))
       })
 
       //TODO: To be re-enabled with ETCM-370
@@ -231,7 +232,6 @@ class RegularSyncSpec
               defaultPeer.id
             )
           )
-
           awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
         }
       )

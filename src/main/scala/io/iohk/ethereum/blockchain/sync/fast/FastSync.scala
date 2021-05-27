@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor._
 import akka.util.ByteString
-import cats.NonEmptyTraverse.ops.toAllNonEmptyTraverseOps
 import cats.data.NonEmptyList
 import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason._
@@ -20,7 +19,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   StateSyncFinished,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -42,7 +41,6 @@ import scala.util.Random
 import scala.collection.mutable
 import scala.util.Try
 import scala.util.Success
-import scala.util.Failure
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -202,7 +200,7 @@ class FastSync(
 
     def handleRequestFailure: Receive = {
       case PeerRequestHandler.RequestFailed(peer, reason) =>
-        handleRequestFailure(peer, sender(), RequestFailed(reason))
+        handleRequestFailure(peer, sender(), FastSyncRequestFailed(reason))
       case Terminated(ref) =>
         assignedHandlers.get(ref).foreach {
           handleRequestFailure(_, ref, PeerActorTerminated)

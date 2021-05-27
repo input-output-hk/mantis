@@ -7,7 +7,13 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
-import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor, BlockFetcher, BlockImporter, RegularSync}
+import io.iohk.ethereum.blockchain.sync.regular.{
+  BlockBroadcast,
+  BlockBroadcasterActor,
+  BlockFetcher,
+  BlockImporter,
+  RegularSync
+}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
@@ -62,7 +68,7 @@ object RegularSyncItSpecUtils {
 
     lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
     lazy val peersClient: ActorRef =
-      system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, testSyncConfig, system.scheduler), "peers-client")
+      system.actorOf(PeersClient.props(etcPeerManager, peerEventBus, blacklist, testSyncConfig, system.scheduler), "peers-client")
 
     lazy val ledger: Ledger =
       new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
@@ -78,7 +84,7 @@ object RegularSyncItSpecUtils {
 
     val broadcasterRef: ActorRef = system.actorOf(
       BlockBroadcasterActor
-        .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, syncConfig, system.scheduler),
+        .props(new BlockBroadcast(etcPeerManager), peerEventBus, etcPeerManager, blacklist, syncConfig, system.scheduler),
       "block-broadcaster"
     )
 
@@ -109,6 +115,7 @@ object RegularSyncItSpecUtils {
         ledger,
         bl,
         validators.blockValidator,
+        blacklist,
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
