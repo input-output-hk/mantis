@@ -7,8 +7,8 @@ import enumeratum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MineBlocks, MockedMinerResponse, MockedMinerResponses}
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MineOnDemand}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
@@ -34,7 +34,7 @@ class QAService(
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     consensus
-      .askMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
+      .askMiner(MineOnDemand(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .onErrorHandle { throwable =>
         log.warn("Unable to mine requested blocks", throwable)
@@ -79,33 +79,21 @@ class QAService(
 
 object QAService {
   case class MineBlocksRequest(numBlocks: Int, withTransactions: Boolean, parentBlock: Option[ByteString] = None)
-  case class MineBlocksResponse(responseType: MinerResponseType, message: Option[String])
+  case class MineBlocksResponse(responseType: MinerResponseType)
   object MineBlocksResponse {
-    def apply(minerResponse: MockedMinerResponse): MineBlocksResponse =
-      MineBlocksResponse(MinerResponseType(minerResponse), extractMessage(minerResponse))
-
-    private def extractMessage(response: MockedMinerResponse): Option[String] = response match {
-      case MinerIsWorking | MiningOrdered | MinerNotExist => None
-      case MiningError(msg) => Some(msg)
-      case MinerNotSupported(msg) => Some(msg.toString)
-    }
+    def apply(minerResponse: CoordinatorProtocol): MineBlocksResponse =
+      MineBlocksResponse(MinerResponseType(minerResponse))
 
     sealed trait MinerResponseType extends EnumEntry
     object MinerResponseType extends Enum[MinerResponseType] {
       val values = findValues
 
-      case object MinerIsWorking extends MinerResponseType
-      case object MiningOrdered extends MinerResponseType
-      case object MinerNotExist extends MinerResponseType
-      case object MiningError extends MinerResponseType
-      case object MinerNotSupport extends MinerResponseType
+      case object MiningSuccessful extends MinerResponseType
+      case object MiningUnsuccessful extends MinerResponseType
 
-      def apply(minerResponse: MockedMinerResponse): MinerResponseType = minerResponse match {
-        case MockedMinerResponses.MinerIsWorking => MinerIsWorking
-        case MockedMinerResponses.MiningOrdered => MiningOrdered
-        case MockedMinerResponses.MinerNotExist => MinerNotExist
-        case MockedMinerResponses.MiningError(_) => MiningError
-        case MockedMinerResponses.MinerNotSupported(_) => MinerNotSupport
+      def apply(minerResponse: CoordinatorProtocol): MinerResponseType = minerResponse match {
+        case PoWMiningCoordinator.MiningSuccessful => MiningSuccessful
+        case PoWMiningCoordinator.MiningUnsuccessful => MiningUnsuccessful
       }
     }
   }

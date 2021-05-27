@@ -5,4 +5,5 @@ case class FullConsensusConfig[C <: AnyRef /*Product*/ ](
     specific: C
 ) {
   final def miningEnabled: Boolean = generic.miningEnabled
+  final def miningOnDemand: Boolean = generic.miningOnDemand
 }

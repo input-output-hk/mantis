@@ -1,13 +1,16 @@
 package io.iohk.ethereum.consensus.pow
 
-import akka.actor.typed.Behavior
 import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.{ActorRef, Behavior}
 import akka.actor.{ActorRef => ClassicActorRef}
-import akka.util.Timeout
+import akka.util.{ByteString, Timeout}
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.miners.{EthashDAGManager, EthashMiner, KeccakMiner, Miner}
 import io.iohk.ethereum.domain.{Block, Blockchain}
 import io.iohk.ethereum.jsonrpc.EthMiningService
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import monix.execution.{CancelableFuture, Scheduler}
 
 import scala.concurrent.duration.DurationInt
@@ -20,6 +23,16 @@ object PoWMiningCoordinator {
 
   case object MineNext extends CoordinatorProtocol
 
+  case class MineOnDemand(
+      numBlocks: Int,
+      withTransactions: Boolean,
+      parentBlock: Option[ByteString] = None,
+      replyTo: Option[ActorRef[CoordinatorProtocol]] = None
+  ) extends CoordinatorProtocol
+
+  case class PendingBlockAndState(pendingBlock: PendingBlock, worldState: InMemoryWorldStateProxy)
+      extends CoordinatorProtocol
+
   case object StopMining extends CoordinatorProtocol
 
   case object MiningSuccessful extends CoordinatorProtocol
@@ -31,7 +44,7 @@ object PoWMiningCoordinator {
 
   case object RecurrentMining extends MiningMode // for normal mining
 
-  case object OnDemandMining extends MiningMode // for testing
+  case class OnDemandMining(mineOnDemandRequest: MineOnDemand) extends MiningMode // for testing
 
   sealed trait MiningResponse
 
@@ -111,15 +124,35 @@ class PoWMiningCoordinator private (
   // TODO To be used for testing and finished on ETCM-773
   private def handleMiningOnDemand(): Behavior[CoordinatorProtocol] = Behaviors.receiveMessage {
     case SetMiningMode(mode) =>
-      log.info("Received message {}", SetMiningMode(mode))
+      log.info("Received message in onDemand {}", SetMiningMode(mode))
       switchMiningMode(mode)
+
+    case MineOnDemand(numBlocks, withTransactions, parentBlock, replyTo) =>
+      log.info("Mining on Demand")
+      blockchain
+        .getBestBlock()
+        .fold {
+          log.error("Unable to get block for mining: blockchain.getBestBlock() or getBlockByHash returned None")
+        } { bestBlock =>
+          val pendingBlocks = blockCreator
+            .getBlockForMining(bestBlock, true)
+            .runToFuture
+          pendingBlocks.foreach(b => syncController ! SyncProtocol.MinedBlock(b.pendingBlock.block))
+        }
+      Behaviors.same
+
+    case StopMining =>
+      log.info("Stopping PoWMiningCoordinator...")
+      Behaviors.stopped
   }
 
   private def switchMiningMode(mode: MiningMode): Behavior[CoordinatorProtocol] = mode match {
     case RecurrentMining =>
       context.self ! MineNext
       handleMiningRecurrent()
-    case OnDemandMining => handleMiningOnDemand()
+    case OnDemandMining(mineOnDemand) =>
+      context.self ! mineOnDemand
+      handleMiningOnDemand()
   }
 
   private def getMiningAlgorithm(currentBlockNumber: BigInt): MiningAlgorithm = {

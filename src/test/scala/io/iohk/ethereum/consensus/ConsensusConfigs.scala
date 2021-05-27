@@ -24,7 +24,8 @@ object ConsensusConfigs {
     coinbase = coinbase,
     headerExtraData = ByteString.empty,
     blockCacheSize = blockCacheSize,
-    miningEnabled = false
+    miningEnabled = false,
+    miningOnDemand = false
   )
 
   final val fullConsensusConfig = FullConsensusConfig(consensusConfig, ethashConfig)

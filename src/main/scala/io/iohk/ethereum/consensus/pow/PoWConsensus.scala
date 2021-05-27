@@ -2,21 +2,24 @@ package io.iohk.ethereum
 package consensus
 package pow
 
-import akka.util.Timeout
-import akka.actor.typed.{ActorRef, DispatcherSelector}
+import akka.actor.ActorSystem
 import akka.actor.typed.scaladsl.adapter._
+import akka.actor.typed.{ActorRef, DispatcherSelector}
+import akka.util.Timeout
 import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{
+  CoordinatorProtocol,
+  MineOnDemand,
+  MiningSuccessful,
+  MiningUnsuccessful
+}
 import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGenerator, PoWBlockGeneratorImpl, RestrictedPoWBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
@@ -49,42 +52,52 @@ class PoWConsensus private (
   )
 
   @volatile private[pow] var minerCoordinatorRef: Option[ActorRef[CoordinatorProtocol]] = None
-  // TODO in ETCM-773 remove MockedMiner
-  @volatile private[pow] var mockedMinerRef: Option[akka.actor.ActorRef] = None
 
   final val BlockForgerDispatcherId = "mantis.async.dispatchers.block-forger"
   private implicit val timeout: Timeout = 5.seconds
 
   override def sendMiner(msg: MinerProtocol): Unit =
     msg match {
-      case mineBlocks: MockedMiner.MineBlocks => mockedMinerRef.foreach(_ ! mineBlocks)
+      case MinerProtocol.OnDemandMining(mineBlocks) =>
+        minerCoordinatorRef.foreach(
+          _ ! PoWMiningCoordinator.SetMiningMode(
+            PoWMiningCoordinator.OnDemandMining(mineBlocks)
+          )
+        )
       case MinerProtocol.StartMining =>
-        mockedMinerRef.foreach(_ ! MockedMiner.StartMining)
         minerCoordinatorRef.foreach(_ ! PoWMiningCoordinator.SetMiningMode(PoWMiningCoordinator.RecurrentMining))
       case MinerProtocol.StopMining =>
-        mockedMinerRef.foreach(_ ! MockedMiner.StopMining)
         minerCoordinatorRef.foreach(_ ! PoWMiningCoordinator.StopMining)
       case _ => log.warn("SendMiner method received unexpected message {}", msg)
     }
 
-  // no interactions are done with minerCoordinatorRef using the ask pattern
-  override def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse] = {
-    mockedMinerRef
-      .map(_.askFor[MockedMinerResponse](msg))
-      .getOrElse(Task.now(MinerNotExist))
+  override def askMiner(msg: MineOnDemand): Task[CoordinatorProtocol] = {
+    val system: ActorSystem = ActorSystem("mantis_system")
+    implicit val schedular: akka.actor.typed.Scheduler = system.scheduler.toTyped
+    config.miningOnDemand match {
+      case false => Task.now(MiningUnsuccessful)
+      case true => {
+        sendMiner(MinerProtocol.OnDemandMining(msg))
+        Task.now(MiningSuccessful)
+      }
+    }
   }
 
   private[this] val mutex = new Object
-
   /*
    * guarantees one miner instance
    * this should not use a atomic* construct as it has side-effects
    *
    * TODO further refactors should focus on extracting two types - one with a miner, one without - based on the config
    */
-  private[this] def startMiningProcess(node: Node, blockCreator: PoWBlockCreator): Unit = {
+  private[this] def startMiningProcess(
+      node: Node,
+      blockCreator: PoWBlockCreator,
+      miningEnabled: Boolean,
+      miningOnDemand: Boolean
+  ): Unit = {
     mutex.synchronized {
-      if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
+      if (minerCoordinatorRef.isEmpty) {
         config.generic.protocol match {
           case PoW | RestrictedPoW =>
             log.info("Instantiating PoWMiningCoordinator")
@@ -103,9 +116,9 @@ class PoWConsensus private (
             )
           case MockedPow =>
             log.info("Instantiating MockedMiner")
-            mockedMinerRef = Some(MockedMiner(node))
         }
-        sendMiner(MinerProtocol.StartMining)
+        if (miningEnabled)
+          sendMiner(MinerProtocol.StartMining)
       }
     }
   }
@@ -123,7 +136,7 @@ class PoWConsensus private (
     * Starts the consensus protocol on the current `node`.
     */
   def startProtocol(node: Node): Unit = {
-    if (config.miningEnabled) {
+    if (config.miningEnabled || config.miningOnDemand) {
       log.info("Mining is enabled. Will try to start configured miner actor")
       val blockCreator = node.consensus match {
         case consensus: PoWConsensus =>
@@ -136,7 +149,7 @@ class PoWConsensus private (
         case consensus => wrongConsensusArgument[PoWConsensus](consensus)
       }
 
-      startMiningProcess(node, blockCreator)
+      startMiningProcess(node, blockCreator, config.miningEnabled, config.miningOnDemand)
     } else log.info("Not starting any miner actor because mining is disabled")
   }
 

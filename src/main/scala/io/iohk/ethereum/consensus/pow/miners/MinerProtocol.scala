@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.typed.ActorRef
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{CoordinatorProtocol, MineOnDemand}
 import io.iohk.ethereum.domain.Block
 
 trait MinerProtocol
@@ -10,6 +10,7 @@ trait MinerProtocol
 object MinerProtocol {
   case object StartMining extends MinerProtocol
   case object StopMining extends MinerProtocol
+  case class OnDemandMining(mineBlocks: MineOnDemand) extends MinerProtocol
   final case class ProcessMining(currentBestBlock: Block, replyTo: ActorRef[CoordinatorProtocol]) extends MinerProtocol
 
   sealed trait MiningResult {

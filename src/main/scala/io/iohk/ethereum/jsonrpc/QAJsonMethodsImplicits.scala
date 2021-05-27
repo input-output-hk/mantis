@@ -28,8 +28,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
       }
 
       def encodeJson(t: MineBlocksResponse): JValue = JObject(
-        "responseType" -> JString(t.responseType.entryName),
-        "message" -> t.message.fold[JValue](JNull)(JString)
+        "responseType" -> JString(t.responseType.entryName)
       )
     }
 

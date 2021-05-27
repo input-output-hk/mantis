@@ -50,8 +50,8 @@ class PoWConsensusSpec
     powConsensus.blockGenerator.isInstanceOf[RestrictedPoWBlockGeneratorImpl] shouldBe true
   }
 
-  it should "not start a miner when miningEnabled=false" in new TestSetup {
-    val configNoMining = consensusConfig.copy(miningEnabled = false)
+  it should "not start a miner when miningEnabled=false and miningOnDemand is false" in new TestSetup {
+    val configNoMining = consensusConfig.copy(miningEnabled = false, miningOnDemand = false)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
     val powConsensus = PoWConsensus(
@@ -65,7 +65,6 @@ class PoWConsensusSpec
 
     powConsensus.startProtocol(new TestConsensusNode())
     powConsensus.minerCoordinatorRef shouldBe None
-    powConsensus.mockedMinerRef shouldBe None
   }
 
   it should "start only one mocked miner when miner protocol is MockedPow" in new TestSetup {
@@ -83,7 +82,6 @@ class PoWConsensusSpec
 
     powConsensus.startProtocol(new TestConsensusNode())
     powConsensus.minerCoordinatorRef shouldBe None
-    powConsensus.mockedMinerRef.isDefined shouldBe true
   }
 
   it should "start only the normal miner when miner protocol is PoW" in new TestSetup {
@@ -100,7 +98,6 @@ class PoWConsensusSpec
     )
 
     powConsensus.startProtocol(new TestConsensusNode())
-    powConsensus.mockedMinerRef shouldBe None
     powConsensus.minerCoordinatorRef.isDefined shouldBe true
   }
 
@@ -118,7 +115,6 @@ class PoWConsensusSpec
     )
 
     powConsensus.startProtocol(new TestConsensusNode())
-    powConsensus.mockedMinerRef shouldBe None
     powConsensus.minerCoordinatorRef.isDefined shouldBe true
   }
 
