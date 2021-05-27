@@ -146,7 +146,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
 
-  it should "fail to get bestblock after reorganisation of the longer chain to a shorter one if desync state happened between cache and db" in new EphemBlockchain {
+  it should "get best stored block after reorganisation of the longer chain to a shorter one if desync state happened between cache and db" in new EphemBlockchain {
     val block1: Block = getBlock(bestNum - 2)
     // new chain is shorter but has a higher weight
     val newBlock2: Block = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
@@ -192,7 +192,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     // dying before updating the storage but after updating the cache, inconsistency is created
     blockchain.saveBestKnownBlocks(oldBlock4.number)
 
-    blockchain.getBestBlock() shouldBe None
+    blockchain.getBestBlock() shouldBe Some(ancestorForValidation)
   }
 
   it should "handle error when trying to reorganise chain" in new EphemBlockchain {
