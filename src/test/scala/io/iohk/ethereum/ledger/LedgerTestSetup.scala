@@ -206,22 +206,26 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val refundContract: Option[Address] = Some(Address(4))
   }
 
-  val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig.withUpdatedForkBlocks(_.copy(
-    eip106BlockNumber = Long.MaxValue,
-    atlantisBlockNumber = Long.MaxValue,
-    aghartaBlockNumber = Long.MaxValue,
-    phoenixBlockNumber = Long.MaxValue,
-    petersburgBlockNumber = Long.MaxValue
-  )).copy(
-    chainId = 0x01.toByte,
-    networkId = 1,
-    daoForkConfig = Some(supportDaoForkConfig),
-    customGenesisFileOpt = None,
-    maxCodeSize = None,
-    bootstrapNodes = Set(),
-    gasTieBreaker = false,
-    ethCompatibleStorage = true,
-  )
+  val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig
+    .withUpdatedForkBlocks(
+      _.copy(
+        eip106BlockNumber = Long.MaxValue,
+        atlantisBlockNumber = Long.MaxValue,
+        aghartaBlockNumber = Long.MaxValue,
+        phoenixBlockNumber = Long.MaxValue,
+        petersburgBlockNumber = Long.MaxValue
+      )
+    )
+    .copy(
+      chainId = 0x01.toByte,
+      networkId = 1,
+      daoForkConfig = Some(supportDaoForkConfig),
+      customGenesisFileOpt = None,
+      maxCodeSize = None,
+      bootstrapNodes = Set(),
+      gasTieBreaker = false,
+      ethCompatibleStorage = true
+    )
 
   val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header
 

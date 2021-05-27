@@ -2,26 +2,36 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder}
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder, ConsensusConfigBuilder}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, _}
 import monix.eval.Task
 import monix.execution.Scheduler
 
-trait TestLedgerBuilder extends LedgerBuilder {
+trait TestModeServiceBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
-    with ActorSystemBuilder =>
+    with ActorSystemBuilder
+    with ConsensusConfigBuilder
+    with VmBuilder =>
 
   val scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
 
-  lazy val testLedgerWrapper: TestServiceProvider =
-    new TestServiceProvider(blockchain, syncConfig, consensus, scheduler)
+  lazy val testModeComponentsProvider: TestModeComponentsProvider =
+    new TestModeComponentsProvider(
+      blockchain,
+      syncConfig,
+      scheduler,
+      consensusConfig,
+      DifficultyCalculator(blockchainConfig),
+      vm
+    )
 
-  private def testLedger: Ledger = testLedgerWrapper.ledger(blockchainConfig)
+  private def testLedger: Ledger = testModeComponentsProvider.ledger(blockchainConfig)
 
   class TestLedgerProxy extends Ledger {
     override def consensus: Consensus = testLedger.consensus
@@ -35,5 +45,5 @@ trait TestLedgerBuilder extends LedgerBuilder {
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy
-  override lazy val stxLedger: StxLedger = testLedgerWrapper.stxLedger(blockchainConfig)
+  override lazy val stxLedger: StxLedger = testModeComponentsProvider.stxLedger(blockchainConfig)
 }

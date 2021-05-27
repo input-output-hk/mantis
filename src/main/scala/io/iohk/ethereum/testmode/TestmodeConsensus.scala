@@ -20,10 +20,10 @@ import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 class TestmodeConsensus(
     override val vm: VMImpl,
     blockchain: BlockchainImpl,
-    var blockchainConfig: BlockchainConfig,
+    blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val difficultyCalculator: DifficultyCalculator,
-    var blockTimestamp: Long = 0
+    blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
 

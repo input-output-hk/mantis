@@ -382,7 +382,7 @@ class EthashBlockHeaderValidatorSpec
         byzantiumBlockNumber = 4370000,
         constantinopleBlockNumber = 7280000,
         istanbulBlockNumber = 9069000,
-          eip155BlockNumber = Long.MaxValue,
+        eip155BlockNumber = Long.MaxValue,
         eip160BlockNumber = Long.MaxValue,
         eip161BlockNumber = Long.MaxValue,
         eip150BlockNumber = Long.MaxValue,

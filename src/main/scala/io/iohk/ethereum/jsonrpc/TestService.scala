@@ -10,7 +10,7 @@ import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{TestServiceProvider, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{TestModeComponentsProvider, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
@@ -108,8 +108,7 @@ class TestService(
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
-    consensus: TestmodeConsensus,
-    testLedgerWrapper: TestServiceProvider,
+    testModeComponentsProvider: TestModeComponentsProvider,
     initialConfig: BlockchainConfig
 )(implicit
     scheduler: Scheduler
@@ -122,6 +121,7 @@ class TestService(
   private var accountAddresses: List[String] = List()
   private var accountRangeOffset = 0
   private var currentConfig: BlockchainConfig = initialConfig
+  private var blockTimestamp: Long = 0
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     currentConfig = buildNewConfig(request.chainParams.blockchainParams)
@@ -152,9 +152,6 @@ class TestService(
     //save account codes to world state
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
-
-    // update test ledger with new config
-    consensus.blockchainConfig = currentConfig
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
@@ -217,11 +214,11 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testLedgerWrapper.ledger(currentConfig).importBlock(blockForMining.block))
+        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig).importBlock(blockForMining.block))
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-          consensus.blockTimestamp += 1
+          blockTimestamp += 1
         }
     }
 
@@ -234,7 +231,7 @@ class TestService(
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
-    consensus.blockTimestamp = request.timestamp
+    blockTimestamp = request.timestamp
     ModifyTimestampResponse().rightNow
   }
 
@@ -250,7 +247,8 @@ class TestService(
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
-        testLedgerWrapper.ledger(currentConfig)
+        testModeComponentsProvider
+          .ledger(currentConfig)
           .importBlock(value)
           .flatMap(handleResult)
     }
@@ -277,7 +275,9 @@ class TestService(
       .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
-        consensus.blockGenerator
+        testModeComponentsProvider
+          .consensus(currentConfig, blockTimestamp)
+          .blockGenerator
           .generateBlock(
             parentBlock,
             pendingTxs.pendingTransactions.map(_.stx.tx),
