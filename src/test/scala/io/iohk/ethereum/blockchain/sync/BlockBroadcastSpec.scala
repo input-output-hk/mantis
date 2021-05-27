@@ -32,7 +32,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -71,7 +74,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectNoMessage()
@@ -85,7 +91,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectMsg(EtcPeerManagerActor.SendMessage(newBlock, peer.id))
@@ -101,7 +110,10 @@ class BlockBroadcastSpec
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
     //when
-    blockBroadcast.broadcastBlock(BlockToBroadcast(newBlock.block, newBlock.chainWeight), Map(peer.id -> PeerWithInfo(peer, initialPeerInfo)))
+    blockBroadcast.broadcastBlock(
+      BlockToBroadcast(newBlock.block, newBlock.chainWeight),
+      Map(peer.id -> PeerWithInfo(peer, initialPeerInfo))
+    )
 
     //then
     etcPeerManagerProbe.expectNoMessage()

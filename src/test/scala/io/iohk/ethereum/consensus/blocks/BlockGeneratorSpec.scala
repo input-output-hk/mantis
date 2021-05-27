@@ -239,8 +239,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
         ecip1049BlockNumber = None
-      ),
-
+      )
     )
 
     override lazy val blockExecution =
@@ -521,7 +520,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
             _.copy(
               ecip1098BlockNumber = 1000,
               ecip1097BlockNumber = 2000
-            ))
+            )
+          )
 
         override lazy val consensusConfig = buildConsensusConfig()
       }
@@ -544,12 +544,16 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
   it should "generate a failure if treasury transfer was not made" in {
     val producer = new TestSetup {
-      override lazy val blockchainConfig = baseBlockchainConfig.withUpdatedForkBlocks(_.copy(
-        ecip1098BlockNumber = 20000000,
-      )).copy(
-        treasuryAddress = treasuryAccount,
-        customGenesisFileOpt = Some("test-genesis-treasury.json")
-      )
+      override lazy val blockchainConfig = baseBlockchainConfig
+        .withUpdatedForkBlocks(
+          _.copy(
+            ecip1098BlockNumber = 20000000
+          )
+        )
+        .copy(
+          treasuryAddress = treasuryAccount,
+          customGenesisFileOpt = Some("test-genesis-treasury.json")
+        )
       override lazy val consensusConfig = buildConsensusConfig()
     }
     val block = {
@@ -563,9 +567,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       override lazy val blockchainConfig = baseBlockchainConfig
         .withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = 1))
         .copy(
-        treasuryAddress = treasuryAccount,
-        customGenesisFileOpt = Some("test-genesis-treasury.json")
-      )
+          treasuryAddress = treasuryAccount,
+          customGenesisFileOpt = Some("test-genesis-treasury.json")
+        )
       override lazy val consensusConfig = buildConsensusConfig()
     }
 
@@ -584,10 +588,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "generate a failure if treasury transfer was made to a different treasury account" in {
     val producer = new TestSetup {
       override lazy val blockchainConfig = baseBlockchainConfig
-        .withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = 1)).copy(
-        treasuryAddress = maliciousAccount,
-        customGenesisFileOpt = Some("test-genesis-treasury.json")
-      )
+        .withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = 1))
+        .copy(
+          treasuryAddress = maliciousAccount,
+          customGenesisFileOpt = Some("test-genesis-treasury.json")
+        )
       override lazy val consensusConfig = buildConsensusConfig()
     }
     val block = {
@@ -601,9 +606,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       override lazy val blockchainConfig = baseBlockchainConfig
         .withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = 1))
         .copy(
-        treasuryAddress = treasuryAccount,
-        customGenesisFileOpt = Some("test-genesis-treasury.json")
-      )
+          treasuryAddress = treasuryAccount,
+          customGenesisFileOpt = Some("test-genesis-treasury.json")
+        )
       override lazy val consensusConfig = buildConsensusConfig()
     }
 
@@ -682,7 +687,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       bootstrapNodes = Set(),
       gasTieBreaker = false,
       ethCompatibleStorage = true,
-      treasuryAddress = Address(0),
+      treasuryAddress = Address(0)
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 

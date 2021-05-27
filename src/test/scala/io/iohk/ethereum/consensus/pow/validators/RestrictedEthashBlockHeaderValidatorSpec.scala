@@ -105,7 +105,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
         ethCompatibleStorage = true,
         treasuryAddress = Address(0),
         checkpointPubKeys = Set.empty,
-        allowedMinersPublicKeys = allowedMiners,
+        allowedMinersPublicKeys = allowedMiners
       )
     }
 

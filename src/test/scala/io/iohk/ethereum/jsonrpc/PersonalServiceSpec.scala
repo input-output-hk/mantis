@@ -431,7 +431,7 @@ class PersonalServiceSpec
       bootstrapNodes = Set(),
       gasTieBreaker = false,
       ethCompatibleStorage = true,
-      treasuryAddress = Address(0),
+      treasuryAddress = Address(0)
     )
 
     val wallet = Wallet(address, prvKey)
