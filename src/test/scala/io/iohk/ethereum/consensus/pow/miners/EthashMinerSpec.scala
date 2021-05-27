@@ -24,13 +24,17 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers {
     executeTest(parentBlock)
   }
 
-  it should "mine valid block on the beginning of the new epoch" taggedAs PoWMinerSpecTag in new TestSetup {
+  it should "mine valid block on the end and beginning of the new epoch" taggedAs PoWMinerSpecTag in new TestSetup {
     val epochLength: Int = EthashUtils.EPOCH_LENGTH_BEFORE_ECIP_1099
-    val parentBlockNumber: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
-    val parentBlock: Block = origin.copy(header = origin.header.copy(number = parentBlockNumber))
-    setBlockForMining(parentBlock)
+    val parent29998: Int = epochLength - 2 // 29998, mined block will be 29999 (last block of the epoch)
+    val parentBlock29998: Block = origin.copy(header = origin.header.copy(number = parent29998))
+    setBlockForMining(parentBlock29998)
+    executeTest(parentBlock29998)
 
-    executeTest(parentBlock)
+    val parent29999: Int = epochLength - 1 // 29999, mined block will be 30000 (first block of the new epoch)
+    val parentBlock29999: Block = origin.copy(header = origin.header.copy(number = parent29999))
+    setBlockForMining(parentBlock29999)
+    executeTest(parentBlock29999)
   }
 
   it should "mine valid blocks on the end of the epoch" taggedAs PoWMinerSpecTag in new TestSetup {
