@@ -366,7 +366,7 @@ trait TestServiceBuilder {
     with TestLedgerBuilder =>
 
   lazy val testService =
-    new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper)(scheduler)
+    new TestService(blockchain, pendingTransactionsManager, consensusConfig, consensus, testLedgerWrapper, blockchainConfig)(scheduler)
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {

@@ -10,10 +10,10 @@ import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{TestServiceProvider, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{ByteStringUtils, ForkBlockNumbers, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -109,7 +109,8 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper
+    testLedgerWrapper: TestServiceProvider,
+    initialConfig: BlockchainConfig
 )(implicit
     scheduler: Scheduler
 ) extends Logger {
@@ -120,18 +121,10 @@ class TestService(
   private var etherbase: Address = consensusConfig.coinbase
   private var accountAddresses: List[String] = List()
   private var accountRangeOffset = 0
+  private var currentConfig: BlockchainConfig = initialConfig
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
-      homesteadBlockNumber = request.chainParams.blockchainParams.homesteadForkBlock,
-      eip150BlockNumber = request.chainParams.blockchainParams.EIP150ForkBlock,
-      byzantiumBlockNumber = request.chainParams.blockchainParams.byzantiumForkBlock,
-      constantinopleBlockNumber = request.chainParams.blockchainParams.constantinopleForkBlock,
-      istanbulBlockNumber = request.chainParams.blockchainParams.istanbulForkBlock,
-      accountStartNonce = UInt256(request.chainParams.blockchainParams.accountStartNonce),
-      networkId = 1,
-      bootstrapNodes = Set()
-    )
+    currentConfig = buildNewConfig(request.chainParams.blockchainParams)
 
     val genesisData = GenesisData(
       nonce = request.chainParams.genesis.nonce,
@@ -153,7 +146,7 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -161,8 +154,7 @@ class TestService(
     storeGenesisAccountStorageData(genesisData.alloc)
 
     // update test ledger with new config
-    testLedgerWrapper.blockchainConfig = newBlockchainConfig
-    consensus.blockchainConfig = newBlockchainConfig
+    consensus.blockchainConfig = currentConfig
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
@@ -176,7 +168,7 @@ class TestService(
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
-    testLedgerWrapper.blockchainConfig.copy(
+    currentConfig.copy(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
@@ -225,7 +217,7 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testLedgerWrapper.ledger.importBlock(blockForMining.block))
+        .flatMap(blockForMining => testLedgerWrapper.ledger(currentConfig).importBlock(blockForMining.block))
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
@@ -258,7 +250,7 @@ class TestService(
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
-        testLedgerWrapper.ledger
+        testLedgerWrapper.ledger(currentConfig)
           .importBlock(value)
           .flatMap(handleResult)
     }

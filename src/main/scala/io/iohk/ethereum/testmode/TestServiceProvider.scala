@@ -8,14 +8,13 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
 
 /** Provides a ledger instance with modifiable blockchain config (used in test mode). */
-class TestLedgerWrapper(
+class TestServiceProvider(
     blockchain: BlockchainImpl,
     syncConfig: SyncConfig,
     consensus: Consensus,
-    var blockchainConfig: BlockchainConfig, // var as it's modifiable by test_ RPC endpoints
     validationExecutionContext: Scheduler
 ) {
 
-  def ledger: Ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, validationExecutionContext)
-  def stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
+  def ledger(blockchainConfig: BlockchainConfig): Ledger = new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, validationExecutionContext)
+  def stxLedger(blockchainConfig: BlockchainConfig): StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }

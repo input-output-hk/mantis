@@ -18,10 +18,10 @@ trait TestLedgerBuilder extends LedgerBuilder {
 
   val scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
 
-  lazy val testLedgerWrapper: TestLedgerWrapper =
-    new TestLedgerWrapper(blockchain, syncConfig, consensus, blockchainConfig, scheduler)
+  lazy val testLedgerWrapper: TestServiceProvider =
+    new TestServiceProvider(blockchain, syncConfig, consensus, scheduler)
 
-  private def testLedger: Ledger = testLedgerWrapper.ledger
+  private def testLedger: Ledger = testLedgerWrapper.ledger(blockchainConfig)
 
   class TestLedgerProxy extends Ledger {
     override def consensus: Consensus = testLedger.consensus
@@ -35,5 +35,5 @@ trait TestLedgerBuilder extends LedgerBuilder {
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy
-  override lazy val stxLedger: StxLedger = testLedgerWrapper.stxLedger
+  override lazy val stxLedger: StxLedger = testLedgerWrapper.stxLedger(blockchainConfig)
 }
