@@ -60,7 +60,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
               genesis <- extractGenesis(paramsObj \ "genesis")
               blockchainParams <- extractBlockchainParams(paramsObj \ "params")
               sealEngine <- Try((paramsObj \ "sealEngine").extract[String]).toEither
-                .leftMap(_ => InvalidParams()).flatMap(extractSealEngine)
+                .leftMap(_ => InvalidParams())
+                .flatMap(extractSealEngine)
               accounts <- extractAccounts(paramsObj \ "accounts")
             } yield SetChainParamsRequest(ChainParams(genesis, blockchainParams, sealEngine, accounts))
           case _ => Left(InvalidParams())

@@ -81,7 +81,7 @@ class TestmodeConsensus(
           super.payBlockReward(block, worldStateProxy)
         case SealEngineType.NoReward =>
           worldStateProxy
-    }
+      }
   }
 
   override def blockGenerator: NoOmmersBlockGenerator =

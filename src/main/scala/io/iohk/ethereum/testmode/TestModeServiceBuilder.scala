@@ -45,5 +45,6 @@ trait TestModeServiceBuilder extends LedgerBuilder {
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy
-  override lazy val stxLedger: StxLedger = testModeComponentsProvider.stxLedger(blockchainConfig, SealEngineType.NoReward)
+  override lazy val stxLedger: StxLedger =
+    testModeComponentsProvider.stxLedger(blockchainConfig, SealEngineType.NoReward)
 }

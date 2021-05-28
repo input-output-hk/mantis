@@ -217,7 +217,9 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig, sealEngine).importBlock(blockForMining.block))
+        .flatMap(blockForMining =>
+          testModeComponentsProvider.ledger(currentConfig, sealEngine).importBlock(blockForMining.block)
+        )
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
