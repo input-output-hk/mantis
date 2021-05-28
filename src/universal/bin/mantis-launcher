@@ -11,4 +11,4 @@ elif [ -z "$1" ]; then
   CHAIN_PARAM="-Dconfig.file=./conf/etc.conf"
 fi
 
-./bin/mantis ${CHAIN_PARAM:+"$CHAIN_PARAM"} "$@"
+exec ./bin/mantis ${CHAIN_PARAM:+"$CHAIN_PARAM"} "$@"
