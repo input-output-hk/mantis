@@ -11,6 +11,7 @@ import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
 import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.testmode.SealEngineType
 import org.json4s.Extraction
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
@@ -58,11 +59,18 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
             for {
               genesis <- extractGenesis(paramsObj \ "genesis")
               blockchainParams <- extractBlockchainParams(paramsObj \ "params")
-              sealEngine <- Try((paramsObj \ "sealEngine").extract[String]).toEither.leftMap(_ => InvalidParams())
+              sealEngine <- Try((paramsObj \ "sealEngine").extract[String]).toEither
+                .leftMap(_ => InvalidParams()).flatMap(extractSealEngine)
               accounts <- extractAccounts(paramsObj \ "accounts")
             } yield SetChainParamsRequest(ChainParams(genesis, blockchainParams, sealEngine, accounts))
           case _ => Left(InvalidParams())
         }
+
+      private def extractSealEngine(str: String) = str match {
+        case "NoReward" => Right(SealEngineType.NoReward)
+        case "NoProof" => Right(SealEngineType.NoProof)
+        case other => Left(InvalidParams(s"unknown seal engine $other"))
+      }
 
       private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
         for {

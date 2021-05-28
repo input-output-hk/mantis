@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, Receipt}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator}
+import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
@@ -23,6 +23,7 @@ class TestmodeConsensus(
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val difficultyCalculator: DifficultyCalculator,
+    sealEngine: SealEngineType,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
@@ -73,7 +74,15 @@ class TestmodeConsensus(
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
     blockchainConfig = blockchainConfig
-  )
+  ) {
+    override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
+      sealEngine match {
+        case SealEngineType.NoProof =>
+          super.payBlockReward(block, worldStateProxy)
+        case SealEngineType.NoReward =>
+          worldStateProxy
+    }
+  }
 
   override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
@@ -112,6 +121,7 @@ trait TestmodeConsensusBuilder extends ConsensusBuilder {
     blockchain,
     blockchainConfig,
     consensusConfig,
-    DifficultyCalculator(blockchainConfig)
+    DifficultyCalculator(blockchainConfig),
+    SealEngineType.NoReward
   )
 }

@@ -54,11 +54,10 @@ class BlockPreparator(
     * @param worldStateProxy the initial state
     * @return the state after paying the appropriate reward to who corresponds
     */
-  private[ledger] def payBlockReward(
+  protected[ledger] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
-    if (!Config.testmode) {
+  ): InMemoryWorldStateProxy = {
       val blockNumber = block.header.number
       val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
       val minerRewardForOmmers =
@@ -92,9 +91,6 @@ class BlockPreparator(
         log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
         increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
       }
-    } else {
-      //FIXME needs to be part of setting up the application and not a runtime flag
-      worldStateProxy
     }
 
   private def treasuryEnabled(blockNo: BigInt): Boolean =

@@ -10,7 +10,7 @@ import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{TestModeComponentsProvider, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{SealEngineType, TestModeComponentsProvider, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
@@ -50,7 +50,7 @@ object TestService {
   case class ChainParams(
       genesis: GenesisParams,
       blockchainParams: BlockchainParams,
-      sealEngine: String,
+      sealEngine: SealEngineType,
       accounts: Map[ByteString, GenesisAccount]
   )
 
@@ -122,6 +122,7 @@ class TestService(
   private var accountRangeOffset = 0
   private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0
+  private var sealEngine: SealEngineType = SealEngineType.NoReward
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     currentConfig = buildNewConfig(request.chainParams.blockchainParams)
@@ -141,6 +142,8 @@ class TestService(
 
     // set coinbase for blocks that will be tried to mine
     etherbase = Address(genesisData.coinbase)
+
+    sealEngine = request.chainParams.sealEngine
 
     // remove current genesis (Try because it may not exist)
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
@@ -214,7 +217,7 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig).importBlock(blockForMining.block))
+        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig, sealEngine).importBlock(blockForMining.block))
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
@@ -248,7 +251,7 @@ class TestService(
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .ledger(currentConfig)
+          .ledger(currentConfig, sealEngine)
           .importBlock(value)
           .flatMap(handleResult)
     }
@@ -276,7 +279,7 @@ class TestService(
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         testModeComponentsProvider
-          .consensus(currentConfig, blockTimestamp)
+          .consensus(currentConfig, sealEngine, blockTimestamp)
           .blockGenerator
           .generateBlock(
             parentBlock,
