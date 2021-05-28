@@ -100,12 +100,13 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   trait TestSetup {
     val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
+    val forkBlockNumbers = blockchainConfig.forkBlockNumbers
     val ethereumConfig = msg.EthereumConfig(
-      frontierBlockNumber = blockchainConfig.frontierBlockNumber,
-      homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      eip150BlockNumber = blockchainConfig.eip150BlockNumber,
-      eip160BlockNumber = blockchainConfig.eip160BlockNumber,
-      eip161BlockNumber = blockchainConfig.eip161BlockNumber,
+      frontierBlockNumber = forkBlockNumbers.frontierBlockNumber,
+      homesteadBlockNumber = forkBlockNumbers.homesteadBlockNumber,
+      eip150BlockNumber = forkBlockNumbers.eip150BlockNumber,
+      eip160BlockNumber = forkBlockNumbers.eip160BlockNumber,
+      eip161BlockNumber = forkBlockNumbers.eip161BlockNumber,
       maxCodeSize = ByteString(),
       accountStartNonce = blockchainConfig.accountStartNonce
     )

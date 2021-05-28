@@ -4,7 +4,7 @@ import akka.util.ByteString
 import scalapb.GeneratedMessageCompanion
 import io.iohk.ethereum.domain.{Account, Address, UInt256}
 import io.iohk.ethereum.extvm.msg.CallContext.Config
-import io.iohk.ethereum.utils.VmConfig
+import io.iohk.ethereum.utils.{ForkBlockNumbers, VmConfig}
 import io.iohk.ethereum.vm.utils.MockVmInput
 import io.iohk.ethereum.vm._
 import org.scalamock.scalatest.MockFactory
@@ -151,12 +151,13 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
 
   it should "send hello msg" in new TestSetup {
     val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
+    val forkBlockNumbers: ForkBlockNumbers = blockchainConfig.forkBlockNumbers
     val expectedEthereumConfig = msg.EthereumConfig(
-      frontierBlockNumber = blockchainConfig.frontierBlockNumber,
-      homesteadBlockNumber = blockchainConfig.homesteadBlockNumber,
-      eip150BlockNumber = blockchainConfig.eip150BlockNumber,
-      eip160BlockNumber = blockchainConfig.eip160BlockNumber,
-      eip161BlockNumber = blockchainConfig.eip161BlockNumber,
+      frontierBlockNumber = forkBlockNumbers.frontierBlockNumber,
+      homesteadBlockNumber = forkBlockNumbers.homesteadBlockNumber,
+      eip150BlockNumber = forkBlockNumbers.eip150BlockNumber,
+      eip160BlockNumber = forkBlockNumbers.eip160BlockNumber,
+      eip161BlockNumber = forkBlockNumbers.eip161BlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.get,
       accountStartNonce = blockchainConfig.accountStartNonce
     )

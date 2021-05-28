@@ -94,7 +94,8 @@ class EthMiningService(
             Right(
               GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
-                dagSeed = EthashUtils.seed(pb.block.header.number.toLong, blockchainConfig.ecip1099BlockNumber.toLong),
+                dagSeed = EthashUtils
+                  .seed(pb.block.header.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong),
                 target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
               )
             )
