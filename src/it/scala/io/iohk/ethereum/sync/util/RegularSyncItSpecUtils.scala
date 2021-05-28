@@ -24,7 +24,6 @@ import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, pow}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.VmSetup
