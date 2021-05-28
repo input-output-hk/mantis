@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
 import io.iohk.ethereum.{BlockHelpers, WithActorSystemShutDown}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -69,7 +70,7 @@ class BlockFetcherStateSpec
           .appendHeaders(blocks.map(_.header))
           .map(_.handleRequestedBlocks(blocks, peer))
 
-        assert(result.map(_.waitingHeaders) === Left("Given headers should form a sequence with ready blocks"))
+        assert(result.map(_.waitingHeaders) === Left(HeadersNotMatchingReadyBlocks))
       }
     }
   }

@@ -11,7 +11,10 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
-  AwaitingHeadersToBeIgnored
+  AwaitingHeadersToBeIgnored,
+  HeadersNotFormingSeq,
+  HeadersNotMatchingReadyBlocks,
+  HeadersNotMatchingWaitingHeaders
 }
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
@@ -130,7 +133,7 @@ class BlockFetcher(
         blockProvider.foreach(peersClient ! BlacklistPeer(_, BlacklistReason.BlockImportError(reason)))
         fetchBlocks(newState)
 
-      case ReceivedHeaders(headers) if state.isFetchingHeaders =>
+      case ReceivedHeaders(peer, headers) if state.isFetchingHeaders =>
         //First successful fetch
         if (state.waitingHeaders.isEmpty) {
           supervisor ! ProgressProtocol.StartedFetching
@@ -146,6 +149,14 @@ class BlockFetcher(
           } else {
             log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
             state.appendHeaders(headers) match {
+              case Left(HeadersNotFormingSeq) =>
+                log.info("Dismissed received headers due to: {}", HeadersNotFormingSeq.description)
+                peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedHeaders)
+                state.withHeaderFetchReceived
+              case Left(HeadersNotMatchingReadyBlocks) =>
+                log.info("Dismissed received headers due to: {}", HeadersNotMatchingReadyBlocks.description)
+                peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedHeaders)
+                state.withHeaderFetchReceived
               case Left(err) =>
                 log.info("Dismissed received headers due to: {}", err)
                 state.withHeaderFetchReceived
@@ -154,6 +165,11 @@ class BlockFetcher(
             }
           }
         fetchBlocks(newState)
+
+      case ReceivedHeaders(peer, _) if !state.isFetchingHeaders =>
+        peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedHeaders)
+        Behaviors.same
+
       case RetryHeadersRequest if state.isFetchingHeaders =>
         log.debug("Something failed on a headers request, cancelling the request and re-fetching")
         fetchBlocks(state.withHeaderFetchReceived)
@@ -176,6 +192,10 @@ class BlockFetcher(
           log.debug("Processed {} new blocks from received block bodies", waitingHeadersDequeued)
           fetchBlocks(newState)
         }
+
+      case ReceivedBodies(peer, _) if !state.isFetchingBodies =>
+        peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedBodies)
+        Behaviors.same
 
       case RetryBodiesRequest if state.isFetchingBodies =>
         log.debug("Something failed on a bodies request, cancelling the request and re-fetching")
@@ -332,7 +352,7 @@ object BlockFetcher {
   final case object RetryBodiesRequest extends FetchCommand
   final case object RetryHeadersRequest extends FetchCommand
   final case class AdaptedMessageFromEventBus(message: Message, peerId: PeerId) extends FetchCommand
-  final case class ReceivedHeaders(headers: Seq[BlockHeader]) extends FetchCommand
+  final case class ReceivedHeaders(peer: Peer, headers: Seq[BlockHeader]) extends FetchCommand
   final case class ReceivedBodies(peer: Peer, bodies: Seq[BlockBody]) extends FetchCommand
 
   sealed trait FetchResponse
