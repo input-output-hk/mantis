@@ -4,7 +4,7 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
 import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
-import io.iohk.ethereum.blockchain.sync.BlacklistSupport
+import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -21,9 +21,9 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
-
 import java.net.{InetSocketAddress, URI}
 import java.util.Collections.newSetFromMap
+
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -36,11 +36,11 @@ class PeerManagerActor(
     peerStatistics: ActorRef,
     peerFactory: (ActorContext, InetSocketAddress, Boolean) => ActorRef,
     discoveryConfig: DiscoveryConfig,
+    val blacklist: Blacklist,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
     with ActorLogging
-    with Stash
-    with BlacklistSupport {
+    with Stash {
 
   /**
     * Maximum number of blacklisted nodes will never be larger than number of peers provided by discovery
@@ -50,7 +50,7 @@ class PeerManagerActor(
     * The number of nodes in the current discovery is unlimited, but a guide may be the size of the routing table:
     * one bucket for each bit in the hash of the public key, times the bucket size.
     */
-  override val maxBlacklistedNodes: Int = 32 * 8 * discoveryConfig.kademliaBucketSize
+  val maxBlacklistedNodes: Int = 32 * 8 * discoveryConfig.kademliaBucketSize
 
   import PeerManagerActor._
   import akka.pattern.pipe
@@ -69,7 +69,7 @@ class PeerManagerActor(
         connectedPeers.isConnectionHandled(socketAddress) ||
           connectedPeers.hasHandshakedWith(node.id)
 
-      !alreadyConnected && !isBlacklisted(PeerAddress(socketAddress.getHostString))
+      !alreadyConnected && !blacklist.isBlacklisted(PeerAddress(socketAddress.getHostString))
     }
   }
 
@@ -105,7 +105,6 @@ class PeerManagerActor(
 
   private def listening(connectedPeers: ConnectedPeers): Receive = {
     handleCommonMessages(connectedPeers) orElse
-      handleBlacklistMessages orElse
       handleConnections(connectedPeers) orElse
       handleNewNodesToConnectMessages(connectedPeers) orElse
       handlePruning(connectedPeers)
@@ -152,13 +151,13 @@ class PeerManagerActor(
     }
 
     NetworkMetrics.DiscoveredPeersSize.set(nodes.size)
-    NetworkMetrics.BlacklistedPeersSize.set(blacklistedPeers.size)
+    NetworkMetrics.BlacklistedPeersSize.set(blacklist.keys.size)
     NetworkMetrics.PendingPeersSize.set(connectedPeers.pendingPeersCount)
     NetworkMetrics.TriedPeersSize.set(triedNodes.size)
 
     log.info(
       s"Total number of discovered nodes ${nodes.size}. " +
-        s"Total number of connection attempts ${triedNodes.size}, blacklisted ${blacklistedPeers.size} nodes. " +
+        s"Total number of connection attempts ${triedNodes.size}, blacklisted ${blacklist.keys.size} nodes. " +
         s"Handshaked ${connectedPeers.handshakedPeersCount}/${peerConfiguration.maxOutgoingPeers + peerConfiguration.maxIncomingPeers}, " +
         s"pending connection attempts ${connectedPeers.pendingPeersCount}. " +
         s"Trying to connect to ${nodesToConnect.size} more nodes."
@@ -185,10 +184,10 @@ class PeerManagerActor(
 
   private def handleConnections(connectedPeers: ConnectedPeers): Receive = {
     case PeerClosedConnection(peerAddress, reason) =>
-      blacklist(
+      blacklist.add(
         PeerAddress(peerAddress),
         getBlacklistDuration(reason),
-        s"peer disconnected due to: ${Disconnect.reasonToString(reason)}"
+        Blacklist.BlacklistReason.getP2PBlacklistReasonByDescription(Disconnect.reasonToString(reason))
       )
 
     case HandlePeerConnection(connection, remoteAddress) =>
@@ -424,6 +423,7 @@ object PeerManagerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
+      blacklist: Blacklist,
       bestProtocolVersion: Version
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
@@ -445,7 +445,8 @@ object PeerManagerActor {
         knownNodesManager,
         peerStatistics,
         peerFactory = factory,
-        discoveryConfig
+        discoveryConfig,
+        blacklist
       )
     )
   }

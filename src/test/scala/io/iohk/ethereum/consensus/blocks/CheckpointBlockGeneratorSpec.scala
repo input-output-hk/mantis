@@ -35,7 +35,7 @@ class CheckpointBlockGeneratorSpec extends AnyFlatSpec with Matchers {
         extraData = ByteString.empty,
         mixHash = ByteString.empty,
         nonce = ByteString.empty,
-        extraFields = HefPostEcip1097(false, Some(fakeCheckpoint))
+        extraFields = HefPostEcip1097(Some(fakeCheckpoint))
       ),
       BlockBody.empty
     )

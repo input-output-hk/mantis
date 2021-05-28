@@ -4,6 +4,8 @@ git submodule init
 git submodule update
 
 echo "booting Mantis and waiting for RPC API to be up"
+# deleting the state folder in case there is some remaining data from a previous run
+rm -rf ~/.mantis/test
 $SBT -Dconfig.file=./src/main/resources/conf/testmode.conf run &> mantis-log.txt &
 
 while ! nc -z localhost 8546; do   
@@ -28,10 +30,12 @@ function run_and_annotate {
   if [[ -z "$summary" ]]; then
     summary="retesteth crashed; check the artifacts"
   fi
+  passed=$(grep -oP 'Total Tests Run: \d+' "retesteth-$1-log.txt")
+  failed=$(grep -oP 'TOTAL ERRORS DETECTED: \d+' "retesteth-$1-log.txt")
 
   cat <<EOF | buildkite-agent annotate --context "retesteth-$1" --style "$style"
 <details>
-<summary>retesteth: $1</summary>
+<summary>retesteth: $1 -- $passed -- $failed</summary>
 <pre class="term"><code>
 $summary
 </code></pre>

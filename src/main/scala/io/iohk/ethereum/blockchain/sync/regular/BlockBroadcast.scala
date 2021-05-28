@@ -1,13 +1,14 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorRef
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.domain.{Block, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
 import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, PV64, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
+import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 
 import scala.util.Random
 
@@ -22,24 +23,24 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
     * @param blockToBroadcast, block to broadcast
     * @param handshakedPeers, to which the blocks will be broadcasted to
     */
-  def broadcastBlock(blockToBroadcast: BlockToBroadcast, handshakedPeers: Map[Peer, PeerInfo]): Unit = {
-    val peersWithoutBlock = handshakedPeers.filter { case (_, peerInfo) =>
+  def broadcastBlock(blockToBroadcast: BlockToBroadcast, handshakedPeers: Map[PeerId, PeerWithInfo]): Unit = {
+    val peersWithoutBlock = handshakedPeers.filter { case (_, PeerWithInfo(_, peerInfo)) =>
       shouldSendNewBlock(blockToBroadcast, peerInfo)
     }
 
     broadcastNewBlock(blockToBroadcast, peersWithoutBlock)
 
-    broadcastNewBlockHash(blockToBroadcast, peersWithoutBlock.keySet)
+    broadcastNewBlockHash(blockToBroadcast, peersWithoutBlock.values.map(_.peer).toSet)
   }
 
   private def shouldSendNewBlock(newBlock: BlockToBroadcast, peerInfo: PeerInfo): Boolean =
     newBlock.block.header.number > peerInfo.maxBlockNumber ||
       newBlock.chainWeight > peerInfo.chainWeight
 
-  private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[Peer, PeerInfo]): Unit =
-    obtainRandomPeerSubset(peers.keySet).foreach { peer =>
+  private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[PeerId, PeerWithInfo]): Unit =
+    obtainRandomPeerSubset(peers.values.map(_.peer).toSet).foreach { peer =>
       val message: MessageSerializable =
-        if (peers(peer).remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
+        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
         else blockToBroadcast.as63
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }

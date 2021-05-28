@@ -9,6 +9,7 @@ import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
 import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpcRequest, JsonRpcResponse}
+import io.iohk.ethereum.jsonrpc.NodeJsonRpcHealthChecker.JsonRpcHealthConfig
 import io.iohk.ethereum.utils.Logger
 import monix.eval.Task
 import org.json4s.JsonDSL._
@@ -120,6 +121,7 @@ object JsonRpcBaseController {
     def minerActiveTimeout: FiniteDuration
     def httpServerConfig: JsonRpcHttpServerConfig
     def ipcServerConfig: JsonRpcIpcServerConfig
+    def healthConfig: JsonRpcHealthConfig
   }
 
   object JsonRpcConfig {
@@ -143,6 +145,7 @@ object JsonRpcBaseController {
 
         override val httpServerConfig: JsonRpcHttpServerConfig = JsonRpcHttpServerConfig(mantisConfig)
         override val ipcServerConfig: JsonRpcIpcServerConfig = JsonRpcIpcServerConfig(mantisConfig)
+        override val healthConfig: JsonRpcHealthConfig = JsonRpcHealthConfig(rpcConfig)
       }
     }
   }

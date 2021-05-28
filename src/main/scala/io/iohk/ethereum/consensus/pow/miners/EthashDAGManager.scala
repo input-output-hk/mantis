@@ -1,14 +1,15 @@
-package io.iohk.ethereum.consensus.pow
+package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator}
 import io.iohk.ethereum.utils.{ByteUtils, Logger}
 import org.bouncycastle.util.encoders.Hex
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import scala.util.{Failure, Success, Try}
 
-class EthashDAGManager(blockCreator: EthashBlockCreator) extends Logger {
+class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
