@@ -111,8 +111,12 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgType[PeersClient.Request[GetBlockHeaders]]
-        peersClient.reply(PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason")))
-        peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason")))
+        peersClient.reply(
+          PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
+        peersClient.expectMsg(
+          PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
       })
 
       "blacklist peer which returns headers starting from one with higher number than expected" in sync(

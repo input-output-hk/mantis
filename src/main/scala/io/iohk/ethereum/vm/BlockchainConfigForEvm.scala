@@ -67,20 +67,20 @@ object BlockchainConfigForEvm {
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._
     BlockchainConfigForEvm(
-      frontierBlockNumber = frontierBlockNumber,
-      homesteadBlockNumber = homesteadBlockNumber,
-      eip150BlockNumber = eip150BlockNumber,
-      eip160BlockNumber = eip160BlockNumber,
-      eip161BlockNumber = eip161BlockNumber,
-      byzantiumBlockNumber = byzantiumBlockNumber,
-      constantinopleBlockNumber = constantinopleBlockNumber,
-      istanbulBlockNumber = istanbulBlockNumber,
+      frontierBlockNumber = forkBlockNumbers.frontierBlockNumber,
+      homesteadBlockNumber = forkBlockNumbers.homesteadBlockNumber,
+      eip150BlockNumber = forkBlockNumbers.eip150BlockNumber,
+      eip160BlockNumber = forkBlockNumbers.eip160BlockNumber,
+      eip161BlockNumber = forkBlockNumbers.eip161BlockNumber,
+      byzantiumBlockNumber = forkBlockNumbers.byzantiumBlockNumber,
+      constantinopleBlockNumber = forkBlockNumbers.constantinopleBlockNumber,
+      istanbulBlockNumber = forkBlockNumbers.istanbulBlockNumber,
       maxCodeSize = maxCodeSize,
       accountStartNonce = accountStartNonce,
-      atlantisBlockNumber = atlantisBlockNumber,
-      aghartaBlockNumber = aghartaBlockNumber,
-      petersburgBlockNumber = petersburgBlockNumber,
-      phoenixBlockNumber = phoenixBlockNumber,
+      atlantisBlockNumber = forkBlockNumbers.atlantisBlockNumber,
+      aghartaBlockNumber = forkBlockNumbers.aghartaBlockNumber,
+      petersburgBlockNumber = forkBlockNumbers.petersburgBlockNumber,
+      phoenixBlockNumber = forkBlockNumbers.phoenixBlockNumber,
       chainId = chainId
     )
   }

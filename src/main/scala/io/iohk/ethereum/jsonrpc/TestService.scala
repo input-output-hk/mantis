@@ -10,10 +10,10 @@ import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{TestModeComponentsProvider, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -35,16 +35,16 @@ object TestService {
       mixHash: ByteString
   )
   case class BlockchainParams(
-      EIP150ForkBlock: BigInt,
-      EIP158ForkBlock: BigInt,
+      EIP150ForkBlock: Option[BigInt],
+      EIP158ForkBlock: Option[BigInt],
       accountStartNonce: BigInt,
       allowFutureBlocks: Boolean,
       blockReward: BigInt,
-      byzantiumForkBlock: BigInt,
-      homesteadForkBlock: BigInt,
+      byzantiumForkBlock: Option[BigInt],
+      homesteadForkBlock: Option[BigInt],
       maximumExtraDataSize: BigInt,
-      constantinopleForkBlock: BigInt,
-      istanbulForkBlock: BigInt
+      constantinopleForkBlock: Option[BigInt],
+      istanbulForkBlock: Option[BigInt]
   )
 
   case class ChainParams(
@@ -108,8 +108,8 @@ class TestService(
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
-    consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper
+    testModeComponentsProvider: TestModeComponentsProvider,
+    initialConfig: BlockchainConfig
 )(implicit
     scheduler: Scheduler
 ) extends Logger {
@@ -120,18 +120,11 @@ class TestService(
   private var etherbase: Address = consensusConfig.coinbase
   private var accountAddresses: List[String] = List()
   private var accountRangeOffset = 0
+  private var currentConfig: BlockchainConfig = initialConfig
+  private var blockTimestamp: Long = 0
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
-      homesteadBlockNumber = request.chainParams.blockchainParams.homesteadForkBlock,
-      eip150BlockNumber = request.chainParams.blockchainParams.EIP150ForkBlock,
-      byzantiumBlockNumber = request.chainParams.blockchainParams.byzantiumForkBlock,
-      constantinopleBlockNumber = request.chainParams.blockchainParams.constantinopleForkBlock,
-      istanbulBlockNumber = request.chainParams.blockchainParams.istanbulForkBlock,
-      accountStartNonce = UInt256(request.chainParams.blockchainParams.accountStartNonce),
-      networkId = 1,
-      bootstrapNodes = Set()
-    )
+    currentConfig = buildNewConfig(request.chainParams.blockchainParams)
 
     val genesisData = GenesisData(
       nonce = request.chainParams.genesis.nonce,
@@ -153,19 +146,50 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
+
     //save account codes to world state
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
-
-    // update test ledger with new config
-    testLedgerWrapper.blockchainConfig = newBlockchainConfig
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
 
     SetChainParamsResponse().rightNow
+  }
+
+  val neverOccuringBlock: Int = Int.MaxValue
+  private def buildNewConfig(blockchainParams: BlockchainParams) = {
+    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccuringBlock)
+    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
+
+    // For block number which are not specified by retesteth, we try to align the number to another fork
+    currentConfig.copy(
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
+        eip106BlockNumber = neverOccuringBlock,
+        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
+        eip155BlockNumber = byzantiumBlockNumber,
+        eip160BlockNumber = byzantiumBlockNumber,
+        eip161BlockNumber = byzantiumBlockNumber,
+        byzantiumBlockNumber = byzantiumBlockNumber,
+        ecip1049BlockNumber = None,
+        ecip1097BlockNumber = neverOccuringBlock,
+        ecip1098BlockNumber = neverOccuringBlock,
+        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
+        petersburgBlockNumber = istanbulForkBlockNumber,
+        aghartaBlockNumber = istanbulForkBlockNumber,
+        istanbulBlockNumber = istanbulForkBlockNumber,
+        atlantisBlockNumber = istanbulForkBlockNumber,
+        phoenixBlockNumber = istanbulForkBlockNumber,
+        ecip1099BlockNumber = neverOccuringBlock
+      ),
+      accountStartNonce = UInt256(blockchainParams.accountStartNonce),
+      networkId = 1,
+      bootstrapNodes = Set()
+    )
   }
 
   private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
@@ -190,11 +214,11 @@ class TestService(
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testLedgerWrapper.ledger.importBlock(blockForMining.block))
+        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig).importBlock(blockForMining.block))
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-          consensus.blockTimestamp += 1
+          blockTimestamp += 1
         }
     }
 
@@ -207,7 +231,7 @@ class TestService(
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
-    consensus.blockTimestamp = request.timestamp
+    blockTimestamp = request.timestamp
     ModifyTimestampResponse().rightNow
   }
 
@@ -223,7 +247,8 @@ class TestService(
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
-        testLedgerWrapper.ledger
+        testModeComponentsProvider
+          .ledger(currentConfig)
           .importBlock(value)
           .flatMap(handleResult)
     }
@@ -250,7 +275,9 @@ class TestService(
       .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
-        consensus.blockGenerator
+        testModeComponentsProvider
+          .consensus(currentConfig, blockTimestamp)
+          .blockGenerator
           .generateBlock(
             parentBlock,
             pendingTxs.pendingTransactions.map(_.stx.tx),

@@ -264,7 +264,8 @@ class FastSyncBranchResolverActorSpec
       )
     }
 
-    val handshakedPeers: Map[Peer, PeerInfo] = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
+    val handshakedPeers: Map[Peer, PeerInfo] =
+      (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
 
     def saveBlocks(blocks: List[Block]): Unit = {
       blocks.foreach(block => blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true))

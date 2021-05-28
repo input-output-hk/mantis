@@ -23,7 +23,7 @@ class TestmodeConsensus(
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val difficultyCalculator: DifficultyCalculator,
-    var blockTimestamp: Long = 0
+    blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
 
@@ -68,14 +68,14 @@ class TestmodeConsensus(
 
   override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
 
-  override val blockPreparator: BlockPreparator = new BlockPreparator(
+  override def blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
     blockchainConfig = blockchainConfig
   )
 
-  override val blockGenerator =
+  override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       blockchain,
       blockchainConfig,

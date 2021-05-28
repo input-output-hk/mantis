@@ -89,16 +89,16 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           constantinopleForkBlock <- optionalQuantity(blockchainParamsJson \ "constantinopleForkBlock")
           istanbulForkBlock <- optionalQuantity(blockchainParamsJson \ "istanbulForkBlock")
         } yield BlockchainParams(
-          eIP150ForkBlock.getOrElse(0),
-          eIP158ForkBlock.getOrElse(0),
-          accountStartNonce.getOrElse(0),
-          allowFutureBlocks,
-          blockReward.getOrElse(0),
-          byzantiumForkBlock.getOrElse(0),
-          homesteadForkBlock.getOrElse(0),
-          0,
-          constantinopleForkBlock.getOrElse(0),
-          istanbulForkBlock.getOrElse(0)
+          EIP150ForkBlock = eIP150ForkBlock,
+          EIP158ForkBlock = eIP158ForkBlock,
+          accountStartNonce = accountStartNonce.getOrElse(0),
+          allowFutureBlocks = allowFutureBlocks,
+          blockReward = blockReward.getOrElse(0),
+          byzantiumForkBlock = byzantiumForkBlock,
+          homesteadForkBlock = homesteadForkBlock,
+          maximumExtraDataSize = 0,
+          constantinopleForkBlock = constantinopleForkBlock,
+          istanbulForkBlock = istanbulForkBlock
         )
       }
 

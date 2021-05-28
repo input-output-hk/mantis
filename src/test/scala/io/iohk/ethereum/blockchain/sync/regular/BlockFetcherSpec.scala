@@ -99,7 +99,10 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
       peersClient.expectNoMessage()
 
       // Failure of the second request should make the fetcher resume with his requests
-      peersClient.send(refExpectingReply, PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed("")))
+      peersClient.send(
+        refExpectingReply,
+        PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed(""))
+      )
 
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }

@@ -130,11 +130,14 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if created based on invalid number" in new TestSetup {
-    forAll(longGen suchThat (num => num != validBlockParentHeader.number + 1 && num >= config.ecip1097BlockNumber)) {
-      number =>
-        val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
-        val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
-        assert(validateResult == Left(HeaderNumberError))
+    forAll(
+      longGen suchThat (num =>
+        num != validBlockParentHeader.number + 1 && num >= config.forkBlockNumbers.ecip1097BlockNumber
+      )
+    ) { number =>
+      val blockHeader = validBlockHeaderWithCheckpoint.copy(number = number)
+      val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
+      assert(validateResult == Left(HeaderNumberError))
     }
   }
 
@@ -257,12 +260,17 @@ class BlockWithCheckpointHeaderValidatorSpec
           "6848a3ab71918f57d3b9116b8e93c6fbc53e8a28dcd63e99c514dceee30fdd9741050fa7646bd196c9512e52f0d03097678c707996fff55587cd467801a1eee1"
         )
       )
-    val config: BlockchainConfig = blockchainConfig.copy(
-      ecip1097BlockNumber = validBlockParentHeader.number,
-      ecip1098BlockNumber = validBlockParentHeader.number,
-      eip106BlockNumber = 0,
-      checkpointPubKeys = checkpointPubKeys
-    )
+    val config: BlockchainConfig = blockchainConfig
+      .withUpdatedForkBlocks(
+        _.copy(
+          ecip1097BlockNumber = validBlockParentHeader.number,
+          ecip1098BlockNumber = validBlockParentHeader.number,
+          eip106BlockNumber = 0
+        )
+      )
+      .copy(
+        checkpointPubKeys = checkpointPubKeys
+      )
 
     val keys = Seq(
       crypto.keyPairFromPrvKey(
