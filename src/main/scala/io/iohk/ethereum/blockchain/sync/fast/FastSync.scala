@@ -382,25 +382,24 @@ class FastSync(
         // Reset the batch failures count
         batchFailuresCount = 0
 
-        // Restart syncing from the valid block available in state.
-        syncState = syncState.copy(
-          bestBlockHeaderNumber = firstCommonBlockNumber,
-          nextBlockToFullyValidate = firstCommonBlockNumber + 1,
-          pivotBlockUpdateFailures = 0
-        )
-        // masterPeer = Some(newMasterPeer)
         context.children.foreach { child =>
           log.debug(s"unwatching and killing $child")
           context.unwatch(child)
           child ! PoisonPill
         }
 
+        // Restart syncing from the valid block available in state.
         log.debug("starting with fresh SyncingHandler")
-        val syncingHandler = new SyncingHandler(initialSyncState)
+        val syncingHandler = new SyncingHandler(
+          syncState.copy(
+            bestBlockHeaderNumber = firstCommonBlockNumber,
+            nextBlockToFullyValidate = firstCommonBlockNumber + 1,
+            pivotBlockUpdateFailures = 0
+          )
+        )
         context.become(syncingHandler.receive)
         syncingHandler.processSyncing()
 
-      // processSyncing()
       case _: FastSyncBranchResolverActor.BranchResolutionFailed =>
         // there isn't much we can do if we don't find a branch/peer to continue syncing, so let's try again
         branchResolver ! FastSyncBranchResolverActor.StartBranchResolver
