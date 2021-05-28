@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
 import akka.actor.typed.{ActorRef => TypedActorRef}
-import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.{Blacklist, SyncProtocol}
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
