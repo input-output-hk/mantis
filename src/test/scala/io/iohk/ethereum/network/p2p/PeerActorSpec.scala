@@ -25,7 +25,7 @@ import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.{DisconnectEnc, Reasons}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
@@ -158,6 +158,35 @@ class PeerActorSpec
 
     knownNodesManager.expectMsg(KnownNodesManager.AddKnownNode(completeUri))
     knownNodesManager.expectNoMessage()
+  }
+
+  it should "fail handshake with peer that has a wrong genesis hash" in new TestSetup {
+    val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@localhost:9000")
+    val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
+    peer ! PeerActor.ConnectTo(uri)
+    peer ! PeerActor.ConnectTo(uri)
+
+    rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
+
+    //Hello exchange
+    val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
+
+    val remoteStatus = Status(
+      protocolVersion = ProtocolVersions.PV63,
+      networkId = peerConf.networkId,
+      totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
+      bestHash = ByteString("blockhash"),
+      genesisHash = genesisHash.drop(2)
+    )
+
+    //Node status exchange
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: StatusEnc) => () }
+    rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteStatus))
+
+    rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: DisconnectEnc) => () }
   }
 
   it should "successfully connect to ETC peer with protocol 64" in new TestSetup {
