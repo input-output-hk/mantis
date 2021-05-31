@@ -156,7 +156,7 @@ class TestService(
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
 
-    accountAddresses = genesisData.alloc.keys.toList
+    accountAddresses = etherbase.toUnprefixedString :: genesisData.alloc.keys.toList
     accountRangeOffset = 0
 
     SetChainParamsResponse().rightNow
@@ -250,7 +250,8 @@ class TestService(
 
   def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] = {
     Try(decode(request.blockRlp).toBlock) match {
-      case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
+      case Failure(e) =>
+        Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
           .ledger(currentConfig, sealEngine)
@@ -264,7 +265,9 @@ class TestService(
       case BlockImportedToTop(blockImportData) =>
         val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
         ImportRawBlockResponse(blockHash).rightNow
-      case _ => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
+      case e =>
+        log.warn(s"Block import failed with ${e}")
+        Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
     }
   }
 
