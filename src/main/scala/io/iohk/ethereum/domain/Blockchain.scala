@@ -289,10 +289,11 @@ class BlockchainImpl(
   override def getLatestCheckpointBlockNumber(): BigInt =
     bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
 
+  //returns the best known block if it's available in the storage, otherwise the best stored block
   override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber)
+    getBlockByNumber(bestBlockNumber) orElse getBlockByNumber(appStateStorage.getBestBlockNumber())
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
