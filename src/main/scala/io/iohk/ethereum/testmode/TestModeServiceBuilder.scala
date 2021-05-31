@@ -12,7 +12,7 @@ import monix.execution.Scheduler
 
 trait TestModeServiceBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
-    with BlockchainBuilder
+    with TestBlockchainBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder

@@ -73,7 +73,7 @@ class BlockExecution(
     *
     * @param block the block with transactions to run
     */
-  private[ledger] def executeBlockTransactions(
+  protected[ledger] def executeBlockTransactions(
       block: Block,
       parent: BlockHeader
   ): Either[BlockExecutionError, BlockResult] = {
@@ -87,6 +87,14 @@ class BlockExecution(
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
 
+    executeBlockTransactions(block, blockHeaderNumber, initialWorld)
+  }
+
+  protected def executeBlockTransactions(
+      block: Block,
+      blockHeaderNumber: BigInt,
+      initialWorld: InMemoryWorldStateProxy
+  ): Either[BlockExecutionError.TxsExecutionError, BlockResult] = {
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) =>
         drainDaoForkAccounts(initialWorld, daoForkConfig)

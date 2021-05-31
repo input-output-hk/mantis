@@ -10,7 +10,7 @@ import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{SealEngineType, TestModeComponentsProvider, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{SealEngineType, TestModeComponentsProvider}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
@@ -71,7 +71,7 @@ object TestService {
       txIndex: BigInt,
       address: ByteString,
       begin: BigInt,
-      maxResults: BigInt
+      maxResults: Int
   )
 
   case class StorageEntry(key: String, value: String)
@@ -98,7 +98,11 @@ object TestService {
   case class AccountsInRangeResponse(addressMap: Map[ByteString, ByteString], nextKey: ByteString)
 
   case class StorageRangeRequest(parameters: StorageRangeParams)
-  case class StorageRangeResponse(complete: Boolean, storage: Map[String, StorageEntry])
+  case class StorageRangeResponse(
+      complete: Boolean,
+      storage: Map[String, StorageEntry],
+      nextKey: Option[String]
+  )
 
   case class GetLogHashRequest(transactionHash: ByteString)
   case class GetLogHashResponse(logHash: ByteString)
@@ -109,7 +113,8 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
-    initialConfig: BlockchainConfig
+    initialConfig: BlockchainConfig,
+    preimageCache: collection.concurrent.Map[ByteString, UInt256]
 )(implicit
     scheduler: Scheduler
 ) extends Logger {
@@ -143,6 +148,8 @@ class TestService(
     etherbase = Address(genesisData.coinbase)
 
     sealEngine = request.chainParams.sealEngine
+
+    resetPreimages(genesisData)
 
     // remove current genesis (Try because it may not exist)
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
@@ -279,6 +286,17 @@ class TestService(
     SetEtherbaseResponse().rightNow
   }
 
+  private def resetPreimages(genesisData: GenesisData): Unit = {
+    preimageCache.clear()
+    for {
+      (_, account) <- genesisData.alloc
+      storage <- account.storage
+      storageKey <- storage.keys
+    } {
+      preimageCache.put(crypto.kec256(storageKey.bytes), storageKey)
+    }
+  }
+
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
     implicit val timeout: Timeout = Timeout(20.seconds)
     pendingTransactionsManager
@@ -337,29 +355,50 @@ class TestService(
     }
   }
 
+  /** Get the list of storage values starting from _begin and up to _begin + _maxResults at given block.
+    * nexKey field is the next key hash if any key left in the state, or 0x00 otherwise.
+    *
+    * Normally, this RPC method is supposed to also be able to look up the state after after transaction
+    * _txIndex is executed. This is currently not supported in mantis.
+    * @see https://github.com/ethereum/retesteth/wiki/RPC-Methods#debug_storagerangeat
+    */
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(number => blockchain.getBlockByNumber(number), hash => blockchain.getBlockByHash(hash))
 
     (for {
-      block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
+      block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
       accountOpt = blockchain.getAccount(Address(request.parameters.address), block.header.number)
-      account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty))
-      storage = blockchain.getAccountStorageAt(
-        account.storageRoot,
-        request.parameters.begin,
-        ethCompatibleStorage = true
+      account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
+
+    } yield {
+      // This implementation might be improved. It is working for most tests in ETS but might be
+      // not really efficient and would not work outside of a test context. We simply iterate over
+      // every key known by the preimage cache.
+      val (valueBatch, next) = preimageCache.toSeq
+        .sortBy(v => UInt256(v._1))
+        .view
+        .dropWhile { case (hash, _) => UInt256(hash) < request.parameters.begin }
+        .map { case (keyHash, keyValue) =>
+          (keyHash.toArray, keyValue, blockchain.getAccountStorageAt(account.storageRoot, keyValue, true))
+        }
+        .filterNot { case (_, _, storageValue) => storageValue == ByteString(0) }
+        .take(request.parameters.maxResults + 1)
+        .splitAt(request.parameters.maxResults)
+
+      val storage = valueBatch
+        .map { case (keyHash, keyValue, value) =>
+          UInt256(keyHash).toHexString -> StorageEntry(keyValue.toHexString, UInt256(value).toHexString)
+        }
+        .to(Map)
+
+      StorageRangeResponse(
+        complete = next.isEmpty,
+        storage = storage,
+        nextKey = next.headOption.map { case (hash, _, _) => UInt256(hash).toHexString }
       )
-    } yield StorageRangeResponse(
-      complete = true,
-      storage = Map(
-        encodeAsHex(request.parameters.address).values -> StorageEntry(
-          encodeAsHex(request.parameters.begin).values,
-          encodeAsHex(storage).values
-        )
-      )
-    )).fold(identity, identity).rightNow
+    }).fold(identity, identity).rightNow
   }
 
   def getLogHash(request: GetLogHashRequest): ServiceResponse[GetLogHashResponse] = {

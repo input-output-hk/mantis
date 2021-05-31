@@ -214,7 +214,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
               addressHash <- extractBytes(address.extract[String])
               blockHashOrNumberEither = extractBlockHashOrNumber(blockHashOrNumber.extract[String])
             } yield StorageRangeRequest(
-              StorageRangeParams(blockHashOrNumberEither, txIndex, addressHash, begin, maxResults)
+              StorageRangeParams(blockHashOrNumberEither, txIndex, addressHash, begin, maxResults.toInt)
             )
           case _ => Left(InvalidParams())
         }
