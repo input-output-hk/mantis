@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.PeerActor.{ConnectTo, PeerClosedConnection}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerConfiguration, Peers, SendMessage}
+import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerAddress, PeerConfiguration, Peers, SendMessage}
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
@@ -50,6 +50,27 @@ class PeerManagerSpec
   it should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
     start()
     handleInitialNodesDiscovery()
+  }
+
+  it should "blacklist peer that sent a status msg with invalid genesisHash" in new TestSetup {
+    start()
+    handleInitialNodesDiscovery()
+
+    val probe: TestProbe = createdPeers(1).probe
+
+    probe.expectMsgClass(classOf[PeerActor.ConnectTo])
+
+    peerManager ! PeerManagerActor.HandlePeerConnection(incomingConnection1.ref, incomingPeerAddress1)
+
+    val probe2: TestProbe = createdPeers(2).probe
+    val peer = Peer(PeerId("peerid"), incomingPeerAddress1, probe2.ref, incomingConnection = true)
+
+    peerManager ! PeerClosedConnection(peer.remoteAddress.getHostString, Disconnect.Reasons.DisconnectRequested)
+
+    eventually {
+      peerManager.underlyingActor.blacklist.keys.size shouldEqual 1
+      peerManager.underlyingActor.blacklist.isBlacklisted(PeerAddress(peer.remoteAddress.getHostString)) shouldBe true
+    }
   }
 
   it should "blacklist peer that fail to establish tcp connection" in new TestSetup {

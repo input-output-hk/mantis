@@ -34,8 +34,8 @@ class BlockPreparator(
   //      in some irrelevant test can throw an exception.
   private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(
     blockchainConfig.monetaryPolicyConfig,
-    blockchainConfig.byzantiumBlockNumber,
-    blockchainConfig.constantinopleBlockNumber
+    blockchainConfig.forkBlockNumbers.byzantiumBlockNumber,
+    blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
   )
 
   /**
@@ -98,7 +98,7 @@ class BlockPreparator(
     }
 
   private def treasuryEnabled(blockNo: BigInt): Boolean =
-    blockNo >= blockchainConfig.ecip1098BlockNumber
+    blockNo >= blockchainConfig.forkBlockNumbers.ecip1098BlockNumber
 
   /**
     * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
@@ -318,8 +318,8 @@ class BlockPreparator(
             // spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-658.md
             val transactionOutcome =
               if (
-                blockHeader.number >= blockchainConfig.byzantiumBlockNumber ||
-                blockHeader.number >= blockchainConfig.atlantisBlockNumber
+                blockHeader.number >= blockchainConfig.forkBlockNumbers.byzantiumBlockNumber ||
+                blockHeader.number >= blockchainConfig.forkBlockNumbers.atlantisBlockNumber
               ) {
                 if (vmError.isDefined) FailureOutcome else SuccessOutcome
               } else {

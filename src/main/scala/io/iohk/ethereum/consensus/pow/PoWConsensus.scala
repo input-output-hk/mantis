@@ -95,7 +95,7 @@ class PoWConsensus private (
                   node.ethMiningService,
                   blockCreator,
                   blockchain,
-                  blockchainConfig.ecip1049BlockNumber
+                  blockchainConfig.forkBlockNumbers.ecip1049BlockNumber
                 ),
                 "PoWMinerCoordinator",
                 DispatcherSelector.fromConfig(BlockForgerDispatcherId)

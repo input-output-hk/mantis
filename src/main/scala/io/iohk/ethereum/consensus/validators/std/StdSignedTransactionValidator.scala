@@ -85,8 +85,8 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     val r = stx.signature.r
     val s = stx.signature.s
 
-    val beforeHomestead = blockNumber < blockchainConfig.homesteadBlockNumber
-    val beforeEIP155 = blockNumber < blockchainConfig.eip155BlockNumber
+    val beforeHomestead = blockNumber < blockchainConfig.forkBlockNumbers.homesteadBlockNumber
+    val beforeEIP155 = blockNumber < blockchainConfig.forkBlockNumbers.eip155BlockNumber
 
     val validR = r > 0 && r < secp256k1n
     val validS = s > 0 && s < (if (beforeHomestead) secp256k1n else secp256k1n / 2)

@@ -290,6 +290,18 @@ addCommandAlias(
     |""".stripMargin
 )
 
+// testAll
+addCommandAlias(
+  "testAll",
+  """;compile-all
+    |;rlp/test
+    |;bytes/test
+    |;crypto/test
+    |;test
+    |;it:test
+    |""".stripMargin
+)
+
 // Scala 2.12 only has up to 1.4.5, while 2.13 only from 1.4.7
 // In theory we should be able to switch on `scalaVersion.value` but it doesn't seem to work.
 scapegoatVersion in ThisBuild := (sys.env.getOrElse("SCAPEGOAT_VERSION", "1.4.7"))

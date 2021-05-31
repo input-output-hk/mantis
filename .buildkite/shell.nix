@@ -21,5 +21,5 @@ with pkgs;
 mkShell {
   nativeBuildInputs = [ sbt solc lllc jdk8 protoc-wrapper retesteth netcat-gnu ];
   # SBT = "sbt -v -mem 2048 -J-Xmx4g -Dsbt.ivy.home=/cache/ivy2 -Dsbt.boot.directory=/cache/sbt -Dmaven.repo.local=/cache/maven -Dnix=true";
-  SBT = "sbt -v -mem 2048 -J-Xmx4g -Dnix=true";
+  SBT = "sbt -v -mem 2048 -J-Xmx6g -Dnix=true";
 }

@@ -121,15 +121,6 @@ in
       ];
     };
 
-    test-integration = commonAttrs // {
-      dependsOn = [ compile ];
-      label = "integration tests";
-      command = ''
-        nix-shell --run '$SBT coverageOff it:test'
-      '';
-      artifactPaths = [ "target/test-reports/**/*" ];
-    };
-
     test-ets = commonAttrs // {
       dependsOn = [ compile ];
       label = "ETS";
@@ -145,6 +136,16 @@ in
       ];
     };
 
+    test-integration = commonAttrs // {
+      dependsOn = [ compile ];
+      label = "integration tests";
+      command = ''
+        nix-shell --run '$SBT coverageOff it:test'
+      '';
+      artifactPaths = [ "target/test-reports/**/*" ];
+      timeoutInMinutes = 60;
+    };
+
     coverageReport = commonAttrs // {
       dependsOn = [ test-unit test-evm ];
       label = "coverage report";
@@ -154,7 +155,7 @@ in
     };
 
     additional = commonAttrs // {
-      dependsOn = [ compile ];
+      dependsOn = [ compile test-integration ];
       label = "additional compilation & dist";
       command = ''
         nix-shell --run '$SBT benchmark:compile dist'
