@@ -120,7 +120,7 @@ class FastSync(
   private def countActor: Int = actorCounter.incrementAndGet
 
   // scalastyle:off number.of.methods
-  private class SyncingHandler(initialSyncState: SyncState) {
+  private class SyncingHandler(initialSyncState: SyncState, var masterPeer: Option[Peer] = None) {
 
     //not part of syncstate as we do not want to persist is.
     private var stateSyncRestartRequested = false
@@ -132,7 +132,6 @@ class FastSync(
     private var assignedHandlers: Map[ActorRef, Peer] = Map.empty
     private var peerRequestsTime: Map[Peer, Instant] = Map.empty
 
-    private var masterPeer: Option[Peer] = None
     // TODO ETCM-701 get rid of state and move skeleton download to a separate actor
     private val blockHeadersQueue: mutable.Queue[HeaderRange] = mutable.Queue.empty
     private var currentSkeletonState: Option[HeaderSkeleton] = None
@@ -393,7 +392,8 @@ class FastSync(
             bestBlockHeaderNumber = firstCommonBlockNumber,
             nextBlockToFullyValidate = firstCommonBlockNumber + 1,
             pivotBlockUpdateFailures = 0
-          )
+          ),
+          masterPeer = Some(newMasterPeer)
         )
         context.become(syncingHandler.receive)
         syncingHandler.processSyncing()
