@@ -1,36 +1,107 @@
 Introduction
 
-This is the Mantis 2.0 release. This release was focused on improving general performance of the client and adding full Ethereum
-support.
+This is the Mantis 3.2.3 release. 
+It includes all updates from the previous release https://github.com/input-output-hk/mantis/releases/tag/v3.2.2.
 
-For a more detailed description of the functionality and configuration options see https://github.com/input-output-hk/mantis/wiki
+This release required a Genesis block reset in the Sagano testnet due to the removal of the treasury opt out flag in block headers.
+
+In V3.2.3, Checkpointing (ECIP-1097) and proto-Treasury (ECIP-1098) are deactivated as they have not reached community consensus yet.
+
+V3.2.2 includes several bug fixes around the synchronization process (fast-sync, regular sync and state download), the ability to capture several performance metrics, initial setup for Keccak-256 mining support, and several other improvements.
+
+For a more detailed description of the functionality and configuration options see the Mantis client home page (https://docs.mantisclient.io/).
 
 Known Issues
 
-EC-254 Full discovery 'kademlia' protocol not implemented. There are no known implications.
+* If an RPC request involving the “latest block” is underway at the exact same time a new block is imported, the request may fail. The request can be retried.
 
-EC-284 - Missing MPT Node while doing regular sync
+New features, V3.2.3:
 
-Workaround is to set the redownload-missing-state-nodes flag as per the documentation (see wiki).
+* Set Sagano target block time to 15s (#989)
+* Remove treasury opt out flag (#980)
+* Update jvmopts to allow more nesting of smart contracts (#987)
+* Move networking and regular sync to cache-based blacklist (#983)
 
-EC-371 - Occasional OOM error
+New features, V3.2.2:
 
-Workaround is to restart.
+Checkpointing ECIP-1097
+* Return only the child of the checkpoint block (#958)
+* [ETCM-389] Move checkpoint creation to the checkpoint service (#955)
+* [ETCM-645] Add test for checkpointing (#931)
+* [ETCM-655] Extend checkpointing_getLatestBlock RPC call with argument for parent checkpointed block (#942)
 
-EC-372 - Occasionally the synchronisation stops
+Several Checkpoint fixes (#930)
+* [FIX] Block fetcher failing test fix (#889)
+* [FIX] Processing checkpoint blocks by fetcher (#866)
+* [ETCM-670] Handling checkpoint older than local best block (#930)
+* [ETCM-675] Delay reorganisation after importing internal checkpoint (#942)
 
-Workaround is to restart.
+Keccak-256 ECIP 1049
+* [ETCM-746] Added support for PoW with Keccak-256 (ECIP-1049) (#960)
 
-Changes Since Last Release:
+Performance measurement
+* [ETCM-535]Add metrics config in the package build (#898)
+* [ETCM-715] Add new network metric (tried.peers) (#959)
+* [ETCM-571] Add timing metric taken to evaluate a submitted PoW (#932)
+* [ETCM-573] Add timing metrics on block imports (#919)
+* [ETCM-555] Add timing metrics download blocks (headers, bodies and receipts) and MPT nodes.
+* [ETCM-556] Add metric for FastSync total time and update docker-compose Grafana dashboard (#907)
+* [ETCM-528] Block creation metrics (#904)
 
-- Full Ethereum support including Byzantium and Constantinople hard forks
+Other
+* Upgrade rocksdbjni version (#928)
+* [ETCM-468] JSON-RPC getProof for membership (#926)
+* [ETCM-533] JSON-RPC getProof for NON membership (#899)
+* [Chore] Bump scalanet version (#896)
+* [ETCM-129] Scala 2.13 (#875)
+* Include PPoW info in BlockResponse (#867)
+* [ETCM-680] Retesteth in Nix and on CI (#965)
+* [ETCM-697] Implement endpoints for retesteth (#965) (#966)
 
-- Multiple performance improvements required to support Ethereum network
+Improvements
+* [ETCM-739] Refactor BlockFetcher (#976)
+* ETS integration RPC endpoints (#966)
+* ETCM-[165, 166]: Publish the RLP and Crypto libraries to Sonatype (#933 )
+* [ETCM-709] Improve ommers validations (#948)
+* [ETCM-631] Create peerId from node's public key (#957)
+* [ETCM-685] Improve pivot block selection (#949)
+* [ETCM-521] Fast sync integration tests (#944)
+* [ETCM-716] Read block headers to work queue in case of errors (#943)
+* [ETCM-313] and [ETCM-316]: Header skeleton using new branch resolver (#892)
+* [ETCM-689] Update state sync and pivot block selector to use new blacklist (#935)
+* [ETCM-541] UPnP port mapping to aid in peer discovery & connection (#929)
+* [ETCM-531] Cache-based and thread-safe blacklist implementation (#921)
+* [ETCM-147] Use explicitly triggered scheduler for SyncControllerSpec (#916)
+* [ETCM-540] Improve peer discovery algorithm (#903)
+* [ETCM-463] Add PeerStatisticsActor to track message counts (#849)
+* [ETCM-446] Connection limit ranges (#833)
+* [ETCM-448] Json rpc - status code (#836)
+* [ETCM-295] Akka monitoring (#879)
+* [ETCM-674] Added headers consistency with ready blocks (#930)
+* [ETCM-266] Handle lack of twitter util-collection (#873)
+* [ETCM-720] Added tests for mining block on beginning or end of epoch (#950)
+
+Resolved issues
+* [ETCM-797] Implement a correct seed calculation for block validation (#974)
+* [ETCM-732] Handle missing state node in regular sync after fast sync is done (#961)
+* [ETCM-719] Fix calculating of skeleton headers limit (#951)
+* [ETCM-678, 660] Fix for removing chain after the node restart (#940)
+* [ETCM-636] Null pointer in prod on getBestBlock ( #925)
+* [ETCM-626 ] Unsafe use of Option.get causes node desync (#924)
+* [ETCM-546] Fix unsafe usage of maxBy (BlockQueue) (#910)
+* [ETCM-472] Fix missing status code (#10)
+* [FIX] Fix concurrency issue that allowed multiple miners instantiation (#909)
+
+Config
+* Fix the update-nix script (#954)
+* Add Nix Flake (#936)
+* [ETCM-601] Add pub key to allowed miners (#918)
+* [ETCM-480] add /buildinfo to insomnia workspace (#913)
+* More logging in RegularSync and PeersClient (#911)
+* [ETCM-491] Use etc.conf as default config file (#880)
+* [ETCM-493] Increase eth_syncing ask timeout (#878)
+
 
 Feedback
 
-Feedback gratefully received through the Ethereum Classic Forum (https://forum.ethereumclassic.org/)
-
-
-
-
+Feedback gratefully received through the Mantis discord channel (https://discord.gg/7vUyWrN33p)
