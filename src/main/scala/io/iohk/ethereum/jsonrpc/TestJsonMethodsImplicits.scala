@@ -186,7 +186,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
               addressHash <- extractBytes(addressHash.extract[String])
               blockHashOrNumberEither = extractBlockHashOrNumber(blockHashOrNumber.extract[String])
             } yield AccountsInRangeRequest(
-              AccountsInRangeRequestParams(blockHashOrNumberEither, txIndex, addressHash, maxResults)
+              AccountsInRangeRequestParams(blockHashOrNumberEither, txIndex, addressHash, maxResults.toInt)
             )
           case _ => Left(InvalidParams())
         }

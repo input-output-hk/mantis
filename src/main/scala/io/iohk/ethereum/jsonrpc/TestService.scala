@@ -58,7 +58,7 @@ object TestService {
       blockHashOrNumber: Either[BigInt, ByteString],
       txIndex: BigInt,
       addressHash: ByteString,
-      maxResults: BigInt
+      maxResults: Int
   )
 
   case class AccountsInRange(
@@ -118,8 +118,7 @@ class TestService(
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
   private var etherbase: Address = consensusConfig.coinbase
-  private var accountAddresses: List[String] = List()
-  private var accountRangeOffset = 0
+  private var accountHashWithAdresses: List[(ByteString, Address)] = List()
   private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0
   private var sealEngine: SealEngineType = SealEngineType.NoReward
@@ -156,8 +155,12 @@ class TestService(
     storeGenesisAccountCodes(genesisData.alloc)
     storeGenesisAccountStorageData(genesisData.alloc)
 
-    accountAddresses = etherbase.toUnprefixedString :: genesisData.alloc.keys.toList
-    accountRangeOffset = 0
+    accountHashWithAdresses = (etherbase.toUnprefixedString :: genesisData.alloc.keys.toList)
+      .map(hexAddress => {
+        val address = Address(hexAddress)
+        crypto.kec256(address.bytes) -> address
+      })
+      .sortBy(v => UInt256(v._1))
 
     SetChainParamsResponse().rightNow
   }
@@ -298,29 +301,37 @@ class TestService(
       .timeout(timeout.duration)
   }
 
+  /** Get the list of accounts of size _maxResults in the given _blockHashOrNumber after given _txIndex.
+    * In response AddressMap contains addressHash - > address starting from given _addressHash.
+    * nexKey field is the next addressHash (if any addresses left in the state).
+    * @see https://github.com/ethereum/retesteth/wiki/RPC-Methods#debug_accountrange
+    */
   def getAccountsInRange(request: AccountsInRangeRequest): ServiceResponse[AccountsInRangeResponse] = {
+    // This implementation works by keeping a list of know account from the genesis state
+    // It might not cover all the cases as an account created inside a transaction won't be there.
+
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(number => blockchain.getBlockByNumber(number), blockHash => blockchain.getBlockByHash(blockHash))
 
     if (blockOpt.isEmpty) {
       AccountsInRangeResponse(Map(), ByteString(0)).rightNow
     } else {
-      val accountBatch = accountAddresses
-        .slice(accountRangeOffset, accountRangeOffset + request.parameters.maxResults.toInt + 1)
+      val accountBatch: Seq[(ByteString, Address)] = accountHashWithAdresses.view
+        .dropWhile { case (hash, _) => UInt256(hash) < UInt256(request.parameters.addressHash) }
+        .filter { case (_, address) => blockchain.getAccount(address, blockOpt.get.header.number).isDefined }
+        .take(request.parameters.maxResults + 1)
+        .to(Seq)
 
-      val addressesForExistingAccounts = accountBatch
-        .filter(key => blockchain.getAccount(Address(key), blockOpt.get.header.number).isDefined)
-        .map(key => (key, Address(crypto.kec256(Hex.decode(key)))))
+      val addressMap: Map[ByteString, ByteString] = accountBatch
+        .take(request.parameters.maxResults)
+        .map { case (hash, address) => hash -> address.bytes }
+        .to(Map)
 
       AccountsInRangeResponse(
-        addressMap = addressesForExistingAccounts
-          .take(request.parameters.maxResults.toInt)
-          .foldLeft(Map[ByteString, ByteString]())((el, addressPair) =>
-            el + (addressPair._2.bytes -> ByteStringUtils.string2hash(addressPair._1))
-          ),
+        addressMap = addressMap,
         nextKey =
           if (accountBatch.size > request.parameters.maxResults)
-            ByteStringUtils.string2hash(addressesForExistingAccounts.last._1)
+            accountBatch.last._1
           else UInt256(0).bytes
       ).rightNow
     }
