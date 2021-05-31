@@ -41,6 +41,7 @@ import scala.util.Random
 import scala.collection.mutable
 import scala.util.Try
 import scala.util.Success
+import java.util.concurrent.atomic.AtomicInteger
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -115,11 +116,8 @@ class FastSync(
       }
   }
 
-  private var actorCount = 0
-  private def countActor: Int = {
-    actorCount += 1
-    actorCount
-  }
+  private val actorCounter = new AtomicInteger
+  private def countActor: Int = actorCounter.incrementAndGet
 
   // scalastyle:off number.of.methods
   private class SyncingHandler(initialSyncState: SyncState) {
@@ -354,7 +352,7 @@ class FastSync(
 
           blockHeadersQueue.dequeueAll(_ => true)
 
-          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration, process = false)
+          handleRewind(header, masterPeer.get, fastSyncBlockValidationN, blacklistDuration, continueSyncing = false)
 
           // Start branch resolution and wait for response from the FastSyncBranchResolver actor.
           context become waitingForBranchResolution
@@ -377,19 +375,19 @@ class FastSync(
     private def waitingForBranchResolution: Receive = handleStatus orElse handleRequestFailure orElse {
       case FastSyncBranchResolverActor.BranchResolvedSuccessful(firstCommonBlockNumber, newMasterPeer) =>
         log.debug(
-          s"resolved branch with first common block number $firstCommonBlockNumber for new master peer $newMasterPeer"
+          s"Resolved branch with first common block number $firstCommonBlockNumber for new master peer $newMasterPeer"
         )
         // Reset the batch failures count
         batchFailuresCount = 0
 
         context.children.foreach { child =>
-          log.debug(s"unwatching and killing $child")
+          log.debug(s"Unwatching and killing $child")
           context.unwatch(child)
           child ! PoisonPill
         }
 
         // Restart syncing from the valid block available in state.
-        log.debug("starting with fresh SyncingHandler")
+        log.debug("Starting with fresh SyncingHandler")
         val syncingHandler = new SyncingHandler(
           syncState.copy(
             bestBlockHeaderNumber = firstCommonBlockNumber,
@@ -533,7 +531,7 @@ class FastSync(
       }
 
     private def removeRequestHandler(handler: ActorRef): Unit = {
-      log.debug(s"removing request handler ${handler.path}")
+      log.debug(s"Removing request handler ${handler.path}")
       context unwatch handler
       skeletonHandler = skeletonHandler.filter(_ != handler)
       assignedHandlers -= handler
@@ -593,7 +591,7 @@ class FastSync(
         peer: Peer,
         N: Int,
         duration: FiniteDuration,
-        process: Boolean = true
+        continueSyncing: Boolean = true
     ): Unit = {
       blacklist.add(peer.id, duration, BlockHeaderValidationFailed)
       if (header.number <= syncState.safeDownloadTarget) {
@@ -601,10 +599,10 @@ class FastSync(
         syncState = syncState.updateDiscardedBlocks(header, N)
         if (header.number >= syncState.pivotBlock.number) {
           updatePivotBlock(LastBlockValidationFailed)
-        } else if (process) {
+        } else if (continueSyncing) {
           processSyncing()
         }
-      } else if (process) {
+      } else if (continueSyncing) {
         processSyncing()
       }
     }
@@ -854,7 +852,7 @@ class FastSync(
     def processSyncing(): Unit = {
       FastSyncMetrics.measure(syncState)
       log.debug(
-        "processSyncing: [{}]",
+        "Start of processSyncing: {}",
         Map(
           "fullySynced" -> fullySynced,
           "blockchainDataToDownload" -> blockchainDataToDownload,
