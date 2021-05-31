@@ -3,7 +3,6 @@ package io.iohk.ethereum.sync
 import com.typesafe.config.ConfigValueFactory
 import io.iohk.ethereum.FreeSpecBase
 import io.iohk.ethereum.metrics.{Metrics, MetricsConfig}
-import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.sync.util.RegularSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.utils.Config

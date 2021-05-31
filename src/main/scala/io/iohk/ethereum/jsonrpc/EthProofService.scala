@@ -10,8 +10,7 @@ import io.iohk.ethereum.jsonrpc.ProofService.{
   GetProofResponse,
   ProofAccount,
   StorageProof,
-  StorageProofKey,
-  StorageValueProof
+  StorageProofKey
 }
 import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
 import monix.eval.Task
@@ -201,16 +200,20 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
     ByteString(MptTraversals.encodeNode(node))
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
-    def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+    def getBlock(number: BigInt): Either[JsonRpcError, Block] =
       blockchain
         .getBlockByNumber(number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
-    }
+
+    def getLatestBlock(): Either[JsonRpcError, Block] =
+      blockchain
+        .getBestBlock()
+        .toRight(JsonRpcError.InvalidParams("Latest block not found"))
 
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getBlock(blockchain.getBestBlockNumber()).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
         blockGenerator.getPendingBlockAndState
           .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
