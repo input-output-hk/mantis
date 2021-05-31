@@ -36,8 +36,6 @@ import scala.concurrent.duration._
 
 class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike with Matchers with SecureRandomBuilder {
 
-  val as: ActorSystem = ActorSystem("BlockFetcherSpec_System")
-
   "BlockFetcher" - {
 
     "should not requests headers upon invalidation while a request is already in progress, should resume after response" in new TestSetup {
@@ -99,7 +97,10 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
       peersClient.expectNoMessage()
 
       // Failure of the second request should make the fetcher resume with his requests
-      peersClient.send(refExpectingReply, PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed("")))
+      peersClient.send(
+        refExpectingReply,
+        PeersClient.RequestFailed(fakePeer, BlacklistReason.RegularSyncRequestFailed(""))
+      )
 
       peersClient.expectMsgClass(classOf[BlacklistPeer])
       peersClient.expectMsgPF() { case PeersClient.Request(msg, _, _) if msg == firstGetBlockHeadersRequest => () }
@@ -268,6 +269,8 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
   }
 
   trait TestSetup extends TestSyncConfig {
+    val as: ActorSystem = ActorSystem("BlockFetcherSpec_System")
+
     val time = new VirtualTime
 
     val peersClient = TestProbe()(as)

@@ -49,7 +49,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit override lazy val system: ActorSystem = _system
     override lazy val syncConfig: SyncConfig =
       defaultSyncConfig.copy(blockHeadersPerRequest = 2, blockBodiesPerRequest = 2)
-    val handshakedPeers: Map[Peer, PeerInfo] = (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
+    val handshakedPeers: Map[Peer, PeerInfo] =
+      (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
     val defaultPeer: Peer = peerByNumber(0)
 
     val etcPeerManager: TestProbe = TestProbe()

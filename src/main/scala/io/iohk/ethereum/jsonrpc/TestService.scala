@@ -5,14 +5,15 @@ import akka.util.{ByteString, Timeout}
 import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.{crypto, rlp}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.domain.{Address, Block, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{TestLedgerWrapper, TestmodeConsensus}
+import io.iohk.ethereum.testmode.{TestModeComponentsProvider, TestmodeConsensus}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
 import monix.eval.Task
 import monix.execution.Scheduler
 import org.bouncycastle.util.encoders.Hex
@@ -34,16 +35,16 @@ object TestService {
       mixHash: ByteString
   )
   case class BlockchainParams(
-      EIP150ForkBlock: BigInt,
-      EIP158ForkBlock: BigInt,
+      EIP150ForkBlock: Option[BigInt],
+      EIP158ForkBlock: Option[BigInt],
       accountStartNonce: BigInt,
       allowFutureBlocks: Boolean,
       blockReward: BigInt,
-      byzantiumForkBlock: BigInt,
-      homesteadForkBlock: BigInt,
+      byzantiumForkBlock: Option[BigInt],
+      homesteadForkBlock: Option[BigInt],
       maximumExtraDataSize: BigInt,
-      constantinopleForkBlock: BigInt,
-      istanbulForkBlock: BigInt
+      constantinopleForkBlock: Option[BigInt],
+      istanbulForkBlock: Option[BigInt]
   )
 
   case class ChainParams(
@@ -107,8 +108,8 @@ class TestService(
     blockchain: BlockchainImpl,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
-    consensus: TestmodeConsensus,
-    testLedgerWrapper: TestLedgerWrapper
+    testModeComponentsProvider: TestModeComponentsProvider,
+    initialConfig: BlockchainConfig
 )(implicit
     scheduler: Scheduler
 ) extends Logger {
@@ -119,18 +120,11 @@ class TestService(
   private var etherbase: Address = consensusConfig.coinbase
   private var accountAddresses: List[String] = List()
   private var accountRangeOffset = 0
+  private var currentConfig: BlockchainConfig = initialConfig
+  private var blockTimestamp: Long = 0
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    val newBlockchainConfig = testLedgerWrapper.blockchainConfig.copy(
-      homesteadBlockNumber = request.chainParams.blockchainParams.homesteadForkBlock,
-      eip150BlockNumber = request.chainParams.blockchainParams.EIP150ForkBlock,
-      byzantiumBlockNumber = request.chainParams.blockchainParams.byzantiumForkBlock,
-      constantinopleBlockNumber = request.chainParams.blockchainParams.constantinopleForkBlock,
-      istanbulBlockNumber = request.chainParams.blockchainParams.istanbulForkBlock,
-      accountStartNonce = UInt256(request.chainParams.blockchainParams.accountStartNonce),
-      networkId = 1,
-      bootstrapNodes = Set()
-    )
+    currentConfig = buildNewConfig(request.chainParams.blockchainParams)
 
     val genesisData = GenesisData(
       nonce = request.chainParams.genesis.nonce,
@@ -152,14 +146,12 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, newBlockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
-    storeGenesisAccountCodes(newBlockchainConfig, genesisData.alloc)
-    storeGenesisAccountStorageData(newBlockchainConfig, genesisData.alloc)
-    // update test ledger with new config
-    testLedgerWrapper.blockchainConfig = newBlockchainConfig
+    storeGenesisAccountCodes(genesisData.alloc)
+    storeGenesisAccountStorageData(genesisData.alloc)
 
     accountAddresses = genesisData.alloc.keys.toList
     accountRangeOffset = 0
@@ -167,49 +159,66 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
-  private def storeGenesisAccountCodes(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
+  val neverOccuringBlock: Int = Int.MaxValue
+  private def buildNewConfig(blockchainParams: BlockchainParams) = {
+    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccuringBlock)
+    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
-    val accountsWithCodes = accounts.filter(pair => pair._2.code.isDefined)
-
-    val worldToPersist = accountsWithCodes.foldLeft(world)((world, addressAccountPair) => {
-      world.saveCode(Address(addressAccountPair._1), addressAccountPair._2.code.get)
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
+    // For block number which are not specified by retesteth, we try to align the number to another fork
+    currentConfig.copy(
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
+        eip106BlockNumber = neverOccuringBlock,
+        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
+        eip155BlockNumber = byzantiumBlockNumber,
+        eip160BlockNumber = byzantiumBlockNumber,
+        eip161BlockNumber = byzantiumBlockNumber,
+        byzantiumBlockNumber = byzantiumBlockNumber,
+        ecip1049BlockNumber = None,
+        ecip1097BlockNumber = neverOccuringBlock,
+        ecip1098BlockNumber = neverOccuringBlock,
+        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
+        petersburgBlockNumber = istanbulForkBlockNumber,
+        aghartaBlockNumber = istanbulForkBlockNumber,
+        istanbulBlockNumber = istanbulForkBlockNumber,
+        atlantisBlockNumber = istanbulForkBlockNumber,
+        phoenixBlockNumber = istanbulForkBlockNumber,
+        ecip1099BlockNumber = neverOccuringBlock
+      ),
+      accountStartNonce = UInt256(blockchainParams.accountStartNonce),
+      networkId = 1,
+      bootstrapNodes = Set()
+    )
   }
 
-  private def storeGenesisAccountStorageData(config: BlockchainConfig, accounts: Map[String, GenesisAccount]): Unit = {
-    val genesisBlock = blockchain.getBlockByNumber(0).get
-    val world =
-      blockchain.getWorldStateProxy(0, UInt256.Zero, genesisBlock.header.stateRoot, false, config.ethCompatibleStorage)
+  private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
+    accounts
+      .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
+      .foreach { code => blockchain.storeEvmCode(kec256(code), code).commit() }
 
-    val accountsWithStorageData = accounts.filter(pair => pair._2.storage.isDefined && pair._2.storage.get.nonEmpty)
+  private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
+    val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
+      Account.EmptyStorageRootHash,
+      blockchain.getStateStorage.getBackingStorage(0)
+    )
+    val storagesToPersist = accounts
+      .flatMap(pair => pair._2.storage)
+      .map(accountStorage => accountStorage.filterNot { case (_, v) => v.isZero })
+      .filter(_.nonEmpty)
 
-    val worldToPersist = accountsWithStorageData.foldLeft(world)((world, addressAccountPair) => {
-      val address = Address(addressAccountPair._1)
-      val emptyStorage = world.getStorage(address)
-      val updatedStorage = addressAccountPair._2.storage.get.foldLeft(emptyStorage) { case (storage, (key, value)) =>
-        storage.store(key, value)
-      }
-      val updatedWorld = world.saveStorage(Address(addressAccountPair._1), updatedStorage)
-      updatedWorld.contractStorages.values.foreach(cs => cs.inner.nodeStorage.persist())
-      updatedWorld
-    })
-
-    InMemoryWorldStateProxy.persistState(worldToPersist)
+    val toBigInts: ((UInt256, UInt256)) => (BigInt, BigInt) = { case (a, b) => (a, b) }
+    storagesToPersist.foreach(storage => emptyStorage.update(Nil, storage.toSeq.map(toBigInts)))
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
-        .flatMap(blockForMining => testLedgerWrapper.ledger.importBlock(blockForMining.block))
+        .flatMap(blockForMining => testModeComponentsProvider.ledger(currentConfig).importBlock(blockForMining.block))
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-          consensus.blockTimestamp += 1
+          blockTimestamp += 1
         }
     }
 
@@ -222,7 +231,7 @@ class TestService(
   }
 
   def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
-    consensus.blockTimestamp = request.timestamp
+    blockTimestamp = request.timestamp
     ModifyTimestampResponse().rightNow
   }
 
@@ -238,7 +247,8 @@ class TestService(
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) => Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
-        testLedgerWrapper.ledger
+        testModeComponentsProvider
+          .ledger(currentConfig)
           .importBlock(value)
           .flatMap(handleResult)
     }
@@ -259,13 +269,15 @@ class TestService(
   }
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
-    implicit val timeout: Timeout = Timeout(5.seconds)
+    implicit val timeout: Timeout = Timeout(20.seconds)
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .timeout(timeout.duration)
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
-        consensus.blockGenerator
+        testModeComponentsProvider
+          .consensus(currentConfig, blockTimestamp)
+          .blockGenerator
           .generateBlock(
             parentBlock,
             pendingTxs.pendingTransactions.map(_.stx.tx),

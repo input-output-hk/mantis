@@ -247,7 +247,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     signedTransactionValidator.validate(
       stx.tx,
       senderAccount = senderAccountAfterHomestead,
-      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.eip155BlockNumber),
+      blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.forkBlockNumbers.eip155BlockNumber),
       upfrontGasCost = upfrontGasCost,
       accumGasUsed = accumGasUsed
     ) match {

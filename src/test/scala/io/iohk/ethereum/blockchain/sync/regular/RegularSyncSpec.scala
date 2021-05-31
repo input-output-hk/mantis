@@ -1,8 +1,9 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.{ActorRef, ActorSystem, typed}
+import akka.actor.typed.{ActorRef => TypedActorRef}
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.TestKit
+import akka.testkit.{TestKit, TestProbe}
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import cats.effect.Resource
@@ -10,6 +11,7 @@ import cats.syntax.traverse._
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.crypto.kec256
@@ -37,6 +39,7 @@ import org.scalatest.{Assertion, BeforeAndAfterEach}
 
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future, Promise}
+import scala.math.BigInt
 
 class RegularSyncSpec
     extends WordSpecBase
@@ -108,33 +111,109 @@ class RegularSyncSpec
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgType[PeersClient.Request[GetBlockHeaders]]
-        peersClient.reply(PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason")))
-        peersClient.expectMsg(PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason")))
+        peersClient.reply(
+          PeersClient.RequestFailed(defaultPeer, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
+        peersClient.expectMsg(
+          PeersClient.BlacklistPeer(defaultPeer.id, BlacklistReason.RegularSyncRequestFailed("a random reason"))
+        )
       })
 
-      //TODO: To be re-enabled with ETCM-370
-      "blacklist peer which returns headers starting from one with higher number than expected" ignore sync(
-        new Fixture(
-          testSystem
-        ) {
+      "blacklist peer which returns headers starting from one with higher number than expected" in sync(
+        new Fixture(testSystem) {
+          var blockFetcher: ActorRef = _
+
           regularSync ! SyncProtocol.Start
+          peerEventBus.expectMsgClass(classOf[Subscribe])
+          blockFetcher = peerEventBus.sender()
 
           peersClient.expectMsgEq(blockHeadersChunkRequest(0))
-          peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked(1).headers)))
+          peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+
+          val getBodies: PeersClient.Request[GetBlockBodies] = PeersClient.Request.create(
+            GetBlockBodies(testBlocksChunked.head.headers.map(_.hash)),
+            PeersClient.BestPeer
+          )
+          peersClient.expectMsgEq(getBodies)
+          peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
+
+          blockFetcher ! MessageFromPeer(NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)), defaultPeer.id)
+          peersClient.expectMsgEq(blockHeadersChunkRequest(1))
+          peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked(5).headers)))
           peersClient.expectMsgPF() {
             case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
           }
         }
       )
 
-      //TODO: To be re-enabled with ETCM-370
-      "blacklist peer which returns headers not forming a chain" ignore sync(new Fixture(testSystem) {
+      "blacklist peer which returns headers not forming a chain" in sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         peersClient.expectMsgEq(blockHeadersChunkRequest(0))
         peersClient.reply(
-          PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers.filter(_.number % 2 == 0)))
+          PeersClient.Response(defaultPeer, BlockHeaders(testBlocks.headers.filter(_.number % 2 == 0)))
         )
+        peersClient.expectMsgPF() {
+          case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
+        }
+      })
+
+      "blacklist peer which sends headers that were not requested" in sync(new Fixture(testSystem) {
+        import akka.actor.typed.scaladsl.adapter._
+
+        val blockImporter = TestProbe()
+        val fetcher: typed.ActorRef[BlockFetcher.FetchCommand] =
+          system.spawn(
+            BlockFetcher(peersClient.ref, peerEventBus.ref, regularSync, syncConfig, validators.blockValidator),
+            "block-fetcher"
+          )
+
+        fetcher ! Start(blockImporter.ref, 0)
+
+        peersClient.expectMsgEq(blockHeadersChunkRequest(0))
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+
+        val getBodies: PeersClient.Request[GetBlockBodies] = PeersClient.Request.create(
+          GetBlockBodies(testBlocksChunked.head.headers.map(_.hash)),
+          PeersClient.BestPeer
+        )
+
+        peersClient.expectMsgEq(getBodies)
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
+
+        fetcher ! BlockFetcher.ReceivedHeaders(defaultPeer, testBlocksChunked(3).headers)
+
+        peersClient.expectMsgPF() {
+          case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
+        }
+      })
+
+      "blacklist peer which sends bodies that were not requested" in sync(new Fixture(testSystem) {
+        import akka.actor.typed.scaladsl.adapter._
+
+        var blockFetcherAdapter: TypedActorRef[MessageFromPeer] = _
+        val blockImporter = TestProbe()
+        val fetcher: typed.ActorRef[BlockFetcher.FetchCommand] =
+          system.spawn(
+            BlockFetcher(peersClient.ref, peerEventBus.ref, regularSync, syncConfig, validators.blockValidator),
+            "block-fetcher"
+          )
+
+        fetcher ! Start(blockImporter.ref, 0)
+
+        peersClient.expectMsgEq(blockHeadersChunkRequest(0))
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked.head.headers)))
+
+        val getBodies: PeersClient.Request[GetBlockBodies] = PeersClient.Request.create(
+          GetBlockBodies(testBlocksChunked.head.headers.map(_.hash)),
+          PeersClient.BestPeer
+        )
+
+        peersClient.expectMsgEq(getBodies)
+        peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
+
+        fetcher ! BlockFetcher.ReceivedBodies(defaultPeer, testBlocksChunked(3).bodies)
+
         peersClient.expectMsgPF() {
           case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
         }

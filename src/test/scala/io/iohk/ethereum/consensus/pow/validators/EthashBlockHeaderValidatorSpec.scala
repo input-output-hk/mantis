@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator._
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidatorSkeleton}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig}
+import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, ForkBlockNumbers}
 import io.iohk.ethereum.{Fixtures, ObjectGenerators, SuperSlow}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
@@ -191,7 +191,7 @@ class EthashBlockHeaderValidatorSpec
   it should "mark as valid a post ecip1098 block opt-out with opt out undefined" in new EphemBlockchainTestSetup {
     val ecip1098BlockNumber = validBlockHeader.number / 2
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
-      blockchainConfig.copy(ecip1098BlockNumber = ecip1098BlockNumber)
+      blockchainConfig.withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = ecip1098BlockNumber))
     val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
 
     val validHeader = validBlockHeader.copy(extraFields = HefEmpty)
@@ -376,14 +376,29 @@ class EthashBlockHeaderValidatorSpec
     import Fixtures.Blocks._
 
     BlockchainConfig(
-      frontierBlockNumber = 0,
-      homesteadBlockNumber = 1150000,
+      forkBlockNumbers = ForkBlockNumbers(
+        frontierBlockNumber = 0,
+        homesteadBlockNumber = 1150000,
+        byzantiumBlockNumber = 4370000,
+        constantinopleBlockNumber = 7280000,
+        istanbulBlockNumber = 9069000,
+        eip155BlockNumber = Long.MaxValue,
+        eip160BlockNumber = Long.MaxValue,
+        eip161BlockNumber = Long.MaxValue,
+        eip150BlockNumber = Long.MaxValue,
+        eip106BlockNumber = 0,
+        atlantisBlockNumber = Long.MaxValue,
+        aghartaBlockNumber = Long.MaxValue,
+        phoenixBlockNumber = Long.MaxValue,
+        petersburgBlockNumber = Long.MaxValue,
+        ecip1098BlockNumber = Long.MaxValue,
+        ecip1097BlockNumber = Long.MaxValue,
+        ecip1099BlockNumber = Long.MaxValue,
+        ecip1049BlockNumber = None
+      ),
       difficultyBombPauseBlockNumber = 3000000,
       difficultyBombContinueBlockNumber = 5000000,
       difficultyBombRemovalBlockNumber = 5900000,
-      byzantiumBlockNumber = 4370000,
-      constantinopleBlockNumber = 7280000,
-      istanbulBlockNumber = 9069000,
       daoForkConfig = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] =
           if (supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
@@ -396,11 +411,6 @@ class EthashBlockHeaderValidatorSpec
       }),
       // unused
       maxCodeSize = None,
-      eip155BlockNumber = Long.MaxValue,
-      eip160BlockNumber = Long.MaxValue,
-      eip161BlockNumber = Long.MaxValue,
-      eip150BlockNumber = Long.MaxValue,
-      eip106BlockNumber = 0,
       chainId = 0x3d.toByte,
       networkId = 1,
       monetaryPolicyConfig = null,
@@ -410,15 +420,7 @@ class EthashBlockHeaderValidatorSpec
       bootstrapNodes = Set(),
       gasTieBreaker = false,
       ethCompatibleStorage = true,
-      atlantisBlockNumber = Long.MaxValue,
-      aghartaBlockNumber = Long.MaxValue,
-      phoenixBlockNumber = Long.MaxValue,
-      petersburgBlockNumber = Long.MaxValue,
-      ecip1098BlockNumber = Long.MaxValue,
-      treasuryAddress = Address(0),
-      ecip1097BlockNumber = Long.MaxValue,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None
+      treasuryAddress = Address(0)
     )
   }
 

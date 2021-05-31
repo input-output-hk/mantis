@@ -106,19 +106,29 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
   override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
-    eip155BlockNumber = 0,
+    forkBlockNumbers = ForkBlockNumbers(
+      eip155BlockNumber = 0,
+      eip161BlockNumber = 0,
+      frontierBlockNumber = 0,
+      homesteadBlockNumber = 0,
+      eip150BlockNumber = 0,
+      eip160BlockNumber = 0,
+      eip106BlockNumber = 0,
+      byzantiumBlockNumber = 0,
+      constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0,
+      petersburgBlockNumber = 0,
+      ecip1098BlockNumber = 0,
+      ecip1097BlockNumber = 0,
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
+    ),
     chainId = 0x03.toByte,
     networkId = 1,
     maxCodeSize = None,
-    eip161BlockNumber = 0,
-    frontierBlockNumber = 0,
-    homesteadBlockNumber = 0,
-    eip150BlockNumber = 0,
-    eip160BlockNumber = 0,
-    eip106BlockNumber = 0,
-    byzantiumBlockNumber = 0,
-    constantinopleBlockNumber = 0,
-    istanbulBlockNumber = 0,
     difficultyBombPauseBlockNumber = 0,
     difficultyBombContinueBlockNumber = 0,
     difficultyBombRemovalBlockNumber = Long.MaxValue,
@@ -130,15 +140,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     gasTieBreaker = false,
     ethCompatibleStorage = true,
     bootstrapNodes = Set(),
-    atlantisBlockNumber = 0,
-    aghartaBlockNumber = 0,
-    phoenixBlockNumber = 0,
-    petersburgBlockNumber = 0,
-    ecip1098BlockNumber = 0,
-    treasuryAddress = Address(0),
-    ecip1097BlockNumber = 0,
-    ecip1099BlockNumber = Long.MaxValue,
-    ecip1049BlockNumber = None
+    treasuryAddress = Address(0)
   )
 
   override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
