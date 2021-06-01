@@ -193,7 +193,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
-      blockchainConfig.capabilities.head
+      Capability.best(blockchainConfig.capabilities)
     ),
     "peer-manager"
   )

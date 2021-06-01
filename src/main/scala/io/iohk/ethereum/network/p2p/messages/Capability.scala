@@ -15,6 +15,10 @@ object Capability {
       case _ => throw new RuntimeException(s"Unable to parse capability $protocolVersion")
     }
 
+  //TODO consider how this scoring should be handled with snap and other extended protocols
+  def best(capabilities: List[Capability]): Capability =
+    capabilities.maxBy(_.version)
+
   implicit class CapabilityEnc(val msg: Capability) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = RLPList(msg.name, msg.version)
   }

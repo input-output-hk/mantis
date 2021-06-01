@@ -116,7 +116,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
       blacklist = blacklist,
-      bestProtocolVersion = blockchainConfig.capabilities.head
+      bestProtocolVersion = Capability.best(blockchainConfig.capabilities)
     ),
     "peer-manager"
   )

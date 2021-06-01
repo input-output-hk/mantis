@@ -414,7 +414,7 @@ trait EthInfoServiceBuilder {
     stxLedger,
     keyStore,
     syncController,
-    blockchainConfig.capabilities.head,
+    Capability.best(blockchainConfig.capabilities),
     asyncConfig.askTimeout
   )
 }
