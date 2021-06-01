@@ -1,11 +1,11 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor._
 import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.ByteUtils
@@ -28,9 +28,9 @@ import scala.util.{Failure, Success, Try}
   */
 class RLPxConnectionHandler(
     messageDecoder: MessageDecoder,
-    protocolVersion: Message.Version,
+    protocolVersion: Capability,
     authHandshaker: AuthHandshaker,
-    messageCodecFactory: (Secrets, MessageDecoder, Message.Version) => MessageCodec,
+    messageCodecFactory: (Secrets, MessageDecoder, Capability) => MessageCodec,
     rlpxConfiguration: RLPxConfiguration
 ) extends Actor
     with ActorLogging {
@@ -279,7 +279,7 @@ class RLPxConnectionHandler(
 object RLPxConnectionHandler {
   def props(
       messageDecoder: MessageDecoder,
-      protocolVersion: Int,
+      protocolVersion: Capability,
       authHandshaker: AuthHandshaker,
       rlpxConfiguration: RLPxConfiguration
   ): Props =
@@ -290,7 +290,7 @@ object RLPxConnectionHandler {
   def messageCodecFactory(
       secrets: Secrets,
       messageDecoder: MessageDecoder,
-      protocolVersion: Message.Version
+      protocolVersion: Capability
   ): MessageCodec =
     new MessageCodec(new FrameCodec(secrets), messageDecoder, protocolVersion)
 

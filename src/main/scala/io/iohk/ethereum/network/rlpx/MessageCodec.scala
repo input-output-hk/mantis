@@ -1,16 +1,16 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
-class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
+class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Capability) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 

@@ -48,6 +48,7 @@ import scala.util.{Failure, Success, Try}
 import akka.util.ByteString
 import monix.execution.Scheduler
 import cats.implicits._
+import io.iohk.ethereum.network.p2p.messages.Capability
 import monix.eval.Task
 
 // scalastyle:off number.of.types
@@ -183,7 +184,7 @@ trait HandshakerBuilder {
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = Config.Network.protocolVersion
+      override val protocolVersion: Capability = Capability.from(Config.Network.protocolVersion)
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -246,7 +247,7 @@ trait PeerManagerActorBuilder {
       EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
-      Config.Network.protocolVersion
+      Capability.Capabilities.Eth63Capability // TODO replace with a list of capabilities
     ),
     "peer-manager"
   )
@@ -412,7 +413,7 @@ trait EthInfoServiceBuilder {
     stxLedger,
     keyStore,
     syncController,
-    Config.Network.protocolVersion,
+    Capability.from(Config.Network.protocolVersion),
     asyncConfig.askTimeout
   )
 }

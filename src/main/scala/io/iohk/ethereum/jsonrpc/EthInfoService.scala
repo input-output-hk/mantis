@@ -11,6 +11,7 @@ import io.iohk.ethereum.domain.{BlockHeader, _}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -69,20 +70,20 @@ object EthInfoService {
 }
 
 class EthInfoService(
-    val blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
-    val ledger: Ledger,
-    stxLedger: StxLedger,
-    keyStore: KeyStore,
-    syncingController: ActorRef,
-    protocolVersion: Int,
-    askTimeout: Timeout
+  val blockchain: Blockchain,
+  blockchainConfig: BlockchainConfig,
+  val ledger: Ledger,
+  stxLedger: StxLedger,
+  keyStore: KeyStore,
+  syncingController: ActorRef,
+  protocolVersion: Capability,
+  askTimeout: Timeout
 ) extends ResolveBlock {
 
   import EthInfoService._
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Task.now(Right(ProtocolVersionResponse(f"0x$protocolVersion%x")))
+    Task.now(Right(ProtocolVersionResponse(f"0x${protocolVersion.version}%x")))
 
   def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
     Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))

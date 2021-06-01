@@ -1,13 +1,11 @@
 package io.iohk.ethereum.network.p2p
 
-import io.iohk.ethereum.network.p2p.Message.Version
-
 package object messages {
   object ProtocolVersions {
-    val PV61: Version = 61
-    val PV62: Version = 62
-    val PV63: Version = 63
-    val PV64: Version = 64
+    val PV61: Capability = Capability("eth", 61.toByte)
+    val PV62: Capability = Capability("eth", 62.toByte)
+    val PV63: Capability = Capability("eth", 63.toByte)
+    val PV64: Capability = Capability("etc", 64.toByte)
 
     val SubProtocolOffset = 0x10
   }

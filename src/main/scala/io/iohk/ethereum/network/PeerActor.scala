@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import akka.util.ByteString
@@ -12,8 +11,8 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
-import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
@@ -303,7 +302,7 @@ object PeerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Version
+      bestProtocolVersion: Capability
   ): Props =
     Props(
       new PeerActor(
@@ -322,7 +321,7 @@ object PeerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       rlpxConfiguration: RLPxConfiguration,
-      bestProtocolVersion: Version
+      bestProtocolVersion: Capability
   ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
       RLPxConnectionHandler

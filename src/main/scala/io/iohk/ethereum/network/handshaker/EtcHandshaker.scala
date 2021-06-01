@@ -1,12 +1,12 @@
 package io.iohk.ethereum.network.handshaker
 
 import java.util.concurrent.atomic.AtomicReference
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.utils.NodeStatus
 
 case class EtcHandshaker private (
@@ -35,5 +35,5 @@ trait EtcHandshakerConfiguration {
   val appStateStorage: AppStateStorage
   val peerConfiguration: PeerConfiguration
   val forkResolverOpt: Option[ForkResolver]
-  val protocolVersion: Int
+  val protocolVersion: Capability
 }

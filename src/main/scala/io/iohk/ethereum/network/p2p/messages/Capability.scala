@@ -7,6 +7,14 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPException, RLPList, RLPSerializab
 case class Capability(name: String, version: Byte)
 
 object Capability {
+  private val pattern = "(.*)/(\\d*)".r
+
+  def from(protocolVersion: String): Capability =
+    protocolVersion match {
+      case pattern(name, version) => Capability(name, version.toByte)
+      case _ => throw new RuntimeException(s"Unable to parse capability $protocolVersion")
+    }
+
   implicit class CapabilityEnc(val msg: Capability) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = RLPList(msg.name, msg.version)
   }
@@ -23,9 +31,9 @@ object Capability {
   }
 
   object Capabilities {
-    val Eth63Capability: Capability = Capability("eth", ProtocolVersions.PV63.toByte)
-    val Etc64Capability: Capability = Capability("etc", ProtocolVersions.PV64.toByte)
+    val Eth63Capability: Capability = ProtocolVersions.PV63
+    val Etc64Capability: Capability = ProtocolVersions.PV64
 
-    val All: Seq[Capability] = Seq(Etc64Capability, Eth63Capability)
+    val All: Seq[Capability] = Seq(ProtocolVersions.PV64, ProtocolVersions.PV63)
   }
 }

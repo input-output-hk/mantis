@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network.p2p
 
-import io.iohk.ethereum.network.p2p.Message.Version
-import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.{Capability, Codes}
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies._
@@ -22,7 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 
 object NetworkMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message =
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Capability): Message =
     msgCode match {
       case Disconnect.code => payload.toDisconnect
       case Ping.code => payload.toPing
@@ -36,7 +35,7 @@ object NetworkMessageDecoder extends MessageDecoder {
 // scalastyle:off
 object EthereumMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Version): Message = {
+  override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Capability): Message = {
     protocolVersion match {
       case PV64 => handlePV64(msgCode, payload)
       case PV63 => handlePV63(msgCode, payload)

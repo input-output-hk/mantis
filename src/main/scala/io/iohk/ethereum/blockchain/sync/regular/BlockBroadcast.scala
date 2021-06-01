@@ -40,7 +40,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
   private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[PeerId, PeerWithInfo]): Unit =
     obtainRandomPeerSubset(peers.values.map(_.peer).toSet).foreach { peer =>
       val message: MessageSerializable =
-        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
+        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion.toByte == ProtocolVersions.PV64.version) blockToBroadcast.as64
         else blockToBroadcast.as63
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
