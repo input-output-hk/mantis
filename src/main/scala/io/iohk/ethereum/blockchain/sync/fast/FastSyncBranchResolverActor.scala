@@ -47,7 +47,13 @@ class FastSyncBranchResolverActor(
 
   private def waitingForPeerWithHighestBlock: Receive = handlePeerListMessages orElse { case StartBranchResolver =>
     getPeerWithHighestBlock match {
-      case Some(PeerWithInfo(peer, _)) => requestRecentBlockHeaders(peer, blockchain.getBestBlockNumber())
+      case Some(peerWithInfo @ PeerWithInfo(peer, _)) =>
+        log.debug(
+          "Starting branch resolution now with peer {} and block number {}",
+          peerWithInfo,
+          blockchain.getBestBlockNumber()
+        )
+        requestRecentBlockHeaders(peer, blockchain.getBestBlockNumber())
       case None =>
         log.info("Waiting for peers, rescheduling StartBranchResolver")
         timers.startSingleTimer(RestartTimerKey, StartBranchResolver, 1.second)

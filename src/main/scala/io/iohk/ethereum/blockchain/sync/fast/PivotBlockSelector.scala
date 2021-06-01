@@ -71,7 +71,7 @@ class PivotBlockSelector(
     } else {
       log.info(
         "Cannot pick pivot block. Need at least {} peers, but there are only {} which meet the criteria " +
-          "({} all available at the moment).",
+          "({} all available at the moment). Best block number = {}",
         minPeersToChoosePivotBlock,
         correctPeers.size,
         peersToDownloadFrom.size,

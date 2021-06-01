@@ -24,7 +24,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     testScheduler.awaitTermination(60.second)
   }
 
-  "FastSync" should "sync blockchain without state nodes" in customTestCaseResourceM(
+  it should "sync blockchain without state nodes" in customTestCaseResourceM(
     FakePeer.start3FakePeersRes()
   ) { case (peer1, peer2, peer3) =>
     for {
@@ -228,8 +228,8 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
 
       _ <- peer4.importBlocksUntil(1100)(IdentityUpdate)
 
-      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node))
-      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
+      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node)).delayExecution(5.seconds)
+      _ <- peer1.startFastSync().delayExecution(50.millis)
       _ <- peer2.importBlocksUntil(1200)(IdentityUpdate)
       _ <- peer1.waitForFastSyncFinish()
     } yield {
