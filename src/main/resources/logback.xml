@@ -57,6 +57,7 @@
         <appender-ref ref="METRICS" />
     </root>
 
+    <!-- NB. be aware you might want to adjust akka.loglevel if you set any level to DEBUG -->
     <logger name="io.netty" level="WARN"/>
     <logger name="io.iohk.scalanet" level="INFO" />
     <logger name="io.iohk.scalanet.discovery.ethereum.v4.DiscoveryService" level="WARN" />
