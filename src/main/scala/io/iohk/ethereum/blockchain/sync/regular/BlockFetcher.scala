@@ -177,7 +177,7 @@ class BlockFetcher(
       case ReceivedBodies(peer, bodies) if state.isFetchingBodies =>
         log.debug("Received {} block bodies", bodies.size)
         if (state.fetchingBodiesState == AwaitingBodiesToBeIgnored) {
-          log.debug("Block bodies will be ignored due to an invalidation was requested for them")
+          log.debug("Block bodies will be ignored due to an invalidation requested for them")
           fetchBlocks(state.withBodiesFetchReceived)
         } else {
           val newState =
@@ -241,7 +241,7 @@ class BlockFetcher(
         fetchBlocks(newState)
 
       case msg =>
-        log.debug("Block fetcher received unhandled message {}", msg)
+        log.error("Block fetcher received unhandled message {}", msg)
         Behaviors.unhandled
     }
 
@@ -266,7 +266,7 @@ class BlockFetcher(
   }
 
   private def handleFutureBlock(block: Block, state: BlockFetcherState): Behavior[FetchCommand] = {
-    log.debug("Ignoring received block as it doesn't match local state or fetch side is not on top")
+    log.debug("Ignoring received block [{}] as it doesn't match local state or fetch side is not on top", block.number)
     val newState = state.withPossibleNewTopAt(block.number)
     supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
     fetchBlocks(newState)

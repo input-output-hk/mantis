@@ -96,8 +96,8 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV61)
     }
     decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV62) shouldBe blockHeaders
-    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV63) shouldBe blockHeaders
-    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV64) shouldBe blockHeaders
+//    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV63) shouldBe blockHeaders
+//    decode(Codes.BlockHeadersCode, blockHeadersBytes, ProtocolVersions.PV64) shouldBe blockHeaders
   }
 
   it should "decode GetBlockBodies message for all supported versions of protocol" in {

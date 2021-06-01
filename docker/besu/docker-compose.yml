@@ -61,5 +61,5 @@ services:
       - besu-net
     volumes:
       - $HOME/.mantis/development/besu:/var/lib/besu
-    command: --rpc-http-cors-origins="all" --rpc-http-enabled --metrics-push-enabled --metrics-push-port=9091 --metrics-push-host=pushgateway
+    command: --rpc-http-cors-origins="all" --rpc-http-enabled --metrics-push-enabled --metrics-push-port=9091 --metrics-push-host=pushgateway --sync-mode=FULL
     restart: always

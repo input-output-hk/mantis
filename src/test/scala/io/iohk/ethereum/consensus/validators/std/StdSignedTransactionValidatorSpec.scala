@@ -32,10 +32,10 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   )
   val signedTxBeforeHomestead = SignedTransaction(
     txBeforeHomestead,
-    pointSign = 0x1b.toByte,
+    pointSign = 0x1b.toInt,
     signatureRandom = ByteString(Hex.decode("12bfc6e767e518c50f59006556ecc9911593094cfb6f6ef78c9959e3327137a3")),
     signature = ByteString(Hex.decode("13696dc6b5b601d19960a4f764416d36b271fc292bb87e2c36aea25d52f49064")),
-    chainId = 0x3d.toByte
+    chainId = 0x3d.toInt
   )
 
   //From block 0xdc7874d8ea90b63aa0ba122055e514db8bb75c0e7d51a448abd12a31ca3370cf with number 1200003 (tx index 0)
@@ -49,10 +49,10 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   )
   val signedTxAfterHomestead = SignedTransaction(
     txAfterHomestead,
-    pointSign = 0x1c.toByte,
+    pointSign = 0x1c.toInt,
     signatureRandom = ByteString(Hex.decode("f337e8ca3306c131eabb756aa3701ec7b00bef0d6cc21fbf6a6f291463d58baf")),
     signature = ByteString(Hex.decode("72216654137b4b58a4ece0a6df87aa1a4faf18ec4091839dd1c722fa9604fd09")),
-    chainId = 0x3d.toByte
+    chainId = 0x3d.toInt
   )
 
   val senderBalance = 100

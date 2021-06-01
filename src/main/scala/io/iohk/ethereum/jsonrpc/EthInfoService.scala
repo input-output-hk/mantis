@@ -26,7 +26,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 object EthInfoService {
   case class ChainIdRequest()
-  case class ChainIdResponse(value: Byte)
+  case class ChainIdResponse(value: BigInt)
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)

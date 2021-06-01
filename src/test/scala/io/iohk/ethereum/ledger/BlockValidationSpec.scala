@@ -63,10 +63,10 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
     def mkStx(tx: Transaction, random: String, signature: String): SignedTransaction = SignedTransaction(
       tx = tx,
-      pointSign = 0x9d.toByte,
+      pointSign = 0x9d.toInt,
       signatureRandom = hash2ByteString(random),
       signature = hash2ByteString(signature),
-      chainId = 0x3d.toByte
+      chainId = 0x3d.toInt
     )
 
     val bloomFilter: ByteString = hash2ByteString("0" * 512)

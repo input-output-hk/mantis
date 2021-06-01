@@ -56,11 +56,11 @@ object Fixtures {
               value = BigInt("1265230129703017984"),
               payload = ByteString.empty
             ),
-            pointSign = 0x9d.toByte,
+            pointSign = 0x9d.toInt,
             signatureRandom =
               ByteString(Hex.decode("5b496e526a65eac3c4312e683361bfdb873741acd3714c3bf1bcd7f01dd57ccb")),
             signature = ByteString(Hex.decode("3a30af5f529c7fc1d43cfed773275290475337c5e499f383afd012edcc8d7299")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -71,11 +71,11 @@ object Fixtures {
               value = BigInt("656010196207162880"),
               payload = ByteString.empty
             ),
-            pointSign = 0x9d.toByte,
+            pointSign = 0x9d.toInt,
             signatureRandom =
               ByteString(Hex.decode("377e542cd9cd0a4414752a18d0862a5d6ced24ee6dba26b583cd85bc435b0ccf")),
             signature = ByteString(Hex.decode("579fee4fd96ecf9a92ec450be3c9a139a687aa3c72c7e43cfac8c1feaf65c4ac")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -86,11 +86,11 @@ object Fixtures {
               value = BigInt("3725976610361427456"),
               payload = ByteString.empty
             ),
-            pointSign = 0x9d.toByte,
+            pointSign = 0x9d.toInt,
             signatureRandom =
               ByteString(Hex.decode("a70267341ba0b33f7e6f122080aa767d52ba4879776b793c35efec31dc70778d")),
             signature = ByteString(Hex.decode("3f66ed7f0197627cbedfe80fd8e525e8bc6c5519aae7955e7493591dcdf1d6d2")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -101,11 +101,11 @@ object Fixtures {
               value = BigInt("108516826677274384"),
               payload = ByteString.empty
             ),
-            pointSign = 0x9d.toByte,
+            pointSign = 0x9d.toInt,
             signatureRandom =
               ByteString(Hex.decode("beb8226bdb90216ca29967871a6663b56bdd7b86cf3788796b52fd1ea3606698")),
             signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           )
         ),
         uncleNodesList = Seq[BlockHeader]()
@@ -178,11 +178,11 @@ object Fixtures {
               value = BigInt("10046680000000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("8d94a55c7ac7adbfa2285ef7f4b0c955ae1a02647452cd4ead03ee6f449675c6")),
             signature = ByteString(Hex.decode("67149821b74208176d78fc4dffbe37c8b64eecfd47532406b9727c4ae8eb7c9a")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -193,11 +193,11 @@ object Fixtures {
               value = BigInt("20093780000000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1c.toByte,
+            pointSign = 0x1c.toInt,
             signatureRandom =
               ByteString(Hex.decode("6d31e3d59bfea97a34103d8ce767a8fe7a79b8e2f30af1e918df53f9e78e69ab")),
             signature = ByteString(Hex.decode("098e5b80e1cc436421aa54eb17e96b08fe80d28a2fbd46451b56f2bca7a321e7")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -208,11 +208,11 @@ object Fixtures {
               value = BigInt("1502561962583879700"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("fdbbc462a8a60ac3d8b13ee236b45af9b7991cf4f0f556d3af46aa5aeca242ab")),
             signature = ByteString(Hex.decode("5de5dc03fdcb6cf6d14609dbe6f5ba4300b8ff917c7d190325d9ea2144a7a2fb")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -223,11 +223,11 @@ object Fixtures {
               value = BigInt("1022338440000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("bafb9f71cef873b9e0395b9ed89aac4f2a752e2a4b88ba3c9b6c1fea254eae73")),
             signature = ByteString(Hex.decode("1cef688f6718932f7705d9c1f0dd5a8aad9ddb196b826775f6e5703fdb997706")),
-            chainId = 0x3d.toByte
+            chainId = 0x3d.toInt
           )
         ),
         uncleNodesList = Seq[BlockHeader](
@@ -272,11 +272,11 @@ object Fixtures {
               value = BigInt("1502561962583879700"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("fdbbc462a8a60ac3d8b13ee236b45af9b7991cf4f0f556d3af46aa5aeca242ab")),
             signature = ByteString(Hex.decode("5de5dc03fdcb6cf6d14609dbe6f5ba4300b8ff917c7d190325d9ea2144a7a2fb")),
-            chainId = 0x01.toByte
+            chainId = 0x01.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -287,11 +287,11 @@ object Fixtures {
               value = BigInt("10046680000000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("8d94a55c7ac7adbfa2285ef7f4b0c955ae1a02647452cd4ead03ee6f449675c6")),
             signature = ByteString(Hex.decode("67149821b74208176d78fc4dffbe37c8b64eecfd47532406b9727c4ae8eb7c9a")),
-            chainId = 0x01.toByte
+            chainId = 0x01.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -302,11 +302,11 @@ object Fixtures {
               value = BigInt("20093780000000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1c.toByte,
+            pointSign = 0x1c.toInt,
             signatureRandom =
               ByteString(Hex.decode("6d31e3d59bfea97a34103d8ce767a8fe7a79b8e2f30af1e918df53f9e78e69ab")),
             signature = ByteString(Hex.decode("098e5b80e1cc436421aa54eb17e96b08fe80d28a2fbd46451b56f2bca7a321e7")),
-            chainId = 0x01.toByte
+            chainId = 0x01.toInt
           ),
           SignedTransaction(
             tx = Transaction(
@@ -317,11 +317,11 @@ object Fixtures {
               value = BigInt("1022338440000000000"),
               payload = ByteString.empty
             ),
-            pointSign = 0x1b.toByte,
+            pointSign = 0x1b.toInt,
             signatureRandom =
               ByteString(Hex.decode("bafb9f71cef873b9e0395b9ed89aac4f2a752e2a4b88ba3c9b6c1fea254eae73")),
             signature = ByteString(Hex.decode("1cef688f6718932f7705d9c1f0dd5a8aad9ddb196b826775f6e5703fdb997706")),
-            chainId = 0x01.toByte
+            chainId = 0x01.toInt
           )
         ),
         uncleNodesList = Seq[BlockHeader]()

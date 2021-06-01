@@ -6,18 +6,26 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, Receipt, SignedTransaction}
 import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import io.iohk.ethereum.utils.ByteUtils.or
 
-object StdBlockValidator extends BlockValidator {
+object StdBlockValidator extends BlockValidator with Logger {
 
   /**
     * Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
-    * @return Block if valid, a Some otherwise
+    * @return Either[BlockError, BlockValid]
     */
   private def validateTransactionRoot(block: Block): Either[BlockError, BlockValid] = {
+    // block 10630 and onwards have transactions
+
+    if (block.header.number == 10630) {
+      log.info(s"Block 10630 transactionsRoot ${ByteStringUtils.hash2string(block.header.transactionsRoot)}")
+      log.info(s"Block 10630 transactionList ${block.body.transactionList}")
+    }
+
     val isValid = MptListValidator.isValid[SignedTransaction](
       block.header.transactionsRoot.toArray[Byte],
       block.body.transactionList,
@@ -32,7 +40,7 @@ object StdBlockValidator extends BlockValidator {
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
-    * @return Block if valid, a Some otherwise
+    * @return Either[BlockError, BlockValid]
     */
   private def validateOmmersHash(block: Block): Either[BlockError, BlockValid] = {
     val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
@@ -46,7 +54,7 @@ object StdBlockValidator extends BlockValidator {
     *
     * @param blockHeader    Block header to validate
     * @param receipts Receipts to use
-    * @return
+    * @return Either[BlockError, BlockValid]
     */
   private def validateReceipts(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
 
@@ -62,7 +70,7 @@ object StdBlockValidator extends BlockValidator {
     *
     * @param blockHeader  Block header to validate
     * @param receipts     Receipts to use
-    * @return
+    * @return Either[BlockError, BlockValid]
     */
   private def validateLogBloom(blockHeader: BlockHeader, receipts: Seq[Receipt]): Either[BlockError, BlockValid] = {
     val logsBloomOr =

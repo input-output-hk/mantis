@@ -634,7 +634,7 @@ class FastSync(
         blacklist.add(peer.id, blacklistDuration, EmptyBlockBodies(knownHashes))
         syncState = syncState.enqueueBlockBodies(requestedHashes)
       } else {
-        validateBlocks(requestedHashes, blockBodies) match {
+        validateBlocks(requestedHashes, blockBodies, log) match {
           case BlockBodyValidationResult.Valid =>
             insertBlocks(requestedHashes, blockBodies)
           case BlockBodyValidationResult.Invalid =>

@@ -132,7 +132,7 @@ trait ObjectGenerators {
     }
   }
 
-  def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[Byte]): Gen[Seq[SignedTransaction]] = {
+  def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[Seq[SignedTransaction]] = {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
@@ -148,14 +148,14 @@ trait ObjectGenerators {
     }
   }
 
-  def newBlockGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[NewBlock] = for {
+  def newBlockGen(secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[NewBlock] = for {
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen
     td <- bigIntGen
   } yield NewBlock(Block(blockHeader, BlockBody(stxs, uncles)), td)
 
-  def newBlock64Gen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[PV64.NewBlock] = for {
+  def newBlock64Gen(secureRandom: SecureRandom, chainId: Option[BigInt]): Gen[PV64.NewBlock] = for {
     blockHeader <- blockHeaderGen
     stxs <- signedTxSeqGen(10, secureRandom, chainId)
     uncles <- seqBlockHeaderGen

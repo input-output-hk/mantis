@@ -69,7 +69,7 @@ class PoWMiningCoordinator private (
     blockchain: Blockchain,
     ecip1049BlockNumber: Option[BigInt]
 ) extends AbstractBehavior[CoordinatorProtocol](context) {
-
+  Thread.sleep(30000)
   import PoWMiningCoordinator._
 
   private implicit val scheduler: Scheduler = Scheduler(context.executionContext)
@@ -90,10 +90,12 @@ class PoWMiningCoordinator private (
 
     case MineNext =>
       log.debug("Received message MineNext")
+//      Thread.sleep(2000)
       blockchain
-        .getBestBlock()
+        .getBestBlock() // TODO getBestSavedBlockNumber
         .fold {
           log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
+//          Thread.sleep(2000)
           context.self ! MineNext
         } { block =>
           getMiningAlgorithm(block.header.number) match {

@@ -10,6 +10,7 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
+import io.iohk.ethereum.utils.Logger
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue
@@ -43,7 +44,7 @@ case class BlockFetcherState(
     lastBlock: BigInt,
     knownTop: BigInt,
     blockProviders: Map[BigInt, PeerId]
-) {
+) extends Logger {
 
   def isFetching: Boolean = isFetchingHeaders || isFetchingBodies
 
@@ -77,6 +78,7 @@ case class BlockFetcherState(
   def appendHeaders(headers: Seq[BlockHeader]): Either[ValidationErrors, BlockFetcherState] =
     validatedHeaders(headers.sortBy(_.number)).map(validHeaders => {
       val lastNumber = HeadersSeq.lastNumber(validHeaders)
+
       withPossibleNewTopAt(lastNumber)
         .copy(
           waitingHeaders = waitingHeaders ++ validHeaders
@@ -136,11 +138,13 @@ case class BlockFetcherState(
       case (Seq(), _ +: _) => None
       case (_, Seq()) => Some(matchedBlocks)
       case (header +: remainingHeaders, body +: remainingBodies) =>
-        val doMatch = blockValidator.validateHeaderAndBody(header, body).isRight
-        if (doMatch)
-          bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
-        else
-          bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
+        blockValidator.validateHeaderAndBody(header, body) match {
+          case Right(_) =>
+            bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
+          case Left(error) =>
+            log.error("Validation of block {} failed with error {}", header.number, error)
+            bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
+        }
     }
 
   /**

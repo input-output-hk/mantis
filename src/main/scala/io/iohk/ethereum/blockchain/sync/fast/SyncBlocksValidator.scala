@@ -1,10 +1,12 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
+import akka.event.LoggingAdapter
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
+import io.iohk.ethereum.utils.Logger
 
 trait SyncBlocksValidator {
 
@@ -14,7 +16,11 @@ trait SyncBlocksValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
+  def validateBlocks(
+      requestedHashes: Seq[ByteString],
+      blockBodies: Seq[BlockBody],
+      log: LoggingAdapter
+  ): BlockBodyValidationResult = {
     var result: BlockBodyValidationResult = Valid
     (requestedHashes zip blockBodies)
       .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
@@ -22,7 +28,13 @@ trait SyncBlocksValidator {
         case (Some(header), body) =>
           val validationResult: Either[StdBlockValidator.BlockError, BlockValid] =
             validators.blockValidator.validateHeaderAndBody(header, body)
-          result = validationResult.fold(_ => Invalid, _ => Valid)
+          result = validationResult.fold(
+            error => {
+              log.error("Block body validation failed with error {}", error)
+              Invalid
+            },
+            _ => Valid
+          )
           validationResult.isRight
         case _ =>
           result = DbError
