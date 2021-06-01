@@ -1,12 +1,13 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
+import akka.actor.ActorLogging
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
 
-trait SyncBlocksValidator {
+trait SyncBlocksValidator { this: ActorLogging =>
 
   import SyncBlocksValidator._
   import BlockBodyValidationResult._
@@ -14,22 +15,23 @@ trait SyncBlocksValidator {
   def blockchain: Blockchain
   def validators: Validators
 
-  def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult = {
-    var result: BlockBodyValidationResult = Valid
+  def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult =
     (requestedHashes zip blockBodies)
       .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
-      .forall {
-        case (Some(header), body) =>
-          val validationResult: Either[StdBlockValidator.BlockError, BlockValid] =
-            validators.blockValidator.validateHeaderAndBody(header, body)
-          result = validationResult.fold(_ => Invalid, _ => Valid)
-          validationResult.isRight
-        case _ =>
-          result = DbError
-          false
+      .foldLeft[BlockBodyValidationResult](Valid) {
+        case (Valid, (Some(header), body)) =>
+          validators.blockValidator
+            .validateHeaderAndBody(header, body)
+            .fold(
+              { error =>
+                log.error(s"Block body validation failed with error $error")
+                Invalid
+              },
+              _ => Valid
+            )
+        case (Valid, _) => DbError
+        case (invalid, _) => invalid
       }
-    result
-  }
 
   def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
     validators.blockHeaderValidator.validateHeaderOnly(blockHeader)
