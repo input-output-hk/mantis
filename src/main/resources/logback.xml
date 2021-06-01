@@ -1,6 +1,6 @@
 <configuration>
 
-    <property name="stdoutEncoderPattern" value="%d [%logger{36}] - %msg%n" />
+    <property name="stdoutEncoderPattern" value="%d %-5level [%logger{36}] - %msg%n" />
     <property name="fileEncoderPattern" value="%d [%thread] %-5level %logger{36} %X{akkaSource} - %msg%n" />
 
     <!--read properties from application.conf-->
@@ -57,8 +57,10 @@
         <appender-ref ref="METRICS" />
     </root>
 
+    <!-- NB. be aware you might want to adjust akka.loglevel if you set any level to DEBUG -->
     <logger name="io.netty" level="WARN"/>
     <logger name="io.iohk.scalanet" level="INFO" />
+    <logger name="io.iohk.scalanet.discovery.ethereum.v4.DiscoveryService" level="WARN" />
     <logger name="io.iohk.ethereum.blockchain.sync.SyncController" level="INFO" />
     <logger name="io.iohk.ethereum.network.PeerActor" level="${LOGSLEVEL}" />
     <logger name="io.iohk.ethereum.network.rlpx.RLPxConnectionHandler" level="${LOGSLEVEL}" />
