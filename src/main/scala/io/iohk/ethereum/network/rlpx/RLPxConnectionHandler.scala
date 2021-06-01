@@ -146,7 +146,7 @@ class RLPxConnectionHandler(
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
-          log.debug(s"Auth handshake succeeded for peer $peerId")
+          log.info(s"Auth handshake succeeded for peer $peerId")
           context.parent ! ConnectionEstablished(remotePubKey)
           val messageCodec = messageCodecFactory(secrets, messageDecoder, protocolVersion)
           val messagesSoFar = messageCodec.readMessages(remainingData)
@@ -164,7 +164,7 @@ class RLPxConnectionHandler(
         context.parent ! MessageReceived(message)
 
       case Failure(ex) =>
-        log.debug(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
+        log.info(s"Cannot decode message from $peerId, because of ${ex.getMessage}")
         // break connection in case of failed decoding, to avoid attack which would send us garbage
         context stop self
     }

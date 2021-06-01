@@ -3,7 +3,6 @@ package io.iohk.ethereum.sync.util
 import java.nio.file.Files
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestProbe
 import akka.util.{ByteString, Timeout}
@@ -25,6 +24,7 @@ import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveredNodesIn
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{
@@ -169,7 +169,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val peerConfiguration: PeerConfiguration = peerConf
       override val blockchain: Blockchain = bl
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = Config.Network.protocolVersion
+      override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -193,7 +193,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
-      Config.Network.protocolVersion
+      blockchainConfig.capabilities.head
     ),
     "peer-manager"
   )

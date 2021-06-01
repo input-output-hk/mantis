@@ -148,7 +148,7 @@ class StateSyncSpec
     val syncInit = TestProbe()
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

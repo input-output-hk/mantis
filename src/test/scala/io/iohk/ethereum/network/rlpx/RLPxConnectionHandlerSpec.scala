@@ -1,15 +1,13 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.io.Tcp
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
 import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
-import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.security.SecureRandomBuilder
@@ -174,7 +172,7 @@ class RLPxConnectionHandlerSpec
 
     //Mock parameters for RLPxConnectionHandler
     val mockMessageDecoder = new MessageDecoder {
-      override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Version) =
+      override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Capability) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
     val protocolVersion = ProtocolVersions.PV63

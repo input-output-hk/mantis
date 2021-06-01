@@ -169,7 +169,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
   object DefaultValues {
     val defaultStatusMsg = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,

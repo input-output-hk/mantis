@@ -49,7 +49,7 @@ class BlockBroadcastSpec
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
     val newBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(blockHeader.hash, blockHeader.number)))
     val peerInfo = initialPeerInfo
-      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63))
+      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63.version))
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
       CommonMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
@@ -164,7 +164,7 @@ class BlockBroadcastSpec
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV64,
+      protocolVersion = ProtocolVersions.PV64.version,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

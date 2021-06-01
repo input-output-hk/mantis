@@ -70,14 +70,14 @@ object EthInfoService {
 }
 
 class EthInfoService(
-  val blockchain: Blockchain,
-  blockchainConfig: BlockchainConfig,
-  val ledger: Ledger,
-  stxLedger: StxLedger,
-  keyStore: KeyStore,
-  syncingController: ActorRef,
-  protocolVersion: Capability,
-  askTimeout: Timeout
+    val blockchain: Blockchain,
+    blockchainConfig: BlockchainConfig,
+    val ledger: Ledger,
+    stxLedger: StxLedger,
+    keyStore: KeyStore,
+    syncingController: ActorRef,
+    protocolVersion: Capability,
+    askTimeout: Timeout
 ) extends ResolveBlock {
 
   import EthInfoService._

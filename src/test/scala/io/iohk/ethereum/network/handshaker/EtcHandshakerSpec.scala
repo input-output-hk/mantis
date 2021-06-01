@@ -230,7 +230,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "fail if the remote peer doesn't support PV63/PV64" in new RemotePeerPV63Setup {
-    val pv62Capability = Capability("eth", ProtocolVersions.PV62.toByte)
+    val pv62Capability = ProtocolVersions.PV62
     val handshakerAfterHelloOpt =
       initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(pv62Capability)))
     assert(handshakerAfterHelloOpt.isDefined)
@@ -269,13 +269,14 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
     lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
-    class MockEtcHandshakerConfiguration(pv: Int = Config.Network.protocolVersion) extends EtcHandshakerConfiguration {
+    class MockEtcHandshakerConfiguration(pv: List[Capability] = blockchainConfig.capabilities)
+        extends EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = None
       override val nodeStatusHolder: AtomicReference[NodeStatus] = TestSetup.this.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = Config.Network.peer
       override val blockchain: Blockchain = TestSetup.this.blockchain
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = pv
+      override val capabilities: List[Capability] = pv
     }
 
     val etcHandshakerConfigurationWithResolver = new MockEtcHandshakerConfiguration {
@@ -284,7 +285,9 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(ProtocolVersions.PV64))
+    val initHandshakerWithoutResolver = EtcHandshaker(
+      new MockEtcHandshakerConfiguration(List(ProtocolVersions.PV64, ProtocolVersions.PV63))
+    )
     val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
     val firstBlock =
@@ -306,7 +309,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait LocalPeerPV63Setup extends LocalPeerSetup {
     val localStatusMsg = CommonMessages.Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
       bestHash = genesisBlock.header.hash,
@@ -317,7 +320,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait LocalPeerPV64Setup extends LocalPeerSetup {
     val localStatusMsg = PV64.Status(
-      protocolVersion = ProtocolVersions.PV64,
+      protocolVersion = ProtocolVersions.PV64.version,
       networkId = Config.Network.peer.networkId,
       chainWeight = ChainWeight.zero.increase(genesisBlock.header),
       bestHash = genesisBlock.header.hash,
@@ -345,7 +348,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     )
 
     val remoteStatusMsg = CommonMessages.Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,
       bestHash = genesisBlock.header.hash,
@@ -366,7 +369,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     val remoteStatusMsg =
       PV64.Status(
-        protocolVersion = ProtocolVersions.PV64,
+        protocolVersion = ProtocolVersions.PV64.version,
         networkId = Config.Network.peer.networkId,
         chainWeight = ChainWeight.zero,
         bestHash = genesisBlock.header.hash,

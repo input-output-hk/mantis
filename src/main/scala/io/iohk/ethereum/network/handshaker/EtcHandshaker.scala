@@ -35,5 +35,5 @@ trait EtcHandshakerConfiguration {
   val appStateStorage: AppStateStorage
   val peerConfiguration: PeerConfiguration
   val forkResolverOpt: Option[ForkResolver]
-  val protocolVersion: Capability
+  val capabilities: List[Capability]
 }

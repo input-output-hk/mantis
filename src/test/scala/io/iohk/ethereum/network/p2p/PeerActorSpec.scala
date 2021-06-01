@@ -3,7 +3,6 @@ package io.iohk.ethereum.network.p2p
 import java.net.{InetSocketAddress, URI}
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
@@ -18,13 +17,12 @@ import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
-import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status
 import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.{PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{Capability, PV64, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.{DisconnectEnc, Reasons}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
@@ -81,7 +79,7 @@ class PeerActorSpec
 
   it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
     override implicit lazy val system = ActorSystem("PeerActorSpec_System")
-    override def protocol: Version = ProtocolVersions.PV63
+    override def protocol: Capability = ProtocolVersions.PV63
 
     val time = new VirtualTime
 
@@ -137,7 +135,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -175,7 +173,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -190,7 +188,7 @@ class PeerActorSpec
   }
 
   it should "successfully connect to ETC peer with protocol 64" in new TestSetup {
-    override def protocol: Version = ProtocolVersions.PV64
+    override def protocol: Capability = ProtocolVersions.PV64
     val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@localhost:9000")
     val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
     peer ! PeerActor.ConnectTo(uri)
@@ -205,7 +203,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = PV64.Status(
-      protocolVersion = ProtocolVersions.PV64,
+      protocolVersion = ProtocolVersions.PV64.version,
       networkId = peerConf.networkId,
       chainWeight =
         ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty + 100000), // remote is after the fork
@@ -244,7 +242,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -287,7 +285,7 @@ class PeerActorSpec
       .commit()
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -313,7 +311,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -360,7 +358,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -392,7 +390,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -411,7 +409,7 @@ class PeerActorSpec
   it should "stay connected to pre fork peer" in new TestSetup {
 
     val remoteStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       chainWeight =
         ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty - 200000), // remote is before the fork
@@ -454,7 +452,7 @@ class PeerActorSpec
     rlpxConnection.send(peer, RLPxConnectionHandler.MessageReceived(remoteHello))
 
     val remoteStatus = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = peerConf.networkId,
       totalDifficulty = daoForkBlockChainTotalDifficulty + 100000, // remote is after the fork
       bestHash = ByteString("blockhash"),
@@ -556,7 +554,7 @@ class PeerActorSpec
   }
 
   trait HandshakerSetup extends NodeStatusSetup { self =>
-    def protocol: Version
+    def protocol: Capability
 
     val handshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
@@ -566,14 +564,14 @@ class PeerActorSpec
       override val peerConfiguration: PeerConfiguration = self.peerConf
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = protocol
+      override val capabilities: List[Capability] = List(protocol)
     }
 
     val handshaker = EtcHandshaker(handshakerConfiguration)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
-    override def protocol: Version = ProtocolVersions.PV63
+    override def protocol: Capability = ProtocolVersions.PV63
 
     val genesisHash = genesisBlock.hash
 

@@ -175,7 +175,8 @@ trait HandshakerBuilder {
     with NodeStatusBuilder
     with StorageBuilder
     with PeerManagerActorBuilder
-    with ForkResolverBuilder =>
+    with ForkResolverBuilder
+    with BlockchainConfigBuilder =>
 
   private val handshakerConfiguration: EtcHandshakerConfiguration =
     new EtcHandshakerConfiguration {
@@ -184,7 +185,7 @@ trait HandshakerBuilder {
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val protocolVersion: Capability = Capability.from(Config.Network.protocolVersion)
+      override val capabilities: List[Capability] = self.blockchainConfig.capabilities
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -413,7 +414,7 @@ trait EthInfoServiceBuilder {
     stxLedger,
     keyStore,
     syncController,
-    Capability.from(Config.Network.protocolVersion),
+    blockchainConfig.capabilities.head,
     asyncConfig.askTimeout
   )
 }

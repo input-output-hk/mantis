@@ -85,7 +85,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val helloV4 = helloV5.copy(p2pVersion = 4)
 
     val status = Status(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 1,
       bestHash = ByteString(1),

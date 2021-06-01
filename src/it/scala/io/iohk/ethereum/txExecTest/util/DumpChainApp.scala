@@ -2,7 +2,6 @@ package io.iohk.ethereum.txExecTest.util
 
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorSystem
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
@@ -25,6 +24,7 @@ import io.iohk.ethereum.network.PeerStatisticsActor
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
@@ -93,7 +93,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val protocolVersion: Int = Config.Network.protocolVersion
+      override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -116,7 +116,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
       blacklist = blacklist,
-      bestProtocolVersion = Config.Network.protocolVersion
+      bestProtocolVersion = blockchainConfig.capabilities.head
     ),
     "peer-manager"
   )

@@ -181,9 +181,9 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   }
 
   it should "decode Status message for all supported versions of protocol" in {
-    val status63 = CommonMessages.Status(ProtocolVersions.PV63, 1, BigInt(100), exampleHash, exampleHash)
+    val status63 = CommonMessages.Status(ProtocolVersions.PV63.version, 1, BigInt(100), exampleHash, exampleHash)
     val status63Bytes: Array[Byte] = status63.toBytes
-    val status64 = PV64.Status(ProtocolVersions.PV63, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
+    val status64 = PV64.Status(ProtocolVersions.PV63.version, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
 
     // it's not 100 % true as Status message was different in PV61, but we are not supporting old message
     decode(Codes.StatusCode, status63Bytes, ProtocolVersions.PV61) shouldBe status63
@@ -221,7 +221,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
 
   it should "not decode message of not supported protocol" in {
     assertThrows[RuntimeException] {
-      decode(Codes.NewBlockHashesCode, NewBlockHashesPV61bytes, ProtocolVersions.PV61 - 1)
+      decode(Codes.NewBlockHashesCode, NewBlockHashesPV61bytes, ProtocolVersions.PV61.copy(version = 60))
     }
   }
 }

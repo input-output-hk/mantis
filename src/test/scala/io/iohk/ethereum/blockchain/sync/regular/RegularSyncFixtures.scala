@@ -102,7 +102,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
-    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64): PeerInfo = {
+    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.PV64.version): PeerInfo = {
       val status =
         RemoteStatus(
           protocolVersion,

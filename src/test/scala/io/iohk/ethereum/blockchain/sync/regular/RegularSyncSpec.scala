@@ -681,7 +681,7 @@ class RegularSyncSpec
           val peerWithPV63: (Peer, PeerInfo) = {
             val id = peerId(handshakedPeers.size)
             val peer = getPeer(id)
-            val peerInfo = getPeerInfo(peer, ProtocolVersions.PV63)
+            val peerInfo = getPeerInfo(peer, ProtocolVersions.PV63.version)
             (peer, peerInfo)
           }
 

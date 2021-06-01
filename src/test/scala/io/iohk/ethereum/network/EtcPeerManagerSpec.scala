@@ -285,7 +285,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.PV63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
@@ -301,7 +301,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     )
 
     val initialPeerInfoPV64 = PeerInfo(
-      remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV64),
+      remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV64.version),
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
