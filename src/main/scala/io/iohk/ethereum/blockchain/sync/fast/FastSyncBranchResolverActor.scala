@@ -49,7 +49,9 @@ class FastSyncBranchResolverActor(
     getPeerWithHighestBlock match {
       case Some(peerWithInfo @ PeerWithInfo(peer, _)) =>
         log.debug(
-          "Starting branch resolution now with peer {} and block number {}", peerWithInfo, blockchain.getBestBlockNumber()
+          "Starting branch resolution now with peer {} and block number {}",
+          peerWithInfo,
+          blockchain.getBestBlockNumber()
         )
         requestRecentBlockHeaders(peer, blockchain.getBestBlockNumber())
       case None =>

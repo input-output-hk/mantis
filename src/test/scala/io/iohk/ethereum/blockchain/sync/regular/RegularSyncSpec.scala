@@ -137,7 +137,10 @@ class RegularSyncSpec
           peersClient.expectMsgEq(getBodies)
           peersClient.reply(PeersClient.Response(defaultPeer, BlockBodies(testBlocksChunked.head.bodies)))
 
-          blockFetcher ! MessageFromPeer(NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)), defaultPeer.id)
+          blockFetcher ! MessageFromPeer(
+            NewBlock(testBlocks.last, ChainWeight.totalDifficultyOnly(testBlocks.last.number)),
+            defaultPeer.id
+          )
           peersClient.expectMsgEq(blockHeadersChunkRequest(1))
           peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked(5).headers)))
           peersClient.expectMsgPF() {

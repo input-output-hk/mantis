@@ -50,7 +50,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       daoForkConfig = None,
       gasTieBreaker = false,
       ethCompatibleStorage = true,
-      treasuryAddress = Address(0),
+      treasuryAddress = Address(0)
     )
 
     val noErrors = a[Right[_, Seq[Receipt]]]
