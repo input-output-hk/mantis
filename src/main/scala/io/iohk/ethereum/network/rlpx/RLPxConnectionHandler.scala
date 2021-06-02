@@ -152,17 +152,18 @@ class RLPxConnectionHandler(
       result match {
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.info(s"Auth handshake succeeded for peer $peerId")
-          context.parent ! ConnectionEstablished(remotePubKey)
+
           //expect Hello
           val frameCodec = new FrameCodec(secrets)
           val frames = frameCodec.readFrames(remainingData)
           frames.headOption.flatMap(extractHello) match {
             case Some(h) =>
-              context.parent ! MessageReceived(h)
               val protocolVersion = Capability.negotiate(h.capabilities.toList, capabilities)
               val p2pVersion = h.p2pVersion
               protocolVersion match {
                 case Some(value) =>
+                  context.parent ! ConnectionEstablished(remotePubKey, value)
+                  context.parent ! MessageReceived(h)
                   val messageCodec = messageCodecFactory(frameCodec, messageDecoder, value, p2pVersion)
                   val restFrames = frames.drop(1)
                   if (restFrames.nonEmpty) {
@@ -340,7 +341,7 @@ object RLPxConnectionHandler {
 
   case class HandleConnection(connection: ActorRef)
 
-  case class ConnectionEstablished(nodeId: ByteString)
+  case class ConnectionEstablished(nodeId: ByteString, negotiatedCapability: Capability)
 
   case object ConnectionFailed
 

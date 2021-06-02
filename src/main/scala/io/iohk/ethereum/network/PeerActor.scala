@@ -34,7 +34,7 @@ class PeerActor[R <: HandshakeResult](
     knownNodesManager: ActorRef,
     incomingConnection: Boolean,
     externalSchedulerOpt: Option[Scheduler] = None,
-    initHandshaker: Handshaker[R]
+    initHandshaker: Capability => Handshaker[R]
 ) extends Actor
     with ActorLogging
     with Stash {
@@ -80,10 +80,10 @@ class PeerActor[R <: HandshakeResult](
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection, numRetries, Connecting) orElse stashMessages orElse {
-      case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
+      case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, capability) =>
         val newUri =
           rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
-        processHandshakerNextMessage(initHandshaker, remoteNodeId, rlpxConnection.copy(uriOpt = newUri), numRetries)
+        processHandshakerNextMessage(initHandshaker(capability), remoteNodeId, rlpxConnection.copy(uriOpt = newUri), numRetries)
 
       case RLPxConnectionHandler.ConnectionFailed =>
         log.debug("Failed to establish RLPx connection")
@@ -103,7 +103,7 @@ class PeerActor[R <: HandshakeResult](
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
 
-  def processingHandshaking(
+  private def processingHandshaking(
       handshaker: Handshaker[R],
       remoteNodeId: ByteString,
       rlpxConnection: RLPxConnection,
@@ -299,7 +299,7 @@ object PeerActor {
       peerEventBus: ActorRef,
       knownNodesManager: ActorRef,
       incomingConnection: Boolean,
-      handshaker: Handshaker[R],
+      handshaker: Capability => Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       capabilities: List[Capability]

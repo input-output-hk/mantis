@@ -22,8 +22,8 @@ case class EtcHandshaker private (
 
 object EtcHandshaker {
 
-  def apply(handshakerConfiguration: EtcHandshakerConfiguration): EtcHandshaker = {
-    val initialState = EtcHelloExchangeState(handshakerConfiguration)
+  def apply(handshakerConfiguration: EtcHandshakerConfiguration, capability: Capability): EtcHandshaker = {
+    val initialState = EtcHelloExchangeState(handshakerConfiguration, capability)
     EtcHandshaker(initialState, handshakerConfiguration)
   }
 
