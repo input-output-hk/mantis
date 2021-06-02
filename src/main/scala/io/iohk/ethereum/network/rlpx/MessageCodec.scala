@@ -10,7 +10,7 @@ import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
-class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Capability) {
+class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Capability, val remotePeer2PeerVersion: Long) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 
@@ -19,37 +19,24 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
   // 16Mb in base 2
   val maxDecompressedLength = 16777216
 
-  // MessageCodec is only used from actor context so it can be var
-  @volatile
-  private var remotePeerP2pVersion: Option[Long] = None
-
-  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit = {
-    if (remotePeerP2pVersion.isEmpty) {
-      m match {
-        case hello: Hello =>
-          remotePeerP2pVersion = Some(hello.p2pVersion)
-        case _ =>
-      }
-    }
-  }
-
   // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
+    readFrames(frames)
+  }
 
+  def readFrames(frames: Seq[Frame]): Seq[Try[Message]] = {
     frames map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
-        if (remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion)) {
+        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion) {
           decompressData(frameData)
         } else {
           Success(frameData)
         }
 
       payloadTry.map { payload =>
-        val m = messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
-        setRemoteVersionBasedOnHelloMessage(m)
-        m
+        messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
       }
     }
   }
@@ -70,10 +57,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     val frames = (0 until numFrames) map { frameNo =>
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
-        if (
-          remotePeerP2pVersion
-            .exists(version => version >= EtcHelloExchangeState.P2pVersion) && serializable.code != Hello.code
-        ) {
+        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && serializable.code != Hello.code) {
           Snappy.compress(framedPayload)
         } else {
           framedPayload

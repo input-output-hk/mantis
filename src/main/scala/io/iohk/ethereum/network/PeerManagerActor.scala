@@ -424,7 +424,7 @@ object PeerManagerActor {
       messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
       blacklist: Blacklist,
-      bestProtocolVersion: Capability
+      capabilities: List[Capability]
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
       peerFactory(
@@ -434,7 +434,7 @@ object PeerManagerActor {
         handshaker,
         authHandshaker,
         messageDecoder,
-        bestProtocolVersion
+        capabilities
       )
 
     Props(
@@ -459,7 +459,7 @@ object PeerManagerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Capability
+      capabilities: List[Capability]
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -471,7 +471,7 @@ object PeerManagerActor {
       handshaker,
       authHandshaker,
       messageDecoder,
-      bestProtocolVersion
+      capabilities
     )
     ctx.actorOf(props, id)
   }

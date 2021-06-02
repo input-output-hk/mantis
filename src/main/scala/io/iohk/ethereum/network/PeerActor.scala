@@ -302,12 +302,12 @@ object PeerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Capability
+      capabilities: List[Capability]
   ): Props =
     Props(
       new PeerActor(
         peerAddress,
-        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, bestProtocolVersion),
+        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, capabilities),
         peerConfiguration,
         peerEventBus,
         knownNodesManager,
@@ -321,11 +321,11 @@ object PeerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       rlpxConfiguration: RLPxConfiguration,
-      bestProtocolVersion: Capability
+      capabilities: List[Capability]
   ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
       RLPxConnectionHandler
-        .props(NetworkMessageDecoder orElse messageDecoder, bestProtocolVersion, authHandshaker, rlpxConfiguration),
+        .props(NetworkMessageDecoder orElse messageDecoder, capabilities, authHandshaker, rlpxConfiguration),
       "rlpx-connection"
     )
   }
