@@ -31,7 +31,7 @@ object ECDSASignature {
 
   val allowedPointSigns = Set(negativePointSign, positivePointSign)
 
-  def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature = {
+  def apply(r: ByteString, s: ByteString, v: BigInt): ECDSASignature = {
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), v)
   }
 
@@ -46,7 +46,11 @@ object ECDSASignature {
     sign(messageHash.toArray, keyPairFromPrvKey(prvKey.toArray), None)
 
   /** Sign a messageHash, expected to be a Keccak256 hash of the original data. */
-  def sign(messageHash: Array[Byte], keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte] = None): ECDSASignature = {
+  def sign(
+      messageHash: Array[Byte],
+      keyPair: AsymmetricCipherKeyPair,
+      chainId: Option[BigInt] = None
+  ): ECDSASignature = {
     require(
       messageHash.size == 32,
       s"The message should be a hash, expected to be 32 bytes; got ${messageHash.size} bytes."
@@ -61,9 +65,9 @@ object ECDSASignature {
       .getOrElse(throw new RuntimeException("Failed to calculate signature rec id"))
 
     val pointSign = chainId match {
-      case Some(id) if v == negativePointSign => (id * 2 + newNegativePointSign).toByte
-      case Some(id) if v == positivePointSign => (id * 2 + newPositivePointSign).toByte
-      case None => v
+      case Some(id) if v == negativePointSign => id * 2 + newNegativePointSign
+      case Some(id) if v == positivePointSign => id * 2 + newPositivePointSign
+      case None => BigInt(v)
       case _ => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
     }
 
@@ -74,17 +78,18 @@ object ECDSASignature {
     * new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Byte] = {
+  private def getRecoveredPointSign(pointSign: BigInt, chainId: Option[BigInt]): Option[Byte] = {
+    val signByte = pointSign.toByte
     (chainId match {
       case Some(id) =>
-        if (pointSign == negativePointSign || pointSign == (id * 2 + newNegativePointSign).toByte) {
+        if (signByte == negativePointSign || signByte == (id * 2 + newNegativePointSign).toByte) {
           Some(negativePointSign)
-        } else if (pointSign == positivePointSign || pointSign == (id * 2 + newPositivePointSign).toByte) {
+        } else if (signByte == positivePointSign || signByte == (id * 2 + newPositivePointSign).toByte) {
           Some(positivePointSign)
         } else {
           None
         }
-      case None => Some(pointSign)
+      case None => Some(signByte)
     }).filter(pointSign => allowedPointSigns.contains(pointSign))
   }
 
@@ -106,8 +111,8 @@ object ECDSASignature {
   private def recoverPubBytes(
       r: BigInt,
       s: BigInt,
-      recId: Byte,
-      chainId: Option[Byte],
+      recId: BigInt,
+      chainId: Option[BigInt],
       messageHash: Array[Byte]
   ): Option[Array[Byte]] = {
     Try {
@@ -152,7 +157,7 @@ object ECDSASignature {
   * @param s - part of the signature calculated with signer private key
   * @param v - public key recovery id
   */
-case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
+case class ECDSASignature(r: BigInt, s: BigInt, v: BigInt) {
 
   /**
     * returns ECC point encoded with on compression and without leading byte indicating compression
@@ -160,7 +165,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
     */
-  def publicKey(messageHash: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
+  def publicKey(messageHash: Array[Byte], chainId: Option[BigInt] = None): Option[Array[Byte]] =
     ECDSASignature.recoverPubBytes(r, s, v, chainId, messageHash)
 
   /**

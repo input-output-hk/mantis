@@ -12,10 +12,17 @@ import org.scalatest.funsuite.AnyFunSuite
 
 class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
 
-  val chainId = Hex.decode("3d").head
+  val chainId_1 = 1
+  val chainId_212 = 212
 
   test("NewBlock v63 messages are encoded and decoded properly") {
-    forAll(newBlockGen(secureRandom, Some(chainId))) { newBlock =>
+    forAll(newBlockGen(secureRandom, Some(chainId_1))) { newBlock =>
+      val encoded: Array[Byte] = newBlock.toBytes
+      val decoded: NewBlock = encoded.toNewBlock
+      assert(decoded == newBlock)
+    }
+
+    forAll(newBlockGen(secureRandom, Some(chainId_212))) { newBlock =>
       val encoded: Array[Byte] = newBlock.toBytes
       val decoded: NewBlock = encoded.toNewBlock
       assert(decoded == newBlock)
@@ -24,7 +31,14 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
 
   test("NewBlock v64 messages are encoded and decoded properly") {
     import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock._
-    forAll(newBlock64Gen(secureRandom, Some(chainId))) { newBlock =>
+
+    forAll(newBlock64Gen(secureRandom, Some(chainId_1))) { newBlock =>
+      val encoded: Array[Byte] = newBlock.toBytes
+      val decoded: PV64.NewBlock = encoded.toNewBlock
+      assert(decoded == newBlock)
+    }
+
+    forAll(newBlock64Gen(secureRandom, Some(chainId_212))) { newBlock =>
       val encoded: Array[Byte] = newBlock.toBytes
       val decoded: PV64.NewBlock = encoded.toNewBlock
       assert(decoded == newBlock)

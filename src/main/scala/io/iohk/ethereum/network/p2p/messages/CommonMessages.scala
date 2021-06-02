@@ -135,7 +135,7 @@ object CommonMessages {
 
   object SignedTransactions {
 
-    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
+    lazy val chainId: BigInt = Config.blockchains.blockchainConfig.chainId
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
@@ -187,7 +187,7 @@ object CommonMessages {
           val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
             Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
-            (pointSign: Int).toByte,
+            pointSign: BigInt,
             signatureRandom,
             signature,
             chainId

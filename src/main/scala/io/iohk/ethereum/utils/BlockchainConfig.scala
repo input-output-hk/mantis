@@ -21,7 +21,7 @@ case class BlockchainConfig(
     customGenesisJsonOpt: Option[String],
     daoForkConfig: Option[DaoForkConfig],
     accountStartNonce: UInt256,
-    chainId: Byte,
+    chainId: BigInt,
     networkId: Int,
     monetaryPolicyConfig: MonetaryPolicyConfig,
     gasTieBreaker: Boolean,
@@ -104,11 +104,9 @@ object BlockchainConfig {
     val daoForkConfig = Try(blockchainConfig.getConfig("dao")).toOption.map(DaoForkConfig(_))
     val accountStartNonce: UInt256 = UInt256(BigInt(blockchainConfig.getString("account-start-nonce")))
 
-    val chainId: Byte = {
+    val chainId: BigInt = {
       val s = blockchainConfig.getString("chain-id")
-      val n = parseHexOrDecNumber(s)
-      require(n >= 0 && n <= 127, "chain-id must be a number in range [0, 127]")
-      n.toByte
+      parseHexOrDecNumber(s)
     }
 
     val networkId: Int = blockchainConfig.getInt("network-id")

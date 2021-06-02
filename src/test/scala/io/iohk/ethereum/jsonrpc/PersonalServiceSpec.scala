@@ -396,7 +396,7 @@ class PersonalServiceSpec
     val txValue = 128000
 
     val blockchainConfig = BlockchainConfig(
-      chainId = 0x03.toByte,
+      chainId = 0x03,
       //unused
       networkId = 1,
       maxCodeSize = None,

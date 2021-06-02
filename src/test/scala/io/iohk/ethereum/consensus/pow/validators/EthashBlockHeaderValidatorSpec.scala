@@ -411,7 +411,7 @@ class EthashBlockHeaderValidatorSpec
       }),
       // unused
       maxCodeSize = None,
-      chainId = 0x3d.toByte,
+      chainId = 0x3d,
       networkId = 1,
       monetaryPolicyConfig = null,
       customGenesisFileOpt = None,

@@ -15,8 +15,8 @@ class SignedTransactionSpec extends AnyFlatSpec with Matchers with ScalaCheckPro
   "SignedTransaction" should "correctly set pointSign for chainId with chain specific signing schema" in {
     forAll(Generators.transactionGen(), Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
       (tx, key) =>
-        val chainId: Byte = 0x3d
-        val allowedPointSigns = Set((chainId * 2 + 35).toByte, (chainId * 2 + 36).toByte)
+        val chainId: BigInt = 0x3d
+        val allowedPointSigns = Set(chainId * 2 + 35, chainId * 2 + 36)
         //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
         val address = Address(
           crypto
