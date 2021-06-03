@@ -13,8 +13,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   AwaitingBodiesToBeIgnored,
   AwaitingHeadersToBeIgnored,
   HeadersNotFormingSeq,
-  HeadersNotMatchingReadyBlocks,
-  HeadersNotMatchingWaitingHeaders
+  HeadersNotMatchingReadyBlocks
 }
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
