@@ -11,17 +11,19 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 /** This is a wrapper around InMemoryWorldStateProxy.
   * Its only role is to store the storage key encountered during a run to store them for debugging purpose.
   */
-class TestModeWorldStateProxy(
-    stateStorage: MptStorage,
-    accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
-    contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]],
-    evmCodeStorage: EvmCodeStorage,
-    accountCodes: Map[Address, Code],
-    getBlockByNumber: (BigInt) => Option[ByteString],
-    accountStartNonce: UInt256,
-    touchedAccounts: Set[Address],
-    noEmptyAccountsCond: Boolean,
-    ethCompatibleStorage: Boolean,
+case class TestModeWorldStateProxy(
+    override val stateStorage: MptStorage,
+    override val accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]],
+    // format: off
+    override val contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]],
+    // format: on
+    override val evmCodeStorage: EvmCodeStorage,
+    override val accountCodes: Map[Address, Code],
+    override val getBlockByNumber: (BigInt) => Option[ByteString],
+    override val accountStartNonce: UInt256,
+    override val touchedAccounts: Set[Address],
+    override val noEmptyAccountsCond: Boolean,
+    override val ethCompatibleStorage: Boolean,
     saveStoragePreimage: (UInt256) => Unit
 ) extends InMemoryWorldStateProxy(
       stateStorage,
@@ -37,10 +39,10 @@ class TestModeWorldStateProxy(
     ) {
 
   override def saveAccount(address: Address, account: Account): TestModeWorldStateProxy =
-    copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
+    copy(accountsStateTrie = accountsStateTrie.put(address, account))
 
   override def deleteAccount(address: Address): TestModeWorldStateProxy =
-    copyWith(
+    copy(
       accountsStateTrie = accountsStateTrie.remove(address),
       contractStorages = contractStorages - address,
       accountCodes = accountCodes - address
@@ -48,51 +50,27 @@ class TestModeWorldStateProxy(
 
   override def touchAccounts(addresses: Address*): TestModeWorldStateProxy =
     if (noEmptyAccounts)
-      copyWith(touchedAccounts = touchedAccounts ++ addresses.toSet)
+      copy(touchedAccounts = touchedAccounts ++ addresses.toSet)
     else
       this
 
   override def clearTouchedAccounts: TestModeWorldStateProxy =
-    copyWith(touchedAccounts = touchedAccounts.empty)
+    copy(touchedAccounts = touchedAccounts.empty)
 
   override def keepPrecompileTouched(world: InMemoryWorldStateProxy): TestModeWorldStateProxy = {
     if (world.touchedAccounts.contains(ripmdContractAddress))
-      copyWith(touchedAccounts = touchedAccounts + ripmdContractAddress)
+      copy(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
   }
 
   override def saveCode(address: Address, code: ByteString): TestModeWorldStateProxy =
-    copyWith(accountCodes = accountCodes + (address -> code))
+    copy(accountCodes = accountCodes + (address -> code))
 
   override def saveStorage(address: Address, storage: InMemoryWorldStateProxyStorage): TestModeWorldStateProxy = {
     storage.wrapped.cache.foreach { case (key, _) => saveStoragePreimage(UInt256(key)) }
-    copyWith(contractStorages = contractStorages + (address -> storage.wrapped))
+    copy(contractStorages = contractStorages + (address -> storage.wrapped))
   }
-
-  private def copyWith(
-      stateStorage: MptStorage = stateStorage,
-      accountsStateTrie: InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
-        accountsStateTrie,
-      contractStorages: Map[Address, InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]] =
-        contractStorages,
-      evmCodeStorage: EvmCodeStorage = evmCodeStorage,
-      accountCodes: Map[Address, Code] = accountCodes,
-      touchedAccounts: Set[Address] = touchedAccounts
-  ): TestModeWorldStateProxy =
-    new TestModeWorldStateProxy(
-      stateStorage,
-      accountsStateTrie,
-      contractStorages,
-      evmCodeStorage,
-      accountCodes,
-      getBlockByNumber,
-      accountStartNonce,
-      touchedAccounts,
-      noEmptyAccountsCond,
-      ethCompatibleStorage,
-      saveStoragePreimage
-    )
 }
 
 object TestModeWorldStateProxy {
@@ -106,19 +84,18 @@ object TestModeWorldStateProxy {
       ethCompatibleStorage: Boolean,
       saveStoragePreimage: (UInt256) => Unit
   ): TestModeWorldStateProxy = {
-    val accountsStateTrieProxy = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash)
     new TestModeWorldStateProxy(
-      nodesKeyValueStorage,
-      accountsStateTrieProxy,
-      Map.empty,
-      evmCodeStorage,
-      Map.empty,
-      getBlockHashByNumber,
-      accountStartNonce,
-      Set.empty,
-      noEmptyAccounts,
-      ethCompatibleStorage,
-      saveStoragePreimage
+      stateStorage = nodesKeyValueStorage,
+      accountsStateTrie = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash),
+      contractStorages = Map.empty,
+      evmCodeStorage = evmCodeStorage,
+      accountCodes = Map.empty,
+      getBlockByNumber = getBlockHashByNumber,
+      accountStartNonce = accountStartNonce,
+      touchedAccounts = Set.empty,
+      noEmptyAccountsCond = noEmptyAccounts,
+      ethCompatibleStorage = ethCompatibleStorage,
+      saveStoragePreimage = saveStoragePreimage
     )
   }
 
