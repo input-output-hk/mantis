@@ -23,7 +23,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.{Peer, PeerEventBusActor, PeerId}
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
+import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, PV64}
 import io.iohk.ethereum.network.p2p.messages.PV62._
 import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -214,7 +214,7 @@ class BlockFetcher(
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
         fetchBlocks(newState)
 
-      case AdaptedMessageFromEventBus(CommonMessages.NewBlock(block, _), peerId) =>
+      case AdaptedMessageFromEventBus(BaseETH6XMessages.NewBlock(block, _), peerId) =>
         handleNewBlock(block, peerId, state)
 
       case AdaptedMessageFromEventBus(PV64.NewBlock(block, _), peerId) =>

@@ -16,7 +16,7 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.core.methods.request.{EthFilter, Transaction}
 import org.web3j.protocol.core.methods.response.EthBlock.{TransactionHash, TransactionObject}
 import org.web3j.protocol.http.HttpService
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions.SignedTransactionEnc
 import org.web3j.protocol.core.methods.response.EthLog.{Hash, LogObject}
 import io.iohk.ethereum.rpcTest.TestContracts._
 import io.iohk.ethereum.rpcTest.TestData._

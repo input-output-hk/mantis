@@ -11,7 +11,7 @@ import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 
-object CommonMessages {
+object BaseETH6XMessages {
   object Status {
     implicit class StatusEnc(val underlyingMsg: Status)
         extends MessageSerializableImplicit[Status](underlyingMsg)

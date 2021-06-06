@@ -13,12 +13,12 @@ import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.network.p2p.messages.{Capability, CommonMessages, PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{Capability, BaseETH6XMessages, PV64, ProtocolVersions}
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils._
@@ -308,7 +308,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait LocalPeerPV63Setup extends LocalPeerSetup {
-    val localStatusMsg = CommonMessages.Status(
+    val localStatusMsg = BaseETH6XMessages.Status(
       protocolVersion = ProtocolVersions.PV63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
@@ -347,7 +347,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
-    val remoteStatusMsg = CommonMessages.Status(
+    val remoteStatusMsg = BaseETH6XMessages.Status(
       protocolVersion = ProtocolVersions.PV63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,

@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.{Fixtures, ObjectGenerators}
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.network.p2p.messages._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.util.encoders.Hex
@@ -181,7 +181,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   }
 
   it should "decode Status message for all supported versions of protocol" in {
-    val status63 = CommonMessages.Status(ProtocolVersions.PV63.version, 1, BigInt(100), exampleHash, exampleHash)
+    val status63 = BaseETH6XMessages.Status(ProtocolVersions.PV63.version, 1, BigInt(100), exampleHash, exampleHash)
     val status63Bytes: Array[Byte] = status63.toBytes
     val status64 = PV64.Status(ProtocolVersions.PV63.version, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
 

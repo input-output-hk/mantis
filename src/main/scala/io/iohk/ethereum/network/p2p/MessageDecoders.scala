@@ -1,7 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
 import io.iohk.ethereum.network.p2p.messages.{Capability, Codes}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies._
 import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders._
@@ -48,10 +48,10 @@ object EthereumMessageDecoder extends MessageDecoder {
   private def handleCommonMessages(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.StatusCode =>
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.Status._
+        import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status._
         payload.toStatus
       case Codes.NewBlockCode =>
-        import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock._
+        import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
         payload.toNewBlock
       case Codes.SignedTransactionsCode =>
         payload.toSignedTransactions
