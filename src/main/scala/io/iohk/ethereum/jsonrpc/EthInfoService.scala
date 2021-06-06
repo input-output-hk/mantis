@@ -76,14 +76,14 @@ class EthInfoService(
     stxLedger: StxLedger,
     keyStore: KeyStore,
     syncingController: ActorRef,
-    protocolVersion: Capability,
+    capability: Capability,
     askTimeout: Timeout
 ) extends ResolveBlock {
 
   import EthInfoService._
 
   def protocolVersion(req: ProtocolVersionRequest): ServiceResponse[ProtocolVersionResponse] =
-    Task.now(Right(ProtocolVersionResponse(f"0x${protocolVersion.version}%x")))
+    Task.now(Right(ProtocolVersionResponse(f"0x${capability.version}%x")))
 
   def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
     Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))

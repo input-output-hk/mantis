@@ -152,33 +152,29 @@ class RLPxConnectionHandler(
       result match {
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.info(s"Auth handshake succeeded for peer $peerId")
-
-          //expect Hello
           val frameCodec = new FrameCodec(secrets)
           val frames = frameCodec.readFrames(remainingData)
-          frames.headOption.flatMap(extractHello) match {
-            case Some(h) =>
-              val protocolVersion = Capability.negotiate(h.capabilities.toList, capabilities)
-              val p2pVersion = h.p2pVersion
-              protocolVersion match {
-                case Some(value) =>
-                  context.parent ! ConnectionEstablished(remotePubKey, value)
-                  context.parent ! MessageReceived(h)
-                  val messageCodec = messageCodecFactory(frameCodec, messageDecoder, value, p2pVersion)
-                  val restFrames = frames.drop(1)
-                  if (restFrames.nonEmpty) {
-                    val messagesSoFar = messageCodec.readFrames(restFrames) // omit hello
-                    messagesSoFar foreach processMessage
-                  }
-                  context become handshaked(messageCodec)
-                case None =>
-                  log.debug(s"[Stopping Connection] Unable to connect to $peerId, no common capability found ${h.capabilities} and $capabilities")
-                  context.parent ! ConnectionFailed
-                  context stop self
+          val messageCodecOpt = for {
+            frame <- frames.headOption
+            hello <- extractHello(frame)
+            protocolVersion <- Capability.negotiate(hello.capabilities.toList, capabilities)
+            p2pVersion = hello.p2pVersion
+            messageCodec = messageCodecFactory(frameCodec, messageDecoder, protocolVersion, p2pVersion)
+            _ = context.parent ! ConnectionEstablished(remotePubKey, protocolVersion)
+            _ = context.parent ! MessageReceived(hello)
+            restFrames = frames.drop(1)
+            _ = {
+              if (restFrames.nonEmpty) {
+                val messagesSoFar = messageCodec.readFrames(restFrames) // omit hello
+                messagesSoFar foreach processMessage
               }
-
+            }
+          } yield messageCodec
+          messageCodecOpt match {
+            case Some(messageCodec) =>
+              context become handshaked(messageCodec)
             case None =>
-              log.debug(s"[Stopping Connection] Unable to connect to $peerId, 'Hello' not found")
+              log.debug(s"[Stopping Connection] Unable to connect to $peerId")
               context.parent ! ConnectionFailed
               context stop self
           }
