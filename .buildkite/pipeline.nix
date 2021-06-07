@@ -25,6 +25,7 @@ in
       command = ''
         nix-shell --run '$SBT scalafmtCheck'
       '';
+      retry.automatic = false;
     };
 
     compile = commonAttrs // {
@@ -33,6 +34,7 @@ in
       command = ''
         nix-shell --run '$SBT compile-all'
       '';
+      retry.automatic = false;
     };
 
     style = commonAttrs // {
@@ -41,6 +43,7 @@ in
       command = ''
         nix-shell --run '$SBT scalastyle test:scalastyle'
       '';
+      retry.automatic = false;
     };
 
     test-bytes = commonAttrs // {
@@ -160,6 +163,9 @@ in
       command = ''
         nix-shell --run '$SBT benchmark:compile dist'
       '';
+      artifactPaths = [
+        "target/universal/mantis-*.zip"
+      ];
     };
 
     publish = commonAttrs // {
