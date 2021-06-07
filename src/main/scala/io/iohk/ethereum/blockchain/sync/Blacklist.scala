@@ -11,6 +11,7 @@ import scala.jdk.DurationConverters._
 import Blacklist._
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
+import io.iohk.ethereum.network.NetworkMetrics
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 trait Blacklist {
@@ -55,6 +56,7 @@ object Blacklist {
       def group: String
     }
     object BlacklistReasonType {
+
       case object WrongBlockHeadersType extends BlacklistReasonType with FastSyncBlacklistGroup {
         val code: Int = 1
         val name: String = "WrongBlockHeadersType"
@@ -327,6 +329,11 @@ final case class CacheBasedBlacklist(cache: Cache[BlacklistId, BlacklistReasonTy
 
   override def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit = {
     log.info("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason.description)
+    reason.reasonType.group match {
+      case "FastSyncBlacklistGroup" => NetworkMetrics.BlacklistedReasonsFastSyncGroup.increment()
+      case "RegularSyncBlacklistGroup" => NetworkMetrics.BlacklistedReasonsRegularSyncGroup.increment()
+      case "P2PBlacklistGroup" => NetworkMetrics.BlacklistedReasonsP2PGroup.increment()
+    }
     cache.policy().expireVariably().toScala match {
       case Some(varExpiration) => varExpiration.put(id, reason.reasonType, duration.toJava)
       case None =>
