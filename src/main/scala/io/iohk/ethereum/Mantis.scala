@@ -2,6 +2,7 @@ package io.iohk.ethereum
 
 import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
 import io.iohk.ethereum.utils.{Config, Logger}
+import org.rocksdb
 
 import java.nio.file.{Files, Paths}
 import java.util.logging.LogManager
@@ -24,14 +25,7 @@ object Mantis extends Logger {
   }
 
   private def deleteRocksDBFiles(): Unit = {
-    val path = Paths.get(Config.Db.RocksDb.path)
-    if (path.toFile.exists()) {
-      log.info("Deleting previous database {}", Config.Db.RocksDb.path)
-      Files
-        .list(path)
-        .map(_.toFile)
-        .filter(_.isFile)
-        .forEach(f => f.delete())
-    }
+    log.warn("Deleting previous database {}", Config.Db.RocksDb.path)
+    rocksdb.RocksDB.destroyDB(Config.Db.RocksDb.path, new rocksdb.Options())
   }
 }
