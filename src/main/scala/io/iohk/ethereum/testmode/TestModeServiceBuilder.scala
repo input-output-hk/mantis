@@ -12,7 +12,7 @@ import monix.execution.Scheduler
 
 trait TestModeServiceBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
-    with BlockchainBuilder
+    with TestBlockchainBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder
@@ -31,7 +31,7 @@ trait TestModeServiceBuilder extends LedgerBuilder {
       vm
     )
 
-  private def testLedger: Ledger = testModeComponentsProvider.ledger(blockchainConfig)
+  private def testLedger: Ledger = testModeComponentsProvider.ledger(blockchainConfig, SealEngineType.NoReward)
 
   class TestLedgerProxy extends Ledger {
     override def consensus: Consensus = testLedger.consensus
@@ -45,5 +45,6 @@ trait TestModeServiceBuilder extends LedgerBuilder {
   }
 
   override lazy val ledger: Ledger = new TestLedgerProxy
-  override lazy val stxLedger: StxLedger = testModeComponentsProvider.stxLedger(blockchainConfig)
+  override lazy val stxLedger: StxLedger =
+    testModeComponentsProvider.stxLedger(blockchainConfig, SealEngineType.NoReward)
 }

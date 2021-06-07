@@ -2,6 +2,9 @@ package io.iohk.ethereum
 
 import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
 import io.iohk.ethereum.utils.{Config, Logger}
+import org.rocksdb
+
+import java.nio.file.{Files, Paths}
 import java.util.logging.LogManager
 
 object Mantis extends Logger {
@@ -11,6 +14,7 @@ object Mantis extends Logger {
     val node =
       if (Config.testmode) {
         log.info("Starting Mantis in test mode")
+        deleteRocksDBFiles()
         new TestNode
       } else new StdNode
 
@@ -18,5 +22,10 @@ object Mantis extends Logger {
     log.info("Using network {}", Config.blockchains.network)
 
     node.start()
+  }
+
+  private def deleteRocksDBFiles(): Unit = {
+    log.warn("Deleting previous database {}", Config.Db.RocksDb.path)
+    rocksdb.RocksDB.destroyDB(Config.Db.RocksDb.path, new rocksdb.Options())
   }
 }

@@ -19,10 +19,28 @@ class TestModeComponentsProvider(
     vm: VMImpl
 ) {
 
-  def ledger(blockchainConfig: BlockchainConfig): Ledger =
-    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus(blockchainConfig), validationExecutionContext)
-  def stxLedger(blockchainConfig: BlockchainConfig): StxLedger =
-    new StxLedger(blockchain, blockchainConfig, consensus(blockchainConfig).blockPreparator)
-  def consensus(blockchainConfig: BlockchainConfig, blockTimestamp: Long = 0): TestmodeConsensus =
-    new TestmodeConsensus(vm, blockchain, blockchainConfig, consensusConfig, difficultyCalculator, blockTimestamp)
+  def ledger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): Ledger =
+    new LedgerImpl(
+      blockchain,
+      blockchainConfig,
+      syncConfig,
+      consensus(blockchainConfig, sealEngine),
+      validationExecutionContext
+    )
+  def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
+    new StxLedger(blockchain, blockchainConfig, consensus(blockchainConfig, sealEngine).blockPreparator)
+  def consensus(
+      blockchainConfig: BlockchainConfig,
+      sealEngine: SealEngineType,
+      blockTimestamp: Long = 0
+  ): TestmodeConsensus =
+    new TestmodeConsensus(
+      vm,
+      blockchain,
+      blockchainConfig,
+      consensusConfig,
+      difficultyCalculator,
+      sealEngine,
+      blockTimestamp
+    )
 }

@@ -44,8 +44,22 @@ system. First, find the IP it should use:
 
     nix-in-docker/run --command "getent hosts host.docker.internal"
 
-Edit `ets/config/mantis` and replace `0.0.0.0` with this IP.
-
 Finally, run retesteth in Nix in Docker:
 
-    nix-in-docker/run --command "ets/retesteth -t GeneralStateTests"
+    nix-in-docker/run --command "ets/retesteth -t GeneralStateTests -- --nodes <ip>:8546"
+
+## Useful options:
+
+You can run one test by selecting one suite and using `--singletest`, for instance: 
+
+    nix-in-docker/run -t BlockchainTests/ValidBlocks/VMTests/vmArithmeticTest -- --nodes <ip>:8546 --singletest add0"
+
+However it's not always clear in wich subfolder the suite is when looking at the output of retesteth.
+
+To get more insight about what is happening, you can use `--verbosity 6`. It will print every RPC call 
+made by retesteth and also print out the state by using our `debug_*` endpoints. Note however that 
+`debug_accountRange` and `debug_storageRangeAt` implementations are not complete at the moment :
+
+ - `debug_accountRange` will only list accounts known at the genesis state. 
+ - `debug_storageRangeAt` is not able to show the state after an arbitrary transaction inside a block.
+It will just return the state after all transaction in the block have run.

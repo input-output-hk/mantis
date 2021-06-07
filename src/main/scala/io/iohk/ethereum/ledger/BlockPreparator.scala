@@ -54,48 +54,48 @@ class BlockPreparator(
     * @param worldStateProxy the initial state
     * @return the state after paying the appropriate reward to who corresponds
     */
-  private[ledger] def payBlockReward(
+  protected[ledger] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
-    if (!Config.testmode) {
-      val blockNumber = block.header.number
-      val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
-      val minerRewardForOmmers =
-        blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
-      val minerAddress = Address(block.header.beneficiary)
-      val treasuryAddress = blockchainConfig.treasuryAddress
-      val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
+  ): InMemoryWorldStateProxy = {
+    val blockNumber = block.header.number
+    val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
+    val minerRewardForOmmers =
+      blockRewardCalculator.calculateMiningRewardForOmmers(blockNumber, block.body.uncleNodesList.size)
+    val minerAddress = Address(block.header.beneficiary)
+    val treasuryAddress = blockchainConfig.treasuryAddress
+    val existsTreasuryContract = worldStateProxy.getAccount(treasuryAddress).isDefined
 
-      val worldAfterPayingBlockReward =
-        if (!treasuryEnabled(blockNumber) || !existsTreasuryContract) {
-          val minerReward = minerRewardForOmmers + minerRewardForBlock
-          val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
-          log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
-          worldAfterMinerReward
-        } else {
-          val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
-          val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
-          val treasuryReward = minerRewardForBlock * TreasuryRewardPercentageAfterECIP1098 / 100
-          val worldAfterTreasuryReward =
-            increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
-          log.debug(
-            s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress" +
-              s"paying treasury reward of $treasuryReward to treasury with address $treasuryAddress"
-          )
-          worldAfterTreasuryReward
-        }
-      block.body.uncleNodesList.foldLeft(worldAfterPayingBlockReward) { (ws, ommer) =>
-        val ommerAddress = Address(ommer.beneficiary)
-        val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number)
-
-        log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
-        increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
+    val worldAfterPayingBlockReward =
+      if (!treasuryEnabled(blockNumber) || !existsTreasuryContract) {
+        val minerReward = minerRewardForOmmers + minerRewardForBlock
+        val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
+        log.debug("Paying block {} reward of {} to miner with address {}", blockNumber, minerReward, minerAddress)
+        worldAfterMinerReward
+      } else {
+        val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
+        val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
+        val treasuryReward = minerRewardForBlock * TreasuryRewardPercentageAfterECIP1098 / 100
+        val worldAfterTreasuryReward =
+          increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
+        log.debug(
+          "Paying block {} reward of {} to miner with address {} paying treasury reward of {} to treasury with address {}",
+          blockNumber,
+          minerReward,
+          minerAddress,
+          treasuryReward,
+          treasuryAddress
+        )
+        worldAfterTreasuryReward
       }
-    } else {
-      //FIXME needs to be part of setting up the application and not a runtime flag
-      worldStateProxy
+    block.body.uncleNodesList.foldLeft(worldAfterPayingBlockReward) { (ws, ommer) =>
+      val ommerAddress = Address(ommer.beneficiary)
+      val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number)
+
+      log.debug("Paying block {} reward of {} to ommer with account address {}", blockNumber, ommerReward, ommerAddress)
+      increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
     }
+  }
 
   private def treasuryEnabled(blockNo: BigInt): Boolean =
     blockNo >= blockchainConfig.forkBlockNumbers.ecip1098BlockNumber
