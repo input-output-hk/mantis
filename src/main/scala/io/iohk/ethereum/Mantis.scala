@@ -3,8 +3,8 @@ package io.iohk.ethereum
 import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
 import io.iohk.ethereum.utils.{Config, Logger}
 
+import java.nio.file.{Files, Paths}
 import java.util.logging.LogManager
-import scala.reflect.io.Directory
 
 object Mantis extends Logger {
   def main(args: Array[String]): Unit = {
@@ -13,8 +13,7 @@ object Mantis extends Logger {
     val node =
       if (Config.testmode) {
         log.info("Starting Mantis in test mode")
-        log.info("Deleting previous database {}", Config.Db.RocksDb.path)
-        Directory(Config.Db.RocksDb.path).deleteRecursively()
+        deleteRocksDBFiles()
         new TestNode
       } else new StdNode
 
@@ -22,5 +21,17 @@ object Mantis extends Logger {
     log.info("Using network {}", Config.blockchains.network)
 
     node.start()
+  }
+
+  private def deleteRocksDBFiles(): Unit = {
+    val path = Paths.get(Config.Db.RocksDb.path)
+    if (path.toFile.exists()) {
+      log.info("Deleting previous database {}", Config.Db.RocksDb.path)
+      Files
+        .list(path)
+        .map(_.toFile)
+        .filter(_.isFile)
+        .forEach(f => f.delete())
+    }
   }
 }
