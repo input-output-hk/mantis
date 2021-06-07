@@ -37,7 +37,6 @@ You can also run parts of the suite; refer to `ets/retesteth --help` for details
 You should run Mantis outside Nix as that is probably more convenient for your
 tooling (eg. attaching a debugger.)
 
-    rm -rf ~/.mantis/test # delete the storage to be sure no previous run is affecting the tests
     sbt -Dconfig.file=./src/main/resources/conf/testmode.conf -Dlogging.logs-level=WARN run
 
 Retesteth will need to be able to connect to Mantis, running on the host
@@ -51,7 +50,7 @@ Finally, run retesteth in Nix in Docker:
 
 ## Useful options:
 
-You can run one test be selecting one suite and using `--singletest`, for instance: 
+You can run one test by selecting one suite and using `--singletest`, for instance: 
 
     nix-in-docker/run -t BlockchainTests/ValidBlocks/VMTests/vmArithmeticTest -- --nodes <ip>:8546 --singletest add0"
 
