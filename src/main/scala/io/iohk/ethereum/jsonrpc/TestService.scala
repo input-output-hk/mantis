@@ -260,7 +260,7 @@ class TestService(
 
   def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] = {
     Try(decode(request.blockRlp).toBlock) match {
-      case Failure(e) =>
+      case Failure(_) =>
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider

@@ -3,7 +3,6 @@ package io.iohk.ethereum
 import io.iohk.ethereum.nodebuilder.{StdNode, TestNode}
 import io.iohk.ethereum.utils.{Config, Logger}
 
-import java.nio.file.Path
 import java.util.logging.LogManager
 import scala.reflect.io.Directory
 
@@ -14,7 +13,7 @@ object Mantis extends Logger {
     val node =
       if (Config.testmode) {
         log.info("Starting Mantis in test mode")
-        log.info(s"Deleting previous database ${Config.Db.RocksDb.path}")
+        log.info("Deleting previous database {}", Config.Db.RocksDb.path)
         Directory(Config.Db.RocksDb.path).deleteRecursively()
         new TestNode
       } else new StdNode
