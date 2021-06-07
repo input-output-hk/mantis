@@ -70,7 +70,7 @@ class BlockPreparator(
       if (!treasuryEnabled(blockNumber) || !existsTreasuryContract) {
         val minerReward = minerRewardForOmmers + minerRewardForBlock
         val worldAfterMinerReward = increaseAccountBalance(minerAddress, UInt256(minerReward))(worldStateProxy)
-        log.debug(s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress")
+        log.debug("Paying block {} reward of {} to miner with address {}", blockNumber, minerReward, minerAddress)
         worldAfterMinerReward
       } else {
         val minerReward = minerRewardForOmmers + minerRewardForBlock * MinerRewardPercentageAfterECIP1098 / 100
@@ -79,8 +79,12 @@ class BlockPreparator(
         val worldAfterTreasuryReward =
           increaseAccountBalance(treasuryAddress, UInt256(treasuryReward))(worldAfterMinerReward)
         log.debug(
-          s"Paying block $blockNumber reward of $minerReward to miner with address $minerAddress" +
-            s"paying treasury reward of $treasuryReward to treasury with address $treasuryAddress"
+          "Paying block {} reward of {} to miner with address {} paying treasury reward of {} to treasury with address {}",
+          blockNumber,
+          minerReward,
+          minerAddress,
+          treasuryReward,
+          treasuryAddress
         )
         worldAfterTreasuryReward
       }
@@ -88,7 +92,7 @@ class BlockPreparator(
       val ommerAddress = Address(ommer.beneficiary)
       val ommerReward = blockRewardCalculator.calculateOmmerRewardForInclusion(blockNumber, ommer.number)
 
-      log.debug(s"Paying block $blockNumber reward of $ommerReward to ommer with account address $ommerAddress")
+      log.debug("Paying block {} reward of {} to ommer with account address {}", blockNumber, ommerReward, ommerAddress)
       increaseAccountBalance(ommerAddress, UInt256(ommerReward))(ws)
     }
   }
