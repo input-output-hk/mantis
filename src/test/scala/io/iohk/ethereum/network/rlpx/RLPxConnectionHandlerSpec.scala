@@ -5,11 +5,12 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.io.Tcp
 import akka.testkit.{TestActorRef, TestKit, TestProbe}
 import akka.util.ByteString
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
 import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Hello, Ping}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, MessageReceived, RLPxConfiguration}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
@@ -96,6 +97,9 @@ class RLPxConnectionHandlerSpec
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
 
+    val expectedHello = rlpxConnectionParent.expectMsgType[MessageReceived]
+    expectedHello.message shouldBe a[Hello]
+
     //The rlpx connection is closed after a timeout happens (after rlpxConfiguration.waitForTcpAckTimeout) and it is processed
     rlpxConnectionParent.expectTerminated(
       rlpxConnection,
@@ -179,6 +183,7 @@ class RLPxConnectionHandlerSpec
     val mockHandshaker = mock[AuthHandshaker]
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
+    val mockHelloExtractor: HelloExtractor = mock[HelloExtractor]
 
     val uri = new URI(
       "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
@@ -198,10 +203,11 @@ class RLPxConnectionHandlerSpec
       Props(
         new RLPxConnectionHandler(
           mockMessageDecoder,
-          protocolVersion,
+          protocolVersion:: Nil,
           mockHandshaker,
-          (_, _, _) => mockMessageCodec,
-          rlpxConfiguration
+          (_, _, _, _) => mockMessageCodec,
+          rlpxConfiguration,
+          _ => mockHelloExtractor
         ) {
           override def tcpActor: ActorRef = tcpActorProbe.ref
         }
@@ -222,6 +228,9 @@ class RLPxConnectionHandlerSpec
       (mockHandshaker.handleInitialMessage _)
         .expects(data)
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
+      (mockHelloExtractor.readHello _)
+        .expects(ByteString.empty)
+        .returning(Some(Hello(5, "", Capabilities.Eth63Capability::Nil, 30303, ByteString("abc")), Seq.empty))
       (mockMessageCodec.readMessages _)
         .expects(ByteString.empty)
         .returning(Nil) //For processing of messages after handshaking finishes

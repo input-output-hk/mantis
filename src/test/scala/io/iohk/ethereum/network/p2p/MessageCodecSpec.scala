@@ -2,6 +2,7 @@ package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
+import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState.P2pVersion
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
@@ -26,6 +27,9 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "compress messages when remote side advertises p2p version larger or equal 5" in new TestSetup {
+    override lazy val negotiatedRemoteP2PVersion: Long = 5L
+    override lazy val negotiatedLocalP2PVersion: Long = 4L
+
     val remoteHello = remoteMessageCodec.encodeMessage(helloV5)
     val localReceivedRemoteHello = messageCodec.readMessages(remoteHello)
 
@@ -73,6 +77,8 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
   trait TestSetup extends SecureChannelSetup {
     val frameCodec = new FrameCodec(secrets)
     val remoteFrameCodec = new FrameCodec(remoteSecrets)
+    lazy val negotiatedRemoteP2PVersion: Long = 5L
+    lazy val negotiatedLocalP2PVersion: Long = 5L
 
     val helloV5 = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
@@ -94,8 +100,8 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     val decoder = NetworkMessageDecoder orElse EthereumMessageDecoder
 
-    val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.PV63)
-    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.PV63)
+    val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.PV63, negotiatedLocalP2PVersion)
+    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.PV63, negotiatedRemoteP2PVersion)
 
   }
 

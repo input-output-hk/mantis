@@ -172,7 +172,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Capability => Handshaker[PeerInfo] = c => EtcHandshaker(handshakerConfiguration, c)
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
@@ -193,7 +193,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
-      Capability.best(blockchainConfig.capabilities)
+      blockchainConfig.capabilities
     ),
     "peer-manager"
   )

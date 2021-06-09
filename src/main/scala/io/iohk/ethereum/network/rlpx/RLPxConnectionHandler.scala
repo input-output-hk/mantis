@@ -9,7 +9,7 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable, NetworkMessageDecoder}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, RLPxConfiguration}
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 
@@ -33,7 +33,8 @@ class RLPxConnectionHandler(
     capabilities: List[Capability],
     authHandshaker: AuthHandshaker,
     messageCodecFactory: (FrameCodec, MessageDecoder, Capability, Long) => MessageCodec,
-    rlpxConfiguration: RLPxConfiguration
+    rlpxConfiguration: RLPxConfiguration,
+    extractor: Secrets => HelloExtractor
 ) extends Actor
     with ActorLogging {
 
@@ -152,17 +153,15 @@ class RLPxConnectionHandler(
       result match {
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.info(s"Auth handshake succeeded for peer $peerId")
-          val frameCodec = new FrameCodec(secrets)
-          val frames = frameCodec.readFrames(remainingData)
+          val e = extractor(secrets)
           val messageCodecOpt = for {
-            frame <- frames.headOption
-            hello <- extractHello(frame)
+            r <- e.readHello(remainingData)
+            (hello, restFrames) = r
             protocolVersion <- Capability.negotiate(hello.capabilities.toList, capabilities)
             p2pVersion = hello.p2pVersion
-            messageCodec = messageCodecFactory(frameCodec, messageDecoder, protocolVersion, p2pVersion)
+            messageCodec = messageCodecFactory(e.frameCodec, messageDecoder, protocolVersion, p2pVersion)
             _ = context.parent ! ConnectionEstablished(remotePubKey, protocolVersion)
             _ = context.parent ! MessageReceived(hello)
-            restFrames = frames.drop(1)
             _ = {
               if (restFrames.nonEmpty) {
                 val messagesSoFar = messageCodec.readFrames(restFrames) // omit hello
@@ -184,17 +183,6 @@ class RLPxConnectionHandler(
           context.parent ! ConnectionFailed
           context stop self
       }
-
-    private def extractHello(frame: Frame): Option[Hello] = {
-      val frameData = frame.payload.toArray
-      if(frame.`type` == Hello.code) {
-        val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
-        Some(m.asInstanceOf[Hello])
-      } else {
-        log.error("Unable to find 'Hello'")
-        None
-      }
-    }
 
     def processMessage(messageTry: Try[Message]): Unit = messageTry match {
       case Success(message) =>
@@ -322,7 +310,9 @@ object RLPxConnectionHandler {
       rlpxConfiguration: RLPxConfiguration
   ): Props =
     Props(
-      new RLPxConnectionHandler(messageDecoder, capabilities, authHandshaker, messageCodecFactory, rlpxConfiguration)
+      new RLPxConnectionHandler(
+        messageDecoder, capabilities, authHandshaker, messageCodecFactory, rlpxConfiguration, HelloExtractor.apply
+      )
     )
 
   def messageCodecFactory(
@@ -358,4 +348,22 @@ object RLPxConnectionHandler {
     val waitForTcpAckTimeout: FiniteDuration
   }
 
+  case class HelloExtractor(secrets: Secrets) {
+    lazy val frameCodec = new FrameCodec(secrets)
+
+    def readHello(remainingData: ByteString): Option[(Hello, Seq[Frame])] = {
+      val frames = frameCodec.readFrames(remainingData)
+      frames.headOption.flatMap(extractHello).map(h => (h, frames.drop(1)))
+    }
+  }
+
+  private def extractHello(frame: Frame): Option[Hello] = {
+    val frameData = frame.payload.toArray
+    if(frame.`type` == Hello.code) {
+      val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
+      Some(m.asInstanceOf[Hello])
+    } else {
+      None
+    }
+  }
 }

@@ -96,7 +96,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
-  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
+  lazy val handshaker: Capability => Handshaker[PeerInfo] = c => EtcHandshaker(handshakerConfiguration, c)
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 
@@ -116,7 +116,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
       blacklist = blacklist,
-      bestProtocolVersion = Capability.best(blockchainConfig.capabilities)
+      capabilities = blockchainConfig.capabilities
     ),
     "peer-manager"
   )

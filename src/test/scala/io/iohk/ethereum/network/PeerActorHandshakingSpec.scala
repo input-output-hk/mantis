@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.{ActorSystem, Props}
 import akka.testkit.{TestActorRef, TestProbe}
 import akka.util.ByteString
@@ -16,7 +15,7 @@ import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello, Pong}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.utils.Config
@@ -31,12 +30,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     import DefaultValues._
 
     val peerActorHandshakeSucceeds =
-      peerActor(MockHandshakerAlwaysSucceeds(defaultStatus, defaultBlockNumber, defaultForkAccepted))
+      peerActor(_ => MockHandshakerAlwaysSucceeds(defaultStatus, defaultBlockNumber, defaultForkAccepted))
 
     //Establish probe rlpxconnection
     peerActorHandshakeSucceeds ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
@@ -48,12 +47,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeFails = peerActor(MockHandshakerAlwaysFails(defaultReasonDisconnect))
+    val peerActorHandshakeFails = peerActor(_ => MockHandshakerAlwaysFails(defaultReasonDisconnect))
 
     //Establish probe rlpxconnection
     peerActorHandshakeFails ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     //Test that the handshake failed
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -64,12 +63,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultHello)
@@ -84,12 +83,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     time.advance(defaultTimeout * 2)
@@ -102,12 +101,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatusMsg)
@@ -120,12 +119,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) //Ignored
@@ -151,7 +150,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     val peerMessageBus = TestProbe()
     val knownNodesManager = TestProbe()
 
-    def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(
+    def peerActor(handshaker: Capability => Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(
       Props(
         new PeerActor(
           new InetSocketAddress("127.0.0.1", 0),

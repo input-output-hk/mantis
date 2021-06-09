@@ -29,7 +29,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     frames map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
-        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion) {
+        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && frame.`type` != Hello.code) {
           decompressData(frameData)
         } else {
           Success(frameData)
