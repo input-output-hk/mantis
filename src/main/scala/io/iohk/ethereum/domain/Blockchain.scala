@@ -320,7 +320,17 @@ class BlockchainImpl(
     val mpt =
       if (ethCompatibleStorage) domain.EthereumUInt256Mpt.storageMpt(rootHash, storage)
       else domain.ArbitraryIntegerMpt.storageMpt(rootHash, storage)
-    ByteString(mpt.get(position).getOrElse(BigInt(0)).toByteArray)
+
+    val bigIntValue = mpt.get(position).getOrElse(BigInt(0))
+    val byteArrayValue = bigIntValue.toByteArray
+
+    // BigInt.toArray actually might return one more byte than necessary because it adds a sign bit, which in our case
+    // will always be 0. This would add unwanted 0 bytes and might cause the value to be 33 byte long while an EVM
+    // word is 32 byte long.
+    if (bigIntValue != 0)
+      ByteString(byteArrayValue.dropWhile(_ == 0))
+    else
+      ByteString(byteArrayValue)
   }
 
   override def getStorageProofAt(

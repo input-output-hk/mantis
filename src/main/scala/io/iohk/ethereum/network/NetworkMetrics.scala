@@ -19,6 +19,12 @@ case object NetworkMetrics extends MetricsContainer {
 
   final val BlacklistedPeersSize = metrics.registry.gauge("network.peers.blacklisted.gauge", new AtomicLong(0))
 
+  final val BlacklistedReasonsFastSyncGroup =
+    metrics.registry.counter("network.peers.blacklisted.fastSyncGroup.counter")
+  final val BlacklistedReasonsRegularSyncGroup =
+    metrics.registry.counter("network.peers.blacklisted.regularSyncGroup.counter")
+  final val BlacklistedReasonsP2PGroup = metrics.registry.counter("network.peers.blacklisted.p2pGroup.counter")
+
   final val PendingPeersSize = metrics.registry.gauge("network.peers.pending.gauge", new AtomicLong(0))
 
   final val TriedPeersSize =
