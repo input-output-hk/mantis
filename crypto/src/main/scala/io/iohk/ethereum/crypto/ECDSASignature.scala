@@ -68,7 +68,7 @@ object ECDSASignature {
       case Some(id) if v == negativePointSign => id * 2 + newNegativePointSign
       case Some(id) if v == positivePointSign => id * 2 + newPositivePointSign
       case None => BigInt(v)
-      case _ => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
+      case _ => throw new IllegalStateException(s"Unexpected pointSign. ChainId: $chainId, v: $v")
     }
 
     ECDSASignature(r, s, pointSign)
