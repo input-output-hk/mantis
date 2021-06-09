@@ -311,7 +311,12 @@ object RLPxConnectionHandler {
   ): Props =
     Props(
       new RLPxConnectionHandler(
-        messageDecoder, capabilities, authHandshaker, messageCodecFactory, rlpxConfiguration, HelloExtractor.apply
+        messageDecoder,
+        capabilities,
+        authHandshaker,
+        messageCodecFactory,
+        rlpxConfiguration,
+        HelloExtractor.apply
       )
     )
 
@@ -359,7 +364,7 @@ object RLPxConnectionHandler {
 
   private def extractHello(frame: Frame): Option[Hello] = {
     val frameData = frame.payload.toArray
-    if(frame.`type` == Hello.code) {
+    if (frame.`type` == Hello.code) {
       val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
       Some(m.asInstanceOf[Hello])
     } else {

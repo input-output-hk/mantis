@@ -30,7 +30,9 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
       case ProtocolVersions.ETC64 => EtcNodeStatus64ExchangeState(handshakerConfiguration)
       case ProtocolVersions.ETH63 => EtcNodeStatus63ExchangeState(handshakerConfiguration)
       case _ =>
-        log.debug(s"Connected peer does not support ${ProtocolVersions.ETH63} / ${ProtocolVersions.ETC64} protocol. Disconnecting.")
+        log.debug(
+          s"Connected peer does not support ${ProtocolVersions.ETH63} / ${ProtocolVersions.ETC64} protocol. Disconnecting."
+        )
         DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
     }
   }

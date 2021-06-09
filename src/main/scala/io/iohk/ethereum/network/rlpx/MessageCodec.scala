@@ -10,7 +10,12 @@ import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
-class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Capability, val remotePeer2PeerVersion: Long) {
+class MessageCodec(
+    frameCodec: FrameCodec,
+    messageDecoder: MessageDecoder,
+    protocolVersion: Capability,
+    val remotePeer2PeerVersion: Long
+) {
 
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
 

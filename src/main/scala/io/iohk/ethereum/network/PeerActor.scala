@@ -83,7 +83,12 @@ class PeerActor[R <: HandshakeResult](
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, capability) =>
         val newUri =
           rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
-        processHandshakerNextMessage(initHandshaker(capability), remoteNodeId, rlpxConnection.copy(uriOpt = newUri), numRetries)
+        processHandshakerNextMessage(
+          initHandshaker(capability),
+          remoteNodeId,
+          rlpxConnection.copy(uriOpt = newUri),
+          numRetries
+        )
 
       case RLPxConnectionHandler.ConnectionFailed =>
         log.debug("Failed to establish RLPx connection")
