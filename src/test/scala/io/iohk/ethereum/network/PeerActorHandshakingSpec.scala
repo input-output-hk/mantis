@@ -30,12 +30,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     import DefaultValues._
 
     val peerActorHandshakeSucceeds =
-      peerActor(_ => MockHandshakerAlwaysSucceeds(defaultStatus, defaultBlockNumber, defaultForkAccepted))
+      peerActor(MockHandshakerAlwaysSucceeds(defaultStatus, defaultBlockNumber, defaultForkAccepted))
 
     //Establish probe rlpxconnection
     peerActorHandshakeSucceeds ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
@@ -47,12 +47,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeFails = peerActor(_ => MockHandshakerAlwaysFails(defaultReasonDisconnect))
+    val peerActorHandshakeFails = peerActor(MockHandshakerAlwaysFails(defaultReasonDisconnect))
 
     //Establish probe rlpxconnection
     peerActorHandshakeFails ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     //Test that the handshake failed
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -63,12 +63,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultHello)
@@ -83,12 +83,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     time.advance(defaultTimeout * 2)
@@ -101,12 +101,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatusMsg)
@@ -119,12 +119,12 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
     import DefaultValues._
 
-    val peerActorHandshakeRequiresHello = peerActor(_ => MockHandshakerRequiresHello())
+    val peerActorHandshakeRequiresHello = peerActor(MockHandshakerRequiresHello())
 
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString()))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) //Ignored
@@ -150,7 +150,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     val peerMessageBus = TestProbe()
     val knownNodesManager = TestProbe()
 
-    def peerActor(handshaker: Capability => Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(
+    def peerActor(handshaker: Handshaker[PeerInfo]): TestActorRef[PeerActor[PeerInfo]] = TestActorRef(
       Props(
         new PeerActor(
           new InetSocketAddress("127.0.0.1", 0),

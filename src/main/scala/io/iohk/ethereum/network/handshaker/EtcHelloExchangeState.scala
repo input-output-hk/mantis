@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
 
-case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration, capability: Capability)
+case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
     extends InProgressState[PeerInfo]
     with Logger {
 
@@ -26,9 +26,10 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
 
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case hello: Hello =>
     log.debug("Protocol handshake finished with peer ({})", hello)
-    capability match {
-      case ProtocolVersions.ETC64 => EtcNodeStatus64ExchangeState(handshakerConfiguration)
-      case ProtocolVersions.ETH63 => EtcNodeStatus63ExchangeState(handshakerConfiguration)
+    // FIXME in principle this should be already negotiated
+    Capability.negotiate(hello.capabilities.toList, handshakerConfiguration.capabilities) match {
+      case Some(ProtocolVersions.ETC64) => EtcNodeStatus64ExchangeState(handshakerConfiguration)
+      case Some(ProtocolVersions.ETH63) => EtcNodeStatus63ExchangeState(handshakerConfiguration)
       case _ =>
         log.debug(
           s"Connected peer does not support ${ProtocolVersions.ETH63} / ${ProtocolVersions.ETC64} protocol. Disconnecting."

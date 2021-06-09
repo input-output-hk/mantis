@@ -98,9 +98,9 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
           bestHash = firstBlock.header.hash
         )
 
-    initHandshakerWithoutResolverETC64.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
+    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
 
-    val handshakerAfterHelloOpt = initHandshakerWithoutResolverETC64.applyMessage(remoteHello)
+    val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
     assert(handshakerAfterHelloOpt.isDefined)
     handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
 
@@ -232,7 +232,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   it should "fail if the remote peer doesn't support ETH63/ETC64" in new RemotePeerETH63Setup {
     val eth62Capability = ProtocolVersions.ETH62
     val handshakerAfterHelloOpt =
-      initHandshakerWithResolverETH62.applyMessage(remoteHello.copy(capabilities = Seq(eth62Capability)))
+      initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(eth62Capability)))
     assert(handshakerAfterHelloOpt.isDefined)
     handshakerAfterHelloOpt.get.nextMessage.leftSide shouldBe Left(
       HandshakeFailure(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
@@ -285,16 +285,9 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(
-      new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63)), ProtocolVersions.ETH63
-    )
-    val initHandshakerWithoutResolverETC64 = EtcHandshaker(
-      new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63)), ProtocolVersions.ETC64
-    )
+    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63)))
 
-    val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver, ProtocolVersions.ETH63)
-
-    val initHandshakerWithResolverETH62 = EtcHandshaker(etcHandshakerConfigurationWithResolver, ProtocolVersions.ETH62)
+    val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
     val firstBlock =
       genesisBlock.copy(header = genesisBlock.header.copy(parentHash = genesisBlock.header.hash, number = 1))

@@ -10,19 +10,21 @@ import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
+object MessageCodec {
+  val MaxFramePayloadSize: Int = Int.MaxValue // no framing
+  // 16Mb in base 2
+  val MaxDecompressedLength = 16777216
+}
+
 class MessageCodec(
     frameCodec: FrameCodec,
     messageDecoder: MessageDecoder,
     protocolVersion: Capability,
     val remotePeer2PeerVersion: Long
 ) {
-
-  val MaxFramePayloadSize: Int = Int.MaxValue // no framing
+  import MessageCodec._
 
   val contextIdCounter = new AtomicInteger
-
-  // 16Mb in base 2
-  val maxDecompressedLength = 16777216
 
   // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
@@ -48,7 +50,7 @@ class MessageCodec(
 
   private def decompressData(data: Array[Byte]): Try[Array[Byte]] = {
     Try(Snappy.uncompressedLength(data)).flatMap { decompressedSize =>
-      if (decompressedSize > maxDecompressedLength)
+      if (decompressedSize > MaxDecompressedLength)
         Failure(new RuntimeException("Message size larger than 16mb"))
       else
         Try(Snappy.uncompress(data))

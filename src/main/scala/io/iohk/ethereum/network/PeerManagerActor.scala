@@ -419,7 +419,7 @@ object PeerManagerActor {
       peerMessageBus: ActorRef,
       knownNodesManager: ActorRef,
       peerStatistics: ActorRef,
-      handshaker: Capability => Handshaker[R],
+      handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
@@ -456,7 +456,7 @@ object PeerManagerActor {
       config: PeerConfiguration,
       eventBus: ActorRef,
       knownNodesManager: ActorRef,
-      handshaker: Capability => Handshaker[R],
+      handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       capabilities: List[Capability]

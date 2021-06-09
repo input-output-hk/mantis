@@ -6,8 +6,9 @@ import akka.io.Tcp._
 import akka.io.{IO, Tcp}
 import akka.util.ByteString
 import cats.data.NonEmptyList
-import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages.{Capability, WireProtocol}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable, NetworkMessageDecoder}
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, RLPxConfiguration}
 import io.iohk.ethereum.utils.ByteUtils
@@ -152,36 +153,67 @@ class RLPxConnectionHandler(
     def processHandshakeResult(result: AuthHandshakeResult, remainingData: ByteString): Unit =
       result match {
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
-          log.info(s"Auth handshake succeeded for peer $peerId")
-          val e = extractor(secrets)
-          val messageCodecOpt = for {
-            r <- e.readHello(remainingData)
-            (hello, restFrames) = r
-            protocolVersion <- Capability.negotiate(hello.capabilities.toList, capabilities)
-            p2pVersion = hello.p2pVersion
-            messageCodec = messageCodecFactory(e.frameCodec, messageDecoder, protocolVersion, p2pVersion)
-            _ = context.parent ! ConnectionEstablished(remotePubKey, protocolVersion)
-            _ = context.parent ! MessageReceived(hello)
-            _ = {
-              if (restFrames.nonEmpty) {
-                val messagesSoFar = messageCodec.readFrames(restFrames) // omit hello
-                messagesSoFar foreach processMessage
-              }
-            }
-          } yield messageCodec
-          messageCodecOpt match {
-            case Some(messageCodec) =>
-              context become handshaked(messageCodec)
-            case None =>
-              log.debug(s"[Stopping Connection] Unable to connect to $peerId")
-              context.parent ! ConnectionFailed
-              context stop self
-          }
+          log.debug(s"Auth handshake succeeded for peer $peerId")
+          context.parent ! ConnectionEstablished(remotePubKey)
+          if (remainingData.nonEmpty)
+            context.self ! Received(remainingData)
+          context become awaitHello(extractor(secrets))
 
         case AuthHandshakeError =>
           log.debug(s"[Stopping Connection] Auth handshake failed for peer $peerId")
           context.parent ! ConnectionFailed
           context stop self
+      }
+
+    def awaitHello(extractor: HelloExtractor, cancellableAckTimeout: Option[CancellableAckTimeout] = None, seqNumber: Int = 0): Receive =
+      handleWriteFailed orElse handleConnectionClosed orElse {
+        case SendMessage(h: HelloEnc) =>
+          val out = extractor.writeHello(h)
+          connection ! Write(out, Ack)
+          val timeout = system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
+          context become awaitHello(extractor, Some(CancellableAckTimeout(seqNumber, timeout)), increaseSeqNumber(seqNumber))
+
+        case Ack if cancellableAckTimeout.nonEmpty =>
+          //Cancel pending message timeout
+          cancellableAckTimeout.foreach(_.cancellable.cancel())
+          context become awaitHello(extractor, None, seqNumber)
+
+        case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
+          cancellableAckTimeout.foreach(_.cancellable.cancel())
+          log.error(s"[Stopping Connection] Sending 'Hello' to $peerId failed")
+          context stop self
+
+        case Received(data) =>
+          extractor.readHello(data) match {
+            case Some((hello, restFrames)) =>
+              val messageCodecOpt = for {
+                messageCodec <- negotiateCodec(hello, extractor)
+                _ = context.parent ! MessageReceived(hello)
+                _ = processFrames(restFrames, messageCodec)
+              } yield messageCodec
+              messageCodecOpt match {
+                case Some(messageCodec) =>
+                  context become handshaked(messageCodec, cancellableAckTimeout = cancellableAckTimeout, seqNumber = seqNumber)
+                case None =>
+                  log.debug(s"[Stopping Connection] Unable to negotiate protocol with $peerId")
+                  context.parent ! ConnectionFailed
+                  context stop self
+              }
+            case None =>
+              log.debug(s"[Stopping Connection] Did not find 'Hello' in message from $peerId")
+              context become awaitHello(extractor, cancellableAckTimeout, seqNumber)
+          }
+      }
+
+    private def negotiateCodec(hello: Hello, extractor: HelloExtractor): Option[MessageCodec] =
+      Capability.negotiate(hello.capabilities.toList, capabilities).map { negotiated =>
+        messageCodecFactory(extractor.frameCodec, messageDecoder, negotiated, hello.p2pVersion)
+      }
+
+    private def processFrames(frames: Seq[Frame], messageCodec: MessageCodec): Unit =
+      if (frames.nonEmpty) {
+        val messagesSoFar = messageCodec.readFrames(frames) // omit hello
+        messagesSoFar foreach processMessage
       }
 
     def processMessage(messageTry: Try[Message]): Unit = messageTry match {
@@ -299,7 +331,6 @@ class RLPxConnectionHandler(
       context stop self
     }
   }
-
 }
 
 object RLPxConnectionHandler {
@@ -332,7 +363,7 @@ object RLPxConnectionHandler {
 
   case class HandleConnection(connection: ActorRef)
 
-  case class ConnectionEstablished(nodeId: ByteString, negotiatedCapability: Capability)
+  case class ConnectionEstablished(nodeId: ByteString)
 
   case object ConnectionFailed
 
@@ -354,21 +385,34 @@ object RLPxConnectionHandler {
   }
 
   case class HelloExtractor(secrets: Secrets) {
+    import MessageCodec._
     lazy val frameCodec = new FrameCodec(secrets)
 
     def readHello(remainingData: ByteString): Option[(Hello, Seq[Frame])] = {
       val frames = frameCodec.readFrames(remainingData)
       frames.headOption.flatMap(extractHello).map(h => (h, frames.drop(1)))
     }
-  }
 
-  private def extractHello(frame: Frame): Option[Hello] = {
-    val frameData = frame.payload.toArray
-    if (frame.`type` == Hello.code) {
-      val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
-      Some(m.asInstanceOf[Hello])
-    } else {
-      None
+    // 'Hello' will always fit into a frame
+    def writeHello(h: HelloEnc): ByteString = {
+      val encoded: Array[Byte] = h.toBytes
+      val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
+      val frames = (0 until numFrames) map { frameNo =>
+        val payload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
+        val header = Header(payload.length, 0, None, None)
+        Frame(header, h.code, ByteString(payload))
+      }
+      frameCodec.writeFrames(frames)
+    }
+
+    private def extractHello(frame: Frame): Option[Hello] = {
+      val frameData = frame.payload.toArray
+      if (frame.`type` == Hello.code) {
+        val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
+        Some(m.asInstanceOf[Hello])
+      } else {
+        None
+      }
     }
   }
 }

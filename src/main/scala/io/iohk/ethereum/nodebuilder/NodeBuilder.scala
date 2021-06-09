@@ -188,8 +188,7 @@ trait HandshakerBuilder {
       override val capabilities: List[Capability] = self.blockchainConfig.capabilities
     }
 
-  lazy val handshaker: Capability => Handshaker[PeerInfo] = (cap: Capability) =>
-    EtcHandshaker(handshakerConfiguration, cap)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 }
 
 trait AuthHandshakerBuilder {

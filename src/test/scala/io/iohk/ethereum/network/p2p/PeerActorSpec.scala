@@ -56,7 +56,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(hello: HelloEnc) =>
       ()
@@ -108,7 +108,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(hello: HelloEnc) =>
       ()
@@ -127,7 +127,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     //Hello exchange
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
@@ -165,7 +165,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     //Hello exchange
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
@@ -195,7 +195,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     //Hello exchange
     val remoteHello = Hello(4, "test-client", Seq(Etc64Capability, Eth63Capability), 9000, ByteString("unused"))
@@ -234,7 +234,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(uri)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     //Hello exchange
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
@@ -269,7 +269,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
@@ -304,7 +304,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
@@ -333,7 +333,7 @@ class PeerActorSpec
     peer ! PeerActor.HandleConnection(connection.ref, new InetSocketAddress("localhost", 9000))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.HandleConnection])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
     time.advance(5.seconds)
     rlpxConnection.expectMsg(
@@ -351,7 +351,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
@@ -383,7 +383,7 @@ class PeerActorSpec
     peer ! PeerActor.DisconnectPeer(Disconnect.Reasons.TooManyPeers)
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
@@ -427,7 +427,7 @@ class PeerActorSpec
           knownNodesManager.ref,
           false,
           None,
-          _ => Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
+          Mocks.MockHandshakerAlwaysSucceeds(remoteStatus, 0, false)
         )
       )
     )
@@ -435,7 +435,7 @@ class PeerActorSpec
     peerActor ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     rlpxConnection.send(peerActor, RLPxConnectionHandler.MessageReceived(Ping()))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: PongEnc) => () }
@@ -445,7 +445,7 @@ class PeerActorSpec
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
 
     rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
-    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, protocol))
+    rlpxConnection.reply(RLPxConnectionHandler.ConnectionEstablished(remoteNodeId))
 
     val remoteHello = Hello(4, "test-client", Seq(Eth63Capability), 9000, ByteString("unused"))
     rlpxConnection.expectMsgPF() { case RLPxConnectionHandler.SendMessage(_: HelloEnc) => () }
@@ -567,7 +567,7 @@ class PeerActorSpec
       override val capabilities: List[Capability] = List(protocol)
     }
 
-    val handshaker = (c: Capability) => EtcHandshaker(handshakerConfiguration, c)
+    val handshaker = EtcHandshaker(handshakerConfiguration)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {

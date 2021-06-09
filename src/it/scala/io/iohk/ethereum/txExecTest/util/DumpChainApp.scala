@@ -96,7 +96,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
-  lazy val handshaker: Capability => Handshaker[PeerInfo] = c => EtcHandshaker(handshakerConfiguration, c)
+  lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 
   val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
 

@@ -12,7 +12,8 @@ import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
 import io.iohk.ethereum.network.p2p._
-import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
+import io.iohk.ethereum.network.p2p.messages.{Capability, ETH63}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
@@ -34,7 +35,7 @@ class PeerActor[R <: HandshakeResult](
     knownNodesManager: ActorRef,
     incomingConnection: Boolean,
     externalSchedulerOpt: Option[Scheduler] = None,
-    initHandshaker: Capability => Handshaker[R]
+    initHandshaker: Handshaker[R]
 ) extends Actor
     with ActorLogging
     with Stash {
@@ -80,11 +81,11 @@ class PeerActor[R <: HandshakeResult](
 
   def waitingForConnectionResult(rlpxConnection: RLPxConnection, numRetries: Int = 0): Receive =
     handleTerminated(rlpxConnection, numRetries, Connecting) orElse stashMessages orElse {
-      case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId, capability) =>
+      case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
         val newUri =
           rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
         processHandshakerNextMessage(
-          initHandshaker(capability),
+          initHandshaker,
           remoteNodeId,
           rlpxConnection.copy(uriOpt = newUri),
           numRetries
@@ -304,7 +305,7 @@ object PeerActor {
       peerEventBus: ActorRef,
       knownNodesManager: ActorRef,
       incomingConnection: Boolean,
-      handshaker: Capability => Handshaker[R],
+      handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       capabilities: List[Capability]
