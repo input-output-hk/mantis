@@ -165,13 +165,22 @@ class RLPxConnectionHandler(
           context stop self
       }
 
-    def awaitHello(extractor: HelloExtractor, cancellableAckTimeout: Option[CancellableAckTimeout] = None, seqNumber: Int = 0): Receive =
+    def awaitHello(
+        extractor: HelloExtractor,
+        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
+        seqNumber: Int = 0
+    ): Receive =
       handleWriteFailed orElse handleConnectionClosed orElse {
         case SendMessage(h: HelloEnc) =>
           val out = extractor.writeHello(h)
           connection ! Write(out, Ack)
-          val timeout = system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
-          context become awaitHello(extractor, Some(CancellableAckTimeout(seqNumber, timeout)), increaseSeqNumber(seqNumber))
+          val timeout =
+            system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
+          context become awaitHello(
+            extractor,
+            Some(CancellableAckTimeout(seqNumber, timeout)),
+            increaseSeqNumber(seqNumber)
+          )
 
         case Ack if cancellableAckTimeout.nonEmpty =>
           //Cancel pending message timeout
@@ -193,7 +202,11 @@ class RLPxConnectionHandler(
               } yield messageCodec
               messageCodecOpt match {
                 case Some(messageCodec) =>
-                  context become handshaked(messageCodec, cancellableAckTimeout = cancellableAckTimeout, seqNumber = seqNumber)
+                  context become handshaked(
+                    messageCodec,
+                    cancellableAckTimeout = cancellableAckTimeout,
+                    seqNumber = seqNumber
+                  )
                 case None =>
                   log.debug(s"[Stopping Connection] Unable to negotiate protocol with $peerId")
                   context.parent ! ConnectionFailed
