@@ -3,7 +3,7 @@ package io.iohk.ethereum.network
 import akka.actor._
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ETH61.NewBlockHashes
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.utils.MockClock
 import org.scalatest.flatspec.AnyFlatSpecLike

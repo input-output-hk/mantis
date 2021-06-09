@@ -39,9 +39,9 @@ object Capability {
   }
 
   object Capabilities {
-    val Eth63Capability: Capability = ProtocolVersions.PV63
-    val Etc64Capability: Capability = ProtocolVersions.PV64
+    val Eth63Capability: Capability = ProtocolVersions.ETH63
+    val Etc64Capability: Capability = ProtocolVersions.ETC64
 
-    val All: Seq[Capability] = Seq(ProtocolVersions.PV64, ProtocolVersions.PV63)
+    val All: Seq[Capability] = Seq(ProtocolVersions.ETC64, ProtocolVersions.ETH63)
   }
 }

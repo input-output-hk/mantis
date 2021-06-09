@@ -2,16 +2,16 @@ package io.iohk.ethereum.network.p2p
 
 import io.iohk.ethereum.network.p2p.messages.{Capability, Codes}
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
-import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockBodies._
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHeaders._
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies._
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders._
-import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes._
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData._
-import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts._
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData._
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipts._
+import io.iohk.ethereum.network.p2p.messages.ETH61.BlockHashesFromNumber._
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies._
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders._
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies._
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders._
+import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts._
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData._
+import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts._
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello._
@@ -37,10 +37,10 @@ object EthereumMessageDecoder extends MessageDecoder {
 
   override def fromBytes(msgCode: Int, payload: Array[Byte], protocolVersion: Capability): Message = {
     protocolVersion match {
-      case PV64 => handlePV64(msgCode, payload)
-      case PV63 => handlePV63(msgCode, payload)
-      case PV62 => handlePV62(msgCode, payload)
-      case PV61 => handlePV61(msgCode, payload)
+      case ETC64 => handleETC64(msgCode, payload)
+      case ETH63 => handleETH63(msgCode, payload)
+      case ETH62 => handleETH62(msgCode, payload)
+      case ETH61 => handleETH61(msgCode, payload)
       case pv => throw new RuntimeException("Unknown protocol version: " + pv)
     }
   }
@@ -60,10 +60,10 @@ object EthereumMessageDecoder extends MessageDecoder {
     }
   }
 
-  private def handlePV61(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handleETH61(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.NewBlockHashesCode =>
-        import io.iohk.ethereum.network.p2p.messages.PV61.NewBlockHashes._
+        import io.iohk.ethereum.network.p2p.messages.ETH61.NewBlockHashes._
         payload.toNewBlockHashes
       case Codes.BlockHashesFromNumberCode =>
         payload.toBlockHashesFromNumber
@@ -71,7 +71,7 @@ object EthereumMessageDecoder extends MessageDecoder {
     }
   }
 
-  private def handlePV62(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handleETH62(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.NewBlockHashesCode => payload.toNewBlockHashes
       case Codes.GetBlockHeadersCode => payload.toGetBlockHeaders
@@ -82,25 +82,25 @@ object EthereumMessageDecoder extends MessageDecoder {
     }
   }
 
-  private def handlePV63(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handleETH63(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.GetNodeDataCode => payload.toGetNodeData
       case Codes.NodeDataCode => payload.toNodeData
       case Codes.GetReceiptsCode => payload.toGetReceipts
       case Codes.ReceiptsCode => payload.toReceipts
-      case _ => handlePV62(msgCode, payload)
+      case _ => handleETH62(msgCode, payload)
     }
   }
 
-  private def handlePV64(msgCode: Int, payload: Array[Byte]): Message = {
+  private def handleETC64(msgCode: Int, payload: Array[Byte]): Message = {
     msgCode match {
       case Codes.StatusCode =>
-        import io.iohk.ethereum.network.p2p.messages.PV64.Status._
+        import io.iohk.ethereum.network.p2p.messages.ETC64.Status._
         payload.toStatus
       case Codes.NewBlockCode =>
-        import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock._
+        import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock._
         payload.toNewBlock
-      case _ => handlePV63(msgCode, payload)
+      case _ => handleETH63(msgCode, payload)
     }
   }
 }

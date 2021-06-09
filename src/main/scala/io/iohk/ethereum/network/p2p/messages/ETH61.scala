@@ -7,7 +7,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
-object PV61 {
+object ETH61 {
 
   object NewBlockHashes {
     implicit class NewBlockHashesEnc(val underlyingMsg: NewBlockHashes)

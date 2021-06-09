@@ -9,7 +9,7 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
-object PV63 {
+object ETH63 {
 
   object GetNodeData {
     implicit class GetNodeDataEnc(val underlyingMsg: GetNodeData)

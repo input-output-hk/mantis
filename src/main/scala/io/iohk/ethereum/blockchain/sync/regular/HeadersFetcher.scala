@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
 import io.iohk.ethereum.blockchain.sync.regular.HeadersFetcher.HeadersFetcherCommand
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.eval.Task
 import monix.execution.Scheduler

@@ -5,8 +5,8 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, NullNode}
 import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode, _}
@@ -79,7 +79,7 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be decoded properly" in {
-    val result = EthereumMessageDecoder.fromBytes(Codes.NodeDataCode, encode(encodedNodeData), ProtocolVersions.PV63)
+    val result = EthereumMessageDecoder.fromBytes(Codes.NodeDataCode, encode(encodedNodeData), ProtocolVersions.ETH63)
 
     result match {
       case m: NodeData =>
@@ -93,7 +93,7 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be decoded previously encoded value" in {
-    EthereumMessageDecoder.fromBytes(Codes.NodeDataCode, nodeData.toBytes, ProtocolVersions.PV63) shouldBe nodeData
+    EthereumMessageDecoder.fromBytes(Codes.NodeDataCode, nodeData.toBytes, ProtocolVersions.ETH63) shouldBe nodeData
   }
 
   it should "decode branch node with values in leafs that looks like RLP list" in {

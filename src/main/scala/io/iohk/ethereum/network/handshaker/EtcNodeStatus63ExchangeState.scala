@@ -20,7 +20,7 @@ case class EtcNodeStatus63ExchangeState(
     val chainWeight = blockchain.getChainWeightByHash(bestBlockHeader.hash).get
 
     val status = BaseETH6XMessages.Status(
-      protocolVersion = ProtocolVersions.PV63.version,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = peerConfiguration.networkId,
       totalDifficulty = chainWeight.totalDifficulty,
       bestHash = bestBlockHeader.hash,

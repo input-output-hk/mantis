@@ -3,7 +3,7 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.network.p2p.messages.PV63.AccountImplicits
+import io.iohk.ethereum.network.p2p.messages.ETH63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
 import org.bouncycastle.util.encoders.Hex

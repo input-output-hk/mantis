@@ -606,7 +606,7 @@ class PeerManagerSpec
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist(cache)
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63.version,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

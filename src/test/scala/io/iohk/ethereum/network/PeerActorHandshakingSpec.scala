@@ -35,7 +35,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeSucceeds ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     //Test that the handshake succeeded
     val sender = TestProbe()(system)
@@ -52,7 +52,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeFails ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     //Test that the handshake failed
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(Disconnect(defaultReasonDisconnect)))
@@ -68,7 +68,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultHello)
@@ -88,7 +88,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     time.advance(defaultTimeout * 2)
@@ -106,7 +106,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(defaultStatusMsg)
@@ -124,7 +124,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     //Establish probe rlpxconnection
     peerActorHandshakeRequiresHello ! ConnectTo(uri)
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.ConnectTo(uri))
-    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.PV63))
+    rlpxConnectionProbe.reply(RLPxConnectionHandler.ConnectionEstablished(ByteString(), ProtocolVersions.ETH63))
 
     rlpxConnectionProbe.expectMsg(RLPxConnectionHandler.SendMessage(defaultHello))
     peerActorHandshakeRequiresHello ! RLPxConnectionHandler.MessageReceived(Pong()) //Ignored
@@ -168,7 +168,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
   object DefaultValues {
     val defaultStatusMsg = Status(
-      protocolVersion = ProtocolVersions.PV63.version,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,

@@ -91,7 +91,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val helloV4 = helloV5.copy(p2pVersion = 4)
 
     val status = Status(
-      protocolVersion = ProtocolVersions.PV63.version,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 1,
       bestHash = ByteString(1),
@@ -100,8 +100,8 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     val decoder = NetworkMessageDecoder orElse EthereumMessageDecoder
 
-    val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.PV63, negotiatedLocalP2PVersion)
-    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.PV63, negotiatedRemoteP2PVersion)
+    val messageCodec = new MessageCodec(frameCodec, decoder, ProtocolVersions.ETH63, negotiatedLocalP2PVersion)
+    val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, ProtocolVersions.ETH63, negotiatedRemoteP2PVersion)
 
   }
 

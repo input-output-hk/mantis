@@ -8,7 +8,7 @@ import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoad
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders.MptNodeDec
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
 import io.vavr.collection.PriorityQueue
 import monix.eval.Task
 

@@ -179,7 +179,7 @@ class RLPxConnectionHandlerSpec
       override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Capability) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
-    val protocolVersion = ProtocolVersions.PV63
+    val protocolVersion = ProtocolVersions.ETH63
     val mockHandshaker = mock[AuthHandshaker]
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]

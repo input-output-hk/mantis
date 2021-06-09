@@ -24,9 +24,9 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{BlockHelpers, ObjectGenerators, ResourceFixtures, WordSpecBase}
@@ -674,19 +674,19 @@ class RegularSyncSpec
     }
 
     "broadcasting blocks" should {
-      "send a NewBlock message without latest checkpoint number when client not support PV64" in sync(
+      "send a NewBlock message without latest checkpoint number when client not support ETC64" in sync(
         new OnTopFixture(testSystem) {
           goToTop()
 
-          val peerWithPV63: (Peer, PeerInfo) = {
+          val peerWithETH63: (Peer, PeerInfo) = {
             val id = peerId(handshakedPeers.size)
             val peer = getPeer(id)
-            val peerInfo = getPeerInfo(peer, ProtocolVersions.PV63.version)
+            val peerInfo = getPeerInfo(peer, ProtocolVersions.ETH63.version)
             (peer, peerInfo)
           }
 
           etcPeerManager.expectMsg(GetHandshakedPeers)
-          etcPeerManager.reply(HandshakedPeers(Map(peerWithPV63._1 -> peerWithPV63._2)))
+          etcPeerManager.reply(HandshakedPeers(Map(peerWithETH63._1 -> peerWithETH63._2)))
 
           blockFetcher ! MessageFromPeer(BaseETH6XMessages.NewBlock(newBlock, newBlock.number), defaultPeer.id)
 
@@ -701,7 +701,7 @@ class RegularSyncSpec
         }
       )
 
-      "send a NewBlock message with latest checkpoint number when client supports PV64" in sync(
+      "send a NewBlock message with latest checkpoint number when client supports ETC64" in sync(
         new OnTopFixture(testSystem) {
           goToTop()
 

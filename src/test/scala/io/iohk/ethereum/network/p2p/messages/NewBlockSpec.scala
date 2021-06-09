@@ -23,10 +23,10 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
   }
 
   test("NewBlock v64 messages are encoded and decoded properly") {
-    import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock._
+    import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock._
     forAll(newBlock64Gen(secureRandom, Some(chainId))) { newBlock =>
       val encoded: Array[Byte] = newBlock.toBytes
-      val decoded: PV64.NewBlock = encoded.toNewBlock
+      val decoded: ETC64.NewBlock = encoded.toNewBlock
       assert(decoded == newBlock)
     }
   }
@@ -67,7 +67,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     983040
   )
 
-  val newBlock64 = PV64.NewBlock(
+  val newBlock64 = ETC64.NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("98352d9c1300bd82334cb3e5034c3ec622d437963f55cf5a00a49642806c2f32")),

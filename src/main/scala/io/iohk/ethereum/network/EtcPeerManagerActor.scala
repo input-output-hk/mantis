@@ -10,10 +10,10 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent._
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, PV64}
+import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, ETC64}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -161,7 +161,7 @@ class EtcPeerManagerActor(
     message match {
       case newBlock: BaseETH6XMessages.NewBlock =>
         initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
-      case newBlock: PV64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
+      case newBlock: ETC64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
       case _ => initialPeerInfo
     }
 
@@ -259,7 +259,7 @@ object EtcPeerManagerActor {
   }
 
   object RemoteStatus {
-    def apply(status: PV64.Status): RemoteStatus = {
+    def apply(status: ETC64.Status): RemoteStatus = {
       RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
     }
 

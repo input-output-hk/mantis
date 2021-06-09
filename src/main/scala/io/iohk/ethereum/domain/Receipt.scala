@@ -7,7 +7,7 @@ import org.bouncycastle.util.encoders.Hex
 object Receipt {
 
   val byteArraySerializable: ByteArraySerializable[Receipt] = new ByteArraySerializable[Receipt] {
-    import io.iohk.ethereum.network.p2p.messages.PV63.ReceiptImplicits._
+    import io.iohk.ethereum.network.p2p.messages.ETH63.ReceiptImplicits._
 
     override def fromBytes(bytes: Array[Byte]): Receipt = bytes.toReceipt
 
