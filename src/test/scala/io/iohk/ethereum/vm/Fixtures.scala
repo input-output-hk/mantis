@@ -23,7 +23,7 @@ object Fixtures {
     aghartaBlockNumber = 0,
     petersburgBlockNumber = PetersburgBlockNumber,
     phoenixBlockNumber = PhoenixBlockNumber,
-    chainId = 0x3d.toByte
+    chainId = 0x3d
   )
 
 }

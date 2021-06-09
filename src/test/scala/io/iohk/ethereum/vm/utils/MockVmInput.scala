@@ -9,7 +9,6 @@ object MockVmInput {
 
   class MockTransaction(
       tx: Transaction,
-      senderAddress: Address,
       pointSign: Byte = 0,
       signatureRandom: BigInt = 0,
       signature: BigInt = 0
@@ -29,7 +28,7 @@ object MockVmInput {
       receivingAddress: Option[Address] = None,
       nonce: BigInt = 0
   ): SignedTransaction =
-    new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)
+    new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload))
 
   def blockHeader: BlockHeader = BlockFixtures.ValidBlock.header
 
