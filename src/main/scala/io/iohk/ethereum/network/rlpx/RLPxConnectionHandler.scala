@@ -157,7 +157,9 @@ class RLPxConnectionHandler(
           context.parent ! ConnectionEstablished(remotePubKey)
           if (remainingData.nonEmpty)
             context.self ! Received(remainingData)
-          context become awaitHello(extractor(secrets))
+          // following the specification at https://github.com/ethereum/devp2p/blob/master/rlpx.md#initial-handshake
+          // point 6 indicates that the next messages needs to be initial 'Hello'
+          context become awaitInitialHello(extractor(secrets))
 
         case AuthHandshakeError =>
           log.debug(s"[Stopping Connection] Auth handshake failed for peer $peerId")
@@ -165,62 +167,79 @@ class RLPxConnectionHandler(
           context stop self
       }
 
-    def awaitHello(
+    def awaitInitialHello(
         extractor: HelloExtractor,
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive =
-      handleWriteFailed orElse handleConnectionClosed orElse {
-        case SendMessage(h: HelloEnc) =>
-          val out = extractor.writeHello(h)
-          connection ! Write(out, Ack)
-          val timeout =
-            system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
-          context become awaitHello(
-            extractor,
-            Some(CancellableAckTimeout(seqNumber, timeout)),
-            increaseSeqNumber(seqNumber)
-          )
+      handleWriteFailed orElse handleConnectionClosed orElse handleSendHello(
+        extractor,
+        cancellableAckTimeout,
+        seqNumber
+      ) orElse handleReceiveHello(extractor, cancellableAckTimeout, seqNumber)
 
-        case Ack if cancellableAckTimeout.nonEmpty =>
-          //Cancel pending message timeout
-          cancellableAckTimeout.foreach(_.cancellable.cancel())
-          context become awaitHello(extractor, None, seqNumber)
+    private def handleSendHello(
+        extractor: HelloExtractor,
+        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
+        seqNumber: Int = 0
+    ): Receive = {
+      // TODO when cancellableAckTimeout is Some
+      case SendMessage(h: HelloEnc) =>
+        val out = extractor.writeHello(h)
+        connection ! Write(out, Ack)
+        val timeout =
+          system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
+        context become awaitInitialHello(
+          extractor,
+          Some(CancellableAckTimeout(seqNumber, timeout)),
+          increaseSeqNumber(seqNumber)
+        )
+      case Ack if cancellableAckTimeout.nonEmpty =>
+        //Cancel pending message timeout
+        cancellableAckTimeout.foreach(_.cancellable.cancel())
+        context become awaitInitialHello(extractor, None, seqNumber)
 
-        case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
-          cancellableAckTimeout.foreach(_.cancellable.cancel())
-          log.error(s"[Stopping Connection] Sending 'Hello' to $peerId failed")
-          context stop self
+      case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
+        cancellableAckTimeout.foreach(_.cancellable.cancel())
+        log.error(s"[Stopping Connection] Sending 'Hello' to $peerId failed")
+        context stop self
 
-        case Received(data) =>
-          extractor.readHello(data) match {
-            case Some((hello, restFrames)) =>
-              val messageCodecOpt = for {
-                messageCodec <- negotiateCodec(hello, extractor)
-                _ = context.parent ! MessageReceived(hello)
-                _ = processFrames(restFrames, messageCodec)
-              } yield messageCodec
-              messageCodecOpt match {
-                case Some(messageCodec) =>
-                  context become handshaked(
-                    messageCodec,
-                    cancellableAckTimeout = cancellableAckTimeout,
-                    seqNumber = seqNumber
-                  )
-                case None =>
-                  log.debug(s"[Stopping Connection] Unable to negotiate protocol with $peerId")
-                  context.parent ! ConnectionFailed
-                  context stop self
-              }
+    }
+
+    private def handleReceiveHello(
+        extractor: HelloExtractor,
+        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
+        seqNumber: Int = 0
+    ): Receive = { case Received(data) =>
+      extractor.readHello(data) match {
+        case Some((hello, restFrames)) =>
+          val messageCodecOpt = for {
+            opt <- negotiateCodec(hello, extractor)
+            (messageCodec, negotiated) = opt
+            _ = context.parent ! InitialHelloReceived(hello, negotiated)
+            _ = processFrames(restFrames, messageCodec)
+          } yield messageCodec
+          messageCodecOpt match {
+            case Some(messageCodec) =>
+              context become handshaked(
+                messageCodec,
+                cancellableAckTimeout = cancellableAckTimeout,
+                seqNumber = seqNumber
+              )
             case None =>
-              log.debug(s"[Stopping Connection] Did not find 'Hello' in message from $peerId")
-              context become awaitHello(extractor, cancellableAckTimeout, seqNumber)
+              log.debug(s"[Stopping Connection] Unable to negotiate protocol with $peerId")
+              context.parent ! ConnectionFailed
+              context stop self
           }
+        case None =>
+          log.debug(s"[Stopping Connection] Did not find 'Hello' in message from $peerId")
+          context become awaitInitialHello(extractor, cancellableAckTimeout, seqNumber)
       }
+    }
 
-    private def negotiateCodec(hello: Hello, extractor: HelloExtractor): Option[MessageCodec] =
+    private def negotiateCodec(hello: Hello, extractor: HelloExtractor): Option[(MessageCodec, Capability)] =
       Capability.negotiate(hello.capabilities.toList, capabilities).map { negotiated =>
-        messageCodecFactory(extractor.frameCodec, messageDecoder, negotiated, hello.p2pVersion)
+        (messageCodecFactory(extractor.frameCodec, messageDecoder, negotiated, hello.p2pVersion), negotiated)
       }
 
     private def processFrames(frames: Seq[Frame], messageCodec: MessageCodec): Unit =
@@ -381,6 +400,8 @@ object RLPxConnectionHandler {
   case object ConnectionFailed
 
   case class MessageReceived(message: Message)
+
+  case class InitialHelloReceived(message: Hello, capability: Capability)
 
   case class SendMessage(serializable: MessageSerializable)
 

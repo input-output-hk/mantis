@@ -10,7 +10,7 @@ import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Hello, Ping}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, MessageReceived, RLPxConfiguration}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, InitialHelloReceived, MessageReceived, RLPxConfiguration}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
@@ -97,7 +97,7 @@ class RLPxConnectionHandlerSpec
     rlpxConnection ! RLPxConnectionHandler.SendMessage(Ping())
     connection.expectMsg(Tcp.Write(ByteString("ping encoded"), RLPxConnectionHandler.Ack))
 
-    val expectedHello = rlpxConnectionParent.expectMsgType[MessageReceived]
+    val expectedHello = rlpxConnectionParent.expectMsgType[InitialHelloReceived]
     expectedHello.message shouldBe a[Hello]
 
     //The rlpx connection is closed after a timeout happens (after rlpxConfiguration.waitForTcpAckTimeout) and it is processed
@@ -224,12 +224,13 @@ class RLPxConnectionHandlerSpec
 
       //AuthHandshaker handles initial message
       val data = ByteString((0 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
+      val hello = ByteString((1 until AuthHandshaker.InitiatePacketLength).map(_.toByte).toArray)
       val response = ByteString("response data")
       (mockHandshaker.handleInitialMessage _)
         .expects(data)
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockHelloExtractor.readHello _)
-        .expects(ByteString.empty)
+        .expects(hello)
         .returning(Some(Hello(5, "", Capabilities.Eth63Capability::Nil, 30303, ByteString("abc")), Seq.empty))
       (mockMessageCodec.readMessages _)
         .expects(ByteString.empty)
@@ -237,6 +238,8 @@ class RLPxConnectionHandlerSpec
 
       rlpxConnection ! Tcp.Received(data)
       connection.expectMsg(Tcp.Write(response))
+
+      rlpxConnection ! Tcp.Received(hello)
 
       //Connection fully established
       rlpxConnectionParent.expectMsgClass(classOf[RLPxConnectionHandler.ConnectionEstablished])

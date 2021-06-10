@@ -120,6 +120,19 @@ class PeerActor[R <: HandshakeResult](
       handleDisconnectMsg(rlpxConnection, Handshaking(numRetries)) orElse
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
 
+        case RLPxConnectionHandler.InitialHelloReceived(msg, negotiatedProtocol) =>
+          // Processes the InitialHelloReceived, cancels the timeout and processes a new message but only if the handshaker
+          // handles the received message
+          // TODO pass capability to 'EtcHelloExchangeState'
+          // to pass negotiatedProtocol the PeerActor should be in a "post auth handshake" state
+          // since ConnectionEstablished(remotePubKey) was already received
+          // an ETCAwaitingInitialHelloHandshaker would be an approach
+          handshaker.applyMessage(msg).foreach { newHandshaker =>
+            timeout.cancel()
+            processHandshakerNextMessage(newHandshaker, remoteNodeId, rlpxConnection, numRetries)
+          }
+          handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
+
         case RLPxConnectionHandler.MessageReceived(msg) =>
           // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
           // handles the received message
