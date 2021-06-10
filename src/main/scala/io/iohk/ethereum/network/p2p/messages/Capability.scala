@@ -7,9 +7,8 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPException, RLPList, RLPSerializab
 case class Capability(name: String, version: Byte)
 
 object Capability {
-  def negotiate(c1: List[Capability], c2: List[Capability]): Option[Capability] = {
+  def negotiate(c1: List[Capability], c2: List[Capability]): Option[Capability] =
     c1.intersect(c2).maxByOption(_.version) // FIXME ignores branches and other protocols
-  }
 
   private val pattern = "(.*)/(\\d*)".r
 
