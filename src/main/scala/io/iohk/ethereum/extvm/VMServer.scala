@@ -192,7 +192,7 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       aghartaBlockNumber = BigInt(9573000), //TODO include agharta block number in protobuf
       petersburgBlockNumber = BigInt(10000000), //TODO include petersburg block number in protobuf
       phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
-      chainId = 0x3d //TODO include chainId in protobuf
+      chainId = 0x3d.toByte //TODO include chainId in protobuf
     )
   }
 }

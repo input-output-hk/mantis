@@ -45,10 +45,10 @@ object SignedTransaction {
 
   def apply(
       tx: Transaction,
-      pointSign: BigInt,
+      pointSign: Byte,
       signatureRandom: ByteString,
       signature: ByteString,
-      chainId: BigInt
+      chainId: Byte
   ): SignedTransaction = {
     val txSignature = ECDSASignature(
       r = new BigInteger(1, signatureRandom.toArray),
@@ -58,12 +58,7 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def apply(
-      tx: Transaction,
-      pointSign: BigInt,
-      signatureRandom: ByteString,
-      signature: ByteString
-  ): SignedTransaction = {
+  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): SignedTransaction = {
     val txSignature = ECDSASignature(
       r = new BigInteger(1, signatureRandom.toArray),
       s = new BigInteger(1, signature.toArray),
@@ -72,14 +67,14 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[BigInt]): SignedTransactionWithSender = {
+  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
     val address = Address(keyPair)
     SignedTransactionWithSender(tx, sig, address)
   }
 
-  private def bytesToSign(tx: Transaction, chainId: Option[BigInt]): Array[Byte] = {
+  private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {
     chainId match {
       case Some(id) =>
         chainSpecificTransactionBytes(tx, id)
@@ -133,7 +128,7 @@ object SignedTransaction {
     crypto.kec256(rlpEncode(RLPList(tx.nonce, tx.gasPrice, tx.gasLimit, receivingAddressAsArray, tx.value, tx.payload)))
   }
 
-  private def chainSpecificTransactionBytes(tx: Transaction, chainId: BigInt): Array[Byte] = {
+  private def chainSpecificTransactionBytes(tx: Transaction, chainId: Byte): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     crypto.kec256(
       rlpEncode(

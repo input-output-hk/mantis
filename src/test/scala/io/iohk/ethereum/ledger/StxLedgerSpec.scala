@@ -27,7 +27,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
       */
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingAddress, 0, sendData)
-    val fakeSignature = ECDSASignature(0, 0, 0)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature)
     val stxFromAddress = SignedTransactionWithSender(stx, fromAddress)
 
@@ -60,7 +60,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val transferValue = 2
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
-    val fakeSignature = ECDSASignature(0, 0, 0)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature)
 
     val executionResult: Ledger.TxResult =
@@ -75,7 +75,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val transferValue = 2
 
     val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
-    val fakeSignature = ECDSASignature(0, 0, 0)
+    val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stxFromAddress = SignedTransactionWithSender(SignedTransaction(tx, fakeSignature), fromAddress)
 
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
@@ -126,7 +126,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       ecip1099BlockNumber = Long.MaxValue,
       ecip1049BlockNumber = None
     ),
-    chainId = 0x03,
+    chainId = 0x03.toByte,
     networkId = 1,
     maxCodeSize = None,
     difficultyBombPauseBlockNumber = 0,

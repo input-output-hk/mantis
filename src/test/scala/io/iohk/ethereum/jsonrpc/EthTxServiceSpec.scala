@@ -345,7 +345,7 @@ class EthTxServiceSpec
             value = 0,
             payload = ByteString()
           ),
-          signature = ECDSASignature(0, 0, 0),
+          signature = ECDSASignature(0, 0, 0.toByte),
           sender = Address("0x1234")
         )
         PendingTransaction(fakeTransaction, System.currentTimeMillis)
@@ -422,7 +422,7 @@ class EthTxServiceSpec
       v,
       r,
       s,
-      0x3d
+      0x3d.toByte
     )
 
     val contractCreatingTransactionSender = SignedTransaction.getSender(contractCreatingTransaction).get

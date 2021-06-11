@@ -217,7 +217,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
       )
     )
     .copy(
-      chainId = 0x01,
+      chainId = 0x01.toByte,
       networkId = 1,
       daoForkConfig = Some(supportDaoForkConfig),
       customGenesisFileOpt = None,

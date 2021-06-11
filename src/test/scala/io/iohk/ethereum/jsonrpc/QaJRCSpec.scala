@@ -340,5 +340,7 @@ class QaJRCSpec
         .expects(mineBlocksReq)
         .returning(Task.now(Right(MineBlocksResponse(resp))))
     }
+
+    val fakeChainId: Byte = 42.toByte
   }
 }

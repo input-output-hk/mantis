@@ -26,7 +26,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 object EthInfoService {
   case class ChainIdRequest()
-  case class ChainIdResponse(value: BigInt)
+  case class ChainIdResponse(value: Byte)
 
   case class ProtocolVersionRequest()
   case class ProtocolVersionResponse(value: String)
@@ -174,7 +174,7 @@ class EthInfoService(
       val toAddress = req.tx.to.map(Address.apply)
 
       val tx = Transaction(0, req.tx.gasPrice, gasLimit, toAddress, req.tx.value, req.tx.data)
-      val fakeSignature = ECDSASignature(0, 0, 0)
+      val fakeSignature = ECDSASignature(0, 0, 0.toByte)
       SignedTransactionWithSender(tx, fakeSignature, fromAddress)
     }
   }
