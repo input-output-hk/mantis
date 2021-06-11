@@ -22,7 +22,7 @@ class AuthInitiateMessageSpec extends AnyFlatSpec with Matchers with SecureRando
 
     val nonce = ByteUtils.randomBytes(AuthHandshaker.NonceSize)
 
-    val signature = ECDSASignature(BigInt("123"), BigInt("456"), 0)
+    val signature = ECDSASignature(BigInt("123"), BigInt("456"), 0.toByte)
 
     val msg = AuthInitiateMessage(
       signature,
@@ -43,7 +43,7 @@ class AuthInitiateMessageSpec extends AnyFlatSpec with Matchers with SecureRando
       signature = ECDSASignature(
         r = BigInt("81870901931874412952660009205824222047471672340278145383000560930072854380569"),
         s = BigInt("27900842753040147848386185004093503271309114686926362065982995477587410195214"),
-        v = 27
+        v = 27.toByte
       ),
       ephemeralPublicHash = ByteString(Hex.decode("F30BAC135324F493AEEAF4C9B48DF0F1F9A28A3DEDF9B1D85AF45A27F7B6F054")),
       publicKey = curve.getCurve.decodePoint(

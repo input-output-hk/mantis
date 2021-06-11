@@ -19,7 +19,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       monetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
       // unused
       maxCodeSize = None,
-      chainId = 0x3d,
+      chainId = 0x3d.toByte,
       networkId = 1,
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,

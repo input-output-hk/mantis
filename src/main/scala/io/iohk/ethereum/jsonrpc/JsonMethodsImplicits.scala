@@ -220,7 +220,7 @@ object JsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val personal_sign = new JsonMethodCodec[SignRequest, SignResponse] {
     override def encodeJson(t: SignResponse): JValue = {
       import t.signature._
-      encodeAsHex(ByteString(r.toUnsignedByteArray ++ s.toUnsignedByteArray ++ v.toUnsignedByteArray))
+      encodeAsHex(ByteString(r.toUnsignedByteArray ++ s.toUnsignedByteArray :+ v))
     }
 
     override def decodeJson(params: Option[JArray]): Either[JsonRpcError, SignRequest] =

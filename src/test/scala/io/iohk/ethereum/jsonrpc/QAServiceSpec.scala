@@ -119,6 +119,7 @@ class QAServiceSpec
     lazy val mineBlocksReq = MineBlocksRequest(1, true, None)
     lazy val mineBlocksMsg =
       MineBlocks(mineBlocksReq.numBlocks, mineBlocksReq.withTransactions, mineBlocksReq.parentBlock)
+    val fakeChainId: Byte = 42.toByte
   }
 
   trait CheckpointsGenerationFixture {

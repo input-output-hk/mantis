@@ -52,7 +52,7 @@ class MantisServiceSpec
             value = 0,
             payload = ByteString()
           ),
-          signature = ECDSASignature(0, 0, 0),
+          signature = ECDSASignature(0, 0, 0.toByte),
           sender = Address("0x1234")
         )
 

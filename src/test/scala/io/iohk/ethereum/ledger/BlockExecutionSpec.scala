@@ -22,7 +22,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
     "correctly run executeBlocks" when {
 
       "two blocks with txs (that first one has invalid tx)" in new BlockchainSetup {
-        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3))
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
         val block2BodyWithTxs: BlockBody =
@@ -57,7 +57,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       }
 
       "two blocks with txs (that last one has invalid tx)" in new BlockchainSetup {
-        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3))
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val block1BodyWithTxs: BlockBody =
           validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
@@ -280,7 +280,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       }
 
       "last one wasn't executed correctly" in new BlockExecutionTestSetup {
-        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3))
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val blockBodyWithTxs: BlockBody =
           validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx, invalidStx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
@@ -292,7 +292,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       }
 
       "first one wasn't executed correctly" in new BlockExecutionTestSetup {
-        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3))
+        val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val blockBodyWithTxs: BlockBody =
           validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx, validStxSignedByOrigin.tx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
