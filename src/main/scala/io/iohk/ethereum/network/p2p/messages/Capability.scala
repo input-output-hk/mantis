@@ -8,17 +8,25 @@ case class Capability(name: String, version: Byte)
 
 object Capability {
   def negotiate(c1: List[Capability], c2: List[Capability]): Option[Capability] =
-    c1.intersect(c2).maxByOption(_.version) // FIXME ignores branches and other protocols
+    c1.intersect(c2) match {
+      case Nil => None
+      case l => Some(best(l))
+    }
 
   private val pattern = "(.*)/(\\d*)".r
 
-  def from(protocolVersion: String): Capability =
+  def parseUnsafe(protocolVersion: String): Capability =
     protocolVersion match {
-      case pattern(name, version) => Capability(name, version.toByte)
+      case pattern(name, version) =>
+        val c = Capability(name, version.toByte)
+        if (Capabilities.All.contains(c))
+          c
+        else
+          throw new RuntimeException(s"Capability $protocolVersion not supported by Mantis")
       case _ => throw new RuntimeException(s"Unable to parse capability $protocolVersion")
     }
 
-  //TODO consider how this scoring should be handled with snap and other extended protocols
+  //TODO consider how this scoring should be handled with 'snap' and other extended protocols
   def best(capabilities: List[Capability]): Capability =
     capabilities.maxBy(_.version)
 

@@ -248,7 +248,7 @@ trait PeerManagerActorBuilder {
       EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
-      blockchainConfig.capabilities // TODO replace with a list of capabilities
+      blockchainConfig.capabilities
     ),
     "peer-manager"
   )

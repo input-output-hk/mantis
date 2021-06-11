@@ -127,7 +127,7 @@ object BlockchainConfig {
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
     val capabilities: List[Capability] =
-      blockchainConfig.getStringList("capabilities").asScala.toList.map(Capability.from)
+      blockchainConfig.getStringList("capabilities").asScala.toList.map(Capability.parseUnsafe)
 
     BlockchainConfig(
       powTargetTime = powTargetTime,
