@@ -15,12 +15,12 @@ import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockBodies.GetBlockBodiesEnc
-import io.iohk.ethereum.network.p2p.messages.PV62.GetBlockHeaders.GetBlockHeadersEnc
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
-import io.iohk.ethereum.network.p2p.messages.PV63.GetReceipts.GetReceiptsEnc
-import io.iohk.ethereum.network.p2p.messages.PV63.{NodeData, Receipts}
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies.GetBlockBodiesEnc
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts.GetReceiptsEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.{NodeData, Receipts}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience}
 import org.bouncycastle.util.encoders.Hex

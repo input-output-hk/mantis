@@ -9,9 +9,9 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.p2p.messages.PV62.NewBlockHashes
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.{BaseETH6XMessages, ETH62, ProtocolVersions}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,7 +27,7 @@ class BlockBroadcastSpec
     //given
     //Block that should be sent as it's total difficulty is higher than known by peer
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
-    val newBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(blockHeader.hash, blockHeader.number)))
+    val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val newBlock =
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(2))
 
@@ -43,16 +43,16 @@ class BlockBroadcastSpec
     etcPeerManagerProbe.expectNoMessage()
   }
 
-  it should "send a new block when it is not known by the peer (known by comparing chain weights) (PV63)" in new TestSetup {
+  it should "send a new block when it is not known by the peer (known by comparing chain weights) (ETH63)" in new TestSetup {
     //given
     //Block that should be sent as it's total difficulty is higher than known by peer
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
-    val newBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(blockHeader.hash, blockHeader.number)))
+    val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val peerInfo = initialPeerInfo
-      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV63))
+      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.ETH63.version))
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
-      CommonMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
+      BaseETH6XMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
 
     //when
     blockBroadcast.broadcastBlock(
@@ -86,7 +86,7 @@ class BlockBroadcastSpec
   it should "send a new block when it is not known by the peer (known by comparing max block number)" in new TestSetup {
     //given
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
-    val newBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(blockHeader.hash, blockHeader.number)))
+    val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val newBlock =
       NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
@@ -122,7 +122,7 @@ class BlockBroadcastSpec
   it should "send block hashes to all peers while the blocks only to sqrt of them" in new TestSetup {
     //given
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber + 4)
-    val firstBlockNewHashes = NewBlockHashes(Seq(PV62.BlockHash(firstHeader.hash, firstHeader.number)))
+    val firstBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(firstHeader.hash, firstHeader.number)))
     val firstBlock =
       NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), initialPeerInfo.chainWeight.increaseTotalDifficulty(-2))
 
@@ -164,7 +164,7 @@ class BlockBroadcastSpec
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV64,
+      protocolVersion = ProtocolVersions.ETC64.version,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

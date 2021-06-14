@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network
 
 import java.net.{InetSocketAddress, URI}
-
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
 import akka.util.ByteString
@@ -12,8 +11,9 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.{HandshakeFailure, HandshakeSuccess}
 import io.iohk.ethereum.network.handshaker.Handshaker.{HandshakeResult, NextMessage}
-import io.iohk.ethereum.network.p2p.Message.Version
 import io.iohk.ethereum.network.p2p._
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
+import io.iohk.ethereum.network.p2p.messages.{Capability, ETH63}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.rlpx.{AuthHandshaker, RLPxConnectionHandler}
@@ -84,7 +84,12 @@ class PeerActor[R <: HandshakeResult](
       case RLPxConnectionHandler.ConnectionEstablished(remoteNodeId) =>
         val newUri =
           rlpxConnection.uriOpt.map(outGoingUri => modifyOutGoingUri(remoteNodeId, rlpxConnection, outGoingUri))
-        processHandshakerNextMessage(initHandshaker, remoteNodeId, rlpxConnection.copy(uriOpt = newUri), numRetries)
+        processHandshakerNextMessage(
+          initHandshaker,
+          remoteNodeId,
+          rlpxConnection.copy(uriOpt = newUri),
+          numRetries
+        )
 
       case RLPxConnectionHandler.ConnectionFailed =>
         log.debug("Failed to establish RLPx connection")
@@ -104,7 +109,7 @@ class PeerActor[R <: HandshakeResult](
       case GetStatus => sender() ! StatusResponse(Connecting)
     }
 
-  def processingHandshaking(
+  private def processingHandshaking(
       handshaker: Handshaker[R],
       remoteNodeId: ByteString,
       rlpxConnection: RLPxConnection,
@@ -114,6 +119,19 @@ class PeerActor[R <: HandshakeResult](
     handleTerminated(rlpxConnection, numRetries, Handshaking(numRetries)) orElse
       handleDisconnectMsg(rlpxConnection, Handshaking(numRetries)) orElse
       handlePingMsg(rlpxConnection) orElse stashMessages orElse {
+
+        case RLPxConnectionHandler.InitialHelloReceived(msg, negotiatedProtocol) =>
+          // Processes the InitialHelloReceived, cancels the timeout and processes a new message but only if the handshaker
+          // handles the received message
+          // TODO pass capability to 'EtcHelloExchangeState'
+          // to pass negotiatedProtocol the PeerActor should be in a "post auth handshake" state
+          // since ConnectionEstablished(remotePubKey) was already received
+          // an ETCAwaitingInitialHelloHandshaker would be an approach
+          handshaker.applyMessage(msg).foreach { newHandshaker =>
+            timeout.cancel()
+            processHandshakerNextMessage(newHandshaker, remoteNodeId, rlpxConnection, numRetries)
+          }
+          handshaker.respondToRequest(msg).foreach(msgToSend => rlpxConnection.sendMessage(msgToSend))
 
         case RLPxConnectionHandler.MessageReceived(msg) =>
           // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
@@ -303,12 +321,12 @@ object PeerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Version
+      capabilities: List[Capability]
   ): Props =
     Props(
       new PeerActor(
         peerAddress,
-        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, bestProtocolVersion),
+        rlpxConnectionFactory(authHandshaker, messageDecoder, peerConfiguration.rlpxConfiguration, capabilities),
         peerConfiguration,
         peerEventBus,
         knownNodesManager,
@@ -322,11 +340,11 @@ object PeerActor {
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
       rlpxConfiguration: RLPxConfiguration,
-      bestProtocolVersion: Version
+      capabilities: List[Capability]
   ): ActorContext => ActorRef = { ctx =>
     ctx.actorOf(
       RLPxConnectionHandler
-        .props(NetworkMessageDecoder orElse messageDecoder, bestProtocolVersion, authHandshaker, rlpxConfiguration),
+        .props(NetworkMessageDecoder orElse messageDecoder, capabilities, authHandshaker, rlpxConfiguration),
       "rlpx-connection"
     )
   }

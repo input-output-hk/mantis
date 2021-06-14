@@ -64,7 +64,7 @@ class DebugServiceSpec
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

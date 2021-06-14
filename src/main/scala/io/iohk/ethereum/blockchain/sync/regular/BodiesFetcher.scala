@@ -9,7 +9,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
 import io.iohk.ethereum.blockchain.sync.regular.BodiesFetcher.BodiesFetcherCommand
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockBodies, GetBlockBodies}
+import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockBodies, GetBlockBodies}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
 

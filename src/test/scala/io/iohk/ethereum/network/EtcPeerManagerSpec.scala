@@ -14,10 +14,10 @@ import io.iohk.ethereum.network.PeerActor.DisconnectPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.{Codes, ETC64, ProtocolVersions}
 import io.iohk.ethereum.utils.Config
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
@@ -43,7 +43,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     requestSender.expectMsg(HandshakedPeers(Map(peer1 -> peer1Info, peer2 -> peer2Info)))
   }
 
-  it should "update max peer when receiving new block PV63" in new TestSetup {
+  it should "update max peer when receiving new block ETH63" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
     setupNewPeer(peer1, peer1Probe, peer1Info)
 
@@ -67,17 +67,17 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     requestSender.expectMsg(PeerInfoResponse(Some(expectedPeerInfo)))
   }
 
-  it should "update max peer when receiving new block PV64" in new TestSetup {
+  it should "update max peer when receiving new block ETC64" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
-    setupNewPeer(peer1, peer1Probe, peer1InfoPV64)
+    setupNewPeer(peer1, peer1Probe, peer1InfoETC64)
 
     //given
     val newBlockWeight = ChainWeight.totalDifficultyOnly(300)
     val firstHeader: BlockHeader = baseBlockHeader.copy(number = peer1Info.maxBlockNumber + 4)
-    val firstBlock = PV64.NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight)
+    val firstBlock = ETC64.NewBlock(Block(firstHeader, BlockBody(Nil, Nil)), newBlockWeight)
 
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = peer2Info.maxBlockNumber + 2)
-    val secondBlock = PV64.NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockWeight)
+    val secondBlock = ETC64.NewBlock(Block(secondHeader, BlockBody(Nil, Nil)), newBlockWeight)
 
     //when
     peersInfoHolder ! MessageFromPeer(firstBlock, peer1.id)
@@ -85,7 +85,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    val expectedPeerInfo = initialPeerInfoPV64
+    val expectedPeerInfo = initialPeerInfoETC64
       .withBestBlockData(initialPeerInfo.maxBlockNumber + 4, firstHeader.hash)
       .withChainWeight(newBlockWeight)
     requestSender.expectMsg(PeerInfoResponse(Some(expectedPeerInfo)))
@@ -144,16 +144,16 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     )
   }
 
-  it should "update the peer chain weight when receiving a PV64.NewBlock" in new TestSetup {
+  it should "update the peer chain weight when receiving a ETC64.NewBlock" in new TestSetup {
     peerEventBus.expectMsg(Subscribe(PeerHandshaked))
-    setupNewPeer(peer1, peer1Probe, peer1InfoPV64)
+    setupNewPeer(peer1, peer1Probe, peer1InfoETC64)
 
     //given
-    val newBlock = PV64.NewBlock(
+    val newBlock = ETC64.NewBlock(
       baseBlock,
-      initialPeerInfoPV64.chainWeight
+      initialPeerInfoETC64.chainWeight
         .increaseTotalDifficulty(1)
-        .copy(lastCheckpointNumber = initialPeerInfoPV64.chainWeight.lastCheckpointNumber + 1)
+        .copy(lastCheckpointNumber = initialPeerInfoETC64.chainWeight.lastCheckpointNumber + 1)
     )
 
     //when
@@ -161,7 +161,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
-    requestSender.expectMsg(PeerInfoResponse(Some(peer1InfoPV64.withChainWeight(newBlock.chainWeight))))
+    requestSender.expectMsg(PeerInfoResponse(Some(peer1InfoETC64.withChainWeight(newBlock.chainWeight))))
   }
 
   it should "update the fork accepted when receiving the fork block" in new TestSetup {
@@ -285,7 +285,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
@@ -300,8 +300,8 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       bestBlockHash = peerStatus.bestHash
     )
 
-    val initialPeerInfoPV64 = PeerInfo(
-      remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.PV64),
+    val initialPeerInfoETC64 = PeerInfo(
+      remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.ETC64.version),
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,
@@ -313,7 +313,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val peer1Probe = TestProbe()
     val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
     val peer1Info = initialPeerInfo.withForkAccepted(false)
-    val peer1InfoPV64 = initialPeerInfoPV64.withForkAccepted(false)
+    val peer1InfoETC64 = initialPeerInfoETC64.withForkAccepted(false)
     val peer2Probe = TestProbe()
     val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
     val peer2Info = initialPeerInfo.withForkAccepted(false)

@@ -10,10 +10,10 @@ import io.iohk.ethereum.rlp._
 import org.bouncycastle.util.encoders.Hex
 
 /**
-  * This is temporal PV64 version, the real one will be implemented by ETCM-355
-  * This one will be probably PV66 in the future
+  * This is temporary ETC64 version, the real one will be implemented by ETCM-355
+  * This one will be probably ETC67 in the future
   */
-object PV64 {
+object ETC64 {
   object Status {
     implicit class StatusEnc(val underlyingMsg: Status)
         extends MessageSerializableImplicit[Status](underlyingMsg)
@@ -51,7 +51,7 @@ object PV64 {
             genesisHash
           )
 
-        case _ => throw new RuntimeException("Cannot decode Status PV64 version")
+        case _ => throw new RuntimeException("Cannot decode Status ETC64 version")
       }
     }
 
@@ -83,7 +83,7 @@ object PV64 {
     implicit class NewBlockEnc(val underlyingMsg: NewBlock)
         extends MessageSerializableImplicit[NewBlock](underlyingMsg)
         with RLPSerializable {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 
       override def code: Int = Codes.NewBlockCode
 
@@ -102,7 +102,7 @@ object PV64 {
     }
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
-      import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
         case RLPList(
@@ -117,7 +117,7 @@ object PV64 {
             ),
             ChainWeight(lastCheckpointNumber, totalDifficulty)
           )
-        case _ => throw new RuntimeException("Cannot decode NewBlock PV64 version")
+        case _ => throw new RuntimeException("Cannot decode NewBlock ETC64 version")
       }
     }
   }

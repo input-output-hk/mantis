@@ -168,7 +168,7 @@ class EthTxService(
   }
 
   def sendRawTransaction(req: SendRawTransactionRequest): ServiceResponse[SendRawTransactionResponse] = {
-    import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionDec
+    import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions.SignedTransactionDec
 
     Try(req.data.toArray.toSignedTransaction) match {
       case Success(signedTransaction) =>

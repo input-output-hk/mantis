@@ -25,13 +25,15 @@ class FrameCodec(private val secrets: Secrets) {
 
   private val allZerosIV = Array.fill[Byte](16)(0)
 
-  private val enc: StreamCipher = {
+  //needs to be lazy to enable mocking
+  private lazy val enc: StreamCipher = {
     val cipher = new SICBlockCipher(new AESEngine)
     cipher.init(true, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher
   }
 
-  private val dec: StreamCipher = {
+  //needs to be lazy to enable mocking
+  private lazy val dec: StreamCipher = {
     val cipher = new SICBlockCipher(new AESEngine)
     cipher.init(false, new ParametersWithIV(new KeyParameter(secrets.aes), allZerosIV))
     cipher

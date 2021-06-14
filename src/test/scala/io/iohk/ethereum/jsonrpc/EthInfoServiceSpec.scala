@@ -14,6 +14,7 @@ import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import monix.execution.Scheduler.Implicits.global
 import org.bouncycastle.util.encoders.Hex
@@ -160,7 +161,7 @@ class EthServiceSpec
       stxLedger,
       keyStore,
       syncingController.ref,
-      currentProtocolVersion,
+      Capability("eth", currentProtocolVersion.toByte),
       Timeouts.shortTimeout
     )
 

@@ -403,7 +403,7 @@ class TestService(
   }
 
   def getLogHash(request: GetLogHashRequest): ServiceResponse[GetLogHashResponse] = {
-    import io.iohk.ethereum.network.p2p.messages.PV63.TxLogEntryImplicits.TxLogEntryEnc
+    import io.iohk.ethereum.network.p2p.messages.ETH63.TxLogEntryImplicits.TxLogEntryEnc
 
     val result = for {
       transactionLocation <- blockchain.getTransactionLocation(request.transactionHash)

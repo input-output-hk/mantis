@@ -1,62 +1,56 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.util.concurrent.atomic.AtomicInteger
-
 import akka.util.ByteString
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
 import org.xerial.snappy.Snappy
 
 import scala.util.{Failure, Success, Try}
 
-class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, protocolVersion: Message.Version) {
-
+object MessageCodec {
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
+  // 16Mb in base 2
+  val MaxDecompressedLength = 16777216
+}
+
+class MessageCodec(
+    frameCodec: FrameCodec,
+    messageDecoder: MessageDecoder,
+    protocolVersion: Capability,
+    val remotePeer2PeerVersion: Long
+) {
+  import MessageCodec._
 
   val contextIdCounter = new AtomicInteger
-
-  // 16Mb in base 2
-  val maxDecompressedLength = 16777216
-
-  // MessageCodec is only used from actor context so it can be var
-  @volatile
-  private var remotePeerP2pVersion: Option[Long] = None
-
-  private def setRemoteVersionBasedOnHelloMessage(m: Message): Unit = {
-    if (remotePeerP2pVersion.isEmpty) {
-      m match {
-        case hello: Hello =>
-          remotePeerP2pVersion = Some(hello.p2pVersion)
-        case _ =>
-      }
-    }
-  }
 
   // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
   def readMessages(data: ByteString): Seq[Try[Message]] = {
     val frames = frameCodec.readFrames(data)
+    readFrames(frames)
+  }
 
+  def readFrames(frames: Seq[Frame]): Seq[Try[Message]] = {
     frames map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
-        if (remotePeerP2pVersion.exists(version => version >= EtcHelloExchangeState.P2pVersion)) {
+        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && frame.`type` != Hello.code) {
           decompressData(frameData)
         } else {
           Success(frameData)
         }
 
       payloadTry.map { payload =>
-        val m = messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
-        setRemoteVersionBasedOnHelloMessage(m)
-        m
+        messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
       }
     }
   }
 
   private def decompressData(data: Array[Byte]): Try[Array[Byte]] = {
     Try(Snappy.uncompressedLength(data)).flatMap { decompressedSize =>
-      if (decompressedSize > maxDecompressedLength)
+      if (decompressedSize > MaxDecompressedLength)
         Failure(new RuntimeException("Message size larger than 16mb"))
       else
         Try(Snappy.uncompress(data))
@@ -70,10 +64,7 @@ class MessageCodec(frameCodec: FrameCodec, messageDecoder: MessageDecoder, proto
     val frames = (0 until numFrames) map { frameNo =>
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
-        if (
-          remotePeerP2pVersion
-            .exists(version => version >= EtcHelloExchangeState.P2pVersion) && serializable.code != Hello.code
-        ) {
+        if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && serializable.code != Hello.code) {
           Snappy.compress(framedPayload)
         } else {
           framedPayload

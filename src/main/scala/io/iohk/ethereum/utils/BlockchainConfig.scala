@@ -8,6 +8,7 @@ import io.iohk.ethereum.utils.NumericUtils._
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 import com.typesafe.config.ConfigRenderOptions
+import io.iohk.ethereum.network.p2p.messages.Capability
 
 case class BlockchainConfig(
     powTargetTime: Option[Long] = None,
@@ -28,7 +29,8 @@ case class BlockchainConfig(
     ethCompatibleStorage: Boolean,
     bootstrapNodes: Set[String],
     checkpointPubKeys: Set[ByteString] = Set.empty,
-    allowedMinersPublicKeys: Set[ByteString] = Set.empty
+    allowedMinersPublicKeys: Set[ByteString] = Set.empty,
+    capabilities: List[Capability] = List.empty
 ) {
   val minRequireSignatures: Int = (Math.floor(checkpointPubKeys.size / 2) + 1).toInt
 
@@ -124,6 +126,8 @@ object BlockchainConfig {
     val allowedMinersPublicKeys = readPubKeySet(blockchainConfig, "allowed-miners")
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
+    val capabilities: List[Capability] =
+      blockchainConfig.getStringList("capabilities").asScala.toList.map(Capability.parseUnsafe)
 
     BlockchainConfig(
       powTargetTime = powTargetTime,
@@ -163,7 +167,8 @@ object BlockchainConfig {
       ethCompatibleStorage = ethCompatibleStorage,
       bootstrapNodes = bootstrapNodes,
       checkpointPubKeys = checkpointPubKeys,
-      allowedMinersPublicKeys = allowedMinersPublicKeys
+      allowedMinersPublicKeys = allowedMinersPublicKeys,
+      capabilities = capabilities
     )
   }
   // scalastyle:on method.length

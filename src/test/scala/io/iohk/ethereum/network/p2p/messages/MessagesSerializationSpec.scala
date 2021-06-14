@@ -3,9 +3,9 @@ package io.iohk.ethereum.network.p2p.messages
 import akka.util.ByteString
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.p2p.messages.CommonMessages._
-import io.iohk.ethereum.network.p2p.messages.PV61.BlockHashesFromNumber
-import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages._
+import io.iohk.ethereum.network.p2p.messages.ETH61.BlockHashesFromNumber
+import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
 import org.scalatest.matchers.should.Matchers
@@ -14,7 +14,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
-  // TODO: add tests for messages from PV63
+  // TODO: add tests for messages from ETH63
   "Wire Protocol" when {
 
     "encoding and decoding Hello" should {
@@ -23,7 +23,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
           Hello(1, "teest", Seq(Capability("Sample", 1), Capability("Sample", 2)), 1, ByteString("Id")),
           (m: Hello) => m.toBytes,
           Hello.code,
-          ProtocolVersions.PV63
+          ProtocolVersions.ETH63
         )
       }
     }
@@ -34,20 +34,20 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
           Disconnect(Disconnect.Reasons.AlreadyConnected),
           (m: Disconnect) => m.toBytes,
           Disconnect.code,
-          ProtocolVersions.PV63
+          ProtocolVersions.ETH63
         )
       }
     }
 
     "encoding and decoding Ping" should {
       "return same result" in {
-        verify(Ping(), (m: Ping) => m.toBytes, Ping.code, ProtocolVersions.PV63)
+        verify(Ping(), (m: Ping) => m.toBytes, Ping.code, ProtocolVersions.ETH63)
       }
     }
 
     "encoding and decoding Pong" should {
       "return same result" in {
-        verify(Pong(), (m: Pong) => m.toBytes, Pong.code, ProtocolVersions.PV63)
+        verify(Pong(), (m: Pong) => m.toBytes, Pong.code, ProtocolVersions.ETH63)
       }
     }
   }
@@ -56,47 +56,47 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     "encoding and decoding Status" should {
       "return same result for Status v63" in {
         val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
-        verify(msg, (m: Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.PV63)
+        verify(msg, (m: Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.ETH63)
       }
     }
 
     "encoding and decoding SignedTransactions" should {
       "return same result" in {
         val msg = SignedTransactions(Fixtures.Blocks.Block3125369.body.transactionList)
-        verify(msg, (m: SignedTransactions) => m.toBytes, Codes.SignedTransactionsCode, ProtocolVersions.PV63)
+        verify(msg, (m: SignedTransactions) => m.toBytes, Codes.SignedTransactionsCode, ProtocolVersions.ETH63)
       }
     }
 
     "encoding and decoding NewBlock" should {
       "return same result for NewBlock v63" in {
         val msg = NewBlock(Fixtures.Blocks.Block3125369.block, 2323)
-        verify(msg, (m: NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.PV63)
+        verify(msg, (m: NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.ETH63)
       }
     }
   }
 
-  "PV64" when {
+  "ETC64" when {
     "encoding and decoding Status" should {
       "return same result for Status v64" in {
-        val msg = PV64.Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2"))
-        verify(msg, (m: PV64.Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.PV64)
+        val msg = ETC64.Status(1, 2, ChainWeight(2, 5), ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: ETC64.Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.ETC64)
       }
     }
 
     "encoding and decoding NewBlock" should {
       "return same result for NewBlock v64" in {
-        val msg = PV64.NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21))
-        verify(msg, (m: PV64.NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.PV64)
+        val msg = ETC64.NewBlock(Fixtures.Blocks.Block3125369.block, ChainWeight(2323, 21))
+        verify(msg, (m: ETC64.NewBlock) => m.toBytes, Codes.NewBlockCode, ProtocolVersions.ETC64)
       }
     }
   }
 
-  "PV61" when {
-    val version = ProtocolVersions.PV61
+  "ETH61" when {
+    val version = ProtocolVersions.ETH61
     "encoding and decoding NewBlockHashes" should {
       "return same result" in {
-        val msg = PV61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))
-        verify(msg, (m: PV61.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
+        val msg = ETH61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))
+        verify(msg, (m: ETH61.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
       }
     }
 
@@ -108,12 +108,12 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  "PV62" when {
-    val version = ProtocolVersions.PV62
+  "ETH62" when {
+    val version = ProtocolVersions.ETH62
     "encoding and decoding NewBlockHashes" should {
       "return same result" in {
-        val msg = PV62.NewBlockHashes(Seq(BlockHash(ByteString("hash1"), 1), BlockHash(ByteString("hash2"), 2)))
-        verify(msg, (m: PV62.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
+        val msg = ETH62.NewBlockHashes(Seq(BlockHash(ByteString("hash1"), 1), BlockHash(ByteString("hash2"), 2)))
+        verify(msg, (m: ETH62.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
       }
     }
 
@@ -158,7 +158,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
   val messageDecoder = NetworkMessageDecoder orElse EthereumMessageDecoder
 
-  def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Int): Unit =
+  def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Capability): Unit =
     messageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg
 
 }

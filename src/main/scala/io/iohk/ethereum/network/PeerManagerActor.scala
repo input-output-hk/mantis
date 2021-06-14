@@ -13,7 +13,7 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.Message.Version
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
@@ -21,9 +21,9 @@ import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import monix.eval.Task
 import monix.execution.{Scheduler => MonixScheduler}
 import org.bouncycastle.util.encoders.Hex
+
 import java.net.{InetSocketAddress, URI}
 import java.util.Collections.newSetFromMap
-
 import scala.collection.mutable
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
@@ -424,7 +424,7 @@ object PeerManagerActor {
       messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
       blacklist: Blacklist,
-      bestProtocolVersion: Version
+      capabilities: List[Capability]
   ): Props = {
     val factory: (ActorContext, InetSocketAddress, Boolean) => ActorRef =
       peerFactory(
@@ -434,7 +434,7 @@ object PeerManagerActor {
         handshaker,
         authHandshaker,
         messageDecoder,
-        bestProtocolVersion
+        capabilities
       )
 
     Props(
@@ -459,7 +459,7 @@ object PeerManagerActor {
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
       messageDecoder: MessageDecoder,
-      bestProtocolVersion: Version
+      capabilities: List[Capability]
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
     val props = PeerActor.props(
@@ -471,7 +471,7 @@ object PeerManagerActor {
       handshaker,
       authHandshaker,
       messageDecoder,
-      bestProtocolVersion
+      capabilities
     )
     ctx.actorOf(props, id)
   }

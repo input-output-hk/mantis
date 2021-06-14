@@ -16,7 +16,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
 import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers

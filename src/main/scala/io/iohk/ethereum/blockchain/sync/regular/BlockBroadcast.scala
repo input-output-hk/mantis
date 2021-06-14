@@ -6,8 +6,8 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.domain.{Block, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
-import io.iohk.ethereum.network.p2p.messages.{CommonMessages, PV62, PV64, ProtocolVersions}
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHash
+import io.iohk.ethereum.network.p2p.messages.{BaseETH6XMessages, ETH62, ETC64, ProtocolVersions}
 import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 
 import scala.util.Random
@@ -40,7 +40,8 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
   private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[PeerId, PeerWithInfo]): Unit =
     obtainRandomPeerSubset(peers.values.map(_.peer).toSet).foreach { peer =>
       val message: MessageSerializable =
-        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion == ProtocolVersions.PV64) blockToBroadcast.as64
+        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion.toByte == ProtocolVersions.ETC64.version)
+          blockToBroadcast.as64
         else blockToBroadcast.as63
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
@@ -48,7 +49,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
   private def broadcastNewBlockHash(blockToBroadcast: BlockToBroadcast, peers: Set[Peer]): Unit = peers.foreach {
     peer =>
       val newBlockHeader = blockToBroadcast.block.header
-      val newBlockHashMsg = PV62.NewBlockHashes(Seq(BlockHash(newBlockHeader.hash, newBlockHeader.number)))
+      val newBlockHashMsg = ETH62.NewBlockHashes(Seq(BlockHash(newBlockHeader.hash, newBlockHeader.number)))
       etcPeerManager ! EtcPeerManagerActor.SendMessage(newBlockHashMsg, peer.id)
   }
 
@@ -72,7 +73,7 @@ object BlockBroadcast {
     * (they are different versions of NewBlock msg)
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight) {
-    def as63: CommonMessages.NewBlock = CommonMessages.NewBlock(block, chainWeight.totalDifficulty)
-    def as64: PV64.NewBlock = PV64.NewBlock(block, chainWeight)
+    def as63: BaseETH6XMessages.NewBlock = BaseETH6XMessages.NewBlock(block, chainWeight.totalDifficulty)
+    def as64: ETC64.NewBlock = ETC64.NewBlock(block, chainWeight)
   }
 }

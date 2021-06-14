@@ -10,10 +10,10 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent._
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
-import io.iohk.ethereum.network.p2p.messages.PV62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
-import io.iohk.ethereum.network.p2p.messages.PV64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders, NewBlockHashes}
+import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, CommonMessages, PV64}
+import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, ETC64}
 import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -159,9 +159,9 @@ class EtcPeerManagerActor(
     */
   private def updateChainWeight(message: Message)(initialPeerInfo: PeerInfo): PeerInfo =
     message match {
-      case newBlock: CommonMessages.NewBlock =>
+      case newBlock: BaseETH6XMessages.NewBlock =>
         initialPeerInfo.copy(chainWeight = ChainWeight.totalDifficultyOnly(newBlock.totalDifficulty))
-      case newBlock: PV64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
+      case newBlock: ETC64.NewBlock => initialPeerInfo.copy(chainWeight = newBlock.chainWeight)
       case _ => initialPeerInfo
     }
 
@@ -220,7 +220,7 @@ class EtcPeerManagerActor(
     message match {
       case m: BlockHeaders =>
         update(m.headers.map(header => (header.number, header.hash)))
-      case m: CommonMessages.NewBlock =>
+      case m: BaseETH6XMessages.NewBlock =>
         update(Seq((m.block.header.number, m.block.header.hash)))
       case m: NewBlock =>
         update(Seq((m.block.header.number, m.block.header.hash)))
@@ -259,11 +259,11 @@ object EtcPeerManagerActor {
   }
 
   object RemoteStatus {
-    def apply(status: PV64.Status): RemoteStatus = {
+    def apply(status: ETC64.Status): RemoteStatus = {
       RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
     }
 
-    def apply(status: CommonMessages.Status): RemoteStatus = {
+    def apply(status: BaseETH6XMessages.Status): RemoteStatus = {
       RemoteStatus(
         status.protocolVersion,
         status.networkId,

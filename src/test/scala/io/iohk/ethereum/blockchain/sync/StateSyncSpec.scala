@@ -21,8 +21,8 @@ import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.PV63.GetNodeData.GetNodeDataEnc
-import io.iohk.ethereum.network.p2p.messages.PV63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.utils.Config
@@ -148,7 +148,7 @@ class StateSyncSpec
     val syncInit = TestProbe()
 
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.PV63,
+      protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

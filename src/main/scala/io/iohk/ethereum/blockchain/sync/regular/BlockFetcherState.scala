@@ -9,7 +9,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState._
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, HeadersSeq}
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.PV62.BlockHash
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHash
 
 import scala.annotation.tailrec
 import scala.collection.immutable.Queue

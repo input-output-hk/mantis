@@ -5,7 +5,7 @@ import com.google.common.cache.{Cache, CacheBuilder}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
 import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}

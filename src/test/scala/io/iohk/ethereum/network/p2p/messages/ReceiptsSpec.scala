@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{Address, Receipt, TxLogEntry}
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
-import io.iohk.ethereum.network.p2p.messages.PV63.Receipts
+import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
@@ -54,11 +54,11 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers {
     EthereumMessageDecoder.fromBytes(
       Codes.ReceiptsCode,
       encode(encodedReceipts),
-      ProtocolVersions.PV63
+      ProtocolVersions.ETH63
     ) shouldBe receipts
   }
 
   it should "decode encoded receipts" in {
-    EthereumMessageDecoder.fromBytes(Codes.ReceiptsCode, receipts.toBytes, ProtocolVersions.PV63) shouldBe receipts
+    EthereumMessageDecoder.fromBytes(Codes.ReceiptsCode, receipts.toBytes, ProtocolVersions.ETH63) shouldBe receipts
   }
 }

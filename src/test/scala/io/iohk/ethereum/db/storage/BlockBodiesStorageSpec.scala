@@ -3,8 +3,8 @@ package io.iohk.ethereum.db.storage
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network.p2p.messages.CommonMessages
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
 import org.bouncycastle.util.encoders.Hex
 import org.scalacheck.Gen
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -52,7 +52,7 @@ class BlockBodiesStorageSpec
       }
     }
 
-    def insertBlockBodiesMapping(newBlocks: Seq[CommonMessages.NewBlock]): BlockBodiesStorage = {
+    def insertBlockBodiesMapping(newBlocks: Seq[BaseETH6XMessages.NewBlock]): BlockBodiesStorage = {
       val storage = new BlockBodiesStorage(EphemDataSource())
 
       val batchUpdates = newBlocks.foldLeft(storage.emptyBatchUpdate) { case (updates, NewBlock(block, _)) =>

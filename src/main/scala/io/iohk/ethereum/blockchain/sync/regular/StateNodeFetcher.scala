@@ -9,7 +9,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{FetchCommand, Fetc
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.PV63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
 import io.iohk.ethereum.utils.Config.SyncConfig
 import cats.syntax.either._
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason

@@ -16,7 +16,7 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.core.methods.request.{EthFilter, Transaction}
 import org.web3j.protocol.core.methods.response.EthBlock.{TransactionHash, TransactionObject}
 import org.web3j.protocol.http.HttpService
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.SignedTransactions.SignedTransactionEnc
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions.SignedTransactionEnc
 import org.web3j.protocol.core.methods.response.EthLog.{Hash, LogObject}
 import io.iohk.ethereum.rpcTest.TestContracts._
 import io.iohk.ethereum.rpcTest.TestData._
@@ -37,7 +37,7 @@ class RpcApiTests extends AnyFlatSpec with Matchers with Logger {
 
   (it should "return correct protocol version").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
     val response = service.ethProtocolVersion().send()
-    hexToBigInt(response.getProtocolVersion) shouldEqual protocolVersion
+    hexToBigInt(response.getProtocolVersion) shouldEqual capabilities.head.version.toInt
   }
 
   (it should "return correct client version").taggedAs(MainNet, PrivNet) in new ScenarioSetup {
@@ -1149,7 +1149,8 @@ abstract class ScenarioSetup {
   // Some data from mantis config (this data is not exposed to built version so it is safe to load it here
   val config = ConfigFactory.load("application.conf").getConfig("mantis")
   val clientVersion: String = io.iohk.ethereum.utils.Config.clientVersion
-  val protocolVersion = config.getConfig("network").getInt("protocol-version")
+  val networkName: String = io.iohk.ethereum.utils.Config.blockchains.network
+  val capabilities = io.iohk.ethereum.utils.Config.blockchains.blockchains(networkName).capabilities
   //
 
   val service = Admin.build(new HttpService(testConfig.mantisUrl))

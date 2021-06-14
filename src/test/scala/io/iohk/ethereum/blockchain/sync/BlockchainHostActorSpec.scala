@@ -10,9 +10,9 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.Message
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.PV62._
-import io.iohk.ethereum.network.p2p.messages.PV63._
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{EtcPeerManagerActor, PeerId}
 import io.iohk.ethereum.{Fixtures, Timeouts, crypto}

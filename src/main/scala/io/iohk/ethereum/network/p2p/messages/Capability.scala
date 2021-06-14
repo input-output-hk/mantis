@@ -7,6 +7,29 @@ import io.iohk.ethereum.rlp.{RLPEncodeable, RLPException, RLPList, RLPSerializab
 case class Capability(name: String, version: Byte)
 
 object Capability {
+  def negotiate(c1: List[Capability], c2: List[Capability]): Option[Capability] =
+    c1.intersect(c2) match {
+      case Nil => None
+      case l => Some(best(l))
+    }
+
+  private val pattern = "(.*)/(\\d*)".r
+
+  def parseUnsafe(protocolVersion: String): Capability =
+    protocolVersion match {
+      case pattern(name, version) =>
+        val c = Capability(name, version.toByte)
+        if (Capabilities.All.contains(c))
+          c
+        else
+          throw new RuntimeException(s"Capability $protocolVersion not supported by Mantis")
+      case _ => throw new RuntimeException(s"Unable to parse capability $protocolVersion")
+    }
+
+  //TODO consider how this scoring should be handled with 'snap' and other extended protocols
+  def best(capabilities: List[Capability]): Capability =
+    capabilities.maxBy(_.version)
+
   implicit class CapabilityEnc(val msg: Capability) extends RLPSerializable {
     override def toRLPEncodable: RLPEncodeable = RLPList(msg.name, msg.version)
   }
@@ -23,9 +46,9 @@ object Capability {
   }
 
   object Capabilities {
-    val Eth63Capability: Capability = Capability("eth", ProtocolVersions.PV63.toByte)
-    val Etc64Capability: Capability = Capability("etc", ProtocolVersions.PV64.toByte)
+    val Eth63Capability: Capability = ProtocolVersions.ETH63
+    val Etc64Capability: Capability = ProtocolVersions.ETC64
 
-    val All: Seq[Capability] = Seq(Etc64Capability, Eth63Capability)
+    val All: Seq[Capability] = Seq(ProtocolVersions.ETC64, ProtocolVersions.ETH63)
   }
 }

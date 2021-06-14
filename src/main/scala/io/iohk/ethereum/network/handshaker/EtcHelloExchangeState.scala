@@ -6,7 +6,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
 import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
 
@@ -26,19 +26,18 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
 
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case hello: Hello =>
     log.debug("Protocol handshake finished with peer ({})", hello)
-    if (
-      handshakerConfiguration.protocolVersion == ProtocolVersions.PV64 && hello.capabilities.contains(Etc64Capability)
-    )
-      EtcNodeStatus64ExchangeState(handshakerConfiguration)
-    else if (hello.capabilities.contains(Eth63Capability))
-      EtcNodeStatus63ExchangeState(handshakerConfiguration)
-    else {
-      log.debug(
-        s"Connected peer does not support eth ${ProtocolVersions.PV63.toByte} / ${ProtocolVersions.PV64.toByte} protocol. Disconnecting."
-      )
-      DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
+    // FIXME in principle this should be already negotiated
+    Capability.negotiate(hello.capabilities.toList, handshakerConfiguration.capabilities) match {
+      case Some(ProtocolVersions.ETC64) => EtcNodeStatus64ExchangeState(handshakerConfiguration)
+      case Some(ProtocolVersions.ETH63) => EtcNodeStatus63ExchangeState(handshakerConfiguration)
+      case _ =>
+        log.debug(
+          s"Connected peer does not support {} / {} protocol. Disconnecting.",
+          ProtocolVersions.ETH63,
+          ProtocolVersions.ETC64
+        )
+        DisconnectedState(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
     }
-
   }
 
   override def processTimeout: HandshakerState[PeerInfo] = {
@@ -52,13 +51,10 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
       case ServerStatus.Listening(address) => address.getPort
       case ServerStatus.NotListening => 0
     }
-    val capabilities =
-      if (handshakerConfiguration.protocolVersion == ProtocolVersions.PV64) Capabilities.All else Seq(Eth63Capability)
-
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = capabilities,
+      capabilities = handshakerConfiguration.capabilities,
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId)
     )

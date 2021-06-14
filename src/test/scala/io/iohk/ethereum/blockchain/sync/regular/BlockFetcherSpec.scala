@@ -21,8 +21,8 @@ import io.iohk.ethereum.domain.{Block, HeadersSeq}
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.CommonMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.PV62._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.{Peer, PeerId}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.{BlockHelpers, Timeouts}

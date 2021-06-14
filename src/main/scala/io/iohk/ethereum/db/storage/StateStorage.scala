@@ -8,7 +8,7 @@ import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.StateStorage.{FlushSituation, GenesisDataLoad}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.network.p2p.messages.PV63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 import scala.concurrent.duration.FiniteDuration
