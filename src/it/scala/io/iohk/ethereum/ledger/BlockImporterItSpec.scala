@@ -132,23 +132,6 @@ class BlockImporterItSpec
   blockImporter ! BlockImporter.Start
 
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
-
-    //ledger with not mocked blockExecution
-    val ledger = new TestLedgerImpl(successValidators)
-    val blockImporter = system.actorOf(
-      BlockImporter.props(
-        fetcherProbe.ref,
-        ledger,
-        blockchain,
-        syncConfig,
-        ommersPoolProbe.ref,
-        broadcasterProbe.ref,
-        pendingTransactionsManagerProbe.ref,
-        supervisor.ref
-      )
-    )
-
-    blockImporter ! BlockImporter.Start
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
     //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
@@ -243,10 +226,11 @@ class BlockImporterItSpec
 
   it should "ask BlockFetcher to resolve missing node" in {
     val parent = blockchain.getBestBlock().get
-    val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
-    val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
+    val newBlock: Block = getBlock(parent.number + 1, difficulty = 104, parent = parent.header.hash)
 
     val ledger = new TestLedgerImpl(successValidators)
+    // Use a newly created fetcherProbe to rule out interference from other tests
+    val fetcherProbe = TestProbe()
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -261,10 +245,11 @@ class BlockImporterItSpec
     )
 
     blockImporter ! BlockImporter.Start
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock)))
 
     eventually {
 
+      // This assertions succeeds because the stateRoot of block1 is missing
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
           case BlockFetcher.FetchStateNode(_, _) => true
