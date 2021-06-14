@@ -5,7 +5,13 @@ package object messages {
     val ETH61: Capability = Capability("eth", 61.toByte)
     val ETH62: Capability = Capability("eth", 62.toByte)
     val ETH63: Capability = Capability("eth", 63.toByte)
+    val ETH64: Capability = Capability("eth", 64.toByte)
+    val ETH65: Capability = Capability("eth", 65.toByte)
+    val ETH66: Capability = Capability("eth", 66.toByte)
+
     val ETC64: Capability = Capability("etc", 64.toByte)
+
+    val SNAP1: Capability = Capability("snap", 1.toByte)
 
     val SubProtocolOffset = 0x10
   }
