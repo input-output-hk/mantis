@@ -91,9 +91,9 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  "support ETH61 messages as ETH63" when {
+  "ETH63" when {
     val version = ProtocolVersions.ETH63
-    "encoding and decoding NewBlockHashes" should {
+    "encoding and decoding ETH61.NewBlockHashes" should {
       "throw for unsupported message version" in {
         val msg = ETH61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))
         assertThrows[RuntimeException] {
@@ -108,11 +108,8 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
         verify(msg, (m: BlockHashesFromNumber) => m.toBytes, Codes.BlockHashesFromNumberCode, version)
       }
     }
-  }
 
-  "support ETH62 messages as ETH63" when {
-    val version = ProtocolVersions.ETH63
-    "encoding and decoding NewBlockHashes" should {
+    "encoding and decoding ETH62.NewBlockHashes" should {
       "return same result" in {
         val msg = ETH62.NewBlockHashes(Seq(BlockHash(ByteString("hash1"), 1), BlockHash(ByteString("hash2"), 2)))
         verify(msg, (m: ETH62.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
