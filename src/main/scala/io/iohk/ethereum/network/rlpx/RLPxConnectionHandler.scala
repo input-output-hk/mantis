@@ -9,8 +9,14 @@ import cats.data.NonEmptyList
 import io.iohk.ethereum.network.p2p.messages.{Capability, WireProtocol}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
-import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable, NetworkMessageDecoder}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, RLPxConfiguration}
+import io.iohk.ethereum.network.p2p.{
+  EthereumMessageDecoder,
+  Message,
+  MessageDecoder,
+  MessageSerializable,
+  NetworkMessageDecoder
+}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloCodec, RLPxConfiguration}
 import io.iohk.ethereum.utils.ByteUtils
 import org.bouncycastle.util.encoders.Hex
 
@@ -30,12 +36,11 @@ import scala.util.{Failure, Success, Try}
   * 4. once handshake is done (and secure connection established) actor can send/receive messages (`handshaked` state)
   */
 class RLPxConnectionHandler(
-    messageDecoder: MessageDecoder,
     capabilities: List[Capability],
     authHandshaker: AuthHandshaker,
-    messageCodecFactory: (FrameCodec, MessageDecoder, Capability, Long) => MessageCodec,
+    messageCodecFactory: (FrameCodec, Capability, Long) => MessageCodec,
     rlpxConfiguration: RLPxConfiguration,
-    extractor: Secrets => HelloExtractor
+    extractor: Secrets => HelloCodec
 ) extends Actor
     with ActorLogging {
 
@@ -172,7 +177,7 @@ class RLPxConnectionHandler(
       }
 
     def awaitInitialHello(
-        extractor: HelloExtractor,
+        extractor: HelloCodec,
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive =
@@ -183,7 +188,7 @@ class RLPxConnectionHandler(
       ) orElse handleReceiveHello(extractor, cancellableAckTimeout, seqNumber)
 
     private def handleSendHello(
-        extractor: HelloExtractor,
+        extractor: HelloCodec,
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive = {
@@ -211,7 +216,7 @@ class RLPxConnectionHandler(
     }
 
     private def handleReceiveHello(
-        extractor: HelloExtractor,
+        extractor: HelloCodec,
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive = { case Received(data) =>
@@ -241,9 +246,9 @@ class RLPxConnectionHandler(
       }
     }
 
-    private def negotiateCodec(hello: Hello, extractor: HelloExtractor): Option[(MessageCodec, Capability)] =
+    private def negotiateCodec(hello: Hello, extractor: HelloCodec): Option[(MessageCodec, Capability)] =
       Capability.negotiate(hello.capabilities.toList, capabilities).map { negotiated =>
-        (messageCodecFactory(extractor.frameCodec, messageDecoder, negotiated, hello.p2pVersion), negotiated)
+        (messageCodecFactory(extractor.frameCodec, negotiated, hello.p2pVersion), negotiated)
       }
 
     private def processFrames(frames: Seq[Frame], messageCodec: MessageCodec): Unit =
@@ -373,29 +378,28 @@ class RLPxConnectionHandler(
 
 object RLPxConnectionHandler {
   def props(
-      messageDecoder: MessageDecoder,
       capabilities: List[Capability],
       authHandshaker: AuthHandshaker,
       rlpxConfiguration: RLPxConfiguration
   ): Props =
     Props(
       new RLPxConnectionHandler(
-        messageDecoder,
         capabilities,
         authHandshaker,
-        messageCodecFactory,
+        ethMessageCodecFactory,
         rlpxConfiguration,
-        HelloExtractor.apply
+        HelloCodec.apply
       )
     )
 
-  def messageCodecFactory(
+  def ethMessageCodecFactory(
       frameCodec: FrameCodec,
-      messageDecoder: MessageDecoder,
-      protocolVersion: Capability,
+      negotiated: Capability,
       p2pVersion: Long
-  ): MessageCodec =
-    new MessageCodec(frameCodec, messageDecoder, protocolVersion, p2pVersion)
+  ): MessageCodec = {
+    val md = EthereumMessageDecoder.ethMessageDecoder(negotiated) orElse NetworkMessageDecoder
+    new MessageCodec(frameCodec, md, p2pVersion)
+  }
 
   case class ConnectTo(uri: URI)
 
@@ -424,7 +428,7 @@ object RLPxConnectionHandler {
     val waitForTcpAckTimeout: FiniteDuration
   }
 
-  case class HelloExtractor(secrets: Secrets) {
+  case class HelloCodec(secrets: Secrets) {
     import MessageCodec._
     lazy val frameCodec = new FrameCodec(secrets)
 
@@ -448,7 +452,7 @@ object RLPxConnectionHandler {
     private def extractHello(frame: Frame): Option[Hello] = {
       val frameData = frame.payload.toArray
       if (frame.`type` == Hello.code) {
-        val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData, Capability.Capabilities.Eth63Capability)
+        val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData)
         Some(m.asInstanceOf[Hello])
       } else {
         None

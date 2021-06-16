@@ -21,11 +21,10 @@ trait MessageSerializable extends Message {
 }
 
 trait MessageDecoder { self =>
-  def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Capability): Message
+  def fromBytes(`type`: Int, payload: Array[Byte]): Message
 
-  def orElse(otherMessageDecoder: MessageDecoder): MessageDecoder = new MessageDecoder {
-    override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Capability): Message =
-      Try { self.fromBytes(`type`, payload, protocolVersion) }
-        .getOrElse(otherMessageDecoder.fromBytes(`type`, payload, protocolVersion))
-  }
+  def orElse(otherMessageDecoder: MessageDecoder): MessageDecoder = (`type`: Int, payload: Array[Byte]) =>
+    Try {
+      self.fromBytes(`type`, payload)
+    }.getOrElse(otherMessageDecoder.fromBytes(`type`, payload))
 }

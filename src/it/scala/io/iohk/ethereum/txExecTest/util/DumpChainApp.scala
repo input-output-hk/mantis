@@ -113,7 +113,6 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       knownNodesManager = actorSystem.deadLetters, // TODO: fixme
       handshaker = handshaker,
       authHandshaker = authHandshaker,
-      messageDecoder = EthereumMessageDecoder,
       discoveryConfig = discoveryConfig,
       blacklist = blacklist,
       capabilities = blockchainConfig.capabilities
