@@ -190,7 +190,6 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       peerStatistics,
       handshaker,
       authHandshaker,
-      EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
       blockchainConfig.capabilities

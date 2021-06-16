@@ -91,12 +91,14 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  "ETH61" when {
-    val version = ProtocolVersions.ETH61
-    "encoding and decoding NewBlockHashes" should {
-      "return same result" in {
+  "ETH63" when {
+    val version = ProtocolVersions.ETH63
+    "encoding and decoding ETH61.NewBlockHashes" should {
+      "throw for unsupported message version" in {
         val msg = ETH61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))
-        verify(msg, (m: ETH61.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
+        assertThrows[RuntimeException] {
+          verify(msg, (m: ETH61.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
+        }
       }
     }
 
@@ -106,11 +108,8 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
         verify(msg, (m: BlockHashesFromNumber) => m.toBytes, Codes.BlockHashesFromNumberCode, version)
       }
     }
-  }
 
-  "ETH62" when {
-    val version = ProtocolVersions.ETH62
-    "encoding and decoding NewBlockHashes" should {
+    "encoding and decoding ETH62.NewBlockHashes" should {
       "return same result" in {
         val msg = ETH62.NewBlockHashes(Seq(BlockHash(ByteString("hash1"), 1), BlockHash(ByteString("hash2"), 2)))
         verify(msg, (m: ETH62.NewBlockHashes) => m.toBytes, Codes.NewBlockHashesCode, version)
@@ -156,9 +155,8 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     }
   }
 
-  val messageDecoder = NetworkMessageDecoder orElse EthereumMessageDecoder
-
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Capability): Unit =
-    messageDecoder.fromBytes(code, encode(msg), version) shouldEqual msg
+    messageDecoder(version).fromBytes(code, encode(msg)) shouldEqual msg
 
+  private def messageDecoder(version: Capability) = NetworkMessageDecoder orElse EthereumMessageDecoder.ethMessageDecoder(version)
 }

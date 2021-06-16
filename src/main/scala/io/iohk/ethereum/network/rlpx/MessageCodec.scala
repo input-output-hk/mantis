@@ -19,7 +19,6 @@ object MessageCodec {
 class MessageCodec(
     frameCodec: FrameCodec,
     messageDecoder: MessageDecoder,
-    protocolVersion: Capability,
     val remotePeer2PeerVersion: Long
 ) {
   import MessageCodec._
@@ -43,7 +42,7 @@ class MessageCodec(
         }
 
       payloadTry.map { payload =>
-        messageDecoder.fromBytes(frame.`type`, payload, protocolVersion)
+        messageDecoder.fromBytes(frame.`type`, payload)
       }
     }
   }

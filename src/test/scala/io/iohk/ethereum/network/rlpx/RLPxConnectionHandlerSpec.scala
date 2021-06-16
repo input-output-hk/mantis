@@ -10,7 +10,7 @@ import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Hello, Ping}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloExtractor, InitialHelloReceived, MessageReceived, RLPxConfiguration}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloCodec, InitialHelloReceived, MessageReceived, RLPxConfiguration}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
@@ -176,14 +176,14 @@ class RLPxConnectionHandlerSpec
 
     //Mock parameters for RLPxConnectionHandler
     val mockMessageDecoder = new MessageDecoder {
-      override def fromBytes(`type`: Int, payload: Array[Byte], protocolVersion: Capability) =
+      override def fromBytes(`type`: Int, payload: Array[Byte]) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
     val protocolVersion = ProtocolVersions.ETH63
     val mockHandshaker = mock[AuthHandshaker]
     val connection = TestProbe()
     val mockMessageCodec = mock[MessageCodec]
-    val mockHelloExtractor: HelloExtractor = mock[HelloExtractor]
+    val mockHelloExtractor: HelloCodec = mock[HelloCodec]
 
     val uri = new URI(
       "enode://18a551bee469c2e02de660ab01dede06503c986f6b8520cb5a65ad122df88b17b285e3fef09a40a0d44f99e014f8616cf1ebc2e094f96c6e09e2f390f5d34857@47.90.36.129:30303"
@@ -202,10 +202,9 @@ class RLPxConnectionHandlerSpec
     val rlpxConnection = TestActorRef(
       Props(
         new RLPxConnectionHandler(
-          mockMessageDecoder,
           protocolVersion:: Nil,
           mockHandshaker,
-          (_, _, _, _) => mockMessageCodec,
+          (_, _, _) => mockMessageCodec,
           rlpxConfiguration,
           _ => mockHelloExtractor
         ) {

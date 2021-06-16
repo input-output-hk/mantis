@@ -24,7 +24,6 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.discovery.{DiscoveryConfig, DiscoveryServiceBuilder, PeerDiscoveryManager}
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.{PeerManagerActor, ServerActor, _}
 import io.iohk.ethereum.ommers.OmmersPool
@@ -245,7 +244,6 @@ trait PeerManagerActorBuilder {
       peerStatistics,
       handshaker,
       authHandshaker,
-      EthereumMessageDecoder,
       discoveryConfig,
       blacklist,
       blockchainConfig.capabilities

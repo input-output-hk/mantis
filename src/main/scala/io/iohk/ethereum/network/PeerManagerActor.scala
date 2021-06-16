@@ -421,7 +421,6 @@ object PeerManagerActor {
       peerStatistics: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder,
       discoveryConfig: DiscoveryConfig,
       blacklist: Blacklist,
       capabilities: List[Capability]
@@ -433,7 +432,6 @@ object PeerManagerActor {
         knownNodesManager,
         handshaker,
         authHandshaker,
-        messageDecoder,
         capabilities
       )
 
@@ -458,7 +456,6 @@ object PeerManagerActor {
       knownNodesManager: ActorRef,
       handshaker: Handshaker[R],
       authHandshaker: AuthHandshaker,
-      messageDecoder: MessageDecoder,
       capabilities: List[Capability]
   ): (ActorContext, InetSocketAddress, Boolean) => ActorRef = { (ctx, address, incomingConnection) =>
     val id: String = address.toString.filterNot(_ == '/')
@@ -470,7 +467,6 @@ object PeerManagerActor {
       incomingConnection,
       handshaker,
       authHandshaker,
-      messageDecoder,
       capabilities
     )
     ctx.actorOf(props, id)
