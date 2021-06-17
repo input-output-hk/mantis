@@ -11,6 +11,7 @@ import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
+import io.iohk.ethereum.vm.PrecompiledContracts.ModExp.PostEIP198Cost.getMultComplexity
 
 import scala.util.Try
 
@@ -165,14 +166,13 @@ object PrecompiledContracts {
 
     private val lengthBytes = 32
     private val totalLengthBytes = 3 * lengthBytes
-    private val GQUADDIVISOR = 20
 
     def exec(inputData: ByteString): Option[ByteString] = {
       val baseLength = getLength(inputData, 0)
       val expLength = getLength(inputData, 1)
       val modLength = getLength(inputData, 2)
 
-      val result =
+      val result = {
         if (baseLength == 0 && modLength == 0)
           BigInt(0)
         else {
@@ -187,6 +187,7 @@ object PrecompiledContracts {
             base.modPow(exp, mod)
           }
         }
+      }
       Some(ByteString(ByteUtils.bigIntegerToBytes(result.bigInteger, modLength)))
     }
 
@@ -201,11 +202,66 @@ object PrecompiledContracts {
           safeAdd(safeAdd(totalLengthBytes, baseLength), expLength)
         )
 
-      val multComplexity = getMultComplexity(math.max(baseLength, modLength))
+      if (ethFork >= EthForks.Berlin || etcFork >= EtcForks.Magneto)
+        PostEIP2565Cost.calculate(baseLength, modLength, expLength, expBytes)
+      else
+        PostEIP198Cost.calculate(baseLength, modLength, expLength, expBytes)
+    }
 
-      val adjExpLen = adjExpLength(expBytes, expLength)
+    object PostEIP198Cost {
+      private val GQUADDIVISOR = 20
 
-      multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
+      def calculate(baseLength: Int, modLength: Int, expLength: Int, expBytes: ByteString): BigInt = {
+        val multComplexity = getMultComplexity(math.max(baseLength, modLength))
+        val adjExpLen = adjExpLength(expBytes, expLength)
+        multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
+      }
+
+      private def getMultComplexity(x: BigInt): BigInt = {
+        val x2 = x * x
+        if (x <= 64)
+          x2
+        else if (x <= 1024)
+          x2 / 4 + 96 * x - 3072
+        else
+          x2 / 16 + 480 * x - 199680
+      }
+    }
+
+    object PostEIP2565Cost {
+      private val GQUADDIVISOR = 3
+
+      def calculate(baseLength: Int, modLength: Int, expLength: Int, expBytes: ByteString): BigInt = {
+        val multComplexity = getMultComplexity(math.max(baseLength, modLength))
+        val adjExpLen = adjExpLength(expBytes, expLength)
+        val r = multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
+        if (r <= 200) 200
+        else r
+      }
+
+      // ceiling(x/8)^2
+      private def getMultComplexity(x: BigInt): BigInt =
+        ((x + 7) / 8).pow(2)
+    }
+
+    private def getNumber(bytes: ByteString, offset: Int, length: Int): BigInt = {
+      val number = bytes.slice(offset, safeAdd(offset, length)).padToByteString(length, 0.toByte)
+      ByteUtils.toBigInt(number)
+    }
+
+    private def safeAdd(a: Int, b: Int): Int = {
+      safeInt(BigInt(a) + BigInt(b))
+    }
+
+    private def safeInt(value: BigInt): Int =
+      if (value.isValidInt)
+        value.toInt
+      else
+        Integer.MAX_VALUE
+
+    private def getLength(bytes: ByteString, position: Int): Int = {
+      val start = position * lengthBytes
+      safeInt(ByteUtils.toBigInt(bytes.slice(start, start + lengthBytes)))
     }
 
     private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
@@ -222,37 +278,6 @@ object PrecompiledContracts {
       } else {
         8L * (expLength - lengthBytes) + highestBitIndex
       }
-    }
-
-    private def getLength(bytes: ByteString, position: Int): Int = {
-      val start = position * lengthBytes
-      safeInt(ByteUtils.toBigInt(bytes.slice(start, start + lengthBytes)))
-    }
-
-    private def getNumber(bytes: ByteString, offset: Int, length: Int): BigInt = {
-      val number = bytes.slice(offset, safeAdd(offset, length)).padToByteString(length, 0.toByte)
-      ByteUtils.toBigInt(number)
-    }
-
-    private def safeInt(value: BigInt): Int =
-      if (value.isValidInt)
-        value.toInt
-      else
-        Integer.MAX_VALUE
-
-    private def safeAdd(a: Int, b: Int): Int = {
-      safeInt(BigInt(a) + BigInt(b))
-    }
-
-    private def getMultComplexity(x: BigInt): BigInt = {
-      val x2 = x * x
-
-      if (x <= 64)
-        x2
-      else if (x <= 1024)
-        x2 / 4 + 96 * x - 3072
-      else
-        x2 / 16 + 480 * x - 199680
     }
   }
 
