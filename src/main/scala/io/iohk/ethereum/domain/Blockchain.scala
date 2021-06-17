@@ -135,9 +135,6 @@ trait Blockchain {
     */
   def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight]
 
-  def getChainWeightByNumber(blockNumber: BigInt): Option[ChainWeight] =
-    getHashByBlockNumber(blockNumber).flatMap(getChainWeightByHash)
-
   def getBestBlockNumber(): BigInt
 
   def getBestBlock(): Option[Block]
