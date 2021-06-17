@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
@@ -20,6 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.Codes
   */
 class BlockchainHostActor(
     blockchain: Blockchain,
+    evmCodeStorage: EvmCodeStorage,
     peerConfiguration: PeerConfiguration,
     peerEventBusActor: ActorRef,
     etcPeerManagerActor: ActorRef
@@ -54,7 +56,7 @@ class BlockchainHostActor(
         val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
 
         //If no mpt node was found, fetch evm by hash
-        maybeMptNodeData.orElse(blockchain.getEvmCodeByHash(hash))
+        maybeMptNodeData.orElse(evmCodeStorage.get(hash))
       }
 
       Some(NodeData(nodeData))
@@ -116,10 +118,13 @@ object BlockchainHostActor {
 
   def props(
       blockchain: Blockchain,
+      evmCodeStorage: EvmCodeStorage,
       peerConfiguration: PeerConfiguration,
       peerEventBusActor: ActorRef,
       etcPeerManagerActor: ActorRef
   ): Props =
-    Props(new BlockchainHostActor(blockchain, peerConfiguration, peerEventBusActor, etcPeerManagerActor))
+    Props(
+      new BlockchainHostActor(blockchain, evmCodeStorage, peerConfiguration, peerEventBusActor, etcPeerManagerActor)
+    )
 
 }
