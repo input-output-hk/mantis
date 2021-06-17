@@ -213,8 +213,8 @@ object PrecompiledContracts {
 
       def calculate(baseLength: Int, modLength: Int, expLength: Int, expBytes: ByteString): BigInt = {
         val multComplexity = getMultComplexity(math.max(baseLength, modLength))
-        val adjExpLen = adjExpLength(expBytes, expLength)
-        multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
+        val adjusted = adjustExpLength(expBytes, expLength)
+        multComplexity * math.max(adjusted, 1) / GQUADDIVISOR
       }
 
       private def getMultComplexity(x: BigInt): BigInt = {
@@ -233,8 +233,8 @@ object PrecompiledContracts {
 
       def calculate(baseLength: Int, modLength: Int, expLength: Int, expBytes: ByteString): BigInt = {
         val multComplexity = getMultComplexity(math.max(baseLength, modLength))
-        val adjExpLen = adjExpLength(expBytes, expLength)
-        val r = multComplexity * math.max(adjExpLen, 1) / GQUADDIVISOR
+        val adjusted = adjustExpLength(expBytes, expLength)
+        val r = multComplexity * math.max(adjusted, 1) / GQUADDIVISOR
         if (r <= 200) 200
         else r
       }
@@ -264,7 +264,7 @@ object PrecompiledContracts {
       safeInt(ByteUtils.toBigInt(bytes.slice(start, start + lengthBytes)))
     }
 
-    private def adjExpLength(expBytes: ByteString, expLength: Int): Long = {
+    private def adjustExpLength(expBytes: ByteString, expLength: Int): Long = {
       val expHead =
         if (expLength <= lengthBytes)
           expBytes.padToByteString(expLength, 0.toByte)

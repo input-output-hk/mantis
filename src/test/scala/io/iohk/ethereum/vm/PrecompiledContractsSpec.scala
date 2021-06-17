@@ -199,7 +199,7 @@ class PrecompiledContractsSpec
     )
     val testData = Table(
       ("input", "Expected")
-    ) ++ modexpTestInupts.map {case (name, (input, _)) => (input, modexpPost198ExpectedCosts(name))}
+    ) ++ modexpTestInputs.map {case (name, (input, _)) => (input, modexpPost198ExpectedCosts(name))}
 
     forAll(testData) { (input, expectedResult) =>
       val res = ModExp.gas(ByteString(Hex.decode(input)), EtcForks.BeforeAtlantis, EthForks.BeforeByzantium)
@@ -227,7 +227,7 @@ class PrecompiledContractsSpec
     )
     val testData = Table(
       ("input", "Expected")
-    ) ++ modexpTestInupts.map {case (name, (input, _)) => (input, modexpPost2565ExpectedCosts(name))}
+    ) ++ modexpTestInputs.map {case (name, (input, _)) => (input, modexpPost2565ExpectedCosts(name))}
 
     forAll(testData) { (input, expectedResult) =>
       val res = ModExp.gas(ByteString(Hex.decode(input)), EtcForks.Magneto, EthForks.Berlin)
@@ -235,7 +235,7 @@ class PrecompiledContractsSpec
     }
   }
 
-  val modexpTestInupts = Map(
+  val modexpTestInputs = Map(
     "modexp_nagydani_1_square" ->
       ("000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000040e09ad9675465c53a109fac66a445c91b292d2bb2c5268addb30cd82f80fcb0033ff97c80a5fc6f39193ae969c6ede6710a6b7ac27078a06d90ef1c72e5c85fb502fc9e1f6beb81516545975218075ec2af118cd8798df6e08a147c60fd6095ac2bb02c2908cf4dd7c81f11c289e4bce98f3553768f392a80ce22bf5c4f4a248c6b",
         "60008f1614cc01dcfb6bfb09c625cf90b47d4468db81b5f8b7a39d42f332eab9b2da8f2d95311648a8f243f4bb13cfb3d8f7f2a3c014122ebb3ed41b02783adc"),
