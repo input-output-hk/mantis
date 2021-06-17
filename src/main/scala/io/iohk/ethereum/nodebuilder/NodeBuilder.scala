@@ -368,7 +368,8 @@ trait TestServiceBuilder {
     with BlockchainConfigBuilder
     with VmBuilder
     with TestmodeConsensusBuilder
-    with TestModeServiceBuilder =>
+    with TestModeServiceBuilder
+    with StorageBuilder =>
 
   lazy val testService =
     new TestService(
@@ -377,6 +378,7 @@ trait TestServiceBuilder {
       consensusConfig,
       testModeComponentsProvider,
       blockchainConfig,
+      storagesInstance.storages.transactionMappingStorage,
       preimages
     )(scheduler)
 }
@@ -439,13 +441,18 @@ trait EthMiningServiceBuilder {
   )
 }
 trait EthTxServiceBuilder {
-  self: BlockchainBuilder with PendingTransactionsManagerBuilder with LedgerBuilder with TxPoolConfigBuilder =>
+  self: BlockchainBuilder
+    with PendingTransactionsManagerBuilder
+    with LedgerBuilder
+    with TxPoolConfigBuilder
+    with StorageBuilder =>
 
   lazy val ethTxService = new EthTxService(
     blockchain,
     ledger,
     pendingTransactionsManager,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    storagesInstance.storages.transactionMappingStorage
   )
 }
 

@@ -189,8 +189,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
 
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
-
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 

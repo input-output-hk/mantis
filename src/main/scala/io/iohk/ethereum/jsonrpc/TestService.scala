@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDat
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
@@ -114,6 +115,7 @@ class TestService(
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
     initialConfig: BlockchainConfig,
+    transactionMappingStorage: TransactionMappingStorage,
     preimageCache: collection.concurrent.Map[ByteString, UInt256]
 )(implicit
     scheduler: Scheduler
@@ -409,7 +411,7 @@ class TestService(
     import io.iohk.ethereum.network.p2p.messages.ETH63.TxLogEntryImplicits.TxLogEntryEnc
 
     val result = for {
-      transactionLocation <- blockchain.getTransactionLocation(request.transactionHash)
+      transactionLocation <- transactionMappingStorage.get(request.transactionHash)
       block <- blockchain.getBlockByHash(transactionLocation.blockHash)
       _ <- block.body.transactionList.lift(transactionLocation.txIndex)
       receipts <- blockchain.getReceiptsByHash(block.header.hash)

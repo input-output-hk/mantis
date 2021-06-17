@@ -101,7 +101,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchain,
     ledger,
     pendingTransactionsManager.ref,
-    getTransactionFromPoolTimeout
+    getTransactionFromPoolTimeout,
+    storagesInstance.storages.transactionMappingStorage
   )
 
   val ethUserService = new EthUserService(

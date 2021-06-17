@@ -138,8 +138,6 @@ trait Blockchain {
   def getChainWeightByNumber(blockNumber: BigInt): Option[ChainWeight] =
     getHashByBlockNumber(blockNumber).flatMap(getChainWeightByHash)
 
-  def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
-
   def getBestBlockNumber(): BigInt
 
   def getBestBlock(): Option[Block]
@@ -396,9 +394,6 @@ class BlockchainImpl(
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
     stateStorage.getNode(hash)
-
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] =
-    transactionMappingStorage.get(txHash)
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
