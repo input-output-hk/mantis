@@ -7,6 +7,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.ByteUtils._
+import io.iohk.ethereum.rlp._
 
 case class ForkId(hash: BigInt, next: Option[BigInt])
 
@@ -40,5 +41,18 @@ object ForkId {
       .filterNot(v => v == 0 || v == noFork)
       .distinct
       .sorted
+
+  implicit class ForkIdEnc(forkId: ForkId) extends RLPSerializable {
+    import RLPImplicits._
+    import RLPImplicitConversions._
+
+    import io.iohk.ethereum.utils.ByteUtils._
+    override def toRLPEncodable: RLPEncodeable = {
+      val hash: Array[Byte] = bigIntToBytes(forkId.hash, 4).takeRight(4)
+      val next: Array[Byte] = bigIntToUnsignedByteArray(forkId.next.getOrElse(BigInt(0))).takeRight(8)
+      RLPList(hash, next)
+    }
+
+  }
 
 }

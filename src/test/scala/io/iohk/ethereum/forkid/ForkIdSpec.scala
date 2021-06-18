@@ -78,5 +78,23 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(11700000-1) shouldBe ForkId(0x7AD68249L, Some(11700000))
       create(11700000) shouldBe ForkId(0xB20AFE12L, None)
     }
+
+
+    // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
+    "be correctly encoded via rlp" in {
+      import ForkId._
+      import io.iohk.ethereum.rlp._
+      import io.iohk.ethereum.rlp.RLPImplicits._
+
+      encode(ForkId(0, None).toRLPEncodable) shouldBe Hex.decode("c6840000000080")
+      encode(ForkId(0xdeadbeefL, Some(0xBADDCAFEL)).toRLPEncodable) shouldBe Hex.decode("ca84deadbeef84baddcafe")
+
+      val maxUInt64 = (BigInt(0x7FFFFFFFFFFFFFFFL) << 1) + 1
+      maxUInt64.toByteArray shouldBe Array(0, -1, -1, -1, -1, -1, -1, -1, -1)
+      val maxUInt32 = BigInt(0xFFFFFFFFL)
+      maxUInt32.toByteArray shouldBe Array(0, -1, -1, -1, -1)
+
+      encode(ForkId(maxUInt32, Some(maxUInt64)).toRLPEncodable) shouldBe Hex.decode("ce84ffffffff88ffffffffffffffff")
+    }
   }
 }
