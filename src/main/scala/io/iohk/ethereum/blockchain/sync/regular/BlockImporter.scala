@@ -29,6 +29,7 @@ class BlockImporter(
     fetcher: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
+    branchResolution: BranchResolution,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
@@ -299,7 +300,7 @@ class BlockImporter(
 
   // Either block from which we try resolve branch or list of blocks to be imported
   private def resolveBranch(blocks: NonEmptyList[Block]): Either[BigInt, List[Block]] =
-    ledger.resolveBranch(blocks.map(_.header)) match {
+    branchResolution.resolveBranch(blocks.map(_.header)) match {
       case NewBetterBranch(oldBranch) =>
         val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
         pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
@@ -349,11 +350,36 @@ object BlockImporter {
       pendingTransactionsManager: ActorRef,
       supervisor: ActorRef
   ): Props =
+    props(
+      fetcher,
+      ledger,
+      blockchain,
+      new BranchResolution(blockchain),
+      syncConfig,
+      ommersPool,
+      broadcaster,
+      pendingTransactionsManager,
+      supervisor
+    )
+
+  // scalastyle:off parameter.number
+  def props(
+      fetcher: ActorRef,
+      ledger: Ledger,
+      blockchain: Blockchain,
+      branchResolution: BranchResolution,
+      syncConfig: SyncConfig,
+      ommersPool: ActorRef,
+      broadcaster: ActorRef,
+      pendingTransactionsManager: ActorRef,
+      supervisor: ActorRef
+  ): Props =
     Props(
       new BlockImporter(
         fetcher,
         ledger,
         blockchain,
+        branchResolution,
         syncConfig,
         ommersPool,
         broadcaster,

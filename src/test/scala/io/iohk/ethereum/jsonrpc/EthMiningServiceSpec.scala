@@ -40,7 +40,6 @@ class EthMiningServiceSpec
     with NormalPatience {
 
   "MiningServiceSpec" should "return if node is mining base on getWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
@@ -56,7 +55,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
@@ -72,7 +70,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining base on submitHashRate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
     ethMiningService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
@@ -83,7 +80,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
@@ -99,7 +95,6 @@ class EthMiningServiceSpec
   }
 
   it should "return requested work" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _)
       .expects(parentBlock, Nil, *, *, *)
@@ -118,8 +113,6 @@ class EthMiningServiceSpec
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
     lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
-
-    (() => ledger.consensus).expects().returns(cons).anyNumberOfTimes()
 
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -140,7 +133,6 @@ class EthMiningServiceSpec
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -154,7 +146,6 @@ class EthMiningServiceSpec
   }
 
   it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -168,14 +159,12 @@ class EthMiningServiceSpec
   }
 
   it should "return correct coinbase" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
     response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "accept and report hashrate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id = ByteString("id")
@@ -192,7 +181,6 @@ class EthMiningServiceSpec
   }
 
   it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id1 = ByteString("id1")
@@ -250,7 +238,7 @@ class EthMiningServiceSpec
     lazy val ethMiningService = new EthMiningService(
       blockchain,
       blockchainConfig,
-      ledger,
+      consensus,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,

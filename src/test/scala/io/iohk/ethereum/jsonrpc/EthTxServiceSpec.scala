@@ -114,7 +114,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
@@ -129,7 +128,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
@@ -146,7 +144,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
@@ -249,7 +246,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethTxService.getTransactionByHash(request).runSyncUnsafe()
@@ -261,7 +257,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethTxService.getTransactionByHash(request).runToFuture
@@ -275,7 +270,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
@@ -378,7 +372,7 @@ class EthTxServiceSpec
 
     lazy val ethTxService = new EthTxService(
       blockchain,
-      ledger,
+      consensus,
       pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout
     )

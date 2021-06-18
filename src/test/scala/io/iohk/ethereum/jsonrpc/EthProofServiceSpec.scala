@@ -274,7 +274,7 @@ class EthProofServiceSpec
 
     val ethUserService = new EthUserService(
       blockchain,
-      ledger,
+      consensus,
       blockchainConfig
     )
   }

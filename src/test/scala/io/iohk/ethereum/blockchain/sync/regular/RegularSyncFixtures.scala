@@ -60,6 +60,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
+    val branchResolution = new BranchResolution(blockchain)
 
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
@@ -69,6 +70,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peerEventBus.ref,
           ledger,
           blockchain,
+          branchResolution,
           validators.blockValidator,
           blacklist,
           syncConfig,
@@ -172,8 +174,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
         results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
 
-      override def getBlockByHash(hash: ByteString): Option[Block] =
-        importedBlocksSet.find(_.hash == hash)
+      // override def getBlockByHash(hash: ByteString): Option[Block] =
+      //   importedBlocksSet.find(_.hash == hash)
 
       def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
         results(block.header.hash) = result
@@ -296,7 +298,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     var importedNewBlock = false
     var importedLastTestBlock = false
-    (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
+    (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
     (ledger
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)

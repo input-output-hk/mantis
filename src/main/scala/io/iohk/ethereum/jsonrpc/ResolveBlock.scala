@@ -2,6 +2,7 @@ package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.consensus.Consensus
 
 sealed trait BlockParam
 
@@ -16,7 +17,7 @@ case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStatePr
 
 trait ResolveBlock {
   def blockchain: Blockchain
-  def ledger: Ledger
+  def consensus: Consensus
 
   def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     blockParam match {
@@ -24,7 +25,7 @@ trait ResolveBlock {
       case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Latest => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
-        ledger.consensus.blockGenerator.getPendingBlockAndState
+        consensus.blockGenerator.getPendingBlockAndState
           .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
           .map(Right.apply)
           .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients

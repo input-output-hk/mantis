@@ -10,7 +10,12 @@ import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
 import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
 import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Hello, Ping}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{HelloCodec, InitialHelloReceived, MessageReceived, RLPxConfiguration}
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{
+  HelloCodec,
+  InitialHelloReceived,
+  MessageReceived,
+  RLPxConfiguration
+}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalamock.scalatest.MockFactory
 
@@ -202,7 +207,7 @@ class RLPxConnectionHandlerSpec
     val rlpxConnection = TestActorRef(
       Props(
         new RLPxConnectionHandler(
-          protocolVersion:: Nil,
+          protocolVersion :: Nil,
           mockHandshaker,
           (_, _, _) => mockMessageCodec,
           rlpxConfiguration,
@@ -230,7 +235,7 @@ class RLPxConnectionHandlerSpec
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockHelloExtractor.readHello _)
         .expects(hello)
-        .returning(Some(Hello(5, "", Capabilities.Eth63Capability::Nil, 30303, ByteString("abc")), Seq.empty))
+        .returning(Some(Hello(5, "", Capabilities.Eth63Capability :: Nil, 30303, ByteString("abc")), Seq.empty))
       (mockMessageCodec.readMessages _)
         .expects(ByteString.empty)
         .returning(Nil) //For processing of messages after handshaking finishes

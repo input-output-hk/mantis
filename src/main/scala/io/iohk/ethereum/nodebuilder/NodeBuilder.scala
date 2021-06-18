@@ -161,6 +161,12 @@ trait BlockchainBuilder {
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages)
 }
 
+trait BlockQueueBuilder {
+  self: BlockchainBuilder with SyncConfigBuilder =>
+
+  val blockQueue = BlockQueue(blockchain, syncConfig)
+}
+
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
@@ -400,6 +406,7 @@ trait EthInfoServiceBuilder {
   self: StorageBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
+    with ConsensusBuilder
     with LedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
@@ -408,7 +415,7 @@ trait EthInfoServiceBuilder {
   lazy val ethInfoService = new EthInfoService(
     blockchain,
     blockchainConfig,
-    ledger,
+    consensus,
     stxLedger,
     keyStore,
     syncController,
@@ -420,7 +427,7 @@ trait EthInfoServiceBuilder {
 trait EthMiningServiceBuilder {
   self: BlockchainBuilder
     with BlockchainConfigBuilder
-    with LedgerBuilder
+    with ConsensusBuilder
     with JSONRpcConfigBuilder
     with OmmersPoolBuilder
     with SyncControllerBuilder
@@ -430,7 +437,7 @@ trait EthMiningServiceBuilder {
   lazy val ethMiningService = new EthMiningService(
     blockchain,
     blockchainConfig,
-    ledger,
+    consensus,
     jsonRpcConfig,
     ommersPool,
     syncController,
@@ -439,28 +446,28 @@ trait EthMiningServiceBuilder {
   )
 }
 trait EthTxServiceBuilder {
-  self: BlockchainBuilder with PendingTransactionsManagerBuilder with LedgerBuilder with TxPoolConfigBuilder =>
+  self: BlockchainBuilder with PendingTransactionsManagerBuilder with ConsensusBuilder with TxPoolConfigBuilder =>
 
   lazy val ethTxService = new EthTxService(
     blockchain,
-    ledger,
+    consensus,
     pendingTransactionsManager,
     txPoolConfig.getTransactionFromPoolTimeout
   )
 }
 
 trait EthBlocksServiceBuilder {
-  self: BlockchainBuilder with LedgerBuilder =>
+  self: BlockchainBuilder with ConsensusBuilder =>
 
-  lazy val ethBlocksService = new EthBlocksService(blockchain, ledger)
+  lazy val ethBlocksService = new EthBlocksService(blockchain, consensus)
 }
 
 trait EthUserServiceBuilder {
-  self: BlockchainBuilder with BlockchainConfigBuilder with LedgerBuilder =>
+  self: BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
 
   lazy val ethUserService = new EthUserService(
     blockchain,
-    ledger,
+    consensus,
     blockchainConfig
   )
 }
@@ -510,12 +517,16 @@ trait QaServiceBuilder {
 }
 
 trait CheckpointingServiceBuilder {
-  self: BlockchainBuilder with SyncControllerBuilder with LedgerBuilder with CheckpointBlockGeneratorBuilder =>
+  self: BlockchainBuilder
+    with SyncControllerBuilder
+    with LedgerBuilder
+    with CheckpointBlockGeneratorBuilder
+    with BlockQueueBuilder =>
 
   lazy val checkpointingService =
     new CheckpointingService(
       blockchain,
-      ledger,
+      blockQueue,
       checkpointBlockGenerator,
       syncController
     )
@@ -794,6 +805,7 @@ trait Node
     with ActorSystemBuilder
     with StorageBuilder
     with BlockchainBuilder
+    with BlockQueueBuilder
     with NodeStatusBuilder
     with ForkResolverBuilder
     with HandshakerBuilder

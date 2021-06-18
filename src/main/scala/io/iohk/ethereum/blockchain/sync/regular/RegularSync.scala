@@ -13,6 +13,7 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import akka.actor.typed.scaladsl.adapter._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.ledger.BranchResolution
 
 class RegularSync(
     peersClient: ActorRef,
@@ -20,6 +21,7 @@ class RegularSync(
     peerEventBus: ActorRef,
     ledger: Ledger,
     blockchain: Blockchain,
+    branchResolution: BranchResolution,
     blockValidator: BlockValidator,
     blacklist: Blacklist,
     syncConfig: SyncConfig,
@@ -48,6 +50,7 @@ class RegularSync(
         fetcher.toClassic,
         ledger,
         blockchain,
+        branchResolution,
         syncConfig,
         ommersPool,
         broadcaster,
@@ -133,6 +136,36 @@ object RegularSync {
       pendingTransactionsManager: ActorRef,
       scheduler: Scheduler
   ): Props =
+    props(
+      peersClient,
+      etcPeerManager,
+      peerEventBus,
+      ledger,
+      blockchain,
+      branchResolution = new BranchResolution(blockchain),
+      blockValidator,
+      blacklist,
+      syncConfig,
+      ommersPool,
+      pendingTransactionsManager,
+      scheduler
+    )
+
+  // scalastyle:off parameter.number
+  def props(
+      peersClient: ActorRef,
+      etcPeerManager: ActorRef,
+      peerEventBus: ActorRef,
+      ledger: Ledger,
+      blockchain: Blockchain,
+      branchResolution: BranchResolution,
+      blockValidator: BlockValidator,
+      blacklist: Blacklist,
+      syncConfig: SyncConfig,
+      ommersPool: ActorRef,
+      pendingTransactionsManager: ActorRef,
+      scheduler: Scheduler
+  ): Props =
     Props(
       new RegularSync(
         peersClient,
@@ -140,6 +173,7 @@ object RegularSync {
         peerEventBus,
         ledger,
         blockchain,
+        branchResolution,
         blockValidator,
         blacklist,
         syncConfig,

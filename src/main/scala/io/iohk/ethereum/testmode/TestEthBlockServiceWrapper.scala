@@ -15,7 +15,7 @@ import io.iohk.ethereum.consensus.Consensus
 import akka.util.ByteString
 
 class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consensus: Consensus)
-    extends EthBlocksService(blockchain, ledger)
+    extends EthBlocksService(blockchain, consensus)
     with Logger {
 
   /**

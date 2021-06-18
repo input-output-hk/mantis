@@ -447,7 +447,7 @@ class RegularSyncSpec
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
-        (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
+        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
         (ledger
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
@@ -866,18 +866,18 @@ class RegularSyncSpec
         Task.now(result)
       }
 
-      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
-        val importedHashes = importedBlocksSet.map(_.hash).toSet
+      // override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+      //   val importedHashes = importedBlocksSet.map(_.hash).toSet
 
-        if (
-          importedBlocksSet.isEmpty || (importedHashes.contains(
-            headers.head.parentHash
-          ) && headers.last.number > bestBlock.number)
-        )
-          NewBetterBranch(Nil)
-        else
-          UnknownBranch
-      }
+      //   if (
+      //     importedBlocksSet.isEmpty || (importedHashes.contains(
+      //       headers.head.parentHash
+      //     ) && headers.last.number > bestBlock.number)
+      //   )
+      //     NewBetterBranch(Nil)
+      //   else
+      //     UnknownBranch
+      // }
     }
   }
 }

@@ -317,24 +317,24 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     )
   }
 
-  it should "correctly determine current block status" in new BlockchainSetup {
-    val testHash: ByteString = validBlockParentHeader.copy(number = validBlockParentHeader.number + 5).hash
+  // it should "correctly determine current block status" in new BlockchainSetup {
+  //   val testHash: ByteString = validBlockParentHeader.copy(number = validBlockParentHeader.number + 5).hash
 
-    val validBlockHeaderNoParent: BlockHeader = validBlockHeader.copy(parentHash = testHash)
+  //   val validBlockHeaderNoParent: BlockHeader = validBlockHeader.copy(parentHash = testHash)
 
-    override lazy val vm: VMImpl =
-      new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0))
+  //   override lazy val vm: VMImpl =
+  //     new MockVM(c => createResult(context = c, gasUsed = defaultGasLimit, gasLimit = defaultGasLimit, gasRefund = 0))
 
-    ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
+  //   ledger.checkBlockStatus(validBlockParentHeader.hash) shouldEqual InChain
 
-    whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)).runToFuture) { result =>
-      result shouldEqual BlockEnqueued
-    }
+  //   whenReady(ledger.importBlock(Block(validBlockHeaderNoParent, validBlockBodyWithNoTxs)).runToFuture) { result =>
+  //     result shouldEqual BlockEnqueued
+  //   }
 
-    ledger.checkBlockStatus(validBlockHeaderNoParent.hash) shouldEqual Queued
+  //   ledger.checkBlockStatus(validBlockHeaderNoParent.hash) shouldEqual Queued
 
-    ledger.checkBlockStatus(validBlockHeader.hash) shouldEqual UnknownBlock
-  }
+  //   ledger.checkBlockStatus(validBlockHeader.hash) shouldEqual UnknownBlock
+  // }
 
   it should "properly find minimal required gas limit to execute transaction" in new BinarySimulationChopSetup {
     testGasValues.foreach { minimumRequiredGas =>

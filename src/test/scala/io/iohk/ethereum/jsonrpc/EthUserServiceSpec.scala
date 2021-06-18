@@ -139,7 +139,7 @@ class EthUserServiceSpec
     override lazy val ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
-      ledger,
+      consensus,
       blockchainConfig
     )
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

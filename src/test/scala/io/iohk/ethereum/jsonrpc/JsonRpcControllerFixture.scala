@@ -76,7 +76,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethInfoService = new EthInfoService(
     blockchain,
     blockchainConfig,
-    ledger,
+    consensus,
     stxLedger,
     keyStore,
     syncingController.ref,
@@ -87,7 +87,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethMiningService = new EthMiningService(
     blockchain,
     blockchainConfig,
-    ledger,
+    consensus,
     config,
     ommersPool.ref,
     syncingController.ref,
@@ -95,18 +95,18 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, ledger)
+  val ethBlocksService = new EthBlocksService(blockchain, consensus)
 
   val ethTxService = new EthTxService(
     blockchain,
-    ledger,
+    consensus,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout
   )
 
   val ethUserService = new EthUserService(
     blockchain,
-    ledger,
+    consensus,
     blockchainConfig
   )
 

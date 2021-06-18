@@ -6,6 +6,7 @@ import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
+import io.iohk.ethereum.consensus.Consensus
 
 object EthUserService {
   case class GetStorageAtRequest(address: Address, position: BigInt, block: BlockParam)
@@ -22,7 +23,7 @@ object EthUserService {
 
 class EthUserService(
     val blockchain: Blockchain,
-    val ledger: Ledger,
+    val consensus: Consensus,
     blockchainConfig: BlockchainConfig
 ) extends ResolveBlock {
   import EthUserService._

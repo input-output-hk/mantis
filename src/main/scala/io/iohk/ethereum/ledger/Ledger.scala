@@ -11,7 +11,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 trait Ledger {
-  def consensus: Consensus
+  // def consensus: Consensus
 
   /** Checks current status of block, based on its hash
     *
@@ -21,12 +21,12 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.Queued]]  - Block in queue waiting to be resolved
     *         - [[io.iohk.ethereum.ledger.UnknownBlock]] - Hash its not known to our client
     */
-  def checkBlockStatus(blockHash: ByteString): BlockStatus
+  // def checkBlockStatus(blockHash: ByteString): BlockStatus
 
   /**
     * Returns a block if it's either stored in the blockchain or enqueued
     */
-  def getBlockByHash(hash: ByteString): Option[Block]
+  // def getBlockByHash(hash: ByteString): Option[Block]
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
@@ -59,7 +59,7 @@ trait Ledger {
     *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
     *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
     */
-  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
+  // def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
 
 }
 
@@ -95,7 +95,7 @@ class LedgerImpl(
   private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
   private[ledger] lazy val blockExecution =
     new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-  private[ledger] val branchResolution = new BranchResolution(blockchain)
+  // private[ledger] val branchResolution = new BranchResolution(blockchain)
   private[ledger] val blockImport =
     new BlockImport(
       blockchain,
@@ -104,18 +104,6 @@ class LedgerImpl(
       blockExecution,
       validationContext
     )
-
-  override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
-    if (blockchain.getBlockByHash(blockHash).isDefined)
-      InChain
-    else if (blockQueue.isQueued(blockHash))
-      Queued
-    else
-      UnknownBlock
-  }
-
-  override def getBlockByHash(hash: ByteString): Option[Block] =
-    blockchain.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
 
   override def importBlock(
       block: Block
@@ -160,9 +148,6 @@ class LedgerImpl(
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
-
-  override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
-    branchResolution.resolveBranch(headers)
 
   private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
     importResult match {

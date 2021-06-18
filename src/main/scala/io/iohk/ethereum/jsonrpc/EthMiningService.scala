@@ -22,6 +22,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.Consensus
 
 object EthMiningService {
 
@@ -47,7 +48,7 @@ object EthMiningService {
 class EthMiningService(
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    ledger: Ledger,
+    consensus: Consensus,
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
     syncingController: ActorRef,
@@ -57,7 +58,6 @@ class EthMiningService(
 
   import EthMiningService._
 
-  private[this] def consensus = ledger.consensus
   private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 

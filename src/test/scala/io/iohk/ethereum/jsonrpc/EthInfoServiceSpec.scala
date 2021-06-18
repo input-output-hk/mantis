@@ -91,7 +91,6 @@ class EthServiceSpec
   }
 
   it should "execute call and return a value" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -119,7 +118,6 @@ class EthServiceSpec
   }
 
   it should "execute estimateGas and return a value" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -157,7 +155,7 @@ class EthServiceSpec
     lazy val ethService = new EthInfoService(
       blockchain,
       blockchainConfig,
-      ledger,
+      consensus,
       stxLedger,
       keyStore,
       syncingController.ref,

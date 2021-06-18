@@ -24,6 +24,7 @@ import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.language.existentials
 import scala.reflect.ClassTag
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.Consensus
 
 object EthInfoService {
   case class ChainIdRequest()
@@ -72,7 +73,7 @@ object EthInfoService {
 class EthInfoService(
     val blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    val ledger: Ledger,
+    val consensus: Consensus,
     stxLedger: StxLedger,
     keyStore: KeyStore,
     syncingController: ActorRef,

@@ -24,13 +24,8 @@ object Mocks {
       extends Ledger {
     def consensus: Consensus = ??? // FIXME Implement
 
-    override def checkBlockStatus(blockHash: ByteString): BlockStatus = ??? // FIXME Implement
-
-    override def getBlockByHash(hash: ByteString): Option[Block] = ???
-
     override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
 
-    override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = ???
   }
 
   private val defaultProgramResult: Ledger.PC => Ledger.PR = context =>

@@ -9,10 +9,11 @@ import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
+import io.iohk.ethereum.ledger.BlockQueue
 
 class CheckpointingService(
     blockchain: Blockchain,
-    ledger: Ledger,
+    blockQueue: BlockQueue,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     syncController: ActorRef
 ) extends Logger {
@@ -50,7 +51,7 @@ class CheckpointingService(
   def pushCheckpoint(req: PushCheckpointRequest): ServiceResponse[PushCheckpointResponse] = Task {
     val parentHash = req.hash
 
-    ledger.getBlockByHash(parentHash) match {
+    blockchain.getBlockByHash(parentHash).orElse(blockQueue.getBlockByHash(parentHash)) match {
       case Some(parent) =>
         val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, Checkpoint(req.signatures))
         syncController ! NewCheckpoint(checkpointBlock)

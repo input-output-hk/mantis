@@ -131,7 +131,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -160,7 +159,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
@@ -189,7 +187,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -218,7 +215,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -249,7 +245,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
@@ -279,7 +274,6 @@ class JsonRpcControllerEthTransactionSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1

@@ -165,7 +165,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
@@ -192,7 +191,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = blockWithTreasuryOptOut
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
@@ -219,7 +217,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockToRequest = blockWithCheckpoint
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
@@ -271,7 +268,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-    (() => ledger.consensus).expects().returns(consensus)
 
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
@@ -303,8 +299,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -342,8 +336,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val seed = s"""0x${"00" * 32}"""
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
@@ -384,8 +376,6 @@ class JsonRpcControllerEthSpec
       .returns(null)
       .anyNumberOfTimes()
 
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
     val nonce = s"0x0000000000000001"
     val mixHash = s"""0x${"01" * 32}"""
     val headerPowHash = "02" * 32
@@ -415,8 +405,6 @@ class JsonRpcControllerEthSpec
       .returns(null)
       .anyNumberOfTimes()
 
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
-
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_submitHashrate",
       List(
@@ -435,8 +423,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_hashrate")
 
@@ -578,8 +564,6 @@ class JsonRpcControllerEthSpec
       .expects()
       .returns(null)
       .anyNumberOfTimes()
-
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_coinbase")
 

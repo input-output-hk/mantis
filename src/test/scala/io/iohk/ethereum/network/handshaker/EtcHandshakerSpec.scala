@@ -285,7 +285,9 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       )
     }
 
-    val initHandshakerWithoutResolver = EtcHandshaker(new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63)))
+    val initHandshakerWithoutResolver = EtcHandshaker(
+      new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63))
+    )
 
     val initHandshakerWithResolver = EtcHandshaker(etcHandshakerConfigurationWithResolver)
 
