@@ -71,6 +71,9 @@ class RestrictedEthashBlockHeaderValidatorSpec
         forkBlockNumbers = ForkBlockNumbers(
           frontierBlockNumber = 0,
           homesteadBlockNumber = 1150000,
+          difficultyBombPauseBlockNumber = 3000000,
+          difficultyBombContinueBlockNumber = 5000000,
+          difficultyBombRemovalBlockNumber = 5900000,
           byzantiumBlockNumber = 4370000,
           constantinopleBlockNumber = 7280000,
           istanbulBlockNumber = 9069000,
@@ -88,9 +91,6 @@ class RestrictedEthashBlockHeaderValidatorSpec
           ecip1099BlockNumber = Long.MaxValue,
           ecip1049BlockNumber = None
         ),
-        difficultyBombPauseBlockNumber = 3000000,
-        difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
         daoForkConfig = None,
         // unused
         maxCodeSize = None,
