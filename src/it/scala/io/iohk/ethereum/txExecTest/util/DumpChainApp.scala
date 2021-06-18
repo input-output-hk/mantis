@@ -218,8 +218,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
-  override def getStateStorage: StateStorage = ???
-
   override def getLatestCheckpointBlockNumber(): BigInt = ???
 
   override def mptStateSavedKeys(): Observable[Either[RocksDbDataSource.IterationError, NodeHash]] = ???

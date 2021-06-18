@@ -691,7 +691,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val bestBlock = blockchain.getBestBlock()

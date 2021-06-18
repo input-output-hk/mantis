@@ -207,8 +207,6 @@ trait Blockchain {
       ethCompatibleStorage: Boolean
   ): WS
 
-  def getStateStorage: StateStorage
-
   def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]]
 
   /**
@@ -239,8 +237,6 @@ class BlockchainImpl(
     protected val stateStorage: StateStorage
 ) extends Blockchain
     with Logger {
-
-  override def getStateStorage: StateStorage = stateStorage
 
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref

@@ -374,6 +374,7 @@ trait TestServiceBuilder {
   lazy val testService =
     new TestService(
       blockchain,
+      storagesInstance.storages.stateStorage,
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,
@@ -786,7 +787,8 @@ object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
+  lazy val genesisDataLoader =
+    new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.
