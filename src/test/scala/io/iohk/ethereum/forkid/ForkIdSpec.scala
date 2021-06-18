@@ -9,6 +9,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should._
 import org.bouncycastle.util.encoders.Hex
 
+import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.RLPImplicits._
+
+
 class ForkIdSpec extends AnyWordSpec with Matchers {
 
   val config = blockchains
@@ -79,22 +83,22 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(11700000) shouldBe ForkId(0xB20AFE12L, None)
     }
 
-
     // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
     "be correctly encoded via rlp" in {
-      import ForkId._
-      import io.iohk.ethereum.rlp._
-      import io.iohk.ethereum.rlp.RLPImplicits._
-
-      encode(ForkId(0, None).toRLPEncodable) shouldBe Hex.decode("c6840000000080")
-      encode(ForkId(0xdeadbeefL, Some(0xBADDCAFEL)).toRLPEncodable) shouldBe Hex.decode("ca84deadbeef84baddcafe")
+      roundTrip(ForkId(0, None), "c6840000000080")
+      roundTrip(ForkId(0xdeadbeefL, Some(0xBADDCAFEL)), "ca84deadbeef84baddcafe")
 
       val maxUInt64 = (BigInt(0x7FFFFFFFFFFFFFFFL) << 1) + 1
       maxUInt64.toByteArray shouldBe Array(0, -1, -1, -1, -1, -1, -1, -1, -1)
       val maxUInt32 = BigInt(0xFFFFFFFFL)
       maxUInt32.toByteArray shouldBe Array(0, -1, -1, -1, -1)
 
-      encode(ForkId(maxUInt32, Some(maxUInt64)).toRLPEncodable) shouldBe Hex.decode("ce84ffffffff88ffffffffffffffff")
+      roundTrip(ForkId(maxUInt32, Some(maxUInt64)), "ce84ffffffff88ffffffffffffffff")
     }
+  }
+
+  private def roundTrip(forkId: ForkId, hex: String) = {
+    encode(forkId.toRLPEncodable) shouldBe Hex.decode(hex)
+    decode[ForkId](Hex.decode(hex)) shouldBe forkId
   }
 }

@@ -9,6 +9,8 @@ import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.ByteUtils._
 import io.iohk.ethereum.rlp._
 
+import RLPImplicitConversions._
+
 case class ForkId(hash: BigInt, next: Option[BigInt])
 
 object ForkId {
@@ -44,7 +46,6 @@ object ForkId {
 
   implicit class ForkIdEnc(forkId: ForkId) extends RLPSerializable {
     import RLPImplicits._
-    import RLPImplicitConversions._
 
     import io.iohk.ethereum.utils.ByteUtils._
     override def toRLPEncodable: RLPEncodeable = {
@@ -55,4 +56,14 @@ object ForkId {
 
   }
 
+  implicit val forkIdEnc = new RLPDecoder[ForkId] {
+
+    def decode(rlp: RLPEncodeable): ForkId = rlp match {
+      case RLPList(hash, next) => {
+        val i = bigIntFromEncodeable(next)
+        ForkId(bigIntFromEncodeable(hash), if (i == 0) None else Some(i))
+      }
+      case _ => throw new RuntimeException("Error when decoding ForkId")
+    }
+  }
 }
