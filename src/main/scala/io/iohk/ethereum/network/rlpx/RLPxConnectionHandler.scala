@@ -164,11 +164,12 @@ class RLPxConnectionHandler(
         case AuthHandshakeSuccess(secrets, remotePubKey) =>
           log.debug(s"Auth handshake succeeded for peer {}", peerId)
           context.parent ! ConnectionEstablished(remotePubKey)
-          if (remainingData.nonEmpty)
-            context.self ! Received(remainingData)
           // following the specification at https://github.com/ethereum/devp2p/blob/master/rlpx.md#initial-handshake
           // point 6 indicates that the next messages needs to be initial 'Hello'
-          context become awaitInitialHello(extractor(secrets))
+          // Unfortunately it is hard to figure out the proper order for messages to be handled in.
+          // FrameCodec assumes that bytes will arrive in the expected order
+          // To alleviate potential lapses in order each chunk of data needs to be passed to FrameCodec immediately
+          extractHello(extractor(secrets), remainingData, None, 0)
 
         case AuthHandshakeError =>
           log.debug(s"[Stopping Connection] Auth handshake failed for peer {}", peerId)
@@ -181,45 +182,37 @@ class RLPxConnectionHandler(
         cancellableAckTimeout: Option[CancellableAckTimeout] = None,
         seqNumber: Int = 0
     ): Receive =
-      handleWriteFailed orElse handleConnectionClosed orElse handleSendHello(
-        extractor,
-        cancellableAckTimeout,
-        seqNumber
-      ) orElse handleReceiveHello(extractor, cancellableAckTimeout, seqNumber)
+      handleWriteFailed orElse handleConnectionClosed orElse {
+        // TODO when cancellableAckTimeout is Some
+        case SendMessage(h: HelloEnc) =>
+          val out = extractor.writeHello(h)
+          connection ! Write(out, Ack)
+          val timeout =
+            system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
+          context become awaitInitialHello(
+            extractor,
+            Some(CancellableAckTimeout(seqNumber, timeout)),
+            increaseSeqNumber(seqNumber)
+          )
+        case Ack if cancellableAckTimeout.nonEmpty =>
+          //Cancel pending message timeout
+          cancellableAckTimeout.foreach(_.cancellable.cancel())
+          context become awaitInitialHello(extractor, None, seqNumber)
 
-    private def handleSendHello(
+        case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
+          cancellableAckTimeout.foreach(_.cancellable.cancel())
+          log.error(s"[Stopping Connection] Sending 'Hello' to {} failed", peerId)
+          context stop self
+        case Received(data) =>
+          extractHello(extractor, data, cancellableAckTimeout, seqNumber)
+      }
+
+    private def extractHello(
         extractor: HelloCodec,
-        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-        seqNumber: Int = 0
-    ): Receive = {
-      // TODO when cancellableAckTimeout is Some
-      case SendMessage(h: HelloEnc) =>
-        val out = extractor.writeHello(h)
-        connection ! Write(out, Ack)
-        val timeout =
-          system.scheduler.scheduleOnce(rlpxConfiguration.waitForTcpAckTimeout, self, AckTimeout(seqNumber))
-        context become awaitInitialHello(
-          extractor,
-          Some(CancellableAckTimeout(seqNumber, timeout)),
-          increaseSeqNumber(seqNumber)
-        )
-      case Ack if cancellableAckTimeout.nonEmpty =>
-        //Cancel pending message timeout
-        cancellableAckTimeout.foreach(_.cancellable.cancel())
-        context become awaitInitialHello(extractor, None, seqNumber)
-
-      case AckTimeout(ackSeqNumber) if cancellableAckTimeout.exists(_.seqNumber == ackSeqNumber) =>
-        cancellableAckTimeout.foreach(_.cancellable.cancel())
-        log.error(s"[Stopping Connection] Sending 'Hello' to {} failed", peerId)
-        context stop self
-
-    }
-
-    private def handleReceiveHello(
-        extractor: HelloCodec,
-        cancellableAckTimeout: Option[CancellableAckTimeout] = None,
-        seqNumber: Int = 0
-    ): Receive = { case Received(data) =>
+        data: ByteString,
+        cancellableAckTimeout: Option[CancellableAckTimeout],
+        seqNumber: Int
+    ): Unit = {
       extractor.readHello(data) match {
         case Some((hello, restFrames)) =>
           val messageCodecOpt = for {
