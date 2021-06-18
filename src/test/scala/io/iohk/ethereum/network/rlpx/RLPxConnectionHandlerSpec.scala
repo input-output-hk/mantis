@@ -229,10 +229,10 @@ class RLPxConnectionHandlerSpec
         .expects(data)
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockHelloExtractor.readHello _)
-        .expects(hello)
+        .expects(ByteString.empty)
         .returning(Some(Hello(5, "", Capabilities.Eth63Capability::Nil, 30303, ByteString("abc")), Seq.empty))
       (mockMessageCodec.readMessages _)
-        .expects(ByteString.empty)
+        .expects(hello)
         .returning(Nil) //For processing of messages after handshaking finishes
 
       rlpxConnection ! Tcp.Received(data)
