@@ -2,7 +2,7 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig}
+import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader, UInt256}
@@ -13,8 +13,9 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockValidation
-import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockQueue
+
+import scala.collection.immutable.HashMap
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
@@ -28,14 +29,19 @@ class TestModeComponentsProvider(
     vm: VMImpl
 ) {
 
+//  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
+  private val internalBlockQueue = BlockQueue(blockchain, syncConfig)
+
+  def blockQueue(): BlockQueue = internalBlockQueue
+
   def blockImport(
       blockchainConfig: BlockchainConfig,
       preimageCache: collection.concurrent.Map[ByteString, UInt256],
       sealEngine: SealEngineType
   ): BlockImport = {
-    val blockQueue = BlockQueue(blockchain, syncConfig)
+//    val blockQueue = BlockQueue(blockchain, syncConfig)
     val consensuz = consensus(blockchainConfig, sealEngine)
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, internalBlockQueue)
     val blockExecution =
       new TestModeBlockExecution(
         blockchain,
@@ -50,11 +56,20 @@ class TestModeComponentsProvider(
     new BlockImport(
       blockchain,
       blockchainReader,
-      blockQueue,
+      internalBlockQueue,
       blockValidation,
       blockExecution,
       validationExecutionContext
     )
+  }
+
+  /**
+    * Clear the internal builder state
+    */
+  def clearState(): Unit = {
+//    blockQueue = BlockQueue(blockchain, syncConfig)
+//    cache = cache.empty
+    internalBlockQueue.clear()
   }
 
   def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =

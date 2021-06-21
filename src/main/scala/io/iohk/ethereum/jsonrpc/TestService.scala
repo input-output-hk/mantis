@@ -136,6 +136,10 @@ class TestService(
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     currentConfig = buildNewConfig(request.chainParams.blockchainParams)
 
+    // clear ledger's cache on test start
+    // setChainParams is expected to be the first remote call for each test
+    testModeComponentsProvider.clearState()
+
     val genesisData = GenesisData(
       nonce = request.chainParams.genesis.nonce,
       mixHash = Some(request.chainParams.genesis.mixHash),
@@ -276,14 +280,19 @@ class TestService(
         testModeComponentsProvider
           .blockImport(currentConfig, preimageCache, sealEngine)
           .importBlock(value)
-          .flatMap(handleResult)
+          .flatMap(handleResult(value))
     }
   }
 
-  private def handleResult(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
+  private def handleResult(
+      block: Block
+  )(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
     blockImportResult match {
       case BlockImportedToTop(blockImportData) =>
         val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
+        ImportRawBlockResponse(blockHash).rightNow
+      case BlockEnqueued =>
+        val blockHash = s"0x${ByteStringUtils.hash2string(block.hash)}"
         ImportRawBlockResponse(blockHash).rightNow
       case e =>
         log.warn("Block import failed with {}", e)

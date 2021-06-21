@@ -6,18 +6,21 @@ import io.iohk.ethereum.jsonrpc.{
   BaseBlockResponse,
   BaseTransactionResponse,
   EthBlocksService,
+  JsonRpcError,
   ServiceResponse,
   TransactionData
 }
 import io.iohk.ethereum.utils.Logger
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.ledger.BlockQueue
 
 class TestEthBlockServiceWrapper(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
-    consensus: Consensus
-) extends EthBlocksService(blockchain, blockchainReader, consensus)
+    consensus: Consensus,
+    blockQueue: BlockQueue
+) extends EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
     with Logger {
 
   /**
@@ -32,9 +35,18 @@ class TestEthBlockServiceWrapper(
     .getByBlockHash(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
-        BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
-      })
+        blockByBlockResponse.blockResponse
+          .toRight("missing block response")
+          .flatMap(baseBlockResponse => baseBlockResponse.hash.toRight(s"missing hash for block $baseBlockResponse"))
+          .flatMap(hash => blockchainReader.getBlockByHash(hash).toRight(s"unable to find block for hash=$hash"))
+          .map(fullBlock =>
+            BlockByBlockHashResponse(
+              blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response))
+            )
+          )
+          .left
+          .map(errorMessage => JsonRpcError.LogicError(errorMessage))
+      }).flatten
     )
 
   /**
@@ -122,9 +134,9 @@ final case class EthTransactionResponse(
     gasPrice: BigInt,
     gas: BigInt,
     input: ByteString,
-    r: ByteString,
-    s: ByteString,
-    v: ByteString
+    r: BigInt,
+    s: BigInt,
+    v: BigInt
 ) extends BaseTransactionResponse
 
 object EthTransactionResponse {
@@ -149,8 +161,8 @@ object EthTransactionResponse {
       gasPrice = stx.tx.gasPrice,
       gas = stx.tx.gasLimit,
       input = stx.tx.payload,
-      r = UInt256(stx.signature.r).bytes,
-      s = UInt256(stx.signature.s).bytes,
-      v = ByteString(stx.signature.v)
+      r = stx.signature.r,
+      s = stx.signature.s,
+      v = stx.signature.v
     )
 }
