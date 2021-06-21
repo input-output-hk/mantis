@@ -158,8 +158,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
 
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())
-
   override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
@@ -217,4 +215,10 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
+
+  override def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = ???
+
+  override def getBlockByHash(hash: NodeHash): Option[Block] = ???
+
+  override def isInChain(hash: NodeHash): Boolean = ???
 }

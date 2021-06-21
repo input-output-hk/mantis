@@ -65,7 +65,6 @@ object FixtureProvider {
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile {
       case (number, _) => number <= blockNumber
     }
-    val blockchain = BlockchainImpl(storages)
 
     blocksToInclude.foreach { case (_, block) =>
       val receiptsUpdates = fixtures.receipts

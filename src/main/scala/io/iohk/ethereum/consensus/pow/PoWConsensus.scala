@@ -15,7 +15,7 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.Mi
 import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -31,6 +31,7 @@ import scala.concurrent.duration._
 class PoWConsensus private (
     val vm: VMImpl,
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     val blockchainConfig: BlockchainConfig,
     val config: FullConsensusConfig[EthashConfig],
     val validators: ValidatorsExecutor,
@@ -162,6 +163,7 @@ class PoWConsensus private (
         new PoWBlockGeneratorImpl(
           validators = _validators,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
@@ -183,6 +185,7 @@ class PoWConsensus private (
         new PoWConsensus(
           vm = vm,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           config = config,
           validators = _validators,
@@ -199,6 +202,7 @@ class PoWConsensus private (
     new PoWConsensus(
       vm = vm,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
@@ -211,6 +215,7 @@ class PoWConsensus private (
     new PoWConsensus(
       vm = vm,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
@@ -224,6 +229,7 @@ object PoWConsensus {
   def apply(
       vm: VMImpl,
       blockchain: BlockchainImpl,
+      blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
       config: FullConsensusConfig[EthashConfig],
       validators: ValidatorsExecutor,
@@ -239,37 +245,60 @@ object PoWConsensus {
       blockchainConfig = blockchainConfig
     )
 
-    val blockGenerator = additionalEthashProtocolData match {
-      case RestrictedPoWMinerData(key) =>
-        new RestrictedPoWBlockGeneratorImpl(
-          validators = validators,
-          blockchain = blockchain,
-          blockchainConfig = blockchainConfig,
-          consensusConfig = config.generic,
-          blockPreparator = blockPreparator,
-          difficultyCalc = difficultyCalculator,
-          minerKeyPair = key
-        )
-
-      case NoAdditionalPoWData =>
-        new PoWBlockGeneratorImpl(
-          validators = validators,
-          blockchain = blockchain,
-          blockchainConfig = blockchainConfig,
-          consensusConfig = config.generic,
-          blockPreparator = blockPreparator,
-          difficultyCalc = difficultyCalculator
-        )
-    }
+    val blockGenerator: PoWBlockGeneratorImpl = buildBlockGenerator(
+      blockchain,
+      blockchainReader,
+      blockchainConfig,
+      config,
+      validators,
+      additionalEthashProtocolData,
+      difficultyCalculator,
+      blockPreparator
+    )
 
     new PoWConsensus(
       vm = vm,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
       blockGenerator = blockGenerator,
       difficultyCalculator
     )
+  }
+
+  private def buildBlockGenerator(
+      blockchain: BlockchainImpl,
+      blockchainReader: BlockchainReader,
+      blockchainConfig: BlockchainConfig,
+      config: FullConsensusConfig[EthashConfig],
+      validators: ValidatorsExecutor,
+      additionalEthashProtocolData: AdditionalPoWProtocolData,
+      difficultyCalculator: DifficultyCalculator,
+      blockPreparator: BlockPreparator
+  ) = additionalEthashProtocolData match {
+    case RestrictedPoWMinerData(key) =>
+      new RestrictedPoWBlockGeneratorImpl(
+        validators = validators,
+        blockchain = blockchain,
+        blockchainReader = blockchainReader,
+        blockchainConfig = blockchainConfig,
+        consensusConfig = config.generic,
+        blockPreparator = blockPreparator,
+        difficultyCalc = difficultyCalculator,
+        minerKeyPair = key
+      )
+
+    case NoAdditionalPoWData =>
+      new PoWBlockGeneratorImpl(
+        validators = validators,
+        blockchain = blockchain,
+        blockchainReader = blockchainReader,
+        blockchainConfig = blockchainConfig,
+        consensusConfig = config.generic,
+        blockPreparator = blockPreparator,
+        difficultyCalc = difficultyCalculator
+      )
   }
 }

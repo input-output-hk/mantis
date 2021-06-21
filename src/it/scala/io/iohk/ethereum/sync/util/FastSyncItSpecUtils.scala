@@ -29,6 +29,7 @@ object FastSyncItSpecUtils {
         storagesInstance.storages.fastSyncStateStorage,
         storagesInstance.storages.appStateStorage,
         bl,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         storagesInstance.storages.nodeStorage,
         validators,

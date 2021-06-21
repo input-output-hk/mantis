@@ -1,12 +1,15 @@
 package io.iohk.ethereum.txExecTest
 
 import io.iohk.ethereum.blockchain.sync
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainStorages}
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader, BlockchainStorages}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 
 trait ScenarioSetup extends sync.ScenarioSetup {
   protected val testBlockchainStorages: BlockchainStorages
 
-  override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages)
+  override lazy val blockchainReader: BlockchainReader = new BlockchainReader(
+    testBlockchainStorages.blockHeadersStorage
+  )
+  override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages, blockchainReader)
   override lazy val vm: VMImpl = new VMImpl
 }

@@ -2,7 +2,7 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, BlockchainReader, UInt256}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.vm.{EvmConfig, Generators}
@@ -123,7 +123,10 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState = BlockchainImpl(storagesInstance.storages).getWorldStateProxy(
+    val newWorldState = BlockchainImpl(
+      storagesInstance.storages,
+      new BlockchainReader(storagesInstance.storages.blockHeadersStorage)
+    ).getWorldStateProxy(
       -1,
       UInt256.Zero,
       persistedWorldState.stateRootHash,

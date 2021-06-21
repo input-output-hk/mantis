@@ -82,14 +82,15 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultGasLimit: UInt256 = 1000000
   val defaultValue: BigInt = 1000
 
-  val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-    .getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld: InMemoryWorldStateProxy =
+    BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+      .getWorldStateProxy(
+        -1,
+        UInt256.Zero,
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
+      )
 
   val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
     emptyWorld
@@ -134,13 +135,14 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
-    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      stateRootHash,
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+    val initialWorld = BlockchainImpl(blockchainStorages, new BlockchainReader(blockchainStorages.blockHeadersStorage))
+      .getWorldStateProxy(
+        -1,
+        UInt256.Zero,
+        stateRootHash,
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
+      )
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld) { case (recWorld, (address, change)) =>
       change match {
         case UpdateBalance(balanceIncrease) =>
@@ -193,6 +195,7 @@ trait BlockchainSetup extends TestSetup {
 
 trait DaoForkTestSetup extends TestSetup with MockFactory {
 
+  lazy val testBlockchainReader: BlockchainReader = mock[BlockchainReader]
   lazy val testBlockchain: BlockchainImpl = mock[BlockchainImpl]
   val worldState: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
   val proDaoBlock: Block = Fixtures.Blocks.ProDaoForkBlock.block
@@ -230,7 +233,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
 
   val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header
 
-  (testBlockchain.getBlockHeaderByHash _)
+  (testBlockchainReader.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
     .returning(Some(parentBlockHeader))
   (testBlockchain.getWorldStateProxy _)
@@ -273,6 +276,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
+        blockchainReader,
         blockQueue,
         blockchainConfig,
         consensus.withValidators(validators).withVM(new Mocks.MockVM()),
@@ -366,6 +370,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
+  override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 

@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -21,6 +21,7 @@ import io.iohk.ethereum.network.p2p.messages.Codes
   */
 class BlockchainHostActor(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     peerConfiguration: PeerConfiguration,
     peerEventBusActor: ActorRef,
@@ -86,7 +87,7 @@ class BlockchainHostActor(
       Some(BlockBodies(blockBodies))
 
     case request: GetBlockHeaders =>
-      val blockNumber = request.block.fold(a => Some(a), b => blockchain.getBlockHeaderByHash(b).map(_.number))
+      val blockNumber = request.block.fold(a => Some(a), b => blockchainReader.getBlockHeaderByHash(b).map(_.number))
 
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
@@ -118,13 +119,21 @@ object BlockchainHostActor {
 
   def props(
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       peerConfiguration: PeerConfiguration,
       peerEventBusActor: ActorRef,
       etcPeerManagerActor: ActorRef
   ): Props =
     Props(
-      new BlockchainHostActor(blockchain, evmCodeStorage, peerConfiguration, peerEventBusActor, etcPeerManagerActor)
+      new BlockchainHostActor(
+        blockchain,
+        blockchainReader,
+        evmCodeStorage,
+        peerConfiguration,
+        peerEventBusActor,
+        etcPeerManagerActor
+      )
     )
 
 }

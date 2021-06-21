@@ -61,7 +61,15 @@ object RegularSyncItSpecUtils {
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
       val consensus =
-        PoWConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalPoWData)
+        PoWConsensus(
+          vm,
+          bl,
+          blockchainReader,
+          blockchainConfig,
+          fullConfig,
+          ValidatorsExecutorAlwaysSucceed,
+          NoAdditionalPoWData
+        )
       consensus
     }
 
@@ -73,9 +81,9 @@ object RegularSyncItSpecUtils {
       )
 
     lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
+      new LedgerImpl(bl, blockchainReader, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
 
-    lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
+    lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 
     lazy val pendingTransactionsManager: ActorRef = system.actorOf(
       PendingTransactionsManager.props(TxPoolConfig(config), peerManager, etcPeerManager, peerEventBus),

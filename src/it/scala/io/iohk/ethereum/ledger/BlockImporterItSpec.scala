@@ -82,7 +82,7 @@ class BlockImporterItSpec
 
   override lazy val ledger = new TestLedgerImpl(successValidators) {
     override private[ledger] lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation) {
+      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false

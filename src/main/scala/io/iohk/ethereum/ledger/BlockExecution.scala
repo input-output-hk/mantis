@@ -12,6 +12,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
     blockValidation: BlockValidation
@@ -57,7 +58,7 @@ class BlockExecution(
   /** Executes a block (executes transactions and pays rewards) */
   private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
     for {
-      parent <- blockchain
+      parent <- blockchainReader
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
       execResult <- executeBlockTransactions(block, parent)

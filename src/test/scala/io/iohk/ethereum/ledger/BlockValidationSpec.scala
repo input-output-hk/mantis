@@ -40,6 +40,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
   // scalastyle:off magic.number
   trait BlockValidationTestSetup {
     private val setup = new io.iohk.ethereum.blockchain.sync.ScenarioSetup {
+      override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
       override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
       override lazy val validators: Mocks.MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
@@ -48,7 +49,12 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
     }
 
     def blockValidation: BlockValidation =
-      new BlockValidation(setup.consensus, setup.blockchain, BlockQueue(setup.blockchain, setup.syncConfig))
+      new BlockValidation(
+        setup.consensus,
+        setup.blockchain,
+        setup.blockchainReader,
+        BlockQueue(setup.blockchain, setup.syncConfig)
+      )
 
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))
 

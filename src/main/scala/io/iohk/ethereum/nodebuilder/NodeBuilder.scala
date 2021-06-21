@@ -158,7 +158,8 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages)
+  lazy val blockchainReader: BlockchainReader = new BlockchainReader(storagesInstance.storages.blockHeadersStorage)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 
 trait ForkResolverBuilder {
@@ -276,8 +277,14 @@ trait BlockchainHostBuilder {
     with PeerEventBusBuilder =>
 
   val blockchainHost: ActorRef = system.actorOf(
-    BlockchainHostActor
-      .props(blockchain, storagesInstance.storages.evmCodeStorage, peerConfiguration, peerEventBus, etcPeerManager),
+    BlockchainHostActor.props(
+      blockchain,
+      blockchainReader,
+      storagesInstance.storages.evmCodeStorage,
+      peerConfiguration,
+      peerEventBus,
+      etcPeerManager
+    ),
     "blockchain-host"
   )
 
@@ -525,6 +532,7 @@ trait CheckpointingServiceBuilder {
   lazy val checkpointingService =
     new CheckpointingService(
       blockchain,
+      blockchainReader,
       ledger,
       checkpointBlockGenerator,
       syncController
@@ -655,7 +663,7 @@ trait OmmersPoolBuilder {
   self: ActorSystemBuilder with BlockchainBuilder with ConsensusConfigBuilder =>
 
   lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
-  lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchain, ommersPoolSize))
+  lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, ommersPoolSize))
 }
 
 trait VmBuilder {
@@ -685,7 +693,7 @@ trait StdLedgerBuilder extends LedgerBuilder {
     *       so a refactoring should probably take that into account.
     */
   protected def newLedger(): LedgerImpl =
-    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, scheduler)
+    new LedgerImpl(blockchain, blockchainReader, blockchainConfig, syncConfig, consensus, scheduler)
 
   override lazy val ledger: Ledger = newLedger()
 
@@ -717,6 +725,7 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
+      blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,

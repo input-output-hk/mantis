@@ -24,8 +24,10 @@ class ContractTest extends AnyFlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(0, fixtures)
 
     //block only with ether transfers
-    val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    val blockValidation =
+      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+    val blockExecution =
+      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(1)) shouldBe noErrors
   }
 
@@ -35,8 +37,10 @@ class ContractTest extends AnyFlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(1, fixtures)
 
     //contract creation
-    val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    val blockValidation =
+      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+    val blockExecution =
+      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(2)) shouldBe noErrors
   }
 
@@ -46,8 +50,10 @@ class ContractTest extends AnyFlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(2, fixtures)
 
     //block with ether transfers and contract call
-    val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    val blockValidation =
+      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+    val blockExecution =
+      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 
@@ -57,8 +63,10 @@ class ContractTest extends AnyFlatSpec with Matchers {
     val testBlockchainStorages = FixtureProvider.prepareStorages(2, fixtures)
 
     //block contains contract paying 2 accounts
-    val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    val blockValidation =
+      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+    val blockExecution =
+      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

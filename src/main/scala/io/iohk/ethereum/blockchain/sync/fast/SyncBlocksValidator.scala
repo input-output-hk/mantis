@@ -5,19 +5,19 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
-import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain, BlockchainReader}
 
 trait SyncBlocksValidator { this: ActorLogging =>
 
   import SyncBlocksValidator._
   import BlockBodyValidationResult._
 
-  def blockchain: Blockchain
+  def blockchainReader: BlockchainReader
   def validators: Validators
 
   def validateBlocks(requestedHashes: Seq[ByteString], blockBodies: Seq[BlockBody]): BlockBodyValidationResult =
     (requestedHashes zip blockBodies)
-      .map { case (hash, body) => (blockchain.getBlockHeaderByHash(hash), body) }
+      .map { case (hash, body) => (blockchainReader.getBlockHeaderByHash(hash), body) }
       .foldLeft[BlockBodyValidationResult](Valid) {
         case (Valid, (Some(header), body)) =>
           validators.blockValidator

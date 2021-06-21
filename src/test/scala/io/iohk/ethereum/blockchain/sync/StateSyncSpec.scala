@@ -18,7 +18,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
@@ -117,7 +117,8 @@ class StateSyncSpec
         chainWeightStorage = storages.chainWeightStorage,
         transactionMappingStorage = storages.transactionMappingStorage,
         appStateStorage = storages.appStateStorage,
-        stateStorage = storages.stateStorage
+        stateStorage = storages.stateStorage,
+        blockchainReader = new BlockchainReader(storages.blockHeadersStorage)
       )
     }
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
@@ -238,7 +239,8 @@ class StateSyncSpec
     )
 
     def buildBlockChain() = {
-      BlockchainImpl(getNewStorages.storages)
+      val storages = getNewStorages.storages
+      BlockchainImpl(storages, new BlockchainReader(storages.blockHeadersStorage))
     }
 
     def genRandomArray(): Array[Byte] = {

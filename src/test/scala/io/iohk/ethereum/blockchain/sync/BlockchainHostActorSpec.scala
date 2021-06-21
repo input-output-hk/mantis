@@ -308,6 +308,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
       Props(
         new BlockchainHostActor(
           blockchain,
+          blockchainReader,
           storagesInstance.storages.evmCodeStorage,
           peerConf,
           peerEventBus.ref,

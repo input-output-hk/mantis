@@ -14,7 +14,7 @@ import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, ChainWeight}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, BlockchainReader, ChainWeight}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -115,7 +115,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
-  val bl = BlockchainImpl(storagesInstance.storages)
+  val blockchainReader = new BlockchainReader(storagesInstance.storages.blockHeadersStorage)
+  val bl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
   val genesis = Block(
@@ -205,7 +206,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   val blockchainHost: ActorRef =
     system.actorOf(
-      BlockchainHostActor.props(bl, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
+      BlockchainHostActor
+        .props(bl, blockchainReader, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
       "blockchain-host"
     )
 

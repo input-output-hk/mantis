@@ -46,14 +46,15 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
-    val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
+    val emptyWorld: InMemoryWorldStateProxy =
+      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+        .getWorldStateProxy(
+          -1,
+          UInt256.Zero,
+          ByteString(MerklePatriciaTrie.EmptyRootHash),
+          noEmptyAccounts = false,
+          ethCompatibleStorage = true
+        )
 
     // Just to bypass metrics needs
     (blockchain.getBlockByHash _).expects(*).returning(None)
@@ -61,7 +62,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
-    (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
+    (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
@@ -84,16 +85,17 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .returning(Some(Leaf(hash, currentWeight.increase(block.header))))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
-    val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
+    val emptyWorld: InMemoryWorldStateProxy =
+      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+        .getWorldStateProxy(
+          -1,
+          UInt256.Zero,
+          ByteString(MerklePatriciaTrie.EmptyRootHash),
+          noEmptyAccounts = false,
+          ethCompatibleStorage = true
+        )
 
-    (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
+    (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
     (blockQueue.removeSubtree _).expects(hash)
 
@@ -239,7 +241,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
+      new LedgerImpl(blockchain, blockchainReader, blockQueue, blockchainConfig, newConsensus, scheduler)
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
@@ -261,7 +263,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
+      new LedgerImpl(blockchain, blockchainReader, blockQueue, blockchainConfig, newConsensus, scheduler)
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)

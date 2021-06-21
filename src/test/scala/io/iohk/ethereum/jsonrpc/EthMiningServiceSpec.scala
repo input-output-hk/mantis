@@ -238,6 +238,7 @@ class EthMiningServiceSpec
     lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       validators = MockValidatorsAlwaysSucceed,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       consensusConfig = consensusConfig,
       blockPreparator = consensus.blockPreparator,

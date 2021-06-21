@@ -5,7 +5,7 @@ import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.LedgerImpl
 import io.iohk.ethereum.nodebuilder._
@@ -86,24 +86,31 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
   protected def newTestLedger(consensus: Consensus): LedgerImpl =
     new LedgerImpl(
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
       validationContext = monixScheduler
     )
 
-  protected def newTestLedger(blockchain: BlockchainImpl): LedgerImpl =
+  protected def newTestLedger(blockchain: BlockchainImpl, blockchainReader: BlockchainReader): LedgerImpl =
     new LedgerImpl(
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
       validationContext = monixScheduler
     )
 
-  protected def newTestLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): LedgerImpl =
+  protected def newTestLedger(
+      blockchain: BlockchainImpl,
+      blockchainReader: BlockchainReader,
+      blockchainConfig: BlockchainConfig
+  ): LedgerImpl =
     new LedgerImpl(
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,

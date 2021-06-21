@@ -3,14 +3,14 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
-import io.iohk.ethereum.domain.{Blockchain, Receipt}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, Receipt}
 
 trait ReceiptsValidator {
 
   import ReceiptsValidator._
   import ReceiptsValidationResult._
 
-  def blockchain: Blockchain
+  def blockchainReader: BlockchainReader
   def validators: Validators
 
   /**
@@ -24,7 +24,7 @@ trait ReceiptsValidator {
   def validateReceipts(requestedHashes: Seq[ByteString], receipts: Seq[Seq[Receipt]]): ReceiptsValidationResult = {
     val blockHashesWithReceipts = requestedHashes.zip(receipts)
     val blockHeadersWithReceipts = blockHashesWithReceipts.map { case (hash, blockReceipts) =>
-      blockchain.getBlockHeaderByHash(hash) -> blockReceipts
+      blockchainReader.getBlockHeaderByHash(hash) -> blockReceipts
     }
 
     val errorIterator = blockHeadersWithReceipts.iterator.map {

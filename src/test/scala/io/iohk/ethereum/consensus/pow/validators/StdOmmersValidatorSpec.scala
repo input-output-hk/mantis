@@ -13,14 +13,20 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain, blockchainReader) match {
       case Right(_) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
     }
   }
 
   it should "report failure if the list of ommers is too big" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer2, ommer2), blockchain) match {
+    ommersValidator.validate(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, ommer2, ommer2),
+      blockchain,
+      blockchainReader
+    ) match {
       case Left(OmmersLengthError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")
@@ -30,7 +36,13 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   it should "report failure if there is an invalid header in the list of ommers" in new BlockUtils {
     val invalidOmmer1: BlockHeader = ommer1.copy(number = ommer1.number + 1)
 
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(invalidOmmer1, ommer2), blockchain) match {
+    ommersValidator.validate(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(invalidOmmer1, ommer2),
+      blockchain,
+      blockchainReader
+    ) match {
       case Left(OmmersHeaderError(List(_))) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")
@@ -42,7 +54,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(block93.body.uncleNodesList.head, ommer2),
-      blockchain
+      blockchain,
+      blockchainReader
     ) match {
       case Left(OmmersUsedBeforeError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
@@ -51,7 +64,13 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   }
 
   it should "report failure if there is an ommer which is also an ancestor" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block92.header), blockchain) match {
+    ommersValidator.validate(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, block92.header),
+      blockchain,
+      blockchainReader
+    ) match {
       case Left(OmmerIsAncestorError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")
@@ -88,14 +107,26 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   }
 
   it should "report failure if there is an ommer that is too old" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, block90.header), blockchain) match {
+    ommersValidator.validate(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, block90.header),
+      blockchain,
+      blockchainReader
+    ) match {
       case Left(OmmerParentIsNotAncestorError) => succeed
       case err => fail(err.toString)
     }
   }
 
   it should "report failure if there is a duplicated ommer in the ommers list" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, Seq(ommer1, ommer1), blockchain) match {
+    ommersValidator.validate(
+      ommersBlockParentHash,
+      ommersBlockNumber,
+      Seq(ommer1, ommer1),
+      blockchain,
+      blockchainReader
+    ) match {
       case Left(OmmersDuplicatedError) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
       case Right(_) => fail("Unexpected validation success")

@@ -3,7 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, BlockchainReader, UInt256}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
@@ -160,7 +160,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     )
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages)
+      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
         .getWorldStateProxy(
           -1,
           UInt256.Zero,
@@ -175,7 +175,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
         .saveAccount(validEmptyAccountAddress1, Account.empty())
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages)
+      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
         .getWorldStateProxy(
           -1,
           UInt256.Zero,

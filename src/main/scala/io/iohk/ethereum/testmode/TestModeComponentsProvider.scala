@@ -2,7 +2,7 @@ package io.iohk.ethereum.testmode
 
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig}
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -12,6 +12,7 @@ import monix.execution.Scheduler
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
     consensusConfig: ConsensusConfig,
@@ -22,6 +23,7 @@ class TestModeComponentsProvider(
   def ledger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): Ledger =
     new LedgerImpl(
       blockchain,
+      blockchainReader,
       blockchainConfig,
       syncConfig,
       consensus(blockchainConfig, sealEngine),

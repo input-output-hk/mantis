@@ -4,7 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{TestKit, TestProbe}
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, Checkpoint}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, BlockchainReader, Checkpoint}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
@@ -70,7 +70,9 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockHeaderByHash _).expects(hash).returning(Some(previousCheckpoint.header.copy(number = 0)))
+      (blockchainReader.getBlockHeaderByHash _)
+        .expects(hash)
+        .returning(Some(previousCheckpoint.header.copy(number = 0)))
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
@@ -96,7 +98,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(None)
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockHeaderByHash _)
+      (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
       (blockchain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
@@ -126,7 +128,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(None)
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockHeaderByHash _).expects(hash).returning(None)
+      (blockchainReader.getBlockHeaderByHash _).expects(hash).returning(None)
       (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
@@ -172,9 +174,11 @@ class CheckpointingServiceSpec
 
   trait TestSetup {
     val blockchain = mock[BlockchainImpl]
+    val blockchainReader = mock[BlockchainReader]
     val ledger = mock[Ledger]
     val syncController = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
-    val service = new CheckpointingService(blockchain, ledger, checkpointBlockGenerator, syncController.ref)
+    val service =
+      new CheckpointingService(blockchain, blockchainReader, ledger, checkpointBlockGenerator, syncController.ref)
   }
 }

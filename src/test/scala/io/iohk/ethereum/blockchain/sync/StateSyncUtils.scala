@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils}
@@ -68,7 +68,11 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
-      new TrieProvider(BlockchainImpl(freshStorage.storages), freshStorage.storages.evmCodeStorage, blockchainConfig)
+      new TrieProvider(
+        BlockchainImpl(freshStorage.storages, new BlockchainReader(freshStorage.storages.blockHeadersStorage)),
+        freshStorage.storages.evmCodeStorage,
+        blockchainConfig
+      )
     }
   }
 

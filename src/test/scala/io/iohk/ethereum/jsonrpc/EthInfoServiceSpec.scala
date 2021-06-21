@@ -96,7 +96,7 @@ class EthServiceSpec
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txResult = TxResult(
-      BlockchainImpl(storagesInstance.storages)
+      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
         .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
       123,
       Nil,

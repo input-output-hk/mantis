@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.Protocol.{NoAdditionalPoWData, RestrictedPoWMi
 import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGeneratorImpl, RestrictedPoWBlockGeneratorImpl}
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfigs, FullConsensusConfig, Protocol}
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.nodebuilder.StdNode
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
@@ -26,6 +26,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
@@ -41,6 +42,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
@@ -57,6 +59,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -75,6 +78,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -93,6 +97,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -111,6 +116,7 @@ class PoWConsensusSpec
     val powConsensus = PoWConsensus(
       vm,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -123,6 +129,7 @@ class PoWConsensusSpec
   }
 
   trait TestSetup extends ScenarioSetup with MockFactory {
+    override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
     override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val validator: ValidatorsExecutor = successValidators.asInstanceOf[ValidatorsExecutor]
   }

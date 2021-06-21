@@ -1,7 +1,7 @@
 package io.iohk.ethereum.txExecTest
 
 import java.util.concurrent.Executors
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, Receipt, UInt256}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, Receipt, UInt256}
 import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig}
@@ -67,9 +67,12 @@ class ForksTest extends AnyFlatSpec with Matchers {
 
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
-      val blockchain = BlockchainImpl(storages)
-      val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-      val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+      val blockchainReader = new BlockchainReader(storages.blockHeadersStorage)
+      val blockchain = BlockchainImpl(storages, blockchainReader)
+      val blockValidation =
+        new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      val blockExecution =
+        new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
       blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }

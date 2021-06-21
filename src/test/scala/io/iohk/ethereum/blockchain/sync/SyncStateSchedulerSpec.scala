@@ -12,7 +12,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
   SyncResponse
 }
 import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 import org.scalactic.anyvals.PosInt
 import org.scalatest.EitherValues
@@ -263,7 +263,8 @@ class SyncStateSchedulerSpec
   trait TestSetup extends EphemBlockchainTestSetup {
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
-      val freshBlockchain = BlockchainImpl(freshStorage.storages)
+      val freshBlockchainReader = new BlockchainReader(freshStorage.storages.blockHeadersStorage)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
       new TrieProvider(freshBlockchain, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
     val bloomFilterSize = 1000
@@ -289,7 +290,8 @@ class SyncStateSchedulerSpec
         EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
     ) = {
       val freshStorage = getNewStorages
-      val freshBlockchain = BlockchainImpl(freshStorage.storages)
+      val freshBlockchainReader = new BlockchainReader(freshStorage.storages.blockHeadersStorage)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
       (
         SyncStateScheduler(
           freshBlockchain,

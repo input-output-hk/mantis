@@ -48,6 +48,7 @@ class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     val validators: Validators,
@@ -554,7 +555,7 @@ class FastSync(
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
 
       if (shouldValidate) {
-        validators.blockHeaderValidator.validate(header, blockchain.getBlockHeaderByHash) match {
+        validators.blockHeaderValidator.validate(header, blockchainReader.getBlockHeaderByHash) match {
           case Right(_) =>
             updateValidationState(header)
             Right(header)
@@ -1109,7 +1110,7 @@ class FastSync(
     private def updateBestBlockIfNeeded(receivedHashes: Seq[ByteString]): Unit = {
       val fullBlocks = receivedHashes.flatMap { hash =>
         for {
-          header <- blockchain.getBlockHeaderByHash(hash)
+          header <- blockchainReader.getBlockHeaderByHash(hash)
           _ <- blockchain.getBlockBodyByHash(hash)
           _ <- blockchain.getReceiptsByHash(hash)
         } yield header
@@ -1136,6 +1137,7 @@ object FastSync {
       fastSyncStateStorage: FastSyncStateStorage,
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       validators: Validators,
@@ -1150,6 +1152,7 @@ object FastSync {
         fastSyncStateStorage,
         appStateStorage,
         blockchain,
+        blockchainReader,
         evmCodeStorage,
         nodeStorage,
         validators,

@@ -293,7 +293,11 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     }
 
     override lazy val ledger: LedgerImpl =
-      newTestLedger(blockchain = testBlockchain, blockchainConfig = proDaoBlockchainConfig)
+      newTestLedger(
+        blockchain = testBlockchain,
+        blockchainReader = testBlockchainReader,
+        blockchainConfig = proDaoBlockchainConfig
+      )
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(
@@ -308,7 +312,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       (worldState.transfer _).expects(*, *, *).never()
     }
 
-    override lazy val ledger: LedgerImpl = newTestLedger(blockchain = testBlockchain)
+    override lazy val ledger: LedgerImpl =
+      newTestLedger(blockchain = testBlockchain, blockchainReader = testBlockchainReader)
 
     // We don't care about block txs in this test
     ledger.blockExecution.executeBlockTransactions(

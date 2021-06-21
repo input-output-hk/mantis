@@ -28,7 +28,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val block = blockchain.getBlockByHash(validBlock.header.hash)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
-    val blockHeader = blockchain.getBlockHeaderByHash(validBlock.header.hash)
+    val blockHeader = blockchainReader.getBlockHeaderByHash(validBlock.header.hash)
     blockHeader.isDefined should ===(true)
     validBlock.header should ===(blockHeader.get)
     val blockBody = blockchain.getBlockBodyByHash(validBlock.header.hash)
@@ -276,6 +276,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     trait StubPersistingBlockchainSetup {
       def stubStateStorage: StateStorage
       def blockchainStoragesWithStubPersisting: BlockchainStorages
+      def blockchainReaderWithStubPersisting: BlockchainReader
       def blockchainWithStubPersisting: BlockchainImpl
     }
 
@@ -296,7 +297,11 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val cachedNodeStorage = storagesInstance.storages.cachedNodeStorage
           val stateStorage = stubStateStorage
         }
-        override val blockchainWithStubPersisting = BlockchainImpl(blockchainStoragesWithStubPersisting)
+        override val blockchainReaderWithStubPersisting = new BlockchainReader(
+          blockchainStoragesWithStubPersisting.blockHeadersStorage
+        )
+        override val blockchainWithStubPersisting =
+          BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting)
 
         blockchainWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }

@@ -30,20 +30,7 @@ trait Blockchain {
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  /**
-    * Allows to query a blockHeader by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[BlockHeader]] if found
-    */
-  def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader]
-
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
-    for {
-      hash <- getHashByBlockNumber(number)
-      header <- getBlockHeaderByHash(hash)
-    } yield header
-  }
+  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader]
 
   /**
     * Allows to query a blockBody by block hash
@@ -59,11 +46,7 @@ trait Blockchain {
     * @param hash of the block that's being searched
     * @return Block if found
     */
-  def getBlockByHash(hash: ByteString): Option[Block] =
-    for {
-      header <- getBlockHeaderByHash(hash)
-      body <- getBlockBodyByHash(hash)
-    } yield Block(header, body)
+  def getBlockByHash(hash: ByteString): Option[Block]
 
   /**
     * Allows to query for a block based on it's number
@@ -206,12 +189,7 @@ trait Blockchain {
     * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
     * @param hash block hash
     */
-  def isInChain(hash: ByteString): Boolean = {
-    (for {
-      header <- getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
-      hash <- getHashByBlockNumber(header.number)
-    } yield header.hash == hash).getOrElse(false)
-  }
+  def isInChain(hash: ByteString): Boolean
 }
 // scalastyle:on
 
@@ -224,7 +202,8 @@ class BlockchainImpl(
     protected val chainWeightStorage: ChainWeightStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
-    protected val stateStorage: StateStorage
+    protected val stateStorage: StateStorage,
+    blockchainReader: BlockchainReader
 ) extends Blockchain
     with Logger {
 
@@ -239,11 +218,28 @@ class BlockchainImpl(
       )
     )
 
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
-    blockHeadersStorage.get(hash)
+  override def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
+    for {
+      hash <- getHashByBlockNumber(number)
+      header <- blockchainReader.getBlockHeaderByHash(hash)
+    } yield header
+  }
 
   override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
     blockBodiesStorage.get(hash)
+
+  override def getBlockByHash(hash: ByteString): Option[Block] =
+    for {
+      header <- blockchainReader.getBlockHeaderByHash(hash)
+      body <- getBlockBodyByHash(hash)
+    } yield Block(header, body)
+
+  def isInChain(hash: ByteString): Boolean = {
+    (for {
+      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
+      hash <- getHashByBlockNumber(header.number)
+    } yield header.hash == hash).getOrElse(false)
+  }
 
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
@@ -585,7 +581,7 @@ trait BlockchainStorages {
 }
 
 object BlockchainImpl {
-  def apply(storages: BlockchainStorages): BlockchainImpl =
+  def apply(storages: BlockchainStorages, blockchainReader: BlockchainReader): BlockchainImpl =
     new BlockchainImpl(
       blockHeadersStorage = storages.blockHeadersStorage,
       blockBodiesStorage = storages.blockBodiesStorage,
@@ -595,7 +591,8 @@ object BlockchainImpl {
       chainWeightStorage = storages.chainWeightStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
-      stateStorage = storages.stateStorage
+      stateStorage = storages.stateStorage,
+      blockchainReader = blockchainReader
     )
 
   private case class BestBlockLatestCheckpointNumbers(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt)

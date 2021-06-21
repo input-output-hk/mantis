@@ -71,6 +71,7 @@ trait Ledger {
   */
 class LedgerImpl(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
     theConsensus: Consensus,
@@ -80,11 +81,19 @@ class LedgerImpl(
 
   def this(
       blockchain: BlockchainImpl,
+      blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       theConsensus: Consensus,
       validationContext: Scheduler
-  ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
+  ) = this(
+    blockchain,
+    blockchainReader,
+    BlockQueue(blockchain, syncConfig),
+    blockchainConfig,
+    theConsensus,
+    validationContext
+  )
 
   val consensus: Consensus = theConsensus
 
@@ -92,9 +101,9 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+  private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockchainReader, blockQueue)
   private[ledger] lazy val blockExecution =
-    new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
   private[ledger] val blockImport =
     new BlockImport(
