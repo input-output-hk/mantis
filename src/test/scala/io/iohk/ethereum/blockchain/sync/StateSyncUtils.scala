@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -16,12 +17,12 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       accountBalance: Int
   )
 
-  class TrieProvider(bl: Blockchain, blockchainConfig: BlockchainConfig) {
+  class TrieProvider(blockchain: Blockchain, evmCodeStorage: EvmCodeStorage, blockchainConfig: BlockchainConfig) {
     def getNodes(hashes: List[ByteString]) = {
       hashes.map { hash =>
-        val maybeResult = bl.getMptNodeByHash(hash) match {
+        val maybeResult = blockchain.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
-          case None => bl.getEvmCodeByHash(hash)
+          case None => evmCodeStorage.get(hash)
         }
         maybeResult match {
           case Some(result) => SyncResponse(hash, result)
@@ -31,7 +32,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
 
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
-      val init: InMemoryWorldStateProxy = bl
+      val init: InMemoryWorldStateProxy = blockchain
         .getWorldStateProxy(
           blockNumber = 1,
           accountStartNonce = blockchainConfig.accountStartNonce,
@@ -67,7 +68,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
-      new TrieProvider(BlockchainImpl(freshStorage.storages), blockchainConfig)
+      new TrieProvider(BlockchainImpl(freshStorage.storages), freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
   }
 
@@ -81,17 +82,22 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
   }
 
-  def checkAllDataExists(nodeData: List[MptNodeData], bl: Blockchain, blNumber: BigInt): Boolean = {
+  def checkAllDataExists(
+      nodeData: List[MptNodeData],
+      blockchain: Blockchain,
+      evmCodeStorage: EvmCodeStorage,
+      blNumber: BigInt
+  ): Boolean = {
     def go(remaining: List[MptNodeData]): Boolean = {
       if (remaining.isEmpty) {
         true
       } else {
         val dataToCheck = remaining.head
-        val address = bl.getAccount(dataToCheck.accountAddress, blNumber)
-        val code = address.flatMap(a => bl.getEvmCodeByHash(a.codeHash))
+        val address = blockchain.getAccount(dataToCheck.accountAddress, blNumber)
+        val code = address.flatMap(a => evmCodeStorage.get(a.codeHash))
 
         val storageCorrect = dataToCheck.accountStorage.forall { case (key, value) =>
-          val stored = bl.getAccountStorageAt(address.get.storageRoot, key, ethCompatibleStorage = true)
+          val stored = blockchain.getAccountStorageAt(address.get.storageRoot, key, ethCompatibleStorage = true)
           ByteUtils.toBigInt(stored) == value
         }
 

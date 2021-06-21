@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.{Blacklist, BlockchainHostActor, CacheBa
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage}
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
@@ -270,12 +270,14 @@ trait EtcPeerManagerActorBuilder {
 trait BlockchainHostBuilder {
   self: ActorSystemBuilder
     with BlockchainBuilder
+    with StorageBuilder
     with PeerManagerActorBuilder
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
   val blockchainHost: ActorRef = system.actorOf(
-    BlockchainHostActor.props(blockchain, peerConfiguration, peerEventBus, etcPeerManager),
+    BlockchainHostActor
+      .props(blockchain, storagesInstance.storages.evmCodeStorage, peerConfiguration, peerEventBus, etcPeerManager),
     "blockchain-host"
   )
 
@@ -715,6 +717,8 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
+      storagesInstance.storages.evmCodeStorage,
+      storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
       ledger,
       consensus.validators,

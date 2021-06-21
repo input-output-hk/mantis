@@ -29,6 +29,8 @@ object FastSyncItSpecUtils {
         storagesInstance.storages.fastSyncStateStorage,
         storagesInstance.storages.appStateStorage,
         bl,
+        storagesInstance.storages.evmCodeStorage,
+        storagesInstance.storages.nodeStorage,
         validators,
         peerEventBus,
         etcPeerManager,
@@ -72,7 +74,7 @@ object FastSyncItSpecUtils {
           val codeHash = kec256(accountExpectedCode)
           val accountExpectedStorageAddresses = (i until i + 20).toList
           val account = bl.getAccount(accountAddress, blockNumber).get
-          val code = bl.getEvmCodeByHash(codeHash).get
+          val code = evmCodeStorage.get(codeHash).get
           val storedData = accountExpectedStorageAddresses.map { addr =>
             ByteUtils.toBigInt(bl.getAccountStorageAt(account.storageRoot, addr, ethCompatibleStorage = true))
           }

@@ -305,7 +305,15 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val etcPeerManager = TestProbe()
 
     val blockchainHost = TestActorRef(
-      Props(new BlockchainHostActor(blockchain, peerConf, peerEventBus.ref, etcPeerManager.ref))
+      Props(
+        new BlockchainHostActor(
+          blockchain,
+          storagesInstance.storages.evmCodeStorage,
+          peerConf,
+          peerEventBus.ref,
+          etcPeerManager.ref
+        )
+      )
     )
   }
 
