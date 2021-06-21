@@ -54,7 +54,7 @@ class BlockchainHostActor(
 
       val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
         //Fetch mpt node by hash
-        val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
+        val maybeMptNodeData = blockchainReader.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
 
         //If no mpt node was found, fetch evm by hash
         maybeMptNodeData.orElse(evmCodeStorage.get(hash))

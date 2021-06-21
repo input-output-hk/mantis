@@ -47,14 +47,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
     val emptyWorld: InMemoryWorldStateProxy =
-      BlockchainImpl(
-        storagesInstance.storages,
-        new BlockchainReader(
-          storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage,
-          storagesInstance.storages.blockNumberMappingStorage
-        )
-      )
+      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
         .getWorldStateProxy(
           -1,
           UInt256.Zero,
@@ -93,14 +86,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     val emptyWorld: InMemoryWorldStateProxy =
-      BlockchainImpl(
-        storagesInstance.storages,
-        new BlockchainReader(
-          storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage,
-          storagesInstance.storages.blockNumberMappingStorage
-        )
-      )
+      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
         .getWorldStateProxy(
           -1,
           UInt256.Zero,

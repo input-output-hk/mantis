@@ -83,14 +83,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultValue: BigInt = 1000
 
   val emptyWorld: InMemoryWorldStateProxy =
-    BlockchainImpl(
-      storagesInstance.storages,
-      new BlockchainReader(
-        storagesInstance.storages.blockHeadersStorage,
-        storagesInstance.storages.blockBodiesStorage,
-        storagesInstance.storages.blockNumberMappingStorage
-      )
-    )
+    BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
       .getWorldStateProxy(
         -1,
         UInt256.Zero,
@@ -142,14 +135,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
-    val initialWorld = BlockchainImpl(
-      blockchainStorages,
-      new BlockchainReader(
-        blockchainStorages.blockHeadersStorage,
-        blockchainStorages.blockBodiesStorage,
-        blockchainStorages.blockNumberMappingStorage
-      )
-    )
+    val initialWorld = BlockchainImpl(blockchainStorages, BlockchainReader(blockchainStorages))
       .getWorldStateProxy(
         -1,
         UInt256.Zero,

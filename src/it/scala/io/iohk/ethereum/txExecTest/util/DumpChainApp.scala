@@ -166,8 +166,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
-
   override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = ???
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = ???

@@ -192,14 +192,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val afterByzantiumNewBlockReward: BigInt = BigInt(10).pow(18) * 3
 
     val worldState: InMemoryWorldStateProxy =
-      BlockchainImpl(
-        storagesInstance.storages,
-        new BlockchainReader(
-          storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage,
-          storagesInstance.storages.blockNumberMappingStorage
-        )
-      )
+      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
         .getWorldStateProxy(
           -1,
           UInt256.Zero,

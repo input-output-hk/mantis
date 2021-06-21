@@ -17,10 +17,15 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       accountBalance: Int
   )
 
-  class TrieProvider(blockchain: Blockchain, evmCodeStorage: EvmCodeStorage, blockchainConfig: BlockchainConfig) {
+  class TrieProvider(
+      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
+      evmCodeStorage: EvmCodeStorage,
+      blockchainConfig: BlockchainConfig
+  ) {
     def getNodes(hashes: List[ByteString]) = {
       hashes.map { hash =>
-        val maybeResult = blockchain.getMptNodeByHash(hash) match {
+        val maybeResult = blockchainReader.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
           case None => evmCodeStorage.get(hash)
         }
@@ -68,15 +73,10 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
+      val blockchainReader = BlockchainReader(freshStorage.storages)
       new TrieProvider(
-        BlockchainImpl(
-          freshStorage.storages,
-          new BlockchainReader(
-            freshStorage.storages.blockHeadersStorage,
-            freshStorage.storages.blockBodiesStorage,
-            freshStorage.storages.blockNumberMappingStorage
-          )
-        ),
+        BlockchainImpl(freshStorage.storages, blockchainReader),
+        blockchainReader,
         freshStorage.storages.evmCodeStorage,
         blockchainConfig
       )

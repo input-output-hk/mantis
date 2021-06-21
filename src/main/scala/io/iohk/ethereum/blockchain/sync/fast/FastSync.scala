@@ -166,7 +166,13 @@ class FastSync(
     private val syncStateScheduler = context.actorOf(
       SyncStateSchedulerActor
         .props(
-          SyncStateScheduler(blockchain, evmCodeStorage, nodeStorage, syncConfig.stateSyncBloomFilterSize),
+          SyncStateScheduler(
+            blockchain,
+            blockchainReader,
+            evmCodeStorage,
+            nodeStorage,
+            syncConfig.stateSyncBloomFilterSize
+          ),
           syncConfig,
           etcPeerManager,
           peerEventBus,

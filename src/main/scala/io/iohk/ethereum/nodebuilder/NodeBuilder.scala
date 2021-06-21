@@ -158,12 +158,7 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchainReader: BlockchainReader =
-    new BlockchainReader(
-      storagesInstance.storages.blockHeadersStorage,
-      storagesInstance.storages.blockBodiesStorage,
-      storagesInstance.storages.blockNumberMappingStorage
-    )
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 

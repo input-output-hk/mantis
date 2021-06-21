@@ -123,20 +123,15 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState = BlockchainImpl(
-      storagesInstance.storages,
-      new BlockchainReader(
-        storagesInstance.storages.blockHeadersStorage,
-        storagesInstance.storages.blockBodiesStorage,
-        storagesInstance.storages.blockNumberMappingStorage
-      )
-    ).getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      persistedWorldState.stateRootHash,
-      noEmptyAccounts = true,
-      ethCompatibleStorage = true
-    )
+    val newWorldState =
+      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
+        .getWorldStateProxy(
+          -1,
+          UInt256.Zero,
+          persistedWorldState.stateRootHash,
+          noEmptyAccounts = true,
+          ethCompatibleStorage = true
+        )
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok

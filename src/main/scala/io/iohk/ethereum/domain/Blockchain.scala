@@ -68,13 +68,6 @@ trait Blockchain {
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
 
   /**
-    * Returns MPT node searched by it's hash
-    * @param hash Node Hash
-    * @return MPT node
-    */
-  def getMptNodeByHash(hash: ByteString): Option[MptNode]
-
-  /**
     * Looks up ChainWeight for a given chain
     * @param blockhash Hash of top block in the chain
     * @return ChainWeight if found
@@ -316,9 +309,6 @@ class BlockchainImpl(
     val hash = blockHeader.hash
     blockHeadersStorage.put(hash, blockHeader).and(saveBlockNumberMapping(blockHeader.number, hash))
   }
-
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
-    stateStorage.getNode(hash)
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))

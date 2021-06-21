@@ -115,12 +115,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
-  val blockchainReader =
-    new BlockchainReader(
-      storagesInstance.storages.blockHeadersStorage,
-      storagesInstance.storages.blockBodiesStorage,
-      storagesInstance.storages.blockNumberMappingStorage
-    )
+  val blockchainReader = BlockchainReader(storagesInstance.storages)
   val bl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 

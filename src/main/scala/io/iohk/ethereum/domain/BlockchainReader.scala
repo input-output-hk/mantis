@@ -1,12 +1,14 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage}
+import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage, StateStorage}
+import io.iohk.ethereum.mpt.MptNode
 
 class BlockchainReader(
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
-    blockNumberMappingStorage: BlockNumberMappingStorage
+    blockNumberMappingStorage: BlockNumberMappingStorage,
+    stateStorage: StateStorage
 ) {
 
   /**
@@ -66,4 +68,23 @@ class BlockchainReader(
       hash <- getHashByBlockNumber(number)
       block <- getBlockByHash(hash)
     } yield block
+
+  /**
+    * Returns MPT node searched by it's hash
+    * @param hash Node Hash
+    * @return MPT node
+    */
+  def getMptNodeByHash(hash: ByteString): Option[MptNode] =
+    stateStorage.getNode(hash)
+}
+
+object BlockchainReader {
+
+  def apply(blockchainStorages: BlockchainStorages): BlockchainReader = new BlockchainReader(
+    blockchainStorages.blockHeadersStorage,
+    blockchainStorages.blockBodiesStorage,
+    blockchainStorages.blockNumberMappingStorage,
+    blockchainStorages.stateStorage
+  )
+
 }
