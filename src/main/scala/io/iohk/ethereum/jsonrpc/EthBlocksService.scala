@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
@@ -35,7 +35,8 @@ object EthBlocksService {
   case class GetUncleCountByBlockHashResponse(result: BigInt)
 }
 
-class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends ResolveBlock {
+class EthBlocksService(val blockchain: Blockchain, blockchainReader: BlockchainReader, val ledger: Ledger)
+    extends ResolveBlock {
   import EthBlocksService._
 
   private[jsonrpc] def consensus = ledger.consensus
@@ -58,7 +59,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     */
   def getBlockTransactionCountByHash(request: TxCountByBlockHashRequest): ServiceResponse[TxCountByBlockHashResponse] =
     Task {
-      val txsCount = blockchain.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
+      val txsCount = blockchainReader.getBlockBodyByHash(request.blockHash).map(_.transactionList.size)
       Right(TxCountByBlockHashResponse(txsCount))
     }
 
@@ -70,7 +71,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
     */
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
-    val blockOpt = blockchain.getBlockByHash(blockHash)
+    val blockOpt = blockchainReader.getBlockByHash(blockHash)
     val weight = blockchain.getChainWeightByHash(blockHash)
 
     val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
@@ -113,7 +114,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
       request: UncleByBlockHashAndIndexRequest
   ): ServiceResponse[UncleByBlockHashAndIndexResponse] = Task {
     val UncleByBlockHashAndIndexRequest(blockHash, uncleIndex) = request
-    val uncleHeaderOpt = blockchain
+    val uncleHeaderOpt = blockchainReader
       .getBlockBodyByHash(blockHash)
       .flatMap { body =>
         if (uncleIndex >= 0 && uncleIndex < body.uncleNodesList.size)
@@ -175,7 +176,7 @@ class EthBlocksService(val blockchain: Blockchain, val ledger: Ledger) extends R
       req: GetUncleCountByBlockHashRequest
   ): ServiceResponse[GetUncleCountByBlockHashResponse] = {
     Task {
-      blockchain.getBlockBodyByHash(req.blockHash) match {
+      blockchainReader.getBlockBodyByHash(req.blockHash) match {
         case Some(blockBody) =>
           Right(GetUncleCountByBlockHashResponse(blockBody.uncleNodesList.size))
         case None =>

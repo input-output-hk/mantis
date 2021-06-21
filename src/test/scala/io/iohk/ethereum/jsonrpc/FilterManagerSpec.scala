@@ -87,7 +87,7 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
+    (blockchainReader.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
     (blockchain.getReceiptsByHash _)
       .expects(bh2.hash)
       .returning(
@@ -176,7 +176,7 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
+    (blockchainReader.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
     (blockchain.getReceiptsByHash _)
       .expects(bh4.hash)
       .returning(
@@ -251,7 +251,7 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
+    (blockchainReader.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
     (blockchain.getReceiptsByHash _)
       .expects(bh.hash)
       .returning(
@@ -483,6 +483,7 @@ class FilterManagerSpec
 
     val time = new VirtualTime
 
+    val blockchainReader = mock[BlockchainReader]
     val blockchain = mock[BlockchainImpl]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
@@ -515,6 +516,7 @@ class FilterManagerSpec
       Props(
         new FilterManager(
           blockchain,
+          blockchainReader,
           blockGenerator,
           appStateStorage,
           keyStore,

@@ -30,7 +30,7 @@ class BlockValidation(
       queuedBlocks
     } else {
       val chainedBlockHash = queuedBlocks.headOption.map(_.header.parentHash).getOrElse(hash)
-      blockchain.getBlockByHash(chainedBlockHash) match {
+      blockchainReader.getBlockByHash(chainedBlockHash) match {
         case None =>
           // The in memory blocks aren't connected to the db ones, we don't have n blocks to return so we return none
           Nil

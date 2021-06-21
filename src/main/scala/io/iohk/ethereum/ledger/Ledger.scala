@@ -115,7 +115,7 @@ class LedgerImpl(
     )
 
   override def checkBlockStatus(blockHash: ByteString): BlockStatus = {
-    if (blockchain.getBlockByHash(blockHash).isDefined)
+    if (blockchainReader.getBlockByHash(blockHash).isDefined)
       InChain
     else if (blockQueue.isQueued(blockHash))
       Queued
@@ -124,7 +124,7 @@ class LedgerImpl(
   }
 
   override def getBlockByHash(hash: ByteString): Option[Block] =
-    blockchain.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+    blockchainReader.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
 
   override def importBlock(
       block: Block
@@ -164,7 +164,8 @@ class LedgerImpl(
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
-    blockchain.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(hash)
+    blockchainReader.getBlockByHash(hash).isDefined &&
+    block.number <= currentBestBlockNumber || blockQueue.isQueued(hash)
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
@@ -176,9 +177,9 @@ class LedgerImpl(
   private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
     importResult match {
       case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchainReader.getBlockByHash))
       case ChainReorganised(_, newBranch, _) =>
-        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
+        newBranch.foreach(block => BlockMetrics.measure(block, blockchainReader.getBlockByHash))
       case _ => ()
     }
   }

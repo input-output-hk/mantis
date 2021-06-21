@@ -118,7 +118,7 @@ class StateSyncSpec
         transactionMappingStorage = storages.transactionMappingStorage,
         appStateStorage = storages.appStateStorage,
         stateStorage = storages.stateStorage,
-        blockchainReader = new BlockchainReader(storages.blockHeadersStorage)
+        blockchainReader = new BlockchainReader(storages.blockHeadersStorage, storages.blockBodiesStorage)
       )
     }
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
@@ -240,7 +240,7 @@ class StateSyncSpec
 
     def buildBlockChain() = {
       val storages = getNewStorages.storages
-      BlockchainImpl(storages, new BlockchainReader(storages.blockHeadersStorage))
+      BlockchainImpl(storages, new BlockchainReader(storages.blockHeadersStorage, storages.blockBodiesStorage))
     }
 
     def genRandomArray(): Array[Byte] = {

@@ -160,7 +160,13 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     )
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+      BlockchainImpl(
+        storagesInstance.storages,
+        new BlockchainReader(
+          storagesInstance.storages.blockHeadersStorage,
+          storagesInstance.storages.blockBodiesStorage
+        )
+      )
         .getWorldStateProxy(
           -1,
           UInt256.Zero,
@@ -175,7 +181,13 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
         .saveAccount(validEmptyAccountAddress1, Account.empty())
 
     val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+      BlockchainImpl(
+        storagesInstance.storages,
+        new BlockchainReader(
+          storagesInstance.storages.blockHeadersStorage,
+          storagesInstance.storages.blockBodiesStorage
+        )
+      )
         .getWorldStateProxy(
           -1,
           UInt256.Zero,

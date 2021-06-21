@@ -417,6 +417,7 @@ class EthBlocksServiceSpec
 
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
+      blockchainReader,
       ledger
     )
 

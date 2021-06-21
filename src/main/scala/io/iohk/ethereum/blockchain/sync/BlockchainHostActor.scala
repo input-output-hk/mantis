@@ -82,7 +82,7 @@ class BlockchainHostActor(
     case request: GetBlockBodies =>
       val blockBodies = request.hashes
         .take(peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
-        .flatMap(hash => blockchain.getBlockBodyByHash(hash))
+        .flatMap(hash => blockchainReader.getBlockBodyByHash(hash))
 
       Some(BlockBodies(blockBodies))
 

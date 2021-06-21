@@ -83,7 +83,10 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultValue: BigInt = 1000
 
   val emptyWorld: InMemoryWorldStateProxy =
-    BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+    BlockchainImpl(
+      storagesInstance.storages,
+      new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
+    )
       .getWorldStateProxy(
         -1,
         UInt256.Zero,
@@ -135,7 +138,10 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
-    val initialWorld = BlockchainImpl(blockchainStorages, new BlockchainReader(blockchainStorages.blockHeadersStorage))
+    val initialWorld = BlockchainImpl(
+      blockchainStorages,
+      new BlockchainReader(blockchainStorages.blockHeadersStorage, blockchainStorages.blockBodiesStorage)
+    )
       .getWorldStateProxy(
         -1,
         UInt256.Zero,
@@ -378,7 +384,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
-    (blockchain.getBlockByHash _)
+    (blockchainReader.getBlockByHash _)
       .expects(block.header.hash)
       .anyNumberOfTimes()
       .returning(Some(block).filter(_ => inChain))

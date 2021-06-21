@@ -33,32 +33,12 @@ trait Blockchain {
   def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader]
 
   /**
-    * Allows to query a blockBody by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.domain.BlockBody]] if found
-    */
-  def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
-
-  /**
-    * Allows to query for a block based on it's hash
-    *
-    * @param hash of the block that's being searched
-    * @return Block if found
-    */
-  def getBlockByHash(hash: ByteString): Option[Block]
-
-  /**
     * Allows to query for a block based on it's number
     *
     * @param number Block number
     * @return Block if it exists
     */
-  def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- getBlockByHash(hash)
-    } yield block
+  def getBlockByNumber(number: BigInt): Option[Block]
 
   /**
     * Get an account for an address and a block number
@@ -225,16 +205,13 @@ class BlockchainImpl(
     } yield header
   }
 
-  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
-    blockBodiesStorage.get(hash)
-
-  override def getBlockByHash(hash: ByteString): Option[Block] =
+  override def getBlockByNumber(number: BigInt): Option[Block] =
     for {
-      header <- blockchainReader.getBlockHeaderByHash(hash)
-      body <- getBlockBodyByHash(hash)
-    } yield Block(header, body)
+      hash <- getHashByBlockNumber(number)
+      block <- blockchainReader.getBlockByHash(hash)
+    } yield block
 
-  def isInChain(hash: ByteString): Boolean = {
+  override def isInChain(hash: ByteString): Boolean = {
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
       hash <- getHashByBlockNumber(header.number)
@@ -414,7 +391,7 @@ class BlockchainImpl(
   }
 
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
-    val maybeBlock = getBlockByHash(blockHash)
+    val maybeBlock = blockchainReader.getBlockByHash(blockHash)
 
     maybeBlock match {
       case Some(block) => removeBlock(block, withState)

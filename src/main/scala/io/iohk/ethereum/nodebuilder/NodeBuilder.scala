@@ -158,7 +158,8 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchainReader: BlockchainReader = new BlockchainReader(storagesInstance.storages.blockHeadersStorage)
+  lazy val blockchainReader: BlockchainReader =
+    new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 
@@ -353,6 +354,7 @@ trait FilterManagerBuilder {
     system.actorOf(
       FilterManager.props(
         blockchain,
+        blockchainReader,
         consensus.blockGenerator,
         storagesInstance.storages.appStateStorage,
         keyStore,
@@ -383,6 +385,7 @@ trait TestServiceBuilder {
   lazy val testService =
     new TestService(
       blockchain,
+      blockchainReader,
       storagesInstance.storages.stateStorage,
       pendingTransactionsManager,
       consensusConfig,
@@ -394,8 +397,8 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder =>
-  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger, consensus)
+  self: TestBlockchainBuilder with TestModeServiceBuilder =>
+  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, blockchainReader, ledger)
 }
 
 trait EthProofServiceBuilder {
@@ -459,6 +462,7 @@ trait EthTxServiceBuilder {
 
   lazy val ethTxService = new EthTxService(
     blockchain,
+    blockchainReader,
     ledger,
     pendingTransactionsManager,
     txPoolConfig.getTransactionFromPoolTimeout,
@@ -469,7 +473,7 @@ trait EthTxServiceBuilder {
 trait EthBlocksServiceBuilder {
   self: BlockchainBuilder with LedgerBuilder =>
 
-  lazy val ethBlocksService = new EthBlocksService(blockchain, ledger)
+  lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, ledger)
 }
 
 trait EthUserServiceBuilder {
@@ -520,6 +524,7 @@ trait QaServiceBuilder {
     new QAService(
       consensus,
       blockchain,
+      blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,
       syncController

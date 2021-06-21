@@ -17,6 +17,7 @@ import scala.util.Random
 
 class FilterManager(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockGenerator: BlockGenerator,
     appStateStorage: AppStateStorage,
     keyStore: KeyStore,
@@ -133,7 +134,7 @@ class FilterManager(
                   toBlockNumber,
                   logsSoFar ++ getLogsFromBlock(
                     filter,
-                    Block(header, blockchain.getBlockBodyByHash(header.hash).get),
+                    Block(header, blockchainReader.getBlockBodyByHash(header.hash).get),
                     receipts
                   )
                 )
@@ -275,6 +276,7 @@ class FilterManager(
 object FilterManager {
   def props(
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       blockGenerator: BlockGenerator,
       appStateStorage: AppStateStorage,
       keyStore: KeyStore,
@@ -285,6 +287,7 @@ object FilterManager {
     Props(
       new FilterManager(
         blockchain,
+        blockchainReader,
         blockGenerator,
         appStateStorage,
         keyStore,

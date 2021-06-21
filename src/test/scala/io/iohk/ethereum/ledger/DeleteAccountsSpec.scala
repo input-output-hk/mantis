@@ -66,7 +66,13 @@ class DeleteAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
     val accountAddresses = Set(validAccountAddress, validAccountAddress2, validAccountAddress3)
 
     val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages, new BlockchainReader(storagesInstance.storages.blockHeadersStorage))
+      BlockchainImpl(
+        storagesInstance.storages,
+        new BlockchainReader(
+          storagesInstance.storages.blockHeadersStorage,
+          storagesInstance.storages.blockBodiesStorage
+        )
+      )
         .getWorldStateProxy(
           -1,
           UInt256.Zero,

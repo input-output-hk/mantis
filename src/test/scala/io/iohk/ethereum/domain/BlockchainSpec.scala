@@ -25,13 +25,13 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
-    val block = blockchain.getBlockByHash(validBlock.header.hash)
+    val block = blockchainReader.getBlockByHash(validBlock.header.hash)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
     val blockHeader = blockchainReader.getBlockHeaderByHash(validBlock.header.hash)
     blockHeader.isDefined should ===(true)
     validBlock.header should ===(blockHeader.get)
-    val blockBody = blockchain.getBlockBodyByHash(validBlock.header.hash)
+    val blockBody = blockchainReader.getBlockBodyByHash(validBlock.header.hash)
     blockBody.isDefined should ===(true)
     validBlock.body should ===(blockBody.get)
   }
@@ -63,7 +63,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
     blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
-    blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
+    blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
   }
 
   it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {
@@ -74,7 +74,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
-    val retrievedBlock = blockchain.getBlockByHash(validBlock.header.hash)
+    val retrievedBlock = blockchainReader.getBlockByHash(validBlock.header.hash)
     retrievedBlock.isDefined should ===(true)
     validBlock should ===(retrievedBlock.get)
 
@@ -298,7 +298,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val stateStorage = stubStateStorage
         }
         override val blockchainReaderWithStubPersisting = new BlockchainReader(
-          blockchainStoragesWithStubPersisting.blockHeadersStorage
+          blockchainStoragesWithStubPersisting.blockHeadersStorage,
+          blockchainStoragesWithStubPersisting.blockBodiesStorage
         )
         override val blockchainWithStubPersisting =
           BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting)

@@ -69,7 +69,10 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
       new TrieProvider(
-        BlockchainImpl(freshStorage.storages, new BlockchainReader(freshStorage.storages.blockHeadersStorage)),
+        BlockchainImpl(
+          freshStorage.storages,
+          new BlockchainReader(freshStorage.storages.blockHeadersStorage, freshStorage.storages.blockBodiesStorage)
+        ),
         freshStorage.storages.evmCodeStorage,
         blockchainConfig
       )
