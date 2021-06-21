@@ -46,19 +46,19 @@ trait Ledger {
     */
   def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult]
 
-  /** Finds a relation of a given list of headers to the current chain
-    *
-    * @note
-    *   - the headers should form a chain (headers ordered by number)
-    *   - last header number should be greater or equal than current best block number
-    *
-    * @param headers - a list of headers to be checked
-    * @return One of:
-    *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
-    *         - [[io.iohk.ethereum.ledger.NoChainSwitch]] - the headers do not form a better branch
-    *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
-    *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
-    */
+  // /** Finds a relation of a given list of headers to the current chain
+  //   *
+  //   * @note
+  //   *   - the headers should form a chain (headers ordered by number)
+  //   *   - last header number should be greater or equal than current best block number
+  //   *
+  //   * @param headers - a list of headers to be checked
+  //   * @return One of:
+  //   *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
+  //   *         - [[io.iohk.ethereum.ledger.NoChainSwitch]] - the headers do not form a better branch
+  //   *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
+  //   *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
+  //   */
   // def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
 
 }

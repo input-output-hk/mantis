@@ -47,6 +47,11 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   override lazy val ledger = mock[Ledger]
   override lazy val stxLedger = mock[StxLedger]
   override lazy val validators = mock[ValidatorsExecutor]
+  (() => validators.signedTransactionValidator)
+    .expects()
+    .returns(null)
+    .anyNumberOfTimes()
+
   override lazy val consensus: TestConsensus = buildTestConsensus()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)

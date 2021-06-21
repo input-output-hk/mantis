@@ -127,11 +127,6 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by tag" in new JsonRpcControllerFixture {
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -155,11 +150,6 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by hex number" in new JsonRpcControllerFixture {
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -183,11 +173,6 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getTransactionByBlockNumberAndIndex by number" in new JsonRpcControllerFixture {
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -211,11 +196,6 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by tag" in new JsonRpcControllerFixture {
     // given
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
@@ -241,11 +221,6 @@ class JsonRpcControllerEthTransactionSpec
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by hex number" in new JsonRpcControllerFixture {
     // given
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
@@ -270,11 +245,6 @@ class JsonRpcControllerEthTransactionSpec
   }
 
   it should "eth_getRawTransactionByBlockNumberAndIndex by number" in new JsonRpcControllerFixture {
-    (() => validators.signedTransactionValidator)
-      .expects()
-      .returns(null)
-      .anyNumberOfTimes()
-
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
