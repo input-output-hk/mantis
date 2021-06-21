@@ -112,7 +112,17 @@ class EthMiningServiceSpec
   }
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
+    val testConsensus = buildTestConsensus()
+    lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
+      validators = MockValidatorsAlwaysSucceed,
+      blockchain = blockchain,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = testConsensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
+    override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
 
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -222,16 +232,6 @@ class EthMiningServiceSpec
     )
 
     lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
-
-    lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
-      validators = MockValidatorsAlwaysSucceed,
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
-      blockPreparator = consensus.blockPreparator,
-      difficultyCalc,
-      minerKey
-    )
 
     val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 

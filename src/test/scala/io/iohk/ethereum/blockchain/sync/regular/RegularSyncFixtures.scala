@@ -159,13 +159,24 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       .firstL
       .timeout(remainingOrDefault)
 
+    protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
+    protected val importedBlocksSet = mutable.Set[Block]()
+    private val importedBlocksSubject = ReplaySubject[Block]()
+    val importedBlocks: Observable[Block] = importedBlocksSubject
+
+    def didTryToImportBlock(predicate: Block => Boolean): Boolean =
+      importedBlocksSet.exists(predicate)
+
+    def didTryToImportBlock(block: Block): Boolean =
+      didTryToImportBlock(_.hash == block.hash)
+
+    def bestBlock: Block = importedBlocksSet.maxBy(_.number)
+
+    def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
+      results(block.header.hash) = result
+
     class TestLedgerImpl
         extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
-      protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
-      protected val importedBlocksSet = mutable.Set[Block]()
-      private val importedBlocksSubject = ReplaySubject[Block]()
-
-      val importedBlocks: Observable[Block] = importedBlocksSubject
 
       override def importBlock(
           block: Block
@@ -177,16 +188,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       // override def getBlockByHash(hash: ByteString): Option[Block] =
       //   importedBlocksSet.find(_.hash == hash)
 
-      def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
-        results(block.header.hash) = result
-
-      def didTryToImportBlock(predicate: Block => Boolean): Boolean =
-        importedBlocksSet.exists(predicate)
-
-      def didTryToImportBlock(block: Block): Boolean =
-        didTryToImportBlock(_.hash == block.hash)
-
-      def bestBlock: Block = importedBlocksSet.maxBy(_.number)
     }
 
     class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
@@ -298,6 +299,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     var importedNewBlock = false
     var importedLastTestBlock = false
+
+    override val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
     (ledger
       .importBlock(_: Block)(_: Scheduler))
