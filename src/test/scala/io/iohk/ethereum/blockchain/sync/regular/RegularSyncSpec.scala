@@ -303,7 +303,7 @@ class RegularSyncSpec
 
           peersClient.setAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
 
-          Await.result(ledger.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+          Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
           regularSync ! SyncProtocol.Start
 
@@ -353,7 +353,7 @@ class RegularSyncSpec
 
         peersClient.setAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
 
-        Await.result(ledger.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+        Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
         regularSync ! SyncProtocol.Start
 
@@ -449,7 +449,7 @@ class RegularSyncSpec
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override val branchResolution: BranchResolution = stub[BranchResolution]
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
-        (ledger
+        (blockImport
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
           .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
@@ -489,7 +489,7 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (ledger.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
+        (blockImport.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
@@ -645,7 +645,7 @@ class RegularSyncSpec
 
         val parentBlock = testBlocks.last
         setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        ledger.importBlock(parentBlock)(Scheduler.global)
+        blockImport.importBlock(parentBlock)(Scheduler.global)
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)
@@ -845,27 +845,27 @@ class RegularSyncSpec
 
   trait FakeLedger { self: Fixture =>
     class FakeLedgerImpl extends TestLedgerImpl {
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-        val result: BlockImportResult = if (didTryToImportBlock(block)) {
-          DuplicateBlock
-        } else {
-          if (
-            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-          ) {
-            importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-          } else if (block.number > bestBlock.number) {
-            importedBlocksSet.add(block)
-            BlockEnqueued
-          } else {
-            BlockImportFailed("foo")
-          }
-        }
+      // override def importBlock(
+      //     block: Block
+      // )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      //   val result: BlockImportResult = if (didTryToImportBlock(block)) {
+      //     DuplicateBlock
+      //   } else {
+      //     if (
+      //       importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
+      //     ) {
+      //       importedBlocksSet.add(block)
+      //       BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
+      //     } else if (block.number > bestBlock.number) {
+      //       importedBlocksSet.add(block)
+      //       BlockEnqueued
+      //     } else {
+      //       BlockImportFailed("foo")
+      //     }
+      //   }
 
-        Task.now(result)
-      }
+      //   Task.now(result)
+      // }
 
       // override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
       //   val importedHashes = importedBlocksSet.map(_.hash).toSet

@@ -27,7 +27,7 @@ import scala.concurrent.duration._
 // scalastyle:off cyclomatic.complexity
 class BlockImporter(
     fetcher: ActorRef,
-    ledger: Ledger,
+    blockImport: BlockImport,
     blockchain: Blockchain,
     branchResolution: BranchResolution,
     syncConfig: SyncConfig,
@@ -197,7 +197,7 @@ class BlockImporter(
       Task.now((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
-      ledger
+      blockImport
         .importBlock(blocks.head)
         .flatMap {
           case BlockImportedToTop(_) =>
@@ -237,7 +237,7 @@ class BlockImporter(
     importWith(
       {
         Task(doLog(importMessages.preImport()))
-          .flatMap(_ => ledger.importBlock(block))
+          .flatMap(_ => blockImport.importBlock(block))
           .tap(importMessages.messageForImportResult _ andThen doLog)
           .tap {
             case BlockImportedToTop(importedBlocksData) =>
@@ -342,7 +342,7 @@ object BlockImporter {
   // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
@@ -352,7 +352,7 @@ object BlockImporter {
   ): Props =
     props(
       fetcher,
-      ledger,
+      blockImport,
       blockchain,
       new BranchResolution(blockchain),
       syncConfig,
@@ -365,7 +365,7 @@ object BlockImporter {
   // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
       branchResolution: BranchResolution,
       syncConfig: SyncConfig,
@@ -377,7 +377,7 @@ object BlockImporter {
     Props(
       new BlockImporter(
         fetcher,
-        ledger,
+        blockImport,
         blockchain,
         branchResolution,
         syncConfig,

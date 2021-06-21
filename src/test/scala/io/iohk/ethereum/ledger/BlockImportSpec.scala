@@ -27,12 +27,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block1).runToFuture) { _ shouldEqual DuplicateBlock }
+    whenReady(blockImport.importBlock(block1).runToFuture) { _ shouldEqual DuplicateBlock }
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(ledger.importBlock(block2).runToFuture) { _ shouldEqual DuplicateBlock }
+    whenReady(blockImport.importBlock(block2).runToFuture) { _ shouldEqual DuplicateBlock }
   }
 
   it should "import a block to top of the main chain" in new ImportBlockTestSetup {
@@ -97,7 +97,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
     (blockQueue.removeSubtree _).expects(hash)
 
-    whenReady(ledger.importBlock(block).runToFuture) { _ shouldBe a[BlockImportFailed] }
+    whenReady(blockImport.importBlock(block).runToFuture) { _ shouldBe a[BlockImportFailed] }
   }
 
   // scalastyle:off magic.number
@@ -251,7 +251,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock).runToFuture) { _ shouldEqual UnknownParent }
+    whenReady(blockImport.importBlock(newBlock).runToFuture) { _ shouldEqual UnknownParent }
   }
 
   it should "validate blocks prior to import" in new ImportBlockTestSetup {
@@ -273,7 +273,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(ledgerWithMockedValidators.importBlock(newBlock).runToFuture) {
+    whenReady(blockImport.importBlock(newBlock).runToFuture) {
       _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
     }
   }

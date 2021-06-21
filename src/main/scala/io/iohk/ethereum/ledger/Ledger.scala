@@ -11,55 +11,23 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 trait Ledger {
-  // def consensus: Consensus
-
-  /** Checks current status of block, based on its hash
-    *
-    * @param blockHash the hash of block to check
-    * @return One of:
-    *         - [[io.iohk.ethereum.ledger.InChain]] - Block already incorporated into blockchain
-    *         - [[io.iohk.ethereum.ledger.Queued]]  - Block in queue waiting to be resolved
-    *         - [[io.iohk.ethereum.ledger.UnknownBlock]] - Hash its not known to our client
-    */
-  // def checkBlockStatus(blockHash: ByteString): BlockStatus
-
-  /**
-    * Returns a block if it's either stored in the blockchain or enqueued
-    */
-  // def getBlockByHash(hash: ByteString): Option[Block]
-
-  /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
-    *
-    * The implementation uses [[io.iohk.ethereum.consensus.Consensus]] in order to apply
-    * validation rules.
-    *
-    * @see [[io.iohk.ethereum.consensus.Consensus]], [[io.iohk.ethereum.consensus.validators.Validators]]
-    *
-    * @param block                 block to be imported
-    * @param blockExecutionContext threadPool on which the execution should be run
-    * @return One of:
-    *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
-    *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
-    *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
-    *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
-    *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
-    */
-  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult]
-
-  // /** Finds a relation of a given list of headers to the current chain
+  // /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
   //   *
-  //   * @note
-  //   *   - the headers should form a chain (headers ordered by number)
-  //   *   - last header number should be greater or equal than current best block number
+  //   * The implementation uses [[io.iohk.ethereum.consensus.Consensus]] in order to apply
+  //   * validation rules.
   //   *
-  //   * @param headers - a list of headers to be checked
+  //   * @see [[io.iohk.ethereum.consensus.Consensus]], [[io.iohk.ethereum.consensus.validators.Validators]]
+  //   *
+  //   * @param block                 block to be imported
+  //   * @param blockExecutionContext threadPool on which the execution should be run
   //   * @return One of:
-  //   *         - [[io.iohk.ethereum.ledger.NewBetterBranch]] - the headers form a better branch than our current main chain
-  //   *         - [[io.iohk.ethereum.ledger.NoChainSwitch]] - the headers do not form a better branch
-  //   *         - [[io.iohk.ethereum.ledger.UnknownBranch]] - the parent of the first header is unknown (caller should obtain more headers)
-  //   *         - [[io.iohk.ethereum.ledger.InvalidBranch]] - headers do not form a chain or last header number is less than current best block number
+  //   *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
+  //   *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
+  //   *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
+  //   *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
+  //   *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
   //   */
-  // def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult
+  // def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult]
 
 }
 
@@ -105,59 +73,7 @@ class LedgerImpl(
       validationContext
     )
 
-  override def importBlock(
-      block: Block
-  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
-    blockchain.getBestBlock() match {
-      case Some(bestBlock) =>
-        if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
-            .map(_ => DuplicateBlock)
-        } else {
-          val hash = bestBlock.header.hash
-          blockchain.getChainWeightByHash(hash) match {
-            case Some(weight) =>
-              val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
-                blockImport.importToTop(block, bestBlock, weight)
-              } else {
-                blockImport.reorganise(block, bestBlock, weight)
-              }
-              importResult.foreach(measureBlockMetrics)
-              importResult
-            case None =>
-              log.error(
-                "Getting total difficulty for current best block with hash: {} failed",
-                bestBlock.header.hashAsHexString
-              )
-              Task.now(
-                BlockImportFailed(
-                  "Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
-                )
-              )
-          }
-        }
-      case None =>
-        log.error("Getting current best block failed")
-        Task.now(BlockImportFailed("Couldn't find the current best block"))
-    }
-
-  private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
-    val hash = block.hash
-    blockchain.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(hash)
-  }
-
-  private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
-    newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
-
-  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
-    importResult match {
-      case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
-      case ChainReorganised(_, newBranch, _) =>
-        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
-      case _ => ()
-    }
-  }
+  // override
 
 }
 

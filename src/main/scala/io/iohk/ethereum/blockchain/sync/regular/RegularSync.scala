@@ -14,12 +14,13 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import akka.actor.typed.scaladsl.adapter._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
 import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.ledger.BlockImport
 
 class RegularSync(
     peersClient: ActorRef,
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef,
-    ledger: Ledger,
+    blockImport: BlockImport,
     blockchain: Blockchain,
     branchResolution: BranchResolution,
     blockValidator: BlockValidator,
@@ -48,7 +49,7 @@ class RegularSync(
     context.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
-        ledger,
+        blockImport,
         blockchain,
         branchResolution,
         syncConfig,
@@ -127,7 +128,7 @@ object RegularSync {
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
       blockValidator: BlockValidator,
       blacklist: Blacklist,
@@ -140,7 +141,7 @@ object RegularSync {
       peersClient,
       etcPeerManager,
       peerEventBus,
-      ledger,
+      blockImport,
       blockchain,
       branchResolution = new BranchResolution(blockchain),
       blockValidator,
@@ -156,7 +157,7 @@ object RegularSync {
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
       branchResolution: BranchResolution,
       blockValidator: BlockValidator,
@@ -171,7 +172,7 @@ object RegularSync {
         peersClient,
         etcPeerManager,
         peerEventBus,
-        ledger,
+        blockImport,
         blockchain,
         branchResolution,
         blockValidator,

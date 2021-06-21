@@ -278,6 +278,29 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         testContext
       )
 
+  def blockImportWithValidators(validators: Validators): BlockImport = {
+    val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockValidation,
+      new BlockExecution(blockchain, blockchainConfig, consensuz.blockPreparator, blockValidation),
+      Scheduler(system.dispatchers.lookup("validation-context"))
+    )
+  }
+
+  def blockImportWithExecution(blockExecution: BlockExecution): BlockImport = {
+    val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockValidation,
+      blockExecution,
+      Scheduler(system.dispatchers.lookup("validation-context"))
+    )
+  }
+
   override lazy val ledger = new TestLedgerImpl(successValidators)
 
   def randomHash(): ByteString =
@@ -358,9 +381,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
   }
 
-  lazy val failLedger = new TestLedgerImpl(FailHeaderValidation)
+  lazy val failLedger = blockImportWithValidators(FailHeaderValidation)
 
-  lazy val ledgerNotFailingAfterExecValidation = new TestLedgerImpl(NotFailAfterExecValidation)
+  lazy val ledgerNotFailingAfterExecValidation = blockImportWithValidators(NotFailAfterExecValidation)
 }
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
@@ -369,7 +392,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //- cake overrides
 
   class MockBlockQueue extends BlockQueue(null, 10, 10)
-  val blockQueue: BlockQueue = mock[MockBlockQueue]
+  override val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
     (blockchain.getBlockByHash _)
@@ -416,11 +439,9 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
-  lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(validators) {
-    override private[ledger] lazy val blockExecution = mock[BlockExecution]
-  }
+  lazy val ledgerWithMockedBlockExecution: BlockImport = blockImportWithExecution(mock[BlockExecution])
 }
 
 trait CheckpointHelpers {
@@ -443,7 +464,5 @@ trait OmmersTestSetup extends EphemBlockchain {
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledgerWithMockedBlockExecution: LedgerImpl = new TestLedgerImpl(OmmerValidation) {
-    override private[ledger] lazy val blockExecution = mock[BlockExecution]
-  }
+  override lazy val ledgerWithMockedBlockExecution: BlockImport = blockImportWithExecution(mock[BlockExecution])
 }

@@ -68,7 +68,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peersClient.ref,
           etcPeerManager.ref,
           peerEventBus.ref,
-          ledger,
+          blockImport,
           blockchain,
           branchResolution,
           validators.blockValidator,
@@ -178,12 +178,12 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     class TestLedgerImpl
         extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
 
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-        importedBlocksSet.add(block)
-        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
-      }
+      // override def importBlock(
+      //     block: Block
+      // )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      //   importedBlocksSet.add(block)
+      //   results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
+      // }
 
       // override def getBlockByHash(hash: ByteString): Option[Block] =
       //   importedBlocksSet.find(_.hash == hash)
@@ -302,7 +302,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     override val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
-    (ledger
+    (blockImport
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
       .onCall((block, _) => {

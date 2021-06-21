@@ -534,7 +534,7 @@ class SyncControllerSpec
           storagesInstance.storages.appStateStorage,
           blockchain,
           storagesInstance.storages.fastSyncStateStorage,
-          ledger,
+          blockImport,
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,

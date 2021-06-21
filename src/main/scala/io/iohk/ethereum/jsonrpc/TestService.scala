@@ -228,7 +228,7 @@ class TestService(
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
-          testModeComponentsProvider.ledger(currentConfig, sealEngine).importBlock(blockForMining.block)
+          testModeComponentsProvider.blockImport(currentConfig, sealEngine).importBlock(blockForMining.block)
         )
         .map { res =>
           log.info("Block mining result: " + res)
@@ -264,7 +264,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .ledger(currentConfig, sealEngine)
+          .blockImport(currentConfig, sealEngine)
           .importBlock(value)
           .flatMap(handleResult)
     }

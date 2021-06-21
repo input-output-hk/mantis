@@ -8,6 +8,10 @@ import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 import monix.execution.Scheduler
+import io.iohk.ethereum.ledger.BlockImport
+import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockQueue
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
@@ -19,14 +23,22 @@ class TestModeComponentsProvider(
     vm: VMImpl
 ) {
 
-  def ledger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): Ledger =
-    new LedgerImpl(
+  def blockImport(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): BlockImport = {
+    val blockQueue = BlockQueue(blockchain, syncConfig)
+    val consensuz = consensus(blockchainConfig, sealEngine)
+    val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
+    val blockExecution =
+      new BlockExecution(blockchain, blockchainConfig, consensuz.blockPreparator, blockValidation)
+
+    new BlockImport(
       blockchain,
-      blockchainConfig,
-      syncConfig,
-      consensus(blockchainConfig, sealEngine),
+      blockQueue,
+      blockValidation,
+      blockExecution,
       validationExecutionContext
     )
+  }
+
   def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
     new StxLedger(blockchain, blockchainConfig, consensus(blockchainConfig, sealEngine).blockPreparator)
   def consensus(

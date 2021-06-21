@@ -6,14 +6,14 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.ledger.BlockImport
 
 class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
     fastSyncStateStorage: FastSyncStateStorage,
-    ledger: Ledger,
+    blockImport: BlockImport,
     validators: Validators,
     peerEventBus: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -98,7 +98,7 @@ class SyncController(
         peersClient,
         etcPeerManager,
         peerEventBus,
-        ledger,
+        blockImport,
         blockchain,
         validators.blockValidator,
         blacklist,
@@ -121,7 +121,7 @@ object SyncController {
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
       syncStateStorage: FastSyncStateStorage,
-      ledger: Ledger,
+      blockImport: BlockImport,
       validators: Validators,
       peerEventBus: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -135,7 +135,7 @@ object SyncController {
         appStateStorage,
         blockchain,
         syncStateStorage,
-        ledger,
+        blockImport,
         validators,
         peerEventBus,
         pendingTransactionsManager,

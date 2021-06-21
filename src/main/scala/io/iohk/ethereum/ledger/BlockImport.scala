@@ -18,9 +18,72 @@ class BlockImport(
     blockchain: BlockchainImpl,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
-    blockExecution: BlockExecution,
+    private[ledger] val blockExecution: BlockExecution,
     validationScheduler: Scheduler // Can't be implicit because of importToTop method and ambiguous of Scheduler
 ) extends Logger {
+
+  /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
+    *
+    * @param block                 block to be imported
+    * @param blockExecutionContext threadPool on which the execution should be run
+    * @return One of:
+    *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
+    *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
+    *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
+    *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
+    *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
+    */
+  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
+    blockchain.getBestBlock() match {
+      case Some(bestBlock) =>
+        if (isBlockADuplicate(block.header, bestBlock.header.number)) {
+          Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
+            .map(_ => DuplicateBlock)
+        } else {
+          val hash = bestBlock.header.hash
+          blockchain.getChainWeightByHash(hash) match {
+            case Some(weight) =>
+              val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
+                importToTop(block, bestBlock, weight)
+              } else {
+                reorganise(block, bestBlock, weight)
+              }
+              importResult.foreach(measureBlockMetrics)
+              importResult
+            case None =>
+              log.error(
+                "Getting total difficulty for current best block with hash: {} failed",
+                bestBlock.header.hashAsHexString
+              )
+              Task.now(
+                BlockImportFailed(
+                  "Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+                )
+              )
+          }
+        }
+      case None =>
+        log.error("Getting current best block failed")
+        Task.now(BlockImportFailed("Couldn't find the current best block"))
+    }
+
+  private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
+    val hash = block.hash
+    blockchain.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(hash)
+  }
+
+  private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
+    newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
+
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
+    importResult match {
+      case BlockImportedToTop(blockImportData) =>
+        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+      case ChainReorganised(_, newBranch, _) =>
+        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
+      case _ => ()
+    }
+  }
 
   private[ledger] def importToTop(
       block: Block,

@@ -167,6 +167,23 @@ trait BlockQueueBuilder {
   val blockQueue = BlockQueue(blockchain, syncConfig)
 }
 
+trait BlockImportBuilder {
+  self: BlockchainBuilder
+    with BlockQueueBuilder
+    with ConsensusBuilder
+    with BlockchainConfigBuilder
+    with ActorSystemBuilder =>
+
+  private val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+  val blockImport = new BlockImport(
+    blockchain,
+    blockQueue,
+    blockValidation,
+    new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation),
+    Scheduler(system.dispatchers.lookup("validation-context"))
+  )
+}
+
 trait ForkResolverBuilder {
   self: BlockchainConfigBuilder =>
 
@@ -389,7 +406,7 @@ trait TestServiceBuilder {
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
   self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder =>
-  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, ledger, consensus)
+  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, consensus)
 }
 
 trait EthProofServiceBuilder {
@@ -702,6 +719,7 @@ trait SyncControllerBuilder {
   self: ActorSystemBuilder
     with ServerActorBuilder
     with BlockchainBuilder
+    with BlockImportBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with LedgerBuilder
@@ -719,7 +737,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.appStateStorage,
       blockchain,
       storagesInstance.storages.fastSyncStateStorage,
-      ledger,
+      blockImport,
       consensus.validators,
       peerEventBus,
       pendingTransactionsManager,
@@ -806,6 +824,7 @@ trait Node
     with StorageBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
+    with BlockImportBuilder
     with NodeStatusBuilder
     with ForkResolverBuilder
     with HandshakerBuilder

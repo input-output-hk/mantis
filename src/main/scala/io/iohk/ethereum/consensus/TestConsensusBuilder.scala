@@ -21,10 +21,13 @@ trait StdTestConsensusBuilder
     with VmConfigBuilder
     with ActorSystemBuilder
     with BlockchainBuilder
+    with BlockQueueBuilder
+    with BlockImportBuilder
     with StorageBuilder
     with BlockchainConfigBuilder
     with NodeKeyBuilder
     with SecureRandomBuilder
+    with SyncConfigBuilder
     with ConsensusConfigBuilder
     with ShutdownHookBuilder
     with Logger

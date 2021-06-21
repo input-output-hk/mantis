@@ -24,7 +24,7 @@ object Mocks {
       extends Ledger {
     def consensus: Consensus = ??? // FIXME Implement
 
-    override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
+    // override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
 
   }
 
