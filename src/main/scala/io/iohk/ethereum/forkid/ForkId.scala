@@ -7,11 +7,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.ByteUtils._
+import io.iohk.ethereum.utils.Hex
 import io.iohk.ethereum.rlp._
 
 import RLPImplicitConversions._
 
-case class ForkId(hash: BigInt, next: Option[BigInt])
+case class ForkId(hash: BigInt, next: Option[BigInt]) {
+  override def toString(): String = s"ForkId(0x${Hex.toHexString(hash.toUnsignedByteArray)}, $next)"
+}
 
 object ForkId {
 
