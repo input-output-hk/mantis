@@ -37,7 +37,7 @@ object EthTxService {
 
 class EthTxService(
     val blockchain: Blockchain,
-    blockchainReader: BlockchainReader,
+    val blockchainReader: BlockchainReader,
     val ledger: Ledger,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
@@ -157,7 +157,7 @@ class EthTxService(
 
     Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
-        .flatMap(blockchain.getBlockByNumber)
+        .flatMap(blockchainReader.getBlockByNumber)
         .flatMap(_.body.transactionList)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {

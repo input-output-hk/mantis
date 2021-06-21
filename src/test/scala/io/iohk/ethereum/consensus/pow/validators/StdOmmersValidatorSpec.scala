@@ -79,7 +79,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
   it should "report failure if there is an ommer which that is not parent of an ancestor" in new BlockUtils {
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) => ((ommersBlockNumber - n) until ommersBlockNumber).toList.flatMap(blockchain.getBlockByNumber)
+      (_, n) => ((ommersBlockNumber - n) until ommersBlockNumber).toList.flatMap(blockchainReader.getBlockByNumber)
 
     ommersValidator.validateOmmersAncestors(
       ommersBlockParentHash,

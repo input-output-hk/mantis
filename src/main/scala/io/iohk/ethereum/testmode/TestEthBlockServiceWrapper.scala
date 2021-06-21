@@ -32,7 +32,7 @@ class TestEthBlockServiceWrapper(
     .getByBlockHash(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )
@@ -49,7 +49,7 @@ class TestEthBlockServiceWrapper(
     .getBlockByNumber(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )

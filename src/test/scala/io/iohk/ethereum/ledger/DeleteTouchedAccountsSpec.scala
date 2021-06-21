@@ -164,7 +164,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(
@@ -185,7 +186,8 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(

@@ -51,7 +51,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(
@@ -96,7 +97,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(

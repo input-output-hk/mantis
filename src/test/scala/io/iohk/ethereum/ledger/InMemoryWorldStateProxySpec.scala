@@ -125,7 +125,11 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     // Create a new WS instance based on storages and new root state and check
     val newWorldState = BlockchainImpl(
       storagesInstance.storages,
-      new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
+      new BlockchainReader(
+        storagesInstance.storages.blockHeadersStorage,
+        storagesInstance.storages.blockBodiesStorage,
+        storagesInstance.storages.blockNumberMappingStorage
+      )
     ).getWorldStateProxy(
       -1,
       UInt256.Zero,

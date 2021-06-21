@@ -71,7 +71,11 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       new TrieProvider(
         BlockchainImpl(
           freshStorage.storages,
-          new BlockchainReader(freshStorage.storages.blockHeadersStorage, freshStorage.storages.blockBodiesStorage)
+          new BlockchainReader(
+            freshStorage.storages.blockHeadersStorage,
+            freshStorage.storages.blockBodiesStorage,
+            freshStorage.storages.blockNumberMappingStorage
+          )
         ),
         freshStorage.storages.evmCodeStorage,
         blockchainConfig

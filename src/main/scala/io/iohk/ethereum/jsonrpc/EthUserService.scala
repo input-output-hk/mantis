@@ -22,6 +22,7 @@ object EthUserService {
 
 class EthUserService(
     val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
     val ledger: Ledger,
     blockchainConfig: BlockchainConfig
 ) extends ResolveBlock {

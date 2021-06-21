@@ -35,8 +35,11 @@ object EthBlocksService {
   case class GetUncleCountByBlockHashResponse(result: BigInt)
 }
 
-class EthBlocksService(val blockchain: Blockchain, blockchainReader: BlockchainReader, val ledger: Ledger)
-    extends ResolveBlock {
+class EthBlocksService(
+    val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
+    val ledger: Ledger
+) extends ResolveBlock {
   import EthBlocksService._
 
   private[jsonrpc] def consensus = ledger.consensus

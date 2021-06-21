@@ -26,7 +26,7 @@ class TransactionHistoryServiceSpec
     val pendingTransactionManager = TestProbe()
     pendingTransactionManager.setAutoPilot(PendingTransactionsManagerAutoPilot())
     val transactionHistoryService =
-      new TransactionHistoryService(blockchain, pendingTransactionManager.ref, Timeouts.normalTimeout)
+      new TransactionHistoryService(blockchain, blockchainReader, pendingTransactionManager.ref, Timeouts.normalTimeout)
   }
 
   def createFixture() = new Fixture

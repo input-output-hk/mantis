@@ -100,7 +100,8 @@ class EthServiceSpec
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
@@ -162,6 +163,7 @@ class EthServiceSpec
 
     lazy val ethService = new EthInfoService(
       blockchain,
+      blockchainReader,
       blockchainConfig,
       ledger,
       stxLedger,

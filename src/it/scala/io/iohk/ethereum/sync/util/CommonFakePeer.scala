@@ -116,7 +116,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
 
   val blockchainReader =
-    new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
+    new BlockchainReader(
+      storagesInstance.storages.blockHeadersStorage,
+      storagesInstance.storages.blockBodiesStorage,
+      storagesInstance.storages.blockNumberMappingStorage
+    )
   val bl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
@@ -170,7 +174,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val forkResolverOpt: Option[ForkResolver] = None
       override val nodeStatusHolder: AtomicReference[NodeStatus] = nh
       override val peerConfiguration: PeerConfiguration = peerConf
-      override val blockchain: Blockchain = bl
+      override val blockchain: Blockchain = CommonFakePeer.this.bl
+      override val blockchainReader: BlockchainReader = CommonFakePeer.this.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }

@@ -159,7 +159,7 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, stateStorage, currentConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -260,7 +260,7 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
-      blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
+      blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     RewindToBlockResponse().rightNow
   }
@@ -336,7 +336,10 @@ class TestService(
     // It might not cover all the cases as an account created inside a transaction won't be there.
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchain.getBlockByNumber(number), blockHash => blockchainReader.getBlockByHash(blockHash))
+      .fold(
+        number => blockchainReader.getBlockByNumber(number),
+        blockHash => blockchainReader.getBlockByHash(blockHash)
+      )
 
     if (blockOpt.isEmpty) {
       AccountsInRangeResponse(Map(), ByteString(0)).rightNow
@@ -373,7 +376,7 @@ class TestService(
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchain.getBlockByNumber(number), hash => blockchainReader.getBlockByHash(hash))
+      .fold(number => blockchainReader.getBlockByNumber(number), hash => blockchainReader.getBlockByHash(hash))
 
     (for {
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))

@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext
 
 class BlockImport(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     blockExecution: BlockExecution,
@@ -239,7 +240,7 @@ class BlockImport(
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
     def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] = {
-      blockchain.getBlockByNumber(fromNumber) match {
+      blockchainReader.getBlockByNumber(fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
 

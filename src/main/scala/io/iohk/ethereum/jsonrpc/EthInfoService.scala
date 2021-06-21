@@ -71,6 +71,7 @@ object EthInfoService {
 
 class EthInfoService(
     val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     val ledger: Ledger,
     stxLedger: StxLedger,

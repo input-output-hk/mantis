@@ -75,6 +75,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethInfoService = new EthInfoService(
     blockchain,
+    blockchainReader,
     blockchainConfig,
     ledger,
     stxLedger,
@@ -108,6 +109,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethUserService = new EthUserService(
     blockchain,
+    blockchainReader,
     ledger,
     blockchainConfig
   )

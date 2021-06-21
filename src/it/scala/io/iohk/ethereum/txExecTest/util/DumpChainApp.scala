@@ -32,10 +32,17 @@ import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import monix.reactive.Observable
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.clazz.Mock
+import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
 
-object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
+object DumpChainApp
+    extends App
+    with NodeKeyBuilder
+    with SecureRandomBuilder
+    with AuthHandshakerBuilder
+    with MockFactory {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
   val node = conf.getString("node")
   val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
@@ -78,6 +85,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
   val storagesInstance = new RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages
 
   val blockchain: Blockchain = new BlockchainMock(genesisHash)
+  val blockchainReader = mock[BlockchainReader]
+  (blockchainReader.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
 
   val nodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
@@ -92,6 +101,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
+      override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
@@ -156,8 +166,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
-
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
 
   override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = ???
@@ -214,9 +222,9 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
 
-  override def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = ???
-
   override def isInChain(hash: NodeHash): Boolean = ???
 
-  override def getBlockByNumber(number: BigInt): Option[Block] = ???
+  override def genesisHeader: BlockHeader = ???
+
+  override def genesisBlock: Block = ???
 }

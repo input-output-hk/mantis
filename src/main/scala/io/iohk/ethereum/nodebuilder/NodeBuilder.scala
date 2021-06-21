@@ -159,7 +159,11 @@ trait BlockchainBuilder {
   self: StorageBuilder =>
 
   lazy val blockchainReader: BlockchainReader =
-    new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
+    new BlockchainReader(
+      storagesInstance.storages.blockHeadersStorage,
+      storagesInstance.storages.blockBodiesStorage,
+      storagesInstance.storages.blockNumberMappingStorage
+    )
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 
@@ -185,6 +189,7 @@ trait HandshakerBuilder {
       override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConfiguration
       override val blockchain: Blockchain = self.blockchain
+      override val blockchainReader: BlockchainReader = self.blockchainReader
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = self.blockchainConfig.capabilities
     }
@@ -336,7 +341,12 @@ object TransactionHistoryServiceBuilder {
   trait Default extends TransactionHistoryServiceBuilder {
     self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
     lazy val transactionHistoryService =
-      new TransactionHistoryService(blockchain, pendingTransactionsManager, txPoolConfig.getTransactionFromPoolTimeout)
+      new TransactionHistoryService(
+        blockchain,
+        blockchainReader,
+        pendingTransactionsManager,
+        txPoolConfig.getTransactionFromPoolTimeout
+      )
   }
 }
 
@@ -406,6 +416,7 @@ trait EthProofServiceBuilder {
 
   lazy val ethProofService: ProofService = new EthProofService(
     blockchain,
+    blockchainReader,
     consensus.blockGenerator,
     blockchainConfig.ethCompatibleStorage
   )
@@ -422,6 +433,7 @@ trait EthInfoServiceBuilder {
 
   lazy val ethInfoService = new EthInfoService(
     blockchain,
+    blockchainReader,
     blockchainConfig,
     ledger,
     stxLedger,
@@ -481,6 +493,7 @@ trait EthUserServiceBuilder {
 
   lazy val ethUserService = new EthUserService(
     blockchain,
+    blockchainReader,
     ledger,
     blockchainConfig
   )
@@ -806,7 +819,7 @@ trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
 
   lazy val genesisDataLoader =
-    new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
+    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

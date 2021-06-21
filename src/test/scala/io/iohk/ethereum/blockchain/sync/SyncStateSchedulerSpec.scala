@@ -264,7 +264,11 @@ class SyncStateSchedulerSpec
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
       val freshBlockchainReader =
-        new BlockchainReader(freshStorage.storages.blockHeadersStorage, freshStorage.storages.blockBodiesStorage)
+        new BlockchainReader(
+          freshStorage.storages.blockHeadersStorage,
+          freshStorage.storages.blockBodiesStorage,
+          freshStorage.storages.blockNumberMappingStorage
+        )
       val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
       new TrieProvider(freshBlockchain, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
@@ -292,7 +296,11 @@ class SyncStateSchedulerSpec
     ) = {
       val freshStorage = getNewStorages
       val freshBlockchainReader =
-        new BlockchainReader(freshStorage.storages.blockHeadersStorage, freshStorage.storages.blockBodiesStorage)
+        new BlockchainReader(
+          freshStorage.storages.blockHeadersStorage,
+          freshStorage.storages.blockBodiesStorage,
+          freshStorage.storages.blockNumberMappingStorage
+        )
       val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
       (
         SyncStateScheduler(

@@ -85,7 +85,11 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val emptyWorld: InMemoryWorldStateProxy =
     BlockchainImpl(
       storagesInstance.storages,
-      new BlockchainReader(storagesInstance.storages.blockHeadersStorage, storagesInstance.storages.blockBodiesStorage)
+      new BlockchainReader(
+        storagesInstance.storages.blockHeadersStorage,
+        storagesInstance.storages.blockBodiesStorage,
+        storagesInstance.storages.blockNumberMappingStorage
+      )
     )
       .getWorldStateProxy(
         -1,
@@ -140,7 +144,11 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   ): ByteString = {
     val initialWorld = BlockchainImpl(
       blockchainStorages,
-      new BlockchainReader(blockchainStorages.blockHeadersStorage, blockchainStorages.blockBodiesStorage)
+      new BlockchainReader(
+        blockchainStorages.blockHeadersStorage,
+        blockchainStorages.blockBodiesStorage,
+        blockchainStorages.blockNumberMappingStorage
+      )
     )
       .getWorldStateProxy(
         -1,
@@ -421,7 +429,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.isInChain _).expects(hash).returning(result)
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (blockchain.getBlockByNumber _).expects(number).returning(block)
+    (blockchainReader.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchain.genesisHeader).expects().returning(header)

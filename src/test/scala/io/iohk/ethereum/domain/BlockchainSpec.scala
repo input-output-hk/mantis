@@ -39,7 +39,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
-    val block = blockchain.getBlockByNumber(validBlock.header.number)
+    val block = blockchainReader.getBlockByNumber(validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
   }
@@ -56,13 +56,13 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
     blockchain.storeBlockHeader(validHeader).commit()
-    val header = blockchain.getBlockHeaderByNumber(validHeader.number)
+    val header = blockchainReader.getBlockHeaderByNumber(validHeader.number)
     header.isDefined should ===(true)
     validHeader should ===(header.get)
   }
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
-    blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
+    blockchainReader.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
     blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
   }
 
@@ -299,7 +299,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         }
         override val blockchainReaderWithStubPersisting = new BlockchainReader(
           blockchainStoragesWithStubPersisting.blockHeadersStorage,
-          blockchainStoragesWithStubPersisting.blockBodiesStorage
+          blockchainStoragesWithStubPersisting.blockBodiesStorage,
+          blockchainStoragesWithStubPersisting.blockNumberMappingStorage
         )
         override val blockchainWithStubPersisting =
           BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting)

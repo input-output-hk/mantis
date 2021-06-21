@@ -149,7 +149,9 @@ object RegularSyncItSpecUtils {
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
       Task(blockNumber match {
         case Some(bNumber) =>
-          bl.getBlockByNumber(bNumber).getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
+          blockchainReader
+            .getBlockByNumber(bNumber)
+            .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => bl.getBestBlock().get
       }).flatMap { block =>
         Task {

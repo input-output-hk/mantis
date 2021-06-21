@@ -1,9 +1,13 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage}
+import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage}
 
-class BlockchainReader(blockHeadersStorage: BlockHeadersStorage, blockBodiesStorage: BlockBodiesStorage) {
+class BlockchainReader(
+    blockHeadersStorage: BlockHeadersStorage,
+    blockBodiesStorage: BlockBodiesStorage,
+    blockNumberMappingStorage: BlockNumberMappingStorage
+) {
 
   /**
     * Allows to query a blockHeader by block hash
@@ -34,4 +38,32 @@ class BlockchainReader(blockHeadersStorage: BlockHeadersStorage, blockBodiesStor
       header <- getBlockHeaderByHash(hash)
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
+
+  /**
+    * Returns a block hash given a block number
+    *
+    * @param number Number of the searchead block
+    * @return Block hash if found
+    */
+  def getHashByBlockNumber(number: BigInt): Option[ByteString] =
+    blockNumberMappingStorage.get(number)
+
+  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
+    for {
+      hash <- getHashByBlockNumber(number)
+      header <- getBlockHeaderByHash(hash)
+    } yield header
+  }
+
+  /**
+    * Allows to query for a block based on it's number
+    *
+    * @param number Block number
+    * @return Block if it exists
+    */
+  def getBlockByNumber(number: BigInt): Option[Block] =
+    for {
+      hash <- getHashByBlockNumber(number)
+      block <- getBlockByHash(hash)
+    } yield block
 }

@@ -37,7 +37,7 @@ trait TestBlockchainBuilder extends BlockchainBuilder {
           evmCodeStorage,
           stateStorage.getBackingStorage(blockNumber),
           accountStartNonce,
-          (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+          (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
           stateRootHash,
           noEmptyAccounts,
           ethCompatibleStorage,

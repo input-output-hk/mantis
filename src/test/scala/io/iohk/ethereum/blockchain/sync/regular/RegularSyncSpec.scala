@@ -444,6 +444,7 @@ class RegularSyncSpec
 
       "save fetched node" in sync(new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
+        override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
@@ -456,7 +457,7 @@ class RegularSyncSpec
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
         (blockchain.getBestBlockNumber _).when().returns(0)
-        (blockchain.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
+        (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
           .onCall((hash, encoded, totalDifficulty) => {

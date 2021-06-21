@@ -16,6 +16,7 @@ case class ResolvedBlock(block: Block, pendingState: Option[InMemoryWorldStatePr
 
 trait ResolveBlock {
   def blockchain: Blockchain
+  def blockchainReader: BlockchainReader
   def ledger: Ledger
 
   def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
@@ -32,7 +33,7 @@ trait ResolveBlock {
   }
 
   private def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
-    blockchain
+    blockchainReader
       .getBlockByNumber(number)
       .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
   }

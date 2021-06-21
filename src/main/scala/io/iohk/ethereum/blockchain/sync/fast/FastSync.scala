@@ -149,7 +149,17 @@ class FastSync(
 
     private val branchResolver = context.actorOf(
       FastSyncBranchResolverActor
-        .props(self, peerEventBus, etcPeerManager, blockchain, blacklist, syncConfig, appStateStorage, scheduler),
+        .props(
+          self,
+          peerEventBus,
+          etcPeerManager,
+          blockchain,
+          blockchainReader,
+          blacklist,
+          syncConfig,
+          appStateStorage,
+          scheduler
+        ),
       s"$countActor-fast-sync-branch-resolver"
     )
 
@@ -543,7 +553,7 @@ class FastSync(
     // TODO [ETCM-676]: Move to blockchain and make sure it's atomic
     private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
       (startBlock to ((startBlock - blocksToDiscard) max 1) by -1).foreach { n =>
-        blockchain.getBlockHeaderByNumber(n).foreach { headerToRemove =>
+        blockchainReader.getBlockHeaderByNumber(n).foreach { headerToRemove =>
           blockchain.removeBlock(headerToRemove.hash, withState = false)
         }
       }

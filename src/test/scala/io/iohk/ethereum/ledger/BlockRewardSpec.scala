@@ -196,7 +196,8 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
         storagesInstance.storages,
         new BlockchainReader(
           storagesInstance.storages.blockHeadersStorage,
-          storagesInstance.storages.blockBodiesStorage
+          storagesInstance.storages.blockBodiesStorage,
+          storagesInstance.storages.blockNumberMappingStorage
         )
       )
         .getWorldStateProxy(

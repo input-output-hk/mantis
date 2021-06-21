@@ -9,7 +9,8 @@ trait ScenarioSetup extends sync.ScenarioSetup {
 
   override lazy val blockchainReader: BlockchainReader = new BlockchainReader(
     testBlockchainStorages.blockHeadersStorage,
-    testBlockchainStorages.blockBodiesStorage
+    testBlockchainStorages.blockBodiesStorage,
+    testBlockchainStorages.blockNumberMappingStorage
   )
   override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages, blockchainReader)
   override lazy val vm: VMImpl = new VMImpl

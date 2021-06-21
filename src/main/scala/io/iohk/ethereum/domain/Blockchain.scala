@@ -30,16 +30,6 @@ trait Blockchain {
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader]
-
-  /**
-    * Allows to query for a block based on it's number
-    *
-    * @param number Block number
-    * @return Block if it exists
-    */
-  def getBlockByNumber(number: BigInt): Option[Block]
-
   /**
     * Get an account for an address and a block number
     *
@@ -135,17 +125,9 @@ trait Blockchain {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
-  /**
-    * Returns a block hash given a block number
-    *
-    * @param number Number of the searchead block
-    * @return Block hash if found
-    */
-  protected def getHashByBlockNumber(number: BigInt): Option[ByteString]
+  def genesisHeader: BlockHeader
 
-  def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
-
-  def genesisBlock: Block = getBlockByNumber(0).get
+  def genesisBlock: Block
 
   def getWorldStateProxy(
       blockNumber: BigInt,
@@ -198,23 +180,10 @@ class BlockchainImpl(
       )
     )
 
-  override def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
-    for {
-      hash <- getHashByBlockNumber(number)
-      header <- blockchainReader.getBlockHeaderByHash(hash)
-    } yield header
-  }
-
-  override def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- blockchainReader.getBlockByHash(hash)
-    } yield block
-
   override def isInChain(hash: ByteString): Boolean = {
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
-      hash <- getHashByBlockNumber(header.number)
+      hash <- blockchainReader.getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
   }
 
@@ -243,7 +212,9 @@ class BlockchainImpl(
   override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber) orElse getBlockByNumber(appStateStorage.getBestBlockNumber())
+    blockchainReader.getBlockByNumber(bestBlockNumber) orElse blockchainReader.getBlockByNumber(
+      appStateStorage.getBestBlockNumber()
+    )
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
@@ -253,7 +224,7 @@ class BlockchainImpl(
     getAccountMpt(blockNumber) >>= (_.getProof(address))
 
   private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
-    getBlockHeaderByNumber(blockNumber).map { bh =>
+    blockchainReader.getBlockHeaderByNumber(blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
       MerklePatriciaTrie[Address, Account](
         rootHash = bh.stateRoot.toArray,
@@ -380,8 +351,9 @@ class BlockchainImpl(
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
+  def genesisHeader: BlockHeader = blockchainReader.getBlockHeaderByNumber(0).get
+
+  def genesisBlock: Block = blockchainReader.getBlockByNumber(0).get
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
     blockNumberMappingStorage.put(number, hash)
@@ -411,7 +383,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getHashByBlockNumber(block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -481,7 +453,7 @@ class BlockchainImpl(
   ): BigInt = {
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBlockByNumber(blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number
@@ -519,7 +491,7 @@ class BlockchainImpl(
       evmCodeStorage,
       stateStorage.getBackingStorage(blockNumber),
       accountStartNonce,
-      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
       noEmptyAccounts,
       ethCompatibleStorage
@@ -537,7 +509,7 @@ class BlockchainImpl(
       evmCodeStorage,
       stateStorage.getReadOnlyStorage,
       accountStartNonce,
-      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       stateRootHash,
       noEmptyAccounts = noEmptyAccounts,
       ethCompatibleStorage = ethCompatibleStorage

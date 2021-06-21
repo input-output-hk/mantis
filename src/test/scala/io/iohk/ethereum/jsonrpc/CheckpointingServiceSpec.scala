@@ -43,7 +43,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -73,7 +73,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = 0)))
-      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -101,7 +101,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
-      (blockchain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
+      (blockchainReader.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -129,7 +129,7 @@ class CheckpointingServiceSpec
 
       (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _).expects(hash).returning(None)
-      (blockchain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -157,13 +157,13 @@ class CheckpointingServiceSpec
     (blockchain.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (blockchain.getBlockByNumber _)
+    (blockchainReader.getBlockByNumber _)
       .expects(BigInt(4))
       .returning(None)
     (blockchain.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (blockchain.getBlockByNumber _)
+    (blockchainReader.getBlockByNumber _)
       .expects(BigInt(4))
       .returning(Some(block))
 
