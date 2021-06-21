@@ -81,6 +81,24 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(11700000) shouldBe ForkId(0xdb63a1caL, None)
     }
 
+    "create correct ForkId for mordor blocks" in {
+      val mordorConf = config.blockchains("mordor")
+      val mordorGenesisHash = ByteString(Hex.decode("a68ebde7932eccb177d38d55dcc6461a019dd795a681e59b5a3e4f3a7259a3f1"))
+      def create(head: BigInt) = ForkId.create(mordorGenesisHash, mordorConf)(head)
+
+      create(0) shouldBe ForkId(0x175782aaL, Some(301243)) // Unsynced
+      create(301242) shouldBe ForkId(0x175782aaL, Some(301243))
+      create(301243) shouldBe ForkId(0x604f6ee1L, Some(999983))
+      create(999982) shouldBe ForkId(0x604f6ee1L, Some(999983))
+      create(999983) shouldBe ForkId(0xf42f5539L, Some(2520000))
+      create(2519999) shouldBe ForkId(0xf42f5539L, Some(2520000))
+      create(2520000) shouldBe ForkId(0x66b5c286L, None)
+      // TODO: Add Magneto
+      // create(2520000) shouldBe ForkId(0x66b5c286L, Some(3985893))
+      // create(3985893) shouldBe ForkId(0x66b5c286L, Some(3985893))
+      // create(3985894) shouldBe ForkId(0x92b323e0L, None)
+    }
+
     // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
     "be correctly encoded via rlp" in {
       roundTrip(ForkId(0, None), "c6840000000080")
