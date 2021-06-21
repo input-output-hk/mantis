@@ -380,7 +380,8 @@ class EthTxServiceSpec
       blockchain,
       ledger,
       pendingTransactionsManager.ref,
-      getTransactionFromPoolTimeout
+      getTransactionFromPoolTimeout,
+      storagesInstance.storages.transactionMappingStorage
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

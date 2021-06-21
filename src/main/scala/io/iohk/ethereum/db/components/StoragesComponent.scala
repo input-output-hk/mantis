@@ -34,6 +34,5 @@ trait StoragesComponent {
 
     val pruningMode: PruningMode
 
-    val cachedNodeStorage: CachedNodeStorage
   }
 }

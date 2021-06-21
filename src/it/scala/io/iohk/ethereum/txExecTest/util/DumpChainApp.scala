@@ -189,8 +189,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
 
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
-
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 
@@ -219,8 +217,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   def getBestBlock(): Option[Block] = ???
 
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
-
-  override def getStateStorage: StateStorage = ???
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
 

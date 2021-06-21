@@ -135,11 +135,6 @@ trait Blockchain {
     */
   def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight]
 
-  def getChainWeightByNumber(blockNumber: BigInt): Option[ChainWeight] =
-    getHashByBlockNumber(blockNumber).flatMap(getChainWeightByHash)
-
-  def getTransactionLocation(txHash: ByteString): Option[TransactionLocation]
-
   def getBestBlockNumber(): BigInt
 
   def getBestBlock(): Option[Block]
@@ -212,8 +207,6 @@ trait Blockchain {
       ethCompatibleStorage: Boolean
   ): WS
 
-  def getStateStorage: StateStorage
-
   def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]]
 
   /**
@@ -237,17 +230,13 @@ class BlockchainImpl(
     protected val blockNumberMappingStorage: BlockNumberMappingStorage,
     protected val receiptStorage: ReceiptStorage,
     protected val evmCodeStorage: EvmCodeStorage,
-    protected val pruningMode: PruningMode,
     protected val nodeStorage: NodeStorage,
-    protected val cachedNodeStorage: CachedNodeStorage,
     protected val chainWeightStorage: ChainWeightStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
     protected val stateStorage: StateStorage
 ) extends Blockchain
     with Logger {
-
-  override def getStateStorage: StateStorage = stateStorage
 
   // There is always only one writer thread (ensured by actor), but can by many readers (api calls)
   // to ensure visibility of writes, needs to be volatile or atomic ref
@@ -398,9 +387,6 @@ class BlockchainImpl(
 
   override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
     stateStorage.getNode(hash)
-
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] =
-    transactionMappingStorage.get(txHash)
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
@@ -625,9 +611,7 @@ object BlockchainImpl {
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       evmCodeStorage = storages.evmCodeStorage,
-      pruningMode = storages.pruningMode,
       nodeStorage = storages.nodeStorage,
-      cachedNodeStorage = storages.cachedNodeStorage,
       chainWeightStorage = storages.chainWeightStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
