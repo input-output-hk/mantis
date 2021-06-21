@@ -29,8 +29,13 @@ object ForkId {
 
   val noFork = BigInt("1000000000000000000")
 
-  def gatherForks(config: BlockchainConfig): List[BigInt] =
-    (config.daoForkConfig.map(_.forkBlockNumber).toList ++
+  def gatherForks(config: BlockchainConfig): List[BigInt] = {
+    val maybeDaoBlock: Option[BigInt] = config.daoForkConfig.flatMap { daoConf =>
+      if (daoConf.includeOnForkIdList) Some(daoConf.forkBlockNumber)
+      else None
+    }
+
+    (maybeDaoBlock.toList ++
       config.forkBlockNumbers.productIterator.toList.flatMap {
         case i: BigInt => Some(i)
         case i: Option[_] =>
@@ -43,6 +48,7 @@ object ForkId {
       .filterNot(v => v == 0 || v == noFork)
       .distinct
       .sorted
+  }
 
   implicit class ForkIdEnc(forkId: ForkId) extends RLPSerializable {
     import RLPImplicits._

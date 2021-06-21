@@ -204,6 +204,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
     override val forkBlockHash: ByteString = proDaoBlock.header.hash
     override val forkBlockNumber: BigInt = proDaoBlock.header.number
     override val refundContract: Option[Address] = Some(Address(4))
+    override val includeOnForkIdList: Boolean = false
   }
 
   val proDaoBlockchainConfig: BlockchainConfig = blockchainConfig

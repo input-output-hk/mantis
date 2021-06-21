@@ -23,7 +23,7 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
     }
     "gatherForks for the etc chain correctly" in {
       val res = config.blockchains.map { case (name, conf) => (name, gatherForks(conf)) }
-      res("etc") shouldBe List(1150000, 1920000, 2500000, 3000000, 5000000, 5900000, 8772000, 9573000, 10500839, 11700000)
+      res("etc") shouldBe List(1150000, 2500000, 3000000, 5000000, 5900000, 8772000, 9573000, 10500839, 11700000)
     }
 
     "gatherForks for the eth chain correctly" in {
@@ -62,25 +62,23 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
 
       create(0) shouldBe ForkId(0xfc64ec04L, Some(1150000)) // Unsynced
       create(1149999) shouldBe ForkId(0xfc64ec04L, Some(1150000)) // Last Frontier block
-      create(1150000) shouldBe ForkId(0x97c2c34cL, Some(1920000)) // First Homestead block
-      create(1919999) shouldBe ForkId(0x97c2c34cL, Some(1920000)) // Last Homestead block
-      create(1920000) shouldBe ForkId(0x91d1f948L, Some(2500000)) // First DAO block
-      create(2499999) shouldBe ForkId(0x91d1f948L, Some(2500000)) // Last DAO block
-      create(2500000) shouldBe ForkId(0x595df14cL, Some(3000000))
-      create(3000000-1) shouldBe ForkId(0x595df14cL, Some(3000000))
-      create(3000000) shouldBe ForkId(0x6A5BE8FE, Some(5000000))
-      create(5000000-1) shouldBe ForkId(0x6A5BE8FE, Some(5000000))
-      create(5000000) shouldBe ForkId(0x16960543, Some(5900000))
-      create(5900000-1) shouldBe ForkId(0x16960543, Some(5900000))
-      create(5900000) shouldBe ForkId(0x23EC4C24, Some(8772000))
-      create(8772000-1) shouldBe ForkId(0x23EC4C24, Some(8772000))
-      create(8772000) shouldBe ForkId(0x1D802630, Some(9573000))
-      create(9573000-1) shouldBe ForkId(0x1D802630, Some(9573000))
-      create(9573000) shouldBe ForkId(0xAF42D006L, Some(10500839))
-      create(10500839-1) shouldBe ForkId(0xAF42D006L, Some(10500839))
-      create(10500839) shouldBe ForkId(0x7AD68249L, Some(11700000))
-      create(11700000-1) shouldBe ForkId(0x7AD68249L, Some(11700000))
-      create(11700000) shouldBe ForkId(0xB20AFE12L, None)
+      create(1150000) shouldBe ForkId(0x97c2c34cL, Some(2500000)) // First Homestead block
+      create(1919999) shouldBe ForkId(0x97c2c34cL, Some(2500000)) // Last Homestead block
+      create(2500000) shouldBe ForkId(0xdb06803fL, Some(3000000))
+      create(3000000-1) shouldBe ForkId(0xdb06803fL, Some(3000000))
+      create(3000000) shouldBe ForkId(0xaff4bed4L, Some(5000000))
+      create(5000000-1) shouldBe ForkId(0xaff4bed4L, Some(5000000))
+      create(5000000) shouldBe ForkId(0xf79a63c0L, Some(5900000))
+      create(5900000-1) shouldBe ForkId(0xf79a63c0L, Some(5900000))
+      create(5900000) shouldBe ForkId(0x744899d6L, Some(8772000))
+      create(8772000-1) shouldBe ForkId(0x744899d6L, Some(8772000))
+      create(8772000) shouldBe ForkId(0x518b59c6L, Some(9573000))
+      create(9573000-1) shouldBe ForkId(0x518b59c6L, Some(9573000))
+      create(9573000) shouldBe ForkId(0x7ba22882L, Some(10500839))
+      create(10500839-1) shouldBe ForkId(0x7ba22882L, Some(10500839))
+      create(10500839) shouldBe ForkId(0x9007bfccL, Some(11700000))
+      create(11700000-1) shouldBe ForkId(0x9007bfccL, Some(11700000))
+      create(11700000) shouldBe ForkId(0xdb63a1caL, None)
     }
 
     // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
