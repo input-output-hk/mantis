@@ -121,7 +121,6 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
 
       // Fetcher should not enqueue any new block
       importer.send(blockFetcher.toClassic, PickBlocks(syncConfig.blocksBatchSize, importer.ref))
-      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectNoMessage(100.millis)
     }
 
@@ -152,7 +151,6 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
         importer.send(blockFetcher.toClassic, PickBlocks(firstBlocksBatch.size, importer.ref))
       }
 
-      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
         blocks.map(_.hash).toList shouldEqual firstBlocksBatch.map(_.hash)
       }
@@ -182,7 +180,6 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
 
       // If we try to pick the whole chain we should only receive the first part
       importer.send(blockFetcher.toClassic, PickBlocks(firstBlocksBatch.size, importer.ref))
-      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
         blocks.map(_.hash).toList shouldEqual subChain1.map(_.hash)
       }
@@ -243,7 +240,6 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
       )
 
       importer.send(blockFetcher.toClassic, PickBlocks(syncConfig.blocksBatchSize, importer.ref))
-      importer.ignoreMsg({ case BlockImporter.NotOnTop => true })
       importer.expectMsgPF() { case BlockFetcher.PickedBlocks(blocks) =>
         val headers = blocks.map(_.header).toList
 
