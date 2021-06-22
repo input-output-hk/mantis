@@ -88,6 +88,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     override lazy val ledger = new TestLedgerImpl
 
+    override lazy val blockImport: BlockImport = new TestImportBlock()
+
     blockchain.save(
       block = BlockHelpers.genesis,
       receipts = Nil,
@@ -188,6 +190,22 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       // override def getBlockByHash(hash: ByteString): Option[Block] =
       //   importedBlocksSet.find(_.hash == hash)
 
+    }
+
+    class TestImportBlock
+        extends BlockImport(
+          mock[BlockchainImpl],
+          mock[BlockQueue],
+          mock[BlockValidation],
+          mock[BlockExecution],
+          mock[Scheduler]
+        ) {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+        importedBlocksSet.add(block)
+        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
+      }
     }
 
     class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
