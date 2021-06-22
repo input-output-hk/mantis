@@ -164,7 +164,7 @@ trait BlockchainBuilder {
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
-  val blockQueue = BlockQueue(blockchain, syncConfig)
+  lazy val blockQueue = BlockQueue(blockchain, syncConfig)
 }
 
 trait BlockImportBuilder {
@@ -174,8 +174,8 @@ trait BlockImportBuilder {
     with BlockchainConfigBuilder
     with ActorSystemBuilder =>
 
-  private val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
-  val blockImport = new BlockImport(
+  private lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+  lazy val blockImport = new BlockImport(
     blockchain,
     blockQueue,
     blockValidation,

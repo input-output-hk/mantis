@@ -392,7 +392,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //- cake overrides
 
   class MockBlockQueue extends BlockQueue(null, 10, 10)
-  override val blockQueue: BlockQueue = mock[MockBlockQueue]
+  override lazy val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
     (blockchain.getBlockByHash _)
@@ -439,7 +439,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  override val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   lazy val ledgerWithMockedBlockExecution: BlockImport = blockImportWithExecution(mock[BlockExecution])
 }

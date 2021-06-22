@@ -41,7 +41,7 @@ class BlockImporterItSpec
     testScheduler.awaitTermination(60.second)
   }
 
-  override val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   val genesis = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
@@ -81,7 +81,7 @@ class BlockImporterItSpec
   }
 
   // override lazy val ledger = new TestLedgerImpl(successValidators) {
-  override val blockImport = blockImportWithExecution(
+  override lazy val blockImport = blockImportWithExecution(
     new BlockExecution(
       blockchain,
       blockchainConfig,
