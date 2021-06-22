@@ -41,7 +41,7 @@ class BlockImporterItSpec
     testScheduler.awaitTermination(60.second)
   }
 
-  val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   val genesis = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
@@ -80,21 +80,27 @@ class BlockImporterItSpec
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledger = new TestLedgerImpl(successValidators) {
-    override private[ledger] lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation) {
-        override def executeAndValidateBlock(
-            block: Block,
-            alreadyValidated: Boolean = false
-        ): Either[BlockExecutionError, Seq[Receipt]] =
-          Right(BlockResult(emptyWorld).receipts)
-      }
-  }
+  // override lazy val ledger = new TestLedgerImpl(successValidators) {
+  override val blockImport = blockImportWithExecution(
+    new BlockExecution(
+      blockchain,
+      blockchainConfig,
+      consensus.blockPreparator,
+      new BlockValidation(consensus, blockchain, blockQueue)
+    ) {
+      override def executeAndValidateBlock(
+          block: Block,
+          alreadyValidated: Boolean = false
+      ): Either[BlockExecutionError, Seq[Receipt]] =
+        Right(BlockResult(emptyWorld).receipts)
+    }
+  )
+  // }
 
   val blockImporter = system.actorOf(
     BlockImporter.props(
       fetcherProbe.ref,
-      ledger,
+      blockImport,
       blockchain,
       syncConfig,
       ommersPoolProbe.ref,
@@ -134,11 +140,11 @@ class BlockImporterItSpec
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
     //ledger with not mocked blockExecution
-    val ledger = new TestLedgerImpl(successValidators)
+    // val ledger = new TestLedgerImpl(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        ledger,
+        blockImportWithValidators(successValidators),
         blockchain,
         syncConfig,
         ommersPoolProbe.ref,
@@ -250,7 +256,7 @@ class BlockImporterItSpec
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        ledger,
+        blockImportWithValidators(successValidators),
         blockchain,
         syncConfig,
         ommersPoolProbe.ref,
