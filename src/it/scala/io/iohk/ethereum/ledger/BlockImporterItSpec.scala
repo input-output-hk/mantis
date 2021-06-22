@@ -59,14 +59,15 @@ class BlockImporterItSpec
   val pendingTransactionsManagerProbe = TestProbe()
   val supervisor = TestProbe()
 
-  val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getBackingStorage(-1),
+    blockchain,
+    blockchainConfig.accountStartNonce,
+    ByteString(MerklePatriciaTrie.EmptyRootHash),
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val ommersValidator: OmmersValidator = (
@@ -82,7 +83,13 @@ class BlockImporterItSpec
 
   override lazy val ledger = new TestLedgerImpl(successValidators) {
     override private[ledger] lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation) {
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false

@@ -65,13 +65,13 @@ object FixtureProvider {
     val blocksToInclude = fixtures.blockByNumber.toSeq.sortBy { case (number, _) => number }.takeWhile {
       case (number, _) => number <= blockNumber
     }
-    val blockchain = BlockchainImpl(storages)
 
     blocksToInclude.foreach { case (_, block) =>
       val receiptsUpdates = fixtures.receipts
         .get(block.header.hash)
         .map(r => storages.receiptStorage.put(block.header.hash, r))
         .getOrElse(storages.receiptStorage.emptyBatchUpdate)
+
       storages.blockBodiesStorage
         .put(block.header.hash, fixtures.blockBodies(block.header.hash))
         .and(storages.blockHeadersStorage.put(block.header.hash, fixtures.blockHeaders(block.header.hash)))

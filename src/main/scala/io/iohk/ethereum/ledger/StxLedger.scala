@@ -1,11 +1,17 @@
 package io.iohk.ethereum.ledger
 
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, SignedTransactionWithSender}
 import io.iohk.ethereum.ledger.Ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
 
-class StxLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, blockPreparator: BlockPreparator) {
+class StxLedger(
+    blockchain: BlockchainImpl,
+    evmCodeStorage: EvmCodeStorage,
+    blockchainConfig: BlockchainConfig,
+    blockPreparator: BlockPreparator
+) {
 
   def simulateTransaction(
       stx: SignedTransactionWithSender,
@@ -15,8 +21,10 @@ class StxLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig, 
     val tx = stx.tx
 
     val world1 = world.getOrElse(
-      blockchain.getReadOnlyWorldStateProxy(
-        blockNumber = None,
+      InMemoryWorldStateProxy(
+        evmCodeStorage = evmCodeStorage,
+        mptStorage = blockchain.getReadOnlyStorage(),
+        blockchain = blockchain,
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,

@@ -12,6 +12,7 @@ import monix.execution.Scheduler
 
 trait TestModeServiceBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
+    with StorageBuilder
     with TestBlockchainBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
@@ -24,6 +25,7 @@ trait TestModeServiceBuilder extends LedgerBuilder {
   lazy val testModeComponentsProvider: TestModeComponentsProvider =
     new TestModeComponentsProvider(
       blockchain,
+      storagesInstance.storages.evmCodeStorage,
       syncConfig,
       scheduler,
       consensusConfig,

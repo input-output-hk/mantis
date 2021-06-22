@@ -15,6 +15,24 @@ object InMemoryWorldStateProxy {
 
   def apply(
       evmCodeStorage: EvmCodeStorage,
+      mptStorage: MptStorage,
+      blockchain: Blockchain,
+      accountStartNonce: UInt256,
+      stateRootHash: ByteString,
+      noEmptyAccounts: Boolean,
+      ethCompatibleStorage: Boolean
+  ): InMemoryWorldStateProxy = InMemoryWorldStateProxy.apply(
+    evmCodeStorage,
+    mptStorage,
+    accountStartNonce,
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    stateRootHash,
+    noEmptyAccounts,
+    ethCompatibleStorage
+  )
+
+  private def apply(
+      evmCodeStorage: EvmCodeStorage,
       nodesKeyValueStorage: MptStorage,
       accountStartNonce: UInt256,
       getBlockHashByNumber: BigInt => Option[ByteString],

@@ -466,10 +466,11 @@ trait EthBlocksServiceBuilder {
 }
 
 trait EthUserServiceBuilder {
-  self: BlockchainBuilder with BlockchainConfigBuilder with LedgerBuilder =>
+  self: BlockchainBuilder with BlockchainConfigBuilder with LedgerBuilder with StorageBuilder =>
 
   lazy val ethUserService = new EthUserService(
     blockchain,
+    storagesInstance.storages.evmCodeStorage,
     ledger,
     blockchainConfig
   )
@@ -672,6 +673,7 @@ trait LedgerBuilder {
 trait StdLedgerBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
+    with StorageBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder =>
@@ -685,11 +687,19 @@ trait StdLedgerBuilder extends LedgerBuilder {
     *       so a refactoring should probably take that into account.
     */
   protected def newLedger(): LedgerImpl =
-    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, scheduler)
+    new LedgerImpl(
+      blockchain,
+      storagesInstance.storages.evmCodeStorage,
+      blockchainConfig,
+      syncConfig,
+      consensus,
+      scheduler
+    )
 
   override lazy val ledger: Ledger = newLedger()
 
-  override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
+  override lazy val stxLedger: StxLedger =
+    new StxLedger(blockchain, storagesInstance.storages.evmCodeStorage, blockchainConfig, consensus.blockPreparator)
 }
 
 trait CheckpointBlockGeneratorBuilder {

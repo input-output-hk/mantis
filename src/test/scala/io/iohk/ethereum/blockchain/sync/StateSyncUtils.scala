@@ -32,22 +32,21 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
 
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
-      val init: InMemoryWorldStateProxy = blockchain
-        .getWorldStateProxy(
-          blockNumber = 1,
-          accountStartNonce = blockchainConfig.accountStartNonce,
-          stateRootHash = existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),
-          noEmptyAccounts = true,
-          ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-        )
-        .asInstanceOf[InMemoryWorldStateProxy]
+      val init = InMemoryWorldStateProxy(
+        storagesInstance.storages.evmCodeStorage,
+        blockchain.getBackingStorage(1),
+        blockchain,
+        blockchainConfig.accountStartNonce,
+        existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),
+        noEmptyAccounts = true,
+        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+      )
 
       val modifiedWorld = accountData.foldLeft(init) { case (world, data) =>
         val storage = world.getStorage(data.accountAddress)
         val modifiedStorage = data.accountStorage.foldLeft(storage) { case (s, v) =>
           s.store(v._1, v._2)
         }
-        val code = world.getCode(data.accountAddress)
         val worldWithAccAndStorage = world
           .saveAccount(data.accountAddress, Account.empty().copy(balance = data.accountBalance))
           .saveStorage(data.accountAddress, modifiedStorage)
