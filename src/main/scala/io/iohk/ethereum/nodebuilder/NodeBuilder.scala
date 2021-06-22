@@ -174,14 +174,16 @@ trait BlockImportBuilder {
     with BlockchainConfigBuilder
     with ActorSystemBuilder =>
 
-  private lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
-  lazy val blockImport = new BlockImport(
-    blockchain,
-    blockQueue,
-    blockValidation,
-    new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation),
-    Scheduler(system.dispatchers.lookup("validation-context"))
-  )
+  lazy val blockImport = {
+    val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockValidation,
+      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation),
+      Scheduler(system.dispatchers.lookup("validation-context"))
+    )
+  }
 }
 
 trait ForkResolverBuilder {

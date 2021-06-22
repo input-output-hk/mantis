@@ -237,10 +237,6 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
 
-    val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
-    val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
-
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
@@ -258,10 +254,6 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     override lazy val validators: MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val blockHeaderValidator: BlockHeaderValidator = mock[BlockHeaderValidator]
     }
-
-    val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
-    val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)

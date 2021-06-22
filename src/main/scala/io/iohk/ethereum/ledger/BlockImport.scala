@@ -33,7 +33,7 @@ class BlockImport(
     *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
+  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
     blockchain.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
@@ -66,6 +66,7 @@ class BlockImport(
         log.error("Getting current best block failed")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
+  }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
