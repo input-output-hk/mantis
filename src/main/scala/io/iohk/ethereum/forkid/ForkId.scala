@@ -38,16 +38,7 @@ object ForkId {
       else None
     }
 
-    (maybeDaoBlock.toList ++
-      config.forkBlockNumbers.productIterator.toList.flatMap {
-        case i: BigInt => Some(i)
-        case i: Option[_] =>
-          i.flatMap {
-            case n if n.isInstanceOf[BigInt] => Some(n.asInstanceOf[BigInt])
-            case n => None
-          }
-        case default => None
-      })
+    (maybeDaoBlock.toList ++ config.forkBlockNumbers.all)
       .filterNot(v => v == 0 || v == noFork)
       .distinct
       .sorted

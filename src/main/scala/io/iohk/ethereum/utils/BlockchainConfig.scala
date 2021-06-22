@@ -57,7 +57,17 @@ case class ForkBlockNumbers(
     ecip1097BlockNumber: BigInt,
     ecip1049BlockNumber: Option[BigInt],
     ecip1099BlockNumber: BigInt
-)
+) {
+  def all: List[BigInt] = this.productIterator.toList.flatMap {
+    case i: BigInt => Some(i)
+    case i: Option[_] =>
+      i.flatMap {
+        case n if n.isInstanceOf[BigInt] => Some(n.asInstanceOf[BigInt])
+        case n => None
+      }
+    case default => None
+  }
+}
 
 object BlockchainConfig {
 
