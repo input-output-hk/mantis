@@ -106,7 +106,7 @@ class EthTxService(
         TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash)
         Block(header, body) <- blockchainReader.getBlockByHash(blockHash)
         stx <- body.transactionList.lift(txIndex)
-        receipts <- blockchain.getReceiptsByHash(blockHash)
+        receipts <- blockchainReader.getReceiptsByHash(blockHash)
         receipt: Receipt <- receipts.lift(txIndex)
         // another possibility would be to throw an exception and fail hard, as if we cannot calculate sender for transaction
         // included in blockchain it means that something is terribly wrong

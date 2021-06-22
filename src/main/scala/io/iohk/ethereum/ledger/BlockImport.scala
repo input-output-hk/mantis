@@ -248,7 +248,7 @@ class BlockImport(
           val hash = block.header.hash
 
           val blockDataOpt = for {
-            receipts <- blockchain.getReceiptsByHash(hash)
+            receipts <- blockchainReader.getReceiptsByHash(hash)
             weight <- blockchain.getChainWeightByHash(hash)
           } yield BlockData(block, receipts, weight)
 

@@ -61,13 +61,6 @@ trait Blockchain {
   ): StorageProof
 
   /**
-    * Returns the receipts based on a block hash
-    * @param blockhash
-    * @return Receipts if found
-    */
-  def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
-
-  /**
     * Looks up ChainWeight for a given chain
     * @param blockhash Hash of top block in the chain
     * @return ChainWeight if found
@@ -179,8 +172,6 @@ class BlockchainImpl(
       hash <- blockchainReader.getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
   }
-
-  override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 

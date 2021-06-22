@@ -19,7 +19,6 @@ class FilterManager(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockGenerator: BlockGenerator,
-    appStateStorage: AppStateStorage,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     filterConfig: FilterConfig,
@@ -127,7 +126,7 @@ class FilterManager(
                 header.logsBloom,
                 bytesToCheckInBloomFilter
               ) =>
-            blockchain.getReceiptsByHash(header.hash) match {
+            blockchainReader.getReceiptsByHash(header.hash) match {
               case Some(receipts) =>
                 recur(
                   currentBlockNumber + 1,
@@ -278,7 +277,6 @@ object FilterManager {
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockGenerator: BlockGenerator,
-      appStateStorage: AppStateStorage,
       keyStore: KeyStore,
       pendingTransactionsManager: ActorRef,
       filterConfig: FilterConfig,
@@ -289,7 +287,6 @@ object FilterManager {
         blockchain,
         blockchainReader,
         blockGenerator,
-        appStateStorage,
         keyStore,
         pendingTransactionsManager,
         filterConfig,

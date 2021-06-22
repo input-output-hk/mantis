@@ -88,7 +88,7 @@ class FilterManagerSpec
     )
 
     (blockchainReader.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh2.hash)
       .returning(
         Some(
@@ -177,7 +177,7 @@ class FilterManagerSpec
     )
 
     (blockchainReader.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh4.hash)
       .returning(
         Some(
@@ -252,7 +252,7 @@ class FilterManagerSpec
     )
 
     (blockchainReader.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh.hash)
       .returning(
         Some(
@@ -485,7 +485,6 @@ class FilterManagerSpec
 
     val blockchainReader = mock[BlockchainReader]
     val blockchain = mock[BlockchainImpl]
-    val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
     val blockGenerator = mock[BlockGenerator]
     val pendingTransactionsManager = TestProbe()
@@ -518,7 +517,6 @@ class FilterManagerSpec
           blockchain,
           blockchainReader,
           blockGenerator,
-          appStateStorage,
           keyStore,
           pendingTransactionsManager.ref,
           config,

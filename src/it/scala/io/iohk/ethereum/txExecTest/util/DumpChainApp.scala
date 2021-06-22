@@ -182,8 +182,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = ???
 
-  override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
-
   def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =

@@ -208,7 +208,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   val blockchainHost: ActorRef =
     system.actorOf(
       BlockchainHostActor
-        .props(bl, blockchainReader, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
+        .props(blockchainReader, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
       "blockchain-host"
     )
 

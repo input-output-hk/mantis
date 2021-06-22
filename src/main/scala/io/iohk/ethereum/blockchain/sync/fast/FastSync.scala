@@ -1128,7 +1128,7 @@ class FastSync(
         for {
           header <- blockchainReader.getBlockHeaderByHash(hash)
           _ <- blockchainReader.getBlockBodyByHash(hash)
-          _ <- blockchain.getReceiptsByHash(hash)
+          _ <- blockchainReader.getReceiptsByHash(hash)
         } yield header
       }
 

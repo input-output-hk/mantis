@@ -20,7 +20,6 @@ import io.iohk.ethereum.network.p2p.messages.Codes
   * node and block data.
   */
 class BlockchainHostActor(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     peerConfiguration: PeerConfiguration,
@@ -75,7 +74,7 @@ class BlockchainHostActor(
     case request: GetReceipts =>
       val receipts = request.blockHashes
         .take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
-        .flatMap(hash => blockchain.getReceiptsByHash(hash))
+        .flatMap(hash => blockchainReader.getReceiptsByHash(hash))
 
       Some(Receipts(receipts))
 
@@ -118,7 +117,6 @@ class BlockchainHostActor(
 object BlockchainHostActor {
 
   def props(
-      blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       peerConfiguration: PeerConfiguration,
@@ -127,7 +125,6 @@ object BlockchainHostActor {
   ): Props =
     Props(
       new BlockchainHostActor(
-        blockchain,
         blockchainReader,
         evmCodeStorage,
         peerConfiguration,

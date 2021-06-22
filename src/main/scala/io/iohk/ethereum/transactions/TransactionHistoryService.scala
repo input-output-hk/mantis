@@ -37,7 +37,7 @@ class TransactionHistoryService(
       .collect { case Some(block) => block }
       .concatMap { block =>
         val getBlockReceipts = Task {
-          blockchain.getReceiptsByHash(block.hash).map(_.toVector).getOrElse(Vector.empty)
+          blockchainReader.getReceiptsByHash(block.hash).map(_.toVector).getOrElse(Vector.empty)
         }.memoizeOnSuccess
 
         Observable

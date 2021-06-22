@@ -419,7 +419,7 @@ class TestService(
       transactionLocation <- transactionMappingStorage.get(request.transactionHash)
       block <- blockchainReader.getBlockByHash(transactionLocation.blockHash)
       _ <- block.body.transactionList.lift(transactionLocation.txIndex)
-      receipts <- blockchain.getReceiptsByHash(block.header.hash)
+      receipts <- blockchainReader.getReceiptsByHash(block.header.hash)
       logs = receipts.flatMap(receipt => receipt.logs)
       rlpList: RLPList = RLPList(logs.map(_.toRLPEncodable).toList: _*)
     } yield ByteString(crypto.kec256(rlp.encode(rlpList)))

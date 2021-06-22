@@ -279,7 +279,6 @@ trait BlockchainHostBuilder {
 
   val blockchainHost: ActorRef = system.actorOf(
     BlockchainHostActor.props(
-      blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       peerConfiguration,
@@ -361,7 +360,6 @@ trait FilterManagerBuilder {
         blockchain,
         blockchainReader,
         consensus.blockGenerator,
-        storagesInstance.storages.appStateStorage,
         keyStore,
         pendingTransactionsManager,
         filterConfig,

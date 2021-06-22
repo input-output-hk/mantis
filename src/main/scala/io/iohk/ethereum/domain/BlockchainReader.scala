@@ -1,14 +1,21 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{BlockBodiesStorage, BlockHeadersStorage, BlockNumberMappingStorage, StateStorage}
+import io.iohk.ethereum.db.storage.{
+  BlockBodiesStorage,
+  BlockHeadersStorage,
+  BlockNumberMappingStorage,
+  ReceiptStorage,
+  StateStorage
+}
 import io.iohk.ethereum.mpt.MptNode
 
 class BlockchainReader(
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
     blockNumberMappingStorage: BlockNumberMappingStorage,
-    stateStorage: StateStorage
+    stateStorage: StateStorage,
+    receiptStorage: ReceiptStorage
 ) {
 
   /**
@@ -76,15 +83,23 @@ class BlockchainReader(
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode] =
     stateStorage.getNode(hash)
+
+  /**
+    * Returns the receipts based on a block hash
+    * @param blockhash
+    * @return Receipts if found
+    */
+  def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 }
 
 object BlockchainReader {
 
-  def apply(blockchainStorages: BlockchainStorages): BlockchainReader = new BlockchainReader(
-    blockchainStorages.blockHeadersStorage,
-    blockchainStorages.blockBodiesStorage,
-    blockchainStorages.blockNumberMappingStorage,
-    blockchainStorages.stateStorage
+  def apply(storages: BlockchainStorages): BlockchainReader = new BlockchainReader(
+    storages.blockHeadersStorage,
+    storages.blockBodiesStorage,
+    storages.blockNumberMappingStorage,
+    storages.stateStorage,
+    storages.receiptStorage
   )
 
 }
