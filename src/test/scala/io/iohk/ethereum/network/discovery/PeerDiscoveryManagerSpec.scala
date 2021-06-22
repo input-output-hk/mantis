@@ -166,7 +166,7 @@ class PeerDiscoveryManagerSpec
       @volatile var started = false
 
       override lazy val discoveryServiceResource: Resource[Task, DiscoveryService] =
-        Resource.liftF {
+        Resource.eval {
           Task { started = true } >>
             Task.raiseError[DiscoveryService](new RuntimeException("Oh no!") with NoStackTrace)
         }
