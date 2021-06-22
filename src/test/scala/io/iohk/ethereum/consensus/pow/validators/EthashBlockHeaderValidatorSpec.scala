@@ -374,7 +374,6 @@ class EthashBlockHeaderValidatorSpec
 
   def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
     import Fixtures.Blocks._
-
     BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
@@ -408,6 +407,7 @@ class EthashBlockHeaderValidatorSpec
           if (supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
         override val forkBlockNumber: BigInt = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
+        override val includeOnForkIdList: Boolean = false
       }),
       // unused
       maxCodeSize = None,
