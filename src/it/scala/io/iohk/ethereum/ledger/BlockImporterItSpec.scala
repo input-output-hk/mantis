@@ -81,19 +81,22 @@ class BlockImporterItSpec
   }
 
   // override lazy val ledger = new TestLedgerImpl(successValidators) {
-  override lazy val blockImport = blockImportWithExecution(
-    new BlockExecution(
-      blockchain,
-      blockchainConfig,
-      consensus.blockPreparator,
-      new BlockValidation(consensus, blockchain, blockQueue)
-    ) {
-      override def executeAndValidateBlock(
-          block: Block,
-          alreadyValidated: Boolean = false
-      ): Either[BlockExecutionError, Seq[Receipt]] =
-        Right(BlockResult(emptyWorld).receipts)
-    }
+  override lazy val blockImport = mkBlockImport(
+    validators = successValidators,
+    blockExecutionOpt = Some(
+      new BlockExecution(
+        blockchain,
+        blockchainConfig,
+        consensus.blockPreparator,
+        new BlockValidation(consensus, blockchain, blockQueue)
+      ) {
+        override def executeAndValidateBlock(
+            block: Block,
+            alreadyValidated: Boolean = false
+        ): Either[BlockExecutionError, Seq[Receipt]] =
+          Right(BlockResult(emptyWorld).receipts)
+      }
+    )
   )
   // }
 
@@ -144,7 +147,7 @@ class BlockImporterItSpec
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        blockImportWithValidators(successValidators),
+        mkBlockImport(validators = successValidators),
         blockchain,
         syncConfig,
         ommersPoolProbe.ref,
@@ -256,7 +259,7 @@ class BlockImporterItSpec
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        blockImportWithValidators(successValidators),
+        mkBlockImport(validators = successValidators),
         blockchain,
         syncConfig,
         ommersPoolProbe.ref,
