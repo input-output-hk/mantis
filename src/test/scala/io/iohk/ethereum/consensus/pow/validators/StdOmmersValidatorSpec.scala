@@ -13,7 +13,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
-    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchain, blockchainReader) match {
+    ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchainReader) match {
       case Right(_) => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
     }
@@ -24,7 +24,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(ommer1, ommer2, ommer2),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmersLengthError) => succeed
@@ -40,7 +39,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(invalidOmmer1, ommer2),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmersHeaderError(List(_))) => succeed
@@ -54,7 +52,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(block93.body.uncleNodesList.head, ommer2),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmersUsedBeforeError) => succeed
@@ -68,7 +65,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(ommer1, block92.header),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmerIsAncestorError) => succeed
@@ -111,7 +107,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(ommer1, block90.header),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmerParentIsNotAncestorError) => succeed
@@ -124,7 +119,6 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ommersBlockParentHash,
       ommersBlockNumber,
       Seq(ommer1, ommer1),
-      blockchain,
       blockchainReader
     ) match {
       case Left(OmmersDuplicatedError) => succeed

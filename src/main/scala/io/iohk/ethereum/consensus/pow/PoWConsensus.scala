@@ -162,7 +162,6 @@ class PoWConsensus private (
 
         new PoWBlockGeneratorImpl(
           validators = _validators,
-          blockchain = blockchain,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
@@ -246,7 +245,6 @@ object PoWConsensus {
     )
 
     val blockGenerator: PoWBlockGeneratorImpl = buildBlockGenerator(
-      blockchain,
       blockchainReader,
       blockchainConfig,
       config,
@@ -269,7 +267,6 @@ object PoWConsensus {
   }
 
   private def buildBlockGenerator(
-      blockchain: BlockchainImpl,
       blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
       config: FullConsensusConfig[EthashConfig],
@@ -281,7 +278,6 @@ object PoWConsensus {
     case RestrictedPoWMinerData(key) =>
       new RestrictedPoWBlockGeneratorImpl(
         validators = validators,
-        blockchain = blockchain,
         blockchainReader = blockchainReader,
         blockchainConfig = blockchainConfig,
         consensusConfig = config.generic,
@@ -293,7 +289,6 @@ object PoWConsensus {
     case NoAdditionalPoWData =>
       new PoWBlockGeneratorImpl(
         validators = validators,
-        blockchain = blockchain,
         blockchainReader = blockchainReader,
         blockchainConfig = blockchainConfig,
         consensusConfig = config.generic,

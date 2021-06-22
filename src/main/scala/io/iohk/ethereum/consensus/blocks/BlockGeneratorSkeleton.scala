@@ -22,7 +22,6 @@ import io.iohk.ethereum.utils.ByteUtils.or
   * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 abstract class BlockGeneratorSkeleton(
-    blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     difficultyCalc: DifficultyCalculator,

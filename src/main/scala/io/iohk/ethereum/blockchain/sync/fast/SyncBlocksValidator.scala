@@ -3,9 +3,7 @@ package io.iohk.ethereum.blockchain.sync.fast
 import akka.actor.ActorLogging
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, Validators}
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
-import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Blockchain, BlockchainReader}
+import io.iohk.ethereum.domain.{BlockBody, BlockHeader, BlockchainReader}
 
 trait SyncBlocksValidator { this: ActorLogging =>
 

@@ -15,7 +15,6 @@ abstract class NoOmmersBlockGenerator(
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchain,
       blockchainConfig,
       consensusConfig,
       difficultyCalc,

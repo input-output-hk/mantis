@@ -24,7 +24,6 @@ trait PoWBlockGenerator extends TestBlockGenerator {
 
 class PoWBlockGeneratorImpl(
     validators: ValidatorsExecutor,
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
@@ -32,7 +31,6 @@ class PoWBlockGeneratorImpl(
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchain,
       blockchainConfig,
       consensusConfig,
       difficultyCalc,
@@ -81,7 +79,7 @@ class PoWBlockGeneratorImpl(
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
 
-    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchain, blockchainReader) match {
+    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
       case Left(_) => emptyX
       case Right(_) => x
     }
@@ -106,7 +104,6 @@ class PoWBlockGeneratorImpl(
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): PoWBlockGeneratorImpl =
     new PoWBlockGeneratorImpl(
       validators,
-      blockchain,
       blockchainReader,
       blockchainConfig,
       consensusConfig,

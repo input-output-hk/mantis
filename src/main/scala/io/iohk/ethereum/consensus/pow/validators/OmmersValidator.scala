@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.{OmmersError, OmmersValid}
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainReader}
 
 trait OmmersValidator {
 
@@ -20,7 +20,6 @@ trait OmmersValidator {
       parentHash: ByteString,
       blockNumber: BigInt,
       ommers: Seq[BlockHeader],
-      blockchain: Blockchain,
       blockchainReader: BlockchainReader
   ): Either[OmmersError, OmmersValid] = {
 

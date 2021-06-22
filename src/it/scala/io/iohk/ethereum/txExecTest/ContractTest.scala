@@ -25,7 +25,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block only with ether transfers
     val blockValidation =
-      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     val blockExecution =
       new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(1)) shouldBe noErrors
@@ -38,7 +38,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //contract creation
     val blockValidation =
-      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     val blockExecution =
       new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(2)) shouldBe noErrors
@@ -51,7 +51,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block with ether transfers and contract call
     val blockValidation =
-      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     val blockExecution =
       new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
@@ -64,7 +64,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block contains contract paying 2 accounts
     val blockValidation =
-      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     val blockExecution =
       new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors

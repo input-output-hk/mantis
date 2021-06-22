@@ -710,7 +710,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
-      new BlockValidation(consensus, blockchain, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     lazy val blockExecution =
       new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
 

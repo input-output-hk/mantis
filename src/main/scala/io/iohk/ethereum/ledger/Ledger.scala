@@ -101,7 +101,7 @@ class LedgerImpl(
 
   private[ledger] val blockRewardCalculator = _blockPreparator.blockRewardCalculator
 
-  private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockchainReader, blockQueue)
+  private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
   private[ledger] lazy val blockExecution =
     new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val branchResolution = new BranchResolution(blockchain, blockchainReader)
