@@ -56,12 +56,12 @@ object BlockchainConfigForEvm {
 
   object EtcForks extends Enumeration {
     type EtcFork = Value
-    val BeforeAtlantis, Atlantis, Agharta, Phoenix = Value
+    val BeforeAtlantis, Atlantis, Agharta, Phoenix, Magneto = Value
   }
 
   object EthForks extends Enumeration {
     type EthFork = Value
-    val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul = Value
+    val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul, Berlin = Value
   }
 
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
