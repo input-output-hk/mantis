@@ -44,7 +44,6 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val blockGenerator = mock[PoWBlockGenerator]
 
   val syncingController = TestProbe()
-  override lazy val ledger = mock[Ledger]
   override lazy val stxLedger = mock[StxLedger]
   override lazy val validators = mock[ValidatorsExecutor]
   (() => validators.signedTransactionValidator)

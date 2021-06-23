@@ -255,7 +255,6 @@ class BlockImporterItSpec
     val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
     val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
 
-    val ledger = new TestLedgerImpl(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,

@@ -136,7 +136,6 @@ class EthUserServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    override lazy val ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
       consensus,

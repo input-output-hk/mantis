@@ -216,7 +216,6 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 

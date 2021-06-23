@@ -142,7 +142,6 @@ class EthServiceSpec
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
-    override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)

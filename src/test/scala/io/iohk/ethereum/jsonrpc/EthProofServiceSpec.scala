@@ -260,8 +260,6 @@ class EthProofServiceSpec
     val storageKeys = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
 
-    override lazy val ledger = mock[Ledger]
-
     def fetchProof(
         address: Address,
         storageKeys: Seq[StorageProofKey],

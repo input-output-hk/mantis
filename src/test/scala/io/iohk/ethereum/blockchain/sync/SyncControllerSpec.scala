@@ -500,7 +500,6 @@ class SyncControllerSpec
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
 
-    override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides
 
     val etcPeerManager = TestProbe()

@@ -73,8 +73,6 @@ object RegularSyncItSpecUtils {
       )
 
     lazy val consensus = buildEthashConsensus()
-    lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, consensus, Scheduler.global)
 
     lazy val blockQueue = BlockQueue(bl, syncConfig)
     lazy val blockValidation = new BlockValidation(consensus, bl, blockQueue)

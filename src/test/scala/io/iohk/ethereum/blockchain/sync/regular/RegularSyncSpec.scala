@@ -266,7 +266,6 @@ class RegularSyncSpec
 
       "go back to earlier block in order to find a common parent with new branch" in sync(
         new Fixture(testSystem) with FakeLedger {
-          implicit val ec: Scheduler = Scheduler(system.dispatcher)
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
           (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
           override lazy val blockImport: BlockImport = new FakeImportBlock()
@@ -322,7 +321,6 @@ class RegularSyncSpec
 
     "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in sync(
       new Fixture(testSystem) with FakeLedger {
-        implicit val ec: Scheduler = Scheduler(system.dispatcher)
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
         override lazy val blockImport: BlockImport = new FakeImportBlock()
