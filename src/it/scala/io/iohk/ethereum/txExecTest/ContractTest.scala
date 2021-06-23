@@ -3,13 +3,13 @@ package io.iohk.ethereum.txExecTest
 import java.util.concurrent.Executors
 
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import scala.concurrent.ExecutionContext
+import io.iohk.ethereum.ledger.{VMImpl, BlockExecution, BlockValidation, BlockQueue}
 
 class ContractTest extends AnyFlatSpec with Matchers {
   val blockchainConfig = Config.blockchains.blockchainConfig
