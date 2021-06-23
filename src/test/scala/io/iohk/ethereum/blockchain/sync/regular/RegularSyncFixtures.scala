@@ -60,7 +60,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
-    val branchResolution = new BranchResolution(blockchain)
+    lazy val branchResolution = new BranchResolution(blockchain)
 
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
@@ -88,7 +88,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     override lazy val ledger = new TestLedgerImpl
 
-    override lazy val blockImport: BlockImport = new TestImportBlock()
+    override lazy val blockImport: BlockImport = new TestBlockImport()
 
     blockchain.save(
       block = BlockHelpers.genesis,
@@ -180,29 +180,20 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     class TestLedgerImpl
         extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
 
-      // override def importBlock(
-      //     block: Block
-      // )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-      //   importedBlocksSet.add(block)
-      //   results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
-      // }
-
       // override def getBlockByHash(hash: ByteString): Option[Block] =
       //   importedBlocksSet.find(_.hash == hash)
 
     }
 
-    class TestImportBlock
+    class TestBlockImport
         extends BlockImport(
-          mock[BlockchainImpl],
-          mock[BlockQueue],
-          mock[BlockValidation],
-          mock[BlockExecution],
-          mock[Scheduler]
+          stub[BlockchainImpl],
+          stub[BlockQueue],
+          stub[BlockValidation],
+          stub[BlockExecution],
+          stub[Scheduler]
         ) {
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      override def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
         results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
@@ -312,14 +303,16 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
     override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+    override lazy val blockImport: BlockImport = stub[BlockImport]
 
     var blockFetcher: ActorRef = _
 
     var importedNewBlock = false
     var importedLastTestBlock = false
 
-    override val branchResolution: BranchResolution = stub[BranchResolution]
+    override lazy val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
+
     (blockImport
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)

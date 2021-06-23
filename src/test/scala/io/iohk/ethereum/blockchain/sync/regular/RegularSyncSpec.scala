@@ -264,12 +264,13 @@ class RegularSyncSpec
 
     "resolving branches" should {
 
-      "go back to earlier block in order to find a common parent with new branch" ignore sync(
+      "go back to earlier block in order to find a common parent with new branch" in sync(
         new Fixture(testSystem) with FakeLedger {
           implicit val ec: Scheduler = Scheduler(system.dispatcher)
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
           (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-          override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+          override lazy val blockImport: BlockImport = new FakeImportBlock()
+          override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
             blockBodiesPerRequest = 5,
@@ -319,12 +320,13 @@ class RegularSyncSpec
       )
     }
 
-    "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" ignore sync(
+    "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in sync(
       new Fixture(testSystem) with FakeLedger {
         implicit val ec: Scheduler = Scheduler(system.dispatcher)
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-        override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+        override lazy val blockImport: BlockImport = new FakeImportBlock()
+        override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
           printStatusInterval = 0.5.seconds,
@@ -445,10 +447,14 @@ class RegularSyncSpec
       "save fetched node" in sync(new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+        override lazy val blockImport: BlockImport = stub[BlockImport]
+
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
-        override val branchResolution: BranchResolution = stub[BranchResolution]
+        override lazy val branchResolution: BranchResolution = stub[BranchResolution]
+        // throw new Error("****************1")
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
+        // throw new Error("****************2")
         (blockImport
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
@@ -479,6 +485,7 @@ class RegularSyncSpec
     "catching the top" should {
       "ignore new blocks if they are too new" in sync(new Fixture(testSystem) {
         override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+        override lazy val blockImport: BlockImport = stub[BlockImport]
 
         val newBlock: Block = testBlocks.last
 
@@ -844,41 +851,43 @@ class RegularSyncSpec
   }
 
   trait FakeLedger { self: Fixture =>
-    class FakeLedgerImpl extends TestLedgerImpl {
-      // override def importBlock(
-      //     block: Block
-      // )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-      //   val result: BlockImportResult = if (didTryToImportBlock(block)) {
-      //     DuplicateBlock
-      //   } else {
-      //     if (
-      //       importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-      //     ) {
-      //       importedBlocksSet.add(block)
-      //       BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-      //     } else if (block.number > bestBlock.number) {
-      //       importedBlocksSet.add(block)
-      //       BlockEnqueued
-      //     } else {
-      //       BlockImportFailed("foo")
-      //     }
-      //   }
+    class FakeImportBlock extends TestBlockImport {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+        val result: BlockImportResult = if (didTryToImportBlock(block)) {
+          DuplicateBlock
+        } else {
+          if (
+            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
+          ) {
+            importedBlocksSet.add(block)
+            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
+          } else if (block.number > bestBlock.number) {
+            importedBlocksSet.add(block)
+            BlockEnqueued
+          } else {
+            BlockImportFailed("foo")
+          }
+        }
 
-      //   Task.now(result)
-      // }
+        Task.now(result)
+      }
+    }
 
-      // override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
-      //   val importedHashes = importedBlocksSet.map(_.hash).toSet
+    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl]) {
+      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+        val importedHashes = importedBlocksSet.map(_.hash).toSet
 
-      //   if (
-      //     importedBlocksSet.isEmpty || (importedHashes.contains(
-      //       headers.head.parentHash
-      //     ) && headers.last.number > bestBlock.number)
-      //   )
-      //     NewBetterBranch(Nil)
-      //   else
-      //     UnknownBranch
-      // }
+        if (
+          importedBlocksSet.isEmpty || (importedHashes.contains(
+            headers.head.parentHash
+          ) && headers.last.number > bestBlock.number)
+        )
+          NewBetterBranch(Nil)
+        else
+          UnknownBranch
+      }
     }
   }
 }

@@ -86,7 +86,7 @@ class BlockImport(
     }
   }
 
-  private[ledger] def importToTop(
+  private def importToTop(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
@@ -180,7 +180,7 @@ class BlockImport(
         BlockImportFailed(reason.toString)
     }
 
-  private[ledger] def reorganise(
+  private def reorganise(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
