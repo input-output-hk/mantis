@@ -28,7 +28,7 @@ object Mocks {
 
   }
 
-  private val defaultProgramResult: Ledger.PC => Ledger.PR = context =>
+  private val defaultProgramResult: PC => PR = context =>
     ProgramResult(
       returnData = ByteString.empty,
       gasRemaining = 1000000 - 25000,
@@ -40,8 +40,8 @@ object Mocks {
       error = None
     )
 
-  class MockVM(runFn: Ledger.PC => Ledger.PR = defaultProgramResult) extends Ledger.VMImpl {
-    override def run(context: Ledger.PC): Ledger.PR =
+  class MockVM(runFn: PC => PR = defaultProgramResult) extends VMImpl {
+    override def run(context: PC): PR =
       runFn(context)
   }
 

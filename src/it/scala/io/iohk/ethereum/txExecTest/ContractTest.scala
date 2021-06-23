@@ -3,7 +3,7 @@ package io.iohk.ethereum.txExecTest
 import java.util.concurrent.Executors
 
 import io.iohk.ethereum.domain.Receipt
-import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation, Ledger}
+import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.Config
 import org.scalatest.flatspec.AnyFlatSpec
@@ -14,7 +14,7 @@ import scala.concurrent.ExecutionContext
 class ContractTest extends AnyFlatSpec with Matchers {
   val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = Config.SyncConfig(Config.config)
-  val vm = new Ledger.VMImpl
+  val vm = new VMImpl
   val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   val noErrors = a[Right[_, Seq[Receipt]]]
 

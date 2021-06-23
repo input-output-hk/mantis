@@ -4,7 +4,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, UInt256}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -133,8 +133,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
     //+ cake overrides
     override lazy val vm: VMImpl = new MockVM()
 
-    // Give a more specific type to Ledger, it is needed by the tests
-    override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
     val conf = BlockchainConfigForEvm(blockchainConfig)

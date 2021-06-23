@@ -6,8 +6,7 @@ import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.ledger.Ledger.VMImpl
-import io.iohk.ethereum.ledger.LedgerImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -71,57 +70,4 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StdLedgerBuilder {
     */
   protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
     consensus.withValidators(validators).withVM(vm)
-
-  /**
-    * Creates a new ledger instance, independent of the instance provided by the cake.
-    *
-    * @note Since ledger depends on the consensus, it is the caller's responsibility to
-    *       make sure that the cake-provided consensus and the one used here do not interfere.
-    *       In particular, after the new ledger is created, then the authoritative consensus for the ledger
-    *       is the one returned by [[io.iohk.ethereum.ledger.Ledger#consensus() Ledger#consensus]], not the
-    *       one provided by the cake.
-    *
-    * @note You can use this method to override the existing ledger instance that is provided by the cake.
-    */
-  protected def newTestLedger(consensus: Consensus): LedgerImpl =
-    new LedgerImpl(
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      syncConfig = syncConfig,
-      theConsensus = consensus,
-      validationContext = monixScheduler
-    )
-
-  protected def newTestLedger(blockchain: BlockchainImpl): LedgerImpl =
-    new LedgerImpl(
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      syncConfig = syncConfig,
-      theConsensus = consensus,
-      validationContext = monixScheduler
-    )
-
-  protected def newTestLedger(blockchain: BlockchainImpl, blockchainConfig: BlockchainConfig): LedgerImpl =
-    new LedgerImpl(
-      blockchain = blockchain,
-      blockchainConfig = blockchainConfig,
-      syncConfig = syncConfig,
-      theConsensus = consensus,
-      validationContext = monixScheduler
-    )
-
-  protected def newTestLedger(validators: Validators, vm: VMImpl): LedgerImpl = {
-    val newConsensus = newTestConsensus(validators = validators, vm = vm)
-    newTestLedger(consensus = newConsensus)
-  }
-
-  protected def newTestLedger(validators: Validators): LedgerImpl = {
-    val newConsensus = newTestConsensus(validators = validators)
-    newTestLedger(consensus = newConsensus)
-  }
-
-  protected def newTestLedger(vm: VMImpl): LedgerImpl = {
-    val newConsensus = newTestConsensus(vm = vm)
-    newTestLedger(consensus = newConsensus)
-  }
 }

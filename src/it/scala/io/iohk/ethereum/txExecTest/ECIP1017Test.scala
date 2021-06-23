@@ -58,7 +58,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
     val noErrors = a[Right[_, Seq[Receipt]]]
   }
 
-  val vm = new Ledger.VMImpl
+  val vm = new VMImpl
 
   /**
     * Tests the block reward calculation through out all the monetary policy through all the eras till block

@@ -446,7 +446,6 @@ class RegularSyncSpec
 
       "save fetched node" in sync(new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         override lazy val blockImport: BlockImport = stub[BlockImport]
 
         val failingBlock: Block = testBlocksChunked.head.head
@@ -484,7 +483,6 @@ class RegularSyncSpec
 
     "catching the top" should {
       "ignore new blocks if they are too new" in sync(new Fixture(testSystem) {
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         override lazy val blockImport: BlockImport = stub[BlockImport]
 
         val newBlock: Block = testBlocks.last

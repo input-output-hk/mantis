@@ -86,8 +86,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val testBlocks: List[Block] = BlockHelpers.generateChain(20, BlockHelpers.genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
-    override lazy val ledger = new TestLedgerImpl
-
     override lazy val blockImport: BlockImport = new TestBlockImport()
 
     blockchain.save(
@@ -176,14 +174,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
       results(block.header.hash) = result
-
-    class TestLedgerImpl
-        extends LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, Scheduler(system.dispatcher)) {
-
-      // override def getBlockByHash(hash: ByteString): Option[Block] =
-      //   importedBlocksSet.find(_.hash == hash)
-
-    }
 
     class TestBlockImport
         extends BlockImport(
@@ -302,7 +292,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
-    override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
     override lazy val blockImport: BlockImport = stub[BlockImport]
 
     var blockFetcher: ActorRef = _

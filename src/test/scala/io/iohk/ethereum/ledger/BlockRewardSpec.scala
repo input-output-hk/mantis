@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.{Config, ForkBlockNumbers}
@@ -165,8 +165,6 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     //+ cake overrides
     override lazy val vm: VMImpl = new MockVM()
 
-    // Just make the type a bit more specific, since this is needed by the test cases
-    override lazy val ledger: LedgerImpl = newLedger()
     //- cake overrides
 
     val validAccountAddress = Address(0xababab) // 11250603

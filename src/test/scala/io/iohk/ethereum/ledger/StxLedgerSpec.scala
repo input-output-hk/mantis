@@ -9,6 +9,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
 import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.ledger.TxResult
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
@@ -31,9 +32,9 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val stx = SignedTransaction(tx, fakeSignature)
     val stxFromAddress = SignedTransactionWithSender(stx, fromAddress)
 
-    val simulationResult: Ledger.TxResult =
+    val simulationResult: TxResult =
       stxLedger.simulateTransaction(stxFromAddress, genesisHeader, None)
-    val executionResult: Ledger.TxResult =
+    val executionResult: TxResult =
       consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(stxFromAddress, genesisHeader, None)
@@ -45,7 +46,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
-    val errorExecResult: Ledger.TxResult = consensus.blockPreparator.executeTransaction(
+    val errorExecResult: TxResult = consensus.blockPreparator.executeTransaction(
       stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)),
       fromAddress,
       genesisHeader,
@@ -63,7 +64,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature)
 
-    val executionResult: Ledger.TxResult =
+    val executionResult: TxResult =
       consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(SignedTransactionWithSender(stx, fromAddress), genesisHeader, None)
@@ -80,7 +81,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
-    val preparedBlock: Ledger.PreparedBlock =
+    val preparedBlock: PreparedBlock =
       consensus.blockPreparator.prepareBlock(newBlock, genesisBlock.header, None)
     val preparedWorld: InMemoryWorldStateProxy = preparedBlock.updatedWorld
     val header: BlockHeader = preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash)
@@ -95,7 +96,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     /** Solution is to return this ReadOnlyWorldStateProxy from `ledger.prepareBlock` along side with preparedBlock
       * and perform simulateTransaction on this world.
       */
-    val result: Ledger.TxResult =
+    val result: TxResult =
       stxLedger.simulateTransaction(stxFromAddress, header, Some(preparedWorld))
 
     result.vmError shouldBe None

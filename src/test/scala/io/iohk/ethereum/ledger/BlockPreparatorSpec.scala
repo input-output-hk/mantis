@@ -9,7 +9,8 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionS
 import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.ledger.BlockResult
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.vm.{
   InvalidJump,
   InvalidOpCode,
@@ -238,7 +239,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
 
@@ -261,7 +262,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
@@ -303,7 +304,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 

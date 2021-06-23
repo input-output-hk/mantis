@@ -5,7 +5,6 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
-import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}

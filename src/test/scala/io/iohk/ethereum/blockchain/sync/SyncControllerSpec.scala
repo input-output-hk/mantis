@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer

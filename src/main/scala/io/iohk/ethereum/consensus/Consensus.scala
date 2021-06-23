@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import monix.eval.Task
 

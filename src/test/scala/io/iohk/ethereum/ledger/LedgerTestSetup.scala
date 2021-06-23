@@ -12,7 +12,7 @@ import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestCon
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
+import io.iohk.ethereum.ledger.{PC, PR, VMImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -29,8 +29,6 @@ import org.scalamock.scalatest.MockFactory
 // scalastyle:off magic.number
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   //+ cake overrides
-  // Give a more specific type to Ledger, it is needed by the tests
-  override lazy val ledger: LedgerImpl = newLedger()
 
   val prep: BlockPreparator = consensus.blockPreparator
   //- cake overrides
@@ -269,15 +267,6 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
-      extends LedgerImpl(
-        blockchain,
-        blockQueue,
-        blockchainConfig,
-        consensus.withValidators(validators).withVM(new Mocks.MockVM()),
-        testContext
-      )
-
   def mkBlockImport(validators: Validators = validators, blockExecutionOpt: Option[BlockExecution] = None) = {
     val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
@@ -292,7 +281,6 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     )
   }
 
-  override lazy val ledger = new TestLedgerImpl(successValidators)
   override lazy val blockImport: BlockImport = mkBlockImport()
 
   def randomHash(): ByteString =

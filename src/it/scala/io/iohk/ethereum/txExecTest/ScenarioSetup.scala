@@ -2,7 +2,7 @@ package io.iohk.ethereum.txExecTest
 
 import io.iohk.ethereum.blockchain.sync
 import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainStorages}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 
 trait ScenarioSetup extends sync.ScenarioSetup {
   protected val testBlockchainStorages: BlockchainStorages

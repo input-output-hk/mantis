@@ -15,7 +15,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience, ObjectGenerators, Timeouts, crypto}
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.BlockResult
 import monix.execution.Scheduler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll

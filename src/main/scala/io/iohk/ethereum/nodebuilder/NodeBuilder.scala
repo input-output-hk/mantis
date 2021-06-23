@@ -18,7 +18,6 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpc
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.keystore.{KeyStore, KeyStoreImpl}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -685,7 +684,6 @@ trait VmBuilder {
 }
 
 trait LedgerBuilder {
-  def ledger: Ledger
   def stxLedger: StxLedger
 }
 
@@ -695,19 +693,6 @@ trait StdLedgerBuilder extends LedgerBuilder {
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder =>
-
-  val scheduler: Scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
-
-  /** This is used in tests, which need the more specific type
-    *
-    * @note See if the APIs that the tests need can be promoted to the Ledger interface.
-    * @note In fact, most if all these APIs are now being delegated to the BlockPreparator,
-    *       so a refactoring should probably take that into account.
-    */
-  protected def newLedger(): LedgerImpl =
-    new LedgerImpl(blockchain, blockchainConfig, syncConfig, consensus, scheduler)
-
-  override lazy val ledger: Ledger = newLedger()
 
   override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
 }

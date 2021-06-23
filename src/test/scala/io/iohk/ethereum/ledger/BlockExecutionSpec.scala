@@ -6,7 +6,7 @@ import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.vm.OutOfGas
 import io.iohk.ethereum.{BlockHelpers, Mocks, ObjectGenerators}
 import org.scalatest.matchers.should.Matchers

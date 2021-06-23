@@ -10,7 +10,8 @@ import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockTransac
 import io.iohk.ethereum.consensus.validators.{Validators, _}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.ledger.BlockResult
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.vm.{OutOfGas, RevertOccurs}
 import monix.execution.Scheduler
@@ -52,12 +53,13 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     forAll(table) { (ommersSize, ommersBlockDifference) =>
       val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
-      val blockReward = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, ommersSize)
+      val blockReward =
+        consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, ommersSize)
 
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       ) ++ ommersAddresses.map { ommerAddress =>
-        val ommerReward = ledger.blockRewardCalculator.calculateOmmerRewardForInclusion(
+        val ommerReward = consensus.blockPreparator.blockRewardCalculator.calculateOmmerRewardForInclusion(
           validBlockHeader.number,
           validBlockHeader.number - ommersBlockDifference
         )
@@ -74,7 +76,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
       val block = Block(blockHeader, blockBodyWithOmmers)
 
-      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
+      val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
       assert(blockExecResult.isRight)
     }
   }
@@ -110,7 +112,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
     )
 
-    val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
+    val blockReward: BigInt =
+      consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
     val changes = Seq(
       minerAddress -> UpdateBalance(UInt256(blockReward)) // Paying miner for block processing
@@ -120,8 +123,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
     assert(seqFailingValidators.forall { validators =>
-      val ledger = newTestLedger(validators = validators)
-      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
+      val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
 
       blockExecResult.left.forall {
         case e: ValidationBeforeExecError => true
@@ -152,7 +154,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       )
     )
 
-    val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
+    val blockReward: BigInt =
+      consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
     val changes = Seq(minerAddress -> UpdateBalance(UInt256(blockReward))) //Paying miner for block processing
     val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
@@ -168,12 +171,10 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
     )
 
     forAll(table) { (stateRootHash, cumulativeGasUsedBlock, validators) =>
-      val ledger = newTestLedger(validators = validators)
-
       val blockHeader: BlockHeader = validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      val blockExecResult = ledger.blockExecution.executeAndValidateBlock(block)
+      val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
 
       assert(blockExecResult match {
         case Left(_: ValidationAfterExecError) => true
@@ -217,7 +218,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
       val block = Block(validBlockHeader, validBlockBodyWithTxs)
 
-      val txsExecResult = ledger.blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+      val txsExecResult = blockImport.blockExecution.executeBlockTransactions(block, validBlockParentHeader)
 
       assert(txsExecResult.isRight)
       val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
@@ -263,7 +264,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       // Check world
       InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash shouldBe expectedStateRootTx2
 
-      val blockReward: BigInt = ledger.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
+      val blockReward: BigInt =
+        consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward))
       )
@@ -272,7 +274,7 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       val blockWithCorrectStateAndGasUsed = block.copy(
         header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
       )
-      assert(ledger.blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
+      assert(blockImport.blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
     }
   }
 
@@ -292,11 +294,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
         .returning(worldState)
     }
 
-    override lazy val ledger: LedgerImpl =
-      newTestLedger(blockchain = testBlockchain, blockchainConfig = proDaoBlockchainConfig)
-
     // We don't care about block txs in this test
-    ledger.blockExecution.executeBlockTransactions(
+    blockImport.blockExecution.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
       parentBlockHeader
     )
@@ -308,10 +307,8 @@ class LedgerSpec extends AnyFlatSpec with ScalaCheckPropertyChecks with Matchers
       (worldState.transfer _).expects(*, *, *).never()
     }
 
-    override lazy val ledger: LedgerImpl = newTestLedger(blockchain = testBlockchain)
-
     // We don't care about block txs in this test
-    ledger.blockExecution.executeBlockTransactions(
+    blockImport.blockExecution.executeBlockTransactions(
       proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
       parentBlockHeader
     )

@@ -12,7 +12,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockchainImpl, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger.TxResult
+import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.ledger.{Ledger, StxLedger}
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot

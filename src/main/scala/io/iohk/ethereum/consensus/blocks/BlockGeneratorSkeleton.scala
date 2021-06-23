@@ -12,7 +12,7 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, PreparedBlock}
+import io.iohk.ethereum.ledger.{BlockResult, PreparedBlock}
 import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter, InMemoryWorldStateProxy}
 import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
