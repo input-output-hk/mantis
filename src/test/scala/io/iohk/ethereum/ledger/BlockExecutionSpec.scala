@@ -463,6 +463,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       )
 
       forAll(table) { (stateRootHash, cumulativeGasUsedBlock, validators) =>
+        val blockImport = mkBlockImport(validators = validators)
         val blockHeader: BlockHeader =
           validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
         val block = Block(blockHeader, validBlockBodyWithNoTxs)

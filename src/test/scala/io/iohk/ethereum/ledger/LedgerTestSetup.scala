@@ -268,20 +268,6 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  def mkBlockImport(validators: Validators = validators, blockExecutionOpt: Option[BlockExecution] = None) = {
-    val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
-    new BlockImport(
-      blockchain,
-      blockQueue,
-      blockValidation,
-      blockExecutionOpt.getOrElse(
-        new BlockExecution(blockchain, blockchainConfig, consensuz.blockPreparator, blockValidation)
-      ),
-      Scheduler(system.dispatchers.lookup("validation-context"))
-    )
-  }
-
   override lazy val blockImport: BlockImport = mkBlockImport()
 
   def randomHash(): ByteString =

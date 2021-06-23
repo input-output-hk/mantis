@@ -14,6 +14,9 @@ import java.util.concurrent.Executors
 import monix.execution.Scheduler
 
 import scala.concurrent.ExecutionContext
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockImport
+import io.iohk.ethereum.ledger.BlockValidation
 
 /**
   * Provides a standard setup for the test suites.
@@ -70,4 +73,19 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StdLedgerBuilder {
     */
   protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
     consensus.withValidators(validators).withVM(vm)
+
+  protected def mkBlockImport(validators: Validators = validators, blockExecutionOpt: Option[BlockExecution] = None) = {
+    val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
+    new BlockImport(
+      blockchain,
+      blockQueue,
+      blockValidation,
+      blockExecutionOpt.getOrElse(
+        new BlockExecution(blockchain, blockchainConfig, consensuz.blockPreparator, blockValidation)
+      ),
+      Scheduler(system.dispatchers.lookup("validation-context"))
+    )
+  }
+
 }
