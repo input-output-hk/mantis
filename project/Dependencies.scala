@@ -94,7 +94,9 @@ object Dependencies {
     "ch.qos.logback" % "logback-classic" % "1.2.3",
     "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2",
     "net.logstash.logback" % "logstash-logback-encoder" % "6.4",
-    "org.codehaus.janino" % "janino" % "3.1.2"
+    "org.codehaus.janino" % "janino" % "3.1.2",
+    "org.typelevel" %% "log4cats-core" % "2.1.1",
+    "org.typelevel" %% "log4cats-slf4j" % "1.3.1"
   )
 
   val crypto = Seq("org.bouncycastle" % "bcprov-jdk15on" % "1.66")
