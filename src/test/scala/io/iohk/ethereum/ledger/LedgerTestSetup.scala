@@ -268,7 +268,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  class FailingTestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
+  class TestLedgerImplNotMockedBlockExecution(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
         storagesInstance.storages.evmCodeStorage,
@@ -314,7 +314,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   }
 
   override lazy val ledger = new TestLedgerImpl(successValidators)
-  lazy val failingLedger = new FailingTestLedgerImpl(successValidators)
+  lazy val failingLedger = new TestLedgerImplNotMockedBlockExecution(successValidators)
 
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get

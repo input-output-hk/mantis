@@ -129,7 +129,7 @@ class PoWConsensusSpec
     powConsensus.minerCoordinatorRef.isDefined shouldBe true
   }
 
-  trait TestSetup extends ScenarioSetup with MockFactory {
+  trait TestSetup extends EphemBlockchainTestSetup with MockFactory {
     override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val evmCodeStorage: EvmCodeStorage = mock[EvmCodeStorage]
     val validator: ValidatorsExecutor = successValidators.asInstanceOf[ValidatorsExecutor]

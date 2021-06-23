@@ -205,6 +205,8 @@ object FixtureProvider {
     )
   }
 
-  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = try { f(closeable) }
-  finally { closeable.close() }
+  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = {
+    try { f(closeable) }
+    finally { closeable.close() }
+  }
 }

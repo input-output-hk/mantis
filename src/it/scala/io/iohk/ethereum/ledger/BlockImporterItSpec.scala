@@ -141,7 +141,7 @@ class BlockImporterItSpec
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
     //ledger with not mocked blockExecution
-    val ledger = new TestLedgerImpl(successValidators)
+    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -253,7 +253,7 @@ class BlockImporterItSpec
     val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
     val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
 
-    val ledger = new TestLedgerImpl(successValidators)
+    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -271,7 +271,6 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
 
     eventually {
-
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
           case BlockFetcher.FetchStateNode(_, _) => true

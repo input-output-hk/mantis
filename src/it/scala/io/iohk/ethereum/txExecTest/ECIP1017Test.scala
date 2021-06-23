@@ -1,14 +1,11 @@
 package io.iohk.ethereum.txExecTest
 
-import java.util.concurrent.Executors
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, Receipt, UInt256}
-import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.domain.{Address, Receipt, UInt256}
+import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
 import io.iohk.ethereum.txExecTest.util.FixtureProvider
 import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig}
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
-import scala.concurrent.ExecutionContext
 
 class ECIP1017Test extends AnyFlatSpec with Matchers {
 
@@ -53,12 +50,8 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       gasTieBreaker = false,
       treasuryAddress = Address(0)
     )
-    val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-
     val noErrors = a[Right[_, Seq[Receipt]]]
   }
-
-  val vm = new Ledger.VMImpl
 
   /**
     * Tests the block reward calculation through out all the monetary policy through all the eras till block
@@ -72,11 +65,9 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
     val startBlock = 1
     val endBlock = 602
 
-    protected val testBlockchainStorages = FixtureProvider.prepareStorages(startBlock, fixtures)
+    protected val testBlockchainStorages = FixtureProvider.prepareStorages(endBlock, fixtures)
 
     (startBlock to endBlock) foreach { blockToExecute =>
-      val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
-      val blockchain = BlockchainImpl(storages)
       val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
       val blockExecution = new BlockExecution(
         blockchain,
