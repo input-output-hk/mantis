@@ -6,6 +6,7 @@ import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDat
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.{StateStorage, TransactionMappingStorage}
 import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
@@ -110,10 +111,12 @@ object TestService {
 
 class TestService(
     blockchain: BlockchainImpl,
+    stateStorage: StateStorage,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
     initialConfig: BlockchainConfig,
+    transactionMappingStorage: TransactionMappingStorage,
     preimageCache: collection.concurrent.Map[ByteString, UInt256]
 )(implicit
     scheduler: Scheduler
@@ -155,7 +158,7 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, currentConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, stateStorage, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -187,6 +190,9 @@ class TestService(
         eip155BlockNumber = byzantiumBlockNumber,
         eip160BlockNumber = byzantiumBlockNumber,
         eip161BlockNumber = byzantiumBlockNumber,
+        difficultyBombPauseBlockNumber = neverOccuringBlock,
+        difficultyBombContinueBlockNumber = neverOccuringBlock,
+        difficultyBombRemovalBlockNumber = neverOccuringBlock,
         byzantiumBlockNumber = byzantiumBlockNumber,
         ecip1049BlockNumber = None,
         ecip1097BlockNumber = neverOccuringBlock,
@@ -213,7 +219,7 @@ class TestService(
   private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
     val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
       Account.EmptyStorageRootHash,
-      blockchain.getStateStorage.getBackingStorage(0)
+      stateStorage.getBackingStorage(0)
     )
     val storagesToPersist = accounts
       .flatMap(pair => pair._2.storage)
@@ -406,7 +412,7 @@ class TestService(
     import io.iohk.ethereum.network.p2p.messages.ETH63.TxLogEntryImplicits.TxLogEntryEnc
 
     val result = for {
-      transactionLocation <- blockchain.getTransactionLocation(request.transactionHash)
+      transactionLocation <- transactionMappingStorage.get(request.transactionHash)
       block <- blockchain.getBlockByHash(transactionLocation.blockHash)
       _ <- block.body.transactionList.lift(transactionLocation.txIndex)
       receipts <- blockchain.getReceiptsByHash(block.header.hash)

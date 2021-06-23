@@ -114,19 +114,11 @@ class StateSyncSpec
         blockNumberMappingStorage = storages.blockNumberMappingStorage,
         receiptStorage = storages.receiptStorage,
         evmCodeStorage = storages.evmCodeStorage,
-        pruningMode = storages.pruningMode,
-        nodeStorage = storages.nodeStorage,
-        cachedNodeStorage = storages.cachedNodeStorage,
         chainWeightStorage = storages.chainWeightStorage,
         transactionMappingStorage = storages.transactionMappingStorage,
         appStateStorage = storages.appStateStorage,
         stateStorage = storages.stateStorage
-      ) {
-        override def mptStateSavedKeys(): Observable[Either[IterationError, ByteString]] = {
-          Observable.interval(10.milliseconds).map(_ => Right(ByteString(1))).takeWhile(_ => !loadingFinished)
-        }
-      }
-
+      )
     }
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
     val initiator = TestProbe()
@@ -162,7 +154,7 @@ class StateSyncSpec
       bestBlockHash = peerStatus.bestHash
     )
 
-    val trieProvider = new TrieProvider(blockchain, blockchainConfig)
+    val trieProvider = new TrieProvider(blockchain, storagesInstance.storages.evmCodeStorage, blockchainConfig)
 
     val peersMap = (1 to 8).map { i =>
       (
@@ -263,6 +255,8 @@ class StateSyncSpec
       SyncStateSchedulerActor.props(
         SyncStateScheduler(
           buildBlockChain(),
+          getNewStorages.storages.evmCodeStorage,
+          getNewStorages.storages.nodeStorage,
           syncConfig.stateSyncBloomFilterSize
         ),
         syncConfig,

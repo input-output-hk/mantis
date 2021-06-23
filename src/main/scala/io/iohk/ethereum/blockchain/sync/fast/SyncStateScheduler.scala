@@ -1,16 +1,18 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import java.util.Comparator
-
 import akka.util.ByteString
 import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
 import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+import io.iohk.ethereum.db.storage.{EvmCodeStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Account, Blockchain}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
 import io.vavr.collection.PriorityQueue
 import monix.eval.Task
+import monix.reactive.Observable
 
 import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
@@ -43,7 +45,11 @@ import scala.util.Try
   *
   * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
   */
-class SyncStateScheduler(blockchain: Blockchain, bloomFilter: LoadableBloomFilter[ByteString]) {
+class SyncStateScheduler(
+    blockchain: Blockchain,
+    evmCodeStorage: EvmCodeStorage,
+    bloomFilter: LoadableBloomFilter[ByteString]
+) {
 
   val loadFilterFromBlockchain: Task[BloomFilterLoadingResult] = bloomFilter.loadFromSource
 
@@ -242,9 +248,9 @@ class SyncStateScheduler(blockchain: Blockchain, bloomFilter: LoadableBloomFilte
 
   private def isInDatabase(req: StateNodeRequest): Boolean = {
     req.requestType match {
-      case request: CodeRequest =>
-        blockchain.getEvmCodeByHash(req.nodeHash).isDefined
-      case request: NodeRequest =>
+      case _: CodeRequest =>
+        evmCodeStorage.get(req.nodeHash).isDefined
+      case _: NodeRequest =>
         blockchain.getMptNodeByHash(req.nodeHash).isDefined
     }
   }
@@ -284,12 +290,22 @@ object SyncStateScheduler {
     BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
   }
 
-  def apply(blockchain: Blockchain, expectedBloomFilterSize: Int): SyncStateScheduler = {
+  def apply(
+      blockchain: Blockchain,
+      evmCodeStorage: EvmCodeStorage,
+      nodeStorage: NodeStorage,
+      expectedBloomFilterSize: Int
+  ): SyncStateScheduler = {
     // provided source i.e mptStateSavedKeys() is guaranteed to finish on first `Left` element which means that returned
     // error is the reason why loading has stopped
+    val mptStateSavedKeys: Observable[Either[IterationError, ByteString]] =
+      (nodeStorage.storageContent.map(c => c.map(_._1)) ++ evmCodeStorage.storageContent.map(c => c.map(_._1)))
+        .takeWhileInclusive(_.isRight)
+
     new SyncStateScheduler(
       blockchain,
-      LoadableBloomFilter[ByteString](expectedBloomFilterSize, blockchain.mptStateSavedKeys())
+      evmCodeStorage,
+      LoadableBloomFilter[ByteString](expectedBloomFilterSize, mptStateSavedKeys)
     )
   }
 

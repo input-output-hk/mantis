@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.{Blacklist, BlockchainHostActor, CacheBa
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage}
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
@@ -294,12 +294,14 @@ trait EtcPeerManagerActorBuilder {
 trait BlockchainHostBuilder {
   self: ActorSystemBuilder
     with BlockchainBuilder
+    with StorageBuilder
     with PeerManagerActorBuilder
     with EtcPeerManagerActorBuilder
     with PeerEventBusBuilder =>
 
   val blockchainHost: ActorRef = system.actorOf(
-    BlockchainHostActor.props(blockchain, peerConfiguration, peerEventBus, etcPeerManager),
+    BlockchainHostActor
+      .props(blockchain, storagesInstance.storages.evmCodeStorage, peerConfiguration, peerEventBus, etcPeerManager),
     "blockchain-host"
   )
 
@@ -392,15 +394,18 @@ trait TestServiceBuilder {
     with BlockchainConfigBuilder
     with VmBuilder
     with TestmodeConsensusBuilder
-    with TestModeServiceBuilder =>
+    with TestModeServiceBuilder
+    with StorageBuilder =>
 
   lazy val testService =
     new TestService(
       blockchain,
+      storagesInstance.storages.stateStorage,
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,
       blockchainConfig,
+      storagesInstance.storages.transactionMappingStorage,
       preimages
     )(scheduler)
 }
@@ -464,13 +469,18 @@ trait EthMiningServiceBuilder {
   )
 }
 trait EthTxServiceBuilder {
-  self: BlockchainBuilder with PendingTransactionsManagerBuilder with ConsensusBuilder with TxPoolConfigBuilder =>
+  self: BlockchainBuilder
+    with PendingTransactionsManagerBuilder
+    with ConsensusBuilder
+    with TxPoolConfigBuilder
+    with StorageBuilder =>
 
   lazy val ethTxService = new EthTxService(
     blockchain,
     consensus,
     pendingTransactionsManager,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    storagesInstance.storages.transactionMappingStorage
   )
 }
 
@@ -723,6 +733,8 @@ trait SyncControllerBuilder {
     SyncController.props(
       storagesInstance.storages.appStateStorage,
       blockchain,
+      storagesInstance.storages.evmCodeStorage,
+      storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
       blockImport,
       consensus.validators,
@@ -795,7 +807,8 @@ object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
 
-  lazy val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
+  lazy val genesisDataLoader =
+    new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

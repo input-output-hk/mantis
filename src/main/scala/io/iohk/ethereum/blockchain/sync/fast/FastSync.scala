@@ -20,7 +20,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   WaitingForNewTargetBlock
 }
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
+import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage, FastSyncStateStorage, NodeStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -48,6 +48,8 @@ class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
+    evmCodeStorage: EvmCodeStorage,
+    nodeStorage: NodeStorage,
     val validators: Validators,
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
@@ -153,7 +155,7 @@ class FastSync(
     private val syncStateScheduler = context.actorOf(
       SyncStateSchedulerActor
         .props(
-          SyncStateScheduler(blockchain, syncConfig.stateSyncBloomFilterSize),
+          SyncStateScheduler(blockchain, evmCodeStorage, nodeStorage, syncConfig.stateSyncBloomFilterSize),
           syncConfig,
           etcPeerManager,
           peerEventBus,
@@ -1134,6 +1136,8 @@ object FastSync {
       fastSyncStateStorage: FastSyncStateStorage,
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
+      evmCodeStorage: EvmCodeStorage,
+      nodeStorage: NodeStorage,
       validators: Validators,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
@@ -1146,6 +1150,8 @@ object FastSync {
         fastSyncStateStorage,
         appStateStorage,
         blockchain,
+        evmCodeStorage,
+        nodeStorage,
         validators,
         peerEventBus,
         etcPeerManager,

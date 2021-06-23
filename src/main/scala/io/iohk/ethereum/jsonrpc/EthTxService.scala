@@ -9,12 +9,14 @@ import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.db.storage.TransactionMappingStorage
+
 import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import akka.actor.ActorRef
 import scala.concurrent.duration.FiniteDuration
-import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.consensus.Consensus
 
 object EthTxService {
@@ -39,7 +41,8 @@ class EthTxService(
     val blockchain: Blockchain,
     val consensus: Consensus,
     val pendingTransactionsManager: ActorRef,
-    val getTransactionFromPoolTimeout: FiniteDuration
+    val getTransactionFromPoolTimeout: FiniteDuration,
+    transactionMappingStorage: TransactionMappingStorage
 ) extends TransactionPicker
     with ResolveBlock {
   import EthTxService._
@@ -90,7 +93,7 @@ class EthTxService(
     maybeTxPendingResponse.map { txPending =>
       txPending.orElse {
         for {
-          TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(txHash)
+          TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(txHash)
           Block(header, body) <- blockchain.getBlockByHash(blockHash)
           stx <- body.transactionList.lift(txIndex)
         } yield TransactionData(stx, Some(header), Some(txIndex))
@@ -101,7 +104,7 @@ class EthTxService(
   def getTransactionReceipt(req: GetTransactionReceiptRequest): ServiceResponse[GetTransactionReceiptResponse] =
     Task {
       val result: Option[TransactionReceiptResponse] = for {
-        TransactionLocation(blockHash, txIndex) <- blockchain.getTransactionLocation(req.txHash)
+        TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash)
         Block(header, body) <- blockchain.getBlockByHash(blockHash)
         stx <- body.transactionList.lift(txIndex)
         receipts <- blockchain.getReceiptsByHash(blockHash)

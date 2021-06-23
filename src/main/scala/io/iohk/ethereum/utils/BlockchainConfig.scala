@@ -15,9 +15,6 @@ case class BlockchainConfig(
     forkBlockNumbers: ForkBlockNumbers,
     treasuryAddress: Address,
     maxCodeSize: Option[BigInt],
-    difficultyBombPauseBlockNumber: BigInt,
-    difficultyBombContinueBlockNumber: BigInt,
-    difficultyBombRemovalBlockNumber: BigInt,
     customGenesisFileOpt: Option[String],
     customGenesisJsonOpt: Option[String],
     daoForkConfig: Option[DaoForkConfig],
@@ -46,6 +43,9 @@ case class ForkBlockNumbers(
     eip155BlockNumber: BigInt,
     eip160BlockNumber: BigInt,
     eip161BlockNumber: BigInt,
+    difficultyBombPauseBlockNumber: BigInt,
+    difficultyBombContinueBlockNumber: BigInt,
+    difficultyBombRemovalBlockNumber: BigInt,
     byzantiumBlockNumber: BigInt,
     constantinopleBlockNumber: BigInt,
     istanbulBlockNumber: BigInt,
@@ -57,7 +57,17 @@ case class ForkBlockNumbers(
     ecip1097BlockNumber: BigInt,
     ecip1049BlockNumber: Option[BigInt],
     ecip1099BlockNumber: BigInt
-)
+) {
+  def all: List[BigInt] = this.productIterator.toList.flatMap {
+    case i: BigInt => Some(i)
+    case i: Option[_] =>
+      i.flatMap {
+        case n if n.isInstanceOf[BigInt] => Some(n.asInstanceOf[BigInt])
+        case n => None
+      }
+    case default => None
+  }
+}
 
 object BlockchainConfig {
 
@@ -139,6 +149,9 @@ object BlockchainConfig {
         eip155BlockNumber = eip155BlockNumber,
         eip160BlockNumber = eip160BlockNumber,
         eip161BlockNumber = eip161BlockNumber,
+        difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
+        difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
+        difficultyBombRemovalBlockNumber = difficultyBombRemovalBlockNumber,
         byzantiumBlockNumber = byzantiumBlockNumber,
         constantinopleBlockNumber = constantinopleBlockNumber,
         istanbulBlockNumber = istanbulBlockNumber,
@@ -153,9 +166,6 @@ object BlockchainConfig {
       ),
       treasuryAddress = treasuryAddress,
       maxCodeSize = maxCodeSize,
-      difficultyBombPauseBlockNumber = difficultyBombPauseBlockNumber,
-      difficultyBombContinueBlockNumber = difficultyBombContinueBlockNumber,
-      difficultyBombRemovalBlockNumber = difficultyBombRemovalBlockNumber,
       customGenesisFileOpt = customGenesisFileOpt,
       customGenesisJsonOpt = customGenesisJsonOpt,
       daoForkConfig = daoForkConfig,

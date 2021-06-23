@@ -71,6 +71,8 @@ class FastSyncSpec
         fastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage,
         appStateStorage = storagesInstance.storages.appStateStorage,
         blockchain = blockchain,
+        evmCodeStorage = storagesInstance.storages.evmCodeStorage,
+        nodeStorage = storagesInstance.storages.nodeStorage,
         validators = validators,
         peerEventBus = peerEventBus.ref,
         etcPeerManager = etcPeerManager.ref,

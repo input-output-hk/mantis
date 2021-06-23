@@ -21,16 +21,16 @@ import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.iohk.ethereum.SuperSlow
 
-class SyncSchedulerSpec
+class SyncStateSchedulerSpec
     extends AnyFlatSpec
     with Matchers
     with EitherValues
     with ScalaCheckPropertyChecks
     with SuperSlow {
-  "SyncScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
+  "SyncStateScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, schedulerDb) = buildScheduler()
     val initialState = syncStateScheduler.initState(worldHash).get
     val (missingNodes, newState) = syncStateScheduler.getMissingNodes(initialState, 1)
     val responses = prov.getNodes(missingNodes)
@@ -241,7 +241,7 @@ class SyncSchedulerSpec
     forAll(nodeDataGen) { nodeData =>
       val prov = getTrieProvider
       val worldHash = prov.buildWorld(nodeData)
-      val (scheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+      val (scheduler, schedulerBlockchain, allStorages) = buildScheduler()
       val header = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = worldHash, number = 1)
       schedulerBlockchain.storeBlockHeader(header).commit()
       var state = scheduler.initState(worldHash).get
@@ -256,7 +256,7 @@ class SyncSchedulerSpec
       assert(finalState.memBatch.isEmpty)
       assert(finalState.activeRequest.isEmpty)
       assert(finalState.queue.isEmpty)
-      assert(checkAllDataExists(nodeData, schedulerBlockchain, 1))
+      assert(checkAllDataExists(nodeData, schedulerBlockchain, allStorages.storages.evmCodeStorage, 1))
     }
   }
 
@@ -264,7 +264,7 @@ class SyncSchedulerSpec
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
-      new TrieProvider(freshBlockchain, blockchainConfig)
+      new TrieProvider(freshBlockchain, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
     val bloomFilterSize = 1000
 
@@ -290,7 +290,16 @@ class SyncSchedulerSpec
     ) = {
       val freshStorage = getNewStorages
       val freshBlockchain = BlockchainImpl(freshStorage.storages)
-      (SyncStateScheduler(freshBlockchain, bloomFilterSize), freshBlockchain, freshStorage)
+      (
+        SyncStateScheduler(
+          freshBlockchain,
+          freshStorage.storages.evmCodeStorage,
+          freshStorage.storages.nodeStorage,
+          bloomFilterSize
+        ),
+        freshBlockchain,
+        freshStorage
+      )
     }
 
     def exchangeSingleNode(

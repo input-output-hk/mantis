@@ -304,6 +304,7 @@ trait DaoForkConfig {
   val range: Int
   val refundContract: Option[Address]
   val drainList: Seq[Address]
+  val includeOnForkIdList: Boolean
 
   private lazy val extratadaBlockRange = forkBlockNumber until (forkBlockNumber + range)
 
@@ -334,6 +335,7 @@ object DaoForkConfig {
         Try(daoConfig.getString("refund-contract-address")).toOption.map(Address(_))
       override val drainList: List[Address] =
         Try(daoConfig.getStringList("drain-list").asScala.toList).toOption.getOrElse(List.empty).map(Address(_))
+      override val includeOnForkIdList: Boolean = daoConfig.getBoolean("include-on-fork-id-list")
     }
   }
 }

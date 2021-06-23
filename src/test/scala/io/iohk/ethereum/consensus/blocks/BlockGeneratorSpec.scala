@@ -203,9 +203,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
     override lazy val blockchainConfig = BlockchainConfig(
-      difficultyBombPauseBlockNumber = 3000000,
-      difficultyBombContinueBlockNumber = 5000000,
-      difficultyBombRemovalBlockNumber = 5900000,
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
@@ -223,6 +220,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
+        difficultyBombPauseBlockNumber = 3000000,
+        difficultyBombContinueBlockNumber = 5000000,
+        difficultyBombRemovalBlockNumber = 5900000,
         eip155BlockNumber = Long.MaxValue,
         eip106BlockNumber = Long.MaxValue,
         byzantiumBlockNumber = Long.MaxValue,
@@ -284,6 +284,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         homesteadBlockNumber = 1150000,
         eip155BlockNumber = Long.MaxValue,
         eip106BlockNumber = Long.MaxValue,
+        difficultyBombPauseBlockNumber = 3000000,
+        difficultyBombContinueBlockNumber = 5000000,
+        difficultyBombRemovalBlockNumber = 5900000,
         byzantiumBlockNumber = Long.MaxValue,
         constantinopleBlockNumber = Long.MaxValue,
         istanbulBlockNumber = Long.MaxValue,
@@ -299,9 +302,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1099BlockNumber = Long.MaxValue,
         ecip1049BlockNumber = None
       ),
-      difficultyBombPauseBlockNumber = 3000000,
-      difficultyBombContinueBlockNumber = 5000000,
-      difficultyBombRemovalBlockNumber = 5900000,
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
@@ -657,6 +657,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         eip155BlockNumber = 0,
         eip106BlockNumber = Long.MaxValue,
         byzantiumBlockNumber = Long.MaxValue,
+        difficultyBombPauseBlockNumber = 3000000,
+        difficultyBombContinueBlockNumber = 5000000,
+        difficultyBombRemovalBlockNumber = 5900000,
         constantinopleBlockNumber = Long.MaxValue,
         istanbulBlockNumber = Long.MaxValue,
         eip160BlockNumber = Long.MaxValue,
@@ -671,9 +674,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1099BlockNumber = Long.MaxValue,
         ecip1049BlockNumber = None
       ),
-      difficultyBombPauseBlockNumber = 3000000,
-      difficultyBombContinueBlockNumber = 5000000,
-      difficultyBombRemovalBlockNumber = 5900000,
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
@@ -691,7 +691,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val bestBlock = blockchain.getBestBlock()

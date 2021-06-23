@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
   UInt256JsonSerializer
 }
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage}
+import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage, StateStorage}
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -23,7 +23,8 @@ import org.bouncycastle.util.encoders.Hex
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConfig) extends Logger {
+class GenesisDataLoader(blockchain: Blockchain, stateStorage: StateStorage, blockchainConfig: BlockchainConfig)
+    extends Logger {
 
   private val bloomLength = 512
   private val hashLength = 64
@@ -90,7 +91,6 @@ class GenesisDataLoader(blockchain: Blockchain, blockchainConfig: BlockchainConf
   def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
-    val stateStorage = blockchain.getStateStorage
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
 

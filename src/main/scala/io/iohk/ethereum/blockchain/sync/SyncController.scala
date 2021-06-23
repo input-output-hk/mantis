@@ -4,7 +4,7 @@ import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.{AppStateStorage, FastSyncStateStorage}
+import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage, FastSyncStateStorage, NodeStorage}
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.ledger.BlockImport
@@ -12,6 +12,8 @@ import io.iohk.ethereum.ledger.BlockImport
 class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
+    evmCodeStorage: EvmCodeStorage,
+    nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
     blockImport: BlockImport,
     validators: Validators,
@@ -77,6 +79,8 @@ class SyncController(
         fastSyncStateStorage,
         appStateStorage,
         blockchain,
+        evmCodeStorage,
+        nodeStorage,
         validators,
         peerEventBus,
         etcPeerManager,
@@ -120,6 +124,8 @@ object SyncController {
   def props(
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
+      evmCodeStorage: EvmCodeStorage,
+      nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
       blockImport: BlockImport,
       validators: Validators,
@@ -134,6 +140,8 @@ object SyncController {
       new SyncController(
         appStateStorage,
         blockchain,
+        evmCodeStorage,
+        nodeStorage,
         syncStateStorage,
         blockImport,
         validators,

@@ -531,6 +531,8 @@ class SyncControllerSpec
         new SyncController(
           storagesInstance.storages.appStateStorage,
           blockchain,
+          storagesInstance.storages.evmCodeStorage,
+          storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
           blockImport,
           validators,

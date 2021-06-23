@@ -46,10 +46,10 @@ object FixtureProvider {
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSource)
       override val chainWeightStorage: ChainWeightStorage = new ChainWeightStorage(dataSource)
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSource)
-      override val nodeStorage: NodeStorage = new NodeStorage(dataSource)
-      override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
-      override val pruningMode: PruningMode = ArchivePruning
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSource)
+      val nodeStorage: NodeStorage = new NodeStorage(dataSource)
+      val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
+      val pruningMode: PruningMode = ArchivePruning
       override val stateStorage: StateStorage =
         StateStorage(
           pruningMode,

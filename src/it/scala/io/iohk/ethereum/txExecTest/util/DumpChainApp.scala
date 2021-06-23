@@ -180,16 +180,12 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = ???
 
-  override def getEvmCodeByHash(hash: ByteString): Option[ByteString] = ???
-
   override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
 
   def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
-
-  override def getTransactionLocation(txHash: ByteString): Option[TransactionLocation] = ???
 
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
@@ -220,9 +216,5 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
-  override def getStateStorage: StateStorage = ???
-
   override def getLatestCheckpointBlockNumber(): BigInt = ???
-
-  override def mptStateSavedKeys(): Observable[Either[RocksDbDataSource.IterationError, NodeHash]] = ???
 }

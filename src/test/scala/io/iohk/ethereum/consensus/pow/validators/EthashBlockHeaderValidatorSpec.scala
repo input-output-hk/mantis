@@ -374,11 +374,13 @@ class EthashBlockHeaderValidatorSpec
 
   def createBlockchainConfig(supportsDaoFork: Boolean = false): BlockchainConfig = {
     import Fixtures.Blocks._
-
     BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
+        difficultyBombPauseBlockNumber = 3000000,
+        difficultyBombContinueBlockNumber = 5000000,
+        difficultyBombRemovalBlockNumber = 5900000,
         byzantiumBlockNumber = 4370000,
         constantinopleBlockNumber = 7280000,
         istanbulBlockNumber = 9069000,
@@ -396,9 +398,6 @@ class EthashBlockHeaderValidatorSpec
         ecip1099BlockNumber = Long.MaxValue,
         ecip1049BlockNumber = None
       ),
-      difficultyBombPauseBlockNumber = 3000000,
-      difficultyBombContinueBlockNumber = 5000000,
-      difficultyBombRemovalBlockNumber = 5900000,
       daoForkConfig = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] =
           if (supportsDaoFork) Some(ProDaoForkBlock.header.extraData) else None
@@ -408,6 +407,7 @@ class EthashBlockHeaderValidatorSpec
           if (supportsDaoFork) ProDaoForkBlock.header.hash else DaoForkBlock.header.hash
         override val forkBlockNumber: BigInt = DaoForkBlock.header.number
         override val refundContract: Option[Address] = None
+        override val includeOnForkIdList: Boolean = false
       }),
       // unused
       maxCodeSize = None,

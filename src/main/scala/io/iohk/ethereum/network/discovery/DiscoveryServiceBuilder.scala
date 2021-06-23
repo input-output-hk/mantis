@@ -37,7 +37,7 @@ trait DiscoveryServiceBuilder {
     implicit val enrContentCodec = RLPCodecs.codecFromRLPCodec(RLPCodecs.enrContentRLPCodec)
 
     val resource = for {
-      host <- Resource.liftF {
+      host <- Resource.eval {
         getExternalAddress(discoveryConfig)
       }
       localNode = ENode(
@@ -48,13 +48,13 @@ trait DiscoveryServiceBuilder {
           tcpPort = tcpPort
         )
       )
-      v4Config <- Resource.liftF {
+      v4Config <- Resource.eval {
         makeDiscoveryConfig(discoveryConfig, knownNodesStorage)
       }
       udpConfig = makeUdpConfig(discoveryConfig, host)
       network <- makeDiscoveryNetwork(privateKey, localNode, v4Config, udpConfig)
       service <- makeDiscoveryService(privateKey, localNode, v4Config, network)
-      _ <- Resource.liftF {
+      _ <- Resource.eval {
         setDiscoveryStatus(nodeStatusHolder, ServerStatus.Listening(udpConfig.bindAddress))
       }
     } yield service
@@ -142,7 +142,7 @@ trait DiscoveryServiceBuilder {
   ): Resource[Task, v4.DiscoveryNetwork[InetMultiAddress]] =
     for {
       peerGroup <- StaticUDPPeerGroup[v4.Packet](udpConfig)
-      network <- Resource.liftF {
+      network <- Resource.eval {
         v4.DiscoveryNetwork[InetMultiAddress](
           peerGroup = peerGroup,
           privateKey = privateKey,

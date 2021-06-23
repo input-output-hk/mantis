@@ -116,6 +116,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
 
   val bl = BlockchainImpl(storagesInstance.storages)
+  val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
   val genesis = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
@@ -203,7 +204,10 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
 
   val blockchainHost: ActorRef =
-    system.actorOf(BlockchainHostActor.props(bl, peerConf, peerEventBus, etcPeerManager), "blockchain-host")
+    system.actorOf(
+      BlockchainHostActor.props(bl, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
+      "blockchain-host"
+    )
 
   lazy val server: ActorRef = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
