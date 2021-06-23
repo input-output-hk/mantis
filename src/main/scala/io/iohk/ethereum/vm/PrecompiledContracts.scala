@@ -11,7 +11,6 @@ import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
-import io.iohk.ethereum.vm.PrecompiledContracts.ModExp.PostEIP198Cost.getMultComplexity
 
 import scala.util.Try
 
@@ -208,6 +207,7 @@ object PrecompiledContracts {
         PostEIP198Cost.calculate(baseLength, modLength, expLength, expBytes)
     }
 
+    // details https://eips.ethereum.org/EIPS/eip-198
     object PostEIP198Cost {
       private val GQUADDIVISOR = 20
 
@@ -228,6 +228,7 @@ object PrecompiledContracts {
       }
     }
 
+    // details https://eips.ethereum.org/EIPS/eip-2565
     object PostEIP2565Cost {
       private val GQUADDIVISOR = 3
 
