@@ -177,7 +177,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val fakeWorld = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getReadOnlyStorage(),
-    blockchain,
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
     blockchainConfig.accountStartNonce,
     ByteString.empty,
     noEmptyAccounts = false,

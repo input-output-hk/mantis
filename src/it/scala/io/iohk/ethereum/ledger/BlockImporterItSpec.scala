@@ -62,7 +62,7 @@ class BlockImporterItSpec
   val emptyWorld = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingStorage(-1),
-    blockchain,
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
     blockchainConfig.accountStartNonce,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,

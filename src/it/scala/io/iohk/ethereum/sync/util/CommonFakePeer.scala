@@ -244,7 +244,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       bl.getBackingStorage(block.number),
-      bl,
+      (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
       blockchainConfig.accountStartNonce,
       block.header.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,

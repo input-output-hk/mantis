@@ -85,7 +85,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingStorage(-1),
-    blockchain,
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
     UInt256.Zero,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,
@@ -138,7 +138,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val initialWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingStorage(-1),
-      blockchain,
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
       noEmptyAccounts = false,
@@ -302,7 +302,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
             blockchain.getBackingStorage(-1),
-            blockchain,
+            (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
             blockchainConfig.accountStartNonce,
             ByteString(MerklePatriciaTrie.EmptyRootHash),
             noEmptyAccounts = false,

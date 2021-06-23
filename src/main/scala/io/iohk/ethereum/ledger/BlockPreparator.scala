@@ -382,7 +382,7 @@ class BlockPreparator(
         InMemoryWorldStateProxy(
           evmCodeStorage = evmCodeStorage,
           mptStorage = blockchain.getReadOnlyStorage(),
-          blockchain = blockchain,
+          getBlockHashByNumber = (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
           accountStartNonce = blockchainConfig.accountStartNonce,
           stateRootHash = parent.stateRoot,
           noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

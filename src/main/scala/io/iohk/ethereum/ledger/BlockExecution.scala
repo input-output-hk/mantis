@@ -65,7 +65,7 @@ class BlockExecution(
       initialWorld = InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         blockchain.getBackingStorage(block.header.number),
-        blockchain,
+        (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = parentHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,

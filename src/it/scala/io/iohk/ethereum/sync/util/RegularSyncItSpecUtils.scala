@@ -215,7 +215,7 @@ object RegularSyncItSpecUtils {
       InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
         bl.getBackingStorage(block.number),
-        bl,
+        (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         noEmptyAccounts = false,
