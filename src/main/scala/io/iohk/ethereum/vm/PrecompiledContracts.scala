@@ -207,7 +207,7 @@ object PrecompiledContracts {
         PostEIP198Cost.calculate(baseLength, modLength, expLength, expBytes)
     }
 
-    // details https://eips.ethereum.org/EIPS/eip-198
+    //Spec: https://eips.ethereum.org/EIPS/eip-198
     object PostEIP198Cost {
       private val GQUADDIVISOR = 20
 
@@ -228,7 +228,7 @@ object PrecompiledContracts {
       }
     }
 
-    // details https://eips.ethereum.org/EIPS/eip-2565
+    //Spec: https://eips.ethereum.org/EIPS/eip-2565
     object PostEIP2565Cost {
       private val GQUADDIVISOR = 3
 
