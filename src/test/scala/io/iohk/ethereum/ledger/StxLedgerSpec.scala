@@ -101,6 +101,15 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
     result.vmError shouldBe None
   }
+
+  // migrated from old LedgerSpec
+  "binaryChop" should "properly find minimal required gas limit to execute transaction" in new BinarySimulationChopSetup {
+    testGasValues.foreach { minimumRequiredGas =>
+      LedgerUtils.binaryChop[TxError](minimalGas, maximalGas)(
+        mockTransaction(minimumRequiredGas)
+      ) shouldEqual minimumRequiredGas
+    }
+  }
 }
 
 // scalastyle:off magic.number line.size.limit
