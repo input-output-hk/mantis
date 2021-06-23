@@ -23,8 +23,6 @@ trait Validators {
     *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
     *   - Validating the resulting gas used
     *
-    * @note This method was originally provided by the [[io.iohk.ethereum.ledger.Ledger]].
-    *
     * @param block         to validate
     * @param stateRootHash from the resulting state trie after executing the txs from the block
     * @param receipts      associated with the execution of each of the tx from the block
