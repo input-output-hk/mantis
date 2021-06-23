@@ -7,7 +7,6 @@ import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils._
 import monix.execution.Scheduler.Implicits.global

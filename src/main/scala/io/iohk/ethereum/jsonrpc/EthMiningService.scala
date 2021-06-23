@@ -10,7 +10,6 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ommers.OmmersPool
 import monix.eval.Task
 

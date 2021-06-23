@@ -2,7 +2,6 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.ledger.Ledger
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.consensus.Consensus

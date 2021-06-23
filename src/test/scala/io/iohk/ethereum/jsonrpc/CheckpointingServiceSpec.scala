@@ -6,7 +6,6 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, Checkpoint}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen

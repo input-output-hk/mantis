@@ -1,7 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.consensus.Consensus
 
 sealed trait BlockParam

@@ -9,7 +9,6 @@ import io.iohk.ethereum.jsonrpc.{
   ServiceResponse,
   TransactionData
 }
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.consensus.Consensus
 import akka.util.ByteString

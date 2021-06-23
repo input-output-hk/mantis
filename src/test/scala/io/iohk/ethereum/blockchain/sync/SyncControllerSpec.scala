@@ -10,7 +10,6 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFo
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}

@@ -6,7 +6,6 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 import io.iohk.ethereum.ledger.BlockQueue

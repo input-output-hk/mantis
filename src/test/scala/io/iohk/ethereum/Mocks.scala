@@ -19,15 +19,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 object Mocks {
-
-  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean)
-      extends Ledger {
-    def consensus: Consensus = ??? // FIXME Implement
-
-    // override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
-
-  }
-
   private val defaultProgramResult: PC => PR = context =>
     ProgramResult(
       returnData = ByteString.empty,
