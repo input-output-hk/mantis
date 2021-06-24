@@ -2,7 +2,7 @@ package io.iohk.ethereum.forkid
 
 import akka.util.ByteString
 import cats.Monad
-import cats.data.EitherT
+import cats.data.EitherT._
 import cats.implicits._
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -43,26 +43,26 @@ object ForkIdValidator {
 
     // The checks are left biased -> whenever a result is found we need to short circuit
     val validate: F[Option[ForkIdValidationResult]] = (for {
-      _ <- EitherT.liftF(Logger[F].debug(s"Before checkMatchingHashes"))
-      matching <- EitherT.fromEither[F](
+      _ <- liftF(Logger[F].trace(s"Before checkMatchingHashes"))
+      matching <- fromEither[F](
         checkMatchingHashes(checksums, remoteId, currentHeight, i).toLeft("hashes didn't match")
       )
-      _ <- EitherT.liftF(Logger[F].debug(s"checkMatchingHashes result: $matching"))
-      _ <- EitherT.liftF(Logger[F].debug(s"Before checkSubset"))
-      sub <- EitherT.fromEither[F](checkSubset(checksums, forks, remoteId, i).toLeft("not in subset"))
-      _ <- EitherT.liftF(Logger[F].debug(s"checkSubset result: $sub"))
-      _ <- EitherT.liftF(Logger[F].debug(s"Before checkSuperset"))
-      sup <- EitherT.fromEither[F](checkSuperset(checksums, remoteId, i).toLeft("not in superset"))
-      _ <- EitherT.liftF(Logger[F].debug(s"checkSuperset result: $sup"))
-      _ <- EitherT.liftF(Logger[F].debug(s"No check succeeded"))
-      res <- EitherT.fromEither[F](Either.left[ForkIdValidationResult, Unit](ErrLocalIncompatibleOrStale))
+      _ <- liftF(Logger[F].trace(s"checkMatchingHashes result: $matching"))
+      _ <- liftF(Logger[F].trace(s"Before checkSubset"))
+      sub <- fromEither[F](checkSubset(checksums, forks, remoteId, i).toLeft("not in subset"))
+      _ <- liftF(Logger[F].trace(s"checkSubset result: $sub"))
+      _ <- liftF(Logger[F].trace(s"Before checkSuperset"))
+      sup <- fromEither[F](checkSuperset(checksums, remoteId, i).toLeft("not in superset"))
+      _ <- liftF(Logger[F].trace(s"checkSuperset result: $sup"))
+      _ <- liftF(Logger[F].trace(s"No check succeeded"))
+      res <- fromEither[F](Either.left[ForkIdValidationResult, Unit](ErrLocalIncompatibleOrStale))
     } yield (res)).value
       .map(_.swap)
       .flatMap(res => Logger[F].debug(s"Validation result is: $res") >> Monad[F].pure(res.toOption))
 
     Logger[F].debug(s"Validating $remoteId") >>
-      Logger[F].debug(s"Forks list: $forks") >>
-      Logger[F].debug(s"Unpassed fork $unpassedFork was found at index $i") >>
+      Logger[F].trace(s"Forks list: $forks") >>
+      Logger[F].trace(s"Unpassed fork $unpassedFork was found at index $i") >>
       validate.map(_.getOrElse(Connect)) // Impossible to say if nodes are compatible, so we need to allow to connect
   }
 
