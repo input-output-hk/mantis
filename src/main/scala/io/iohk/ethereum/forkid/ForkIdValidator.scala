@@ -50,10 +50,11 @@ object ForkIdValidator {
     val checksums: Vector[BigInt] = calculateCheckchecksums(genesisHash, forks)
 
     // find the first unpassed fork and it's index
-    val (unpassedFork, i) = (forks :+ maxUInt64).zipWithIndex.find { case (fork, _) => currentHeight < fork }.get
+    val (unpassedFork, i) =
+      forks.zipWithIndex.find { case (fork, _) => currentHeight < fork }.getOrElse((maxUInt64, forks.length))
 
     // The checks are left biased -> whenever a result is found we need to short circuit
-    val validate: F[Option[ForkIdValidationResult]] = (for {
+    val validate = (for {
       _ <- liftF(Logger[F].trace(s"Before checkMatchingHashes"))
       matching <- fromEither[F](
         checkMatchingHashes(checksums, remoteId, currentHeight, i).toLeft("hashes didn't match")
@@ -66,15 +67,16 @@ object ForkIdValidator {
       sup <- fromEither[F](checkSuperset(checksums, remoteId, i).toLeft("not in superset"))
       _ <- liftF(Logger[F].trace(s"checkSuperset result: $sup"))
       _ <- liftF(Logger[F].trace(s"No check succeeded"))
-      res <- fromEither[F](Either.left[ForkIdValidationResult, Unit](ErrLocalIncompatibleOrStale))
-    } yield (res)).value
-      .map(_.swap)
-      .flatMap(res => Logger[F].debug(s"Validation result is: $res") >> Monad[F].pure(res.toOption))
+      _ <- fromEither[F](Either.left[ForkIdValidationResult, Unit](ErrLocalIncompatibleOrStale))
+    } yield ()).value
 
-    Logger[F].debug(s"Validating $remoteId") >>
-      Logger[F].trace(s"Forks list: $forks") >>
-      Logger[F].trace(s"Unpassed fork $unpassedFork was found at index $i") >>
-      validate.map(_.getOrElse(Connect)) // Impossible to say if nodes are compatible, so we need to allow to connect
+    for {
+      _ <- Logger[F].debug(s"Validating $remoteId")
+      _ <- Logger[F].trace(s" list: $forks")
+      _ <- Logger[F].trace(s"Unpassed fork $unpassedFork was found at index $i")
+      res <- validate.map(_.swap)
+      _ <- Logger[F].debug(s"Validation result is: $res")
+    } yield (res.getOrElse(Connect))
   }
 
   private def calculateCheckchecksums(
@@ -103,15 +105,12 @@ object ForkIdValidator {
       remoteId: ForkId,
       currentHeight: BigInt,
       i: Int
-  ): Option[ForkIdValidationResult] = {
-    if (checksums(i) == remoteId.hash) {
-      if (remoteId.next.isDefined && currentHeight >= remoteId.next.get) {
-        Some(ErrLocalIncompatibleOrStale)
-      } else {
-        Some(Connect)
-      }
-    } else { None }
-  }
+  ): Option[ForkIdValidationResult] =
+    remoteId match {
+      case ForkId(hash, _) if checksums(i) != hash => None
+      case ForkId(_, Some(next)) if currentHeight >= next => Some(ErrLocalIncompatibleOrStale)
+      case _ => Some(Connect)
+    }
 
   /**
     * 2) If the remote FORK_HASH is a subset of the local past forks and the remote FORK_NEXT matches with the locally following fork block number, connect.
@@ -126,15 +125,16 @@ object ForkIdValidator {
     checksums
       .zip(forks)
       .take(i)
-      .find { case (sum, _) => sum == remoteId.hash }
-      .map { case (_, fork) => if (fork == remoteId.next.getOrElse(0)) Connect else ErrRemoteStale }
+      .collectFirst {
+        case (sum, fork) if sum == remoteId.hash => if (fork == remoteId.next.getOrElse(0)) Connect else ErrRemoteStale
+      }
 
   /**
     * 3) If the remote FORK_HASH is a superset of the local past forks and can be completed with locally known future forks, connect.
     * Local node is currently syncing. It might eventually diverge from the remote, but at this current point in time we don’t have enough information.
     */
   def checkSuperset(checksums: Vector[BigInt], remoteId: ForkId, i: Int): Option[ForkIdValidationResult] = {
-    checksums.drop(i).find(_ == remoteId.hash).map(_ => Connect)
+    checksums.drop(i).collectFirst { case sum if sum == remoteId.hash => Connect }
   }
 
 }
