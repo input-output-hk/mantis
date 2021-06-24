@@ -24,6 +24,17 @@ object ForkIdValidator {
 
   val maxUInt64 = (BigInt(0x7fffffffffffffffL) << 1) + 1 // scalastyle:ignore magic.number
 
+  /** Tells whether it makes sense to connect to a peer or gives a reason why it isn't a good idea.
+    *
+    *  @param genesisHash - hash of the genesis block of the current chain
+    *  @param config - local client's blockchain configuration
+    *  @param currentHeight - number of the block at the current tip
+    *  @param remoteId - ForkId announced by the connecting peer
+    *  @return One of:
+    *         - [[io.iohk.ethereum.forkid.Connect]] - It is safe to connect to the peer
+    *         - [[io.iohk.ethereum.forkid.ErrRemoteStale]]  - Remote is stale, don't connect
+    *         - [[io.iohk.ethereum.forkid.ErrLocalIncompatibleOrStale]] - Local is incompatible or stale, don't connect
+    */
   def validatePeer[F[_]: Monad: Logger](
       genesisHash: ByteString,
       config: BlockchainConfig
@@ -32,7 +43,7 @@ object ForkIdValidator {
     validatePeer[F](genesisHash, forks)(currentHeight, remoteForkId)
   }
 
-  def validatePeer[F[_]: Monad: Logger](
+  private[forkid] def validatePeer[F[_]: Monad: Logger](
       genesisHash: ByteString,
       forks: List[BigInt]
   )(currentHeight: BigInt, remoteId: ForkId): F[ForkIdValidationResult] = {
