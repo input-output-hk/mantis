@@ -8,14 +8,13 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
-import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
+import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.db.storage.{AppStateStorage, StateStorage}
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
-import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey, StorageValueProof}
+import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -23,16 +22,13 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.PeerStatisticsActor
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import monix.reactive.Observable
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.clazz.Mock
 import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
