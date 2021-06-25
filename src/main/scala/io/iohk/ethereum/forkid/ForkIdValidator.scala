@@ -47,7 +47,7 @@ object ForkIdValidator {
       genesisHash: ByteString,
       forks: List[BigInt]
   )(currentHeight: BigInt, remoteId: ForkId): F[ForkIdValidationResult] = {
-    val checksums: Vector[BigInt] = calculateCheckchecksums(genesisHash, forks)
+    val checksums: Vector[BigInt] = calculateChecksums(genesisHash, forks)
 
     // find the first unpassed fork and it's index
     val (unpassedFork, i) =
@@ -79,7 +79,7 @@ object ForkIdValidator {
     } yield (res.getOrElse(Connect))
   }
 
-  private def calculateCheckchecksums(
+  private def calculateChecksums(
       genesisHash: ByteString,
       forks: List[BigInt]
   ): Vector[BigInt] = {
