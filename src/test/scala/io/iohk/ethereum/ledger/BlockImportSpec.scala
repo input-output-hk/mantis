@@ -56,7 +56,9 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
-    (blockchain.getBackingStorage _).expects(*).returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
+    (blockchain.getBackingMptStorage _)
+      .expects(*)
+      .returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
 
@@ -88,7 +90,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getBlockHeaderByNumber _).expects(*).returning(Some(block.header))
-    (blockchain.getBackingStorage _).expects(*).returning(mptStorage)
+    (blockchain.getBackingMptStorage _).expects(*).returning(mptStorage)
     (mptStorage.get _).expects(*).returning(mptNode)
 
     (blockQueue.removeSubtree _).expects(*)

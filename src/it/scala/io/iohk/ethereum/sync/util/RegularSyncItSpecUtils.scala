@@ -214,7 +214,7 @@ object RegularSyncItSpecUtils {
     private def getMptForBlock(block: Block) = {
       InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
-        bl.getBackingStorage(block.number),
+        bl.getBackingMptStorage(block.number),
         (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         ByteString(MerklePatriciaTrie.EmptyRootHash),

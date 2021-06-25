@@ -112,13 +112,13 @@ trait Blockchain {
     * @param blockNumber
     * @return MptStorage
     */
-  def getBackingStorage(blockNumber: BigInt): MptStorage
+  def getBackingMptStorage(blockNumber: BigInt): MptStorage
 
   /** Get the MptStorage for read-only
     *
     * @return MptStorage
     */
-  def getReadOnlyStorage(): MptStorage
+  def getReadOnlyMptStorage(): MptStorage
 
   /**
     * Returns the receipts based on a block hash
@@ -322,9 +322,9 @@ class BlockchainImpl(
     StorageProof(position, value, proof)
   }
 
-  def getBackingStorage(blockNumber: BigInt): MptStorage = stateStorage.getBackingStorage(blockNumber)
+  def getBackingMptStorage(blockNumber: BigInt): MptStorage = stateStorage.getBackingStorage(blockNumber)
 
-  def getReadOnlyStorage(): MptStorage = stateStorage.getReadOnlyStorage
+  def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
   private def persistBestBlocksData(): Unit = {
     val currentBestBlockNumber = getBestBlockNumber()

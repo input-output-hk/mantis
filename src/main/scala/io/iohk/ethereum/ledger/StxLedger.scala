@@ -23,7 +23,7 @@ class StxLedger(
     val world1 = world.getOrElse(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
-        mptStorage = blockchain.getReadOnlyStorage(),
+        mptStorage = blockchain.getReadOnlyMptStorage(),
         getBlockHashByNumber = (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot,

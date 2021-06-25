@@ -243,7 +243,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   private def getMptForBlock(block: Block) = {
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      bl.getBackingStorage(block.number),
+      bl.getBackingMptStorage(block.number),
       (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
       blockchainConfig.accountStartNonce,
       block.header.stateRoot,

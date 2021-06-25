@@ -64,7 +64,7 @@ class BlockExecution(
         .toRight(MissingParentError) // Should not never occur because validated earlier
       initialWorld = InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
-        blockchain.getBackingStorage(block.header.number),
+        blockchain.getBackingMptStorage(block.header.number),
         (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = parentHeader.stateRoot,

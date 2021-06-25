@@ -34,7 +34,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
       val init = InMemoryWorldStateProxy(
         evmCodeStorage,
-        blockchain.getBackingStorage(1),
+        blockchain.getBackingMptStorage(1),
         (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
         blockchainConfig.accountStartNonce,
         existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),

@@ -97,7 +97,7 @@ class EthServiceSpec
 
     val worldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingStorage(-1),
+      blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,

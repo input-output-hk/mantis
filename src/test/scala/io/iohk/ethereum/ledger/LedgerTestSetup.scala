@@ -84,7 +84,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
   val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
-    blockchain.getBackingStorage(-1),
+    blockchain.getBackingMptStorage(-1),
     (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
     UInt256.Zero,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
@@ -137,7 +137,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   ): ByteString = {
     val initialWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
-      blockchain.getBackingStorage(-1),
+      blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
@@ -237,7 +237,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
   (testBlockchain.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
     .returning(Some(parentBlockHeader))
-  (testBlockchain.getBackingStorage _)
+  (testBlockchain.getBackingMptStorage _)
     .expects(*)
     .returning(storagesInstance.storages.stateStorage.getBackingStorage(1920000))
 }
@@ -301,7 +301,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         ): Either[BlockExecutionError, Seq[Receipt]] = {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
-            blockchain.getBackingStorage(-1),
+            blockchain.getBackingMptStorage(-1),
             (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
             blockchainConfig.accountStartNonce,
             ByteString(MerklePatriciaTrie.EmptyRootHash),

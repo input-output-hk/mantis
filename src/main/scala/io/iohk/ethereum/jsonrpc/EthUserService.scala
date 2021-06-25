@@ -34,7 +34,7 @@ class EthUserService(
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
         val world = InMemoryWorldStateProxy(
           evmCodeStorage,
-          blockchain.getBackingStorage(block.header.number),
+          blockchain.getBackingMptStorage(block.header.number),
           (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
           blockchainConfig.accountStartNonce,
           block.header.stateRoot,
