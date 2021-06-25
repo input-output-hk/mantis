@@ -50,21 +50,21 @@ object ForkIdValidator {
     val checksums: Vector[BigInt] = calculateChecksums(genesisHash, forks)
 
     // find the first unpassed fork and it's index
-    val (unpassedFork, i) =
+    val (unpassedFork, unpassedForkIndex) =
       forks.zipWithIndex.find { case (fork, _) => currentHeight < fork }.getOrElse((maxUInt64, forks.length))
 
     // The checks are left biased -> whenever a result is found we need to short circuit
     val validate = (for {
       _ <- liftF(Logger[F].trace(s"Before checkMatchingHashes"))
       matching <- fromEither[F](
-        checkMatchingHashes(checksums, remoteId, currentHeight, i).toLeft("hashes didn't match")
+        checkMatchingHashes(checksums(unpassedForkIndex), remoteId, currentHeight).toLeft("hashes didn't match")
       )
       _ <- liftF(Logger[F].trace(s"checkMatchingHashes result: $matching"))
       _ <- liftF(Logger[F].trace(s"Before checkSubset"))
-      sub <- fromEither[F](checkSubset(checksums, forks, remoteId, i).toLeft("not in subset"))
+      sub <- fromEither[F](checkSubset(checksums, forks, remoteId, unpassedForkIndex).toLeft("not in subset"))
       _ <- liftF(Logger[F].trace(s"checkSubset result: $sub"))
       _ <- liftF(Logger[F].trace(s"Before checkSuperset"))
-      sup <- fromEither[F](checkSuperset(checksums, remoteId, i).toLeft("not in superset"))
+      sup <- fromEither[F](checkSuperset(checksums, remoteId, unpassedForkIndex).toLeft("not in superset"))
       _ <- liftF(Logger[F].trace(s"checkSuperset result: $sup"))
       _ <- liftF(Logger[F].trace(s"No check succeeded"))
       _ <- fromEither[F](Either.left[ForkIdValidationResult, Unit](ErrLocalIncompatibleOrStale))
@@ -73,7 +73,7 @@ object ForkIdValidator {
     for {
       _ <- Logger[F].debug(s"Validating $remoteId")
       _ <- Logger[F].trace(s" list: $forks")
-      _ <- Logger[F].trace(s"Unpassed fork $unpassedFork was found at index $i")
+      _ <- Logger[F].trace(s"Unpassed fork $unpassedFork was found at index $unpassedForkIndex")
       res <- validate.map(_.swap)
       _ <- Logger[F].debug(s"Validation result is: $res")
     } yield (res.getOrElse(Connect))
@@ -101,13 +101,12 @@ object ForkIdValidator {
     * 1b) No remotely announced fork; or not yet passed locally, connect.
     */
   private def checkMatchingHashes(
-      checksums: Vector[BigInt],
+      checksum: BigInt,
       remoteId: ForkId,
-      currentHeight: BigInt,
-      i: Int
+      currentHeight: BigInt
   ): Option[ForkIdValidationResult] =
     remoteId match {
-      case ForkId(hash, _) if checksums(i) != hash => None
+      case ForkId(hash, _) if checksum != hash => None
       case ForkId(_, Some(next)) if currentHeight >= next => Some(ErrLocalIncompatibleOrStale)
       case _ => Some(Connect)
     }
