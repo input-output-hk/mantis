@@ -25,13 +25,13 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
-    val block = blockchain.getBlockByHash(validBlock.header.hash)
+    val block = blockchainReader.getBlockByHash(validBlock.header.hash)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
-    val blockHeader = blockchain.getBlockHeaderByHash(validBlock.header.hash)
+    val blockHeader = blockchainReader.getBlockHeaderByHash(validBlock.header.hash)
     blockHeader.isDefined should ===(true)
     validBlock.header should ===(blockHeader.get)
-    val blockBody = blockchain.getBlockBodyByHash(validBlock.header.hash)
+    val blockBody = blockchainReader.getBlockBodyByHash(validBlock.header.hash)
     blockBody.isDefined should ===(true)
     validBlock.body should ===(blockBody.get)
   }
@@ -39,7 +39,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.storeBlock(validBlock).commit()
-    val block = blockchain.getBlockByNumber(validBlock.header.number)
+    val block = blockchainReader.getBlockByNumber(validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
   }
@@ -56,14 +56,14 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
     blockchain.storeBlockHeader(validHeader).commit()
-    val header = blockchain.getBlockHeaderByNumber(validHeader.number)
+    val header = blockchainReader.getBlockHeaderByNumber(validHeader.number)
     header.isDefined should ===(true)
     validHeader should ===(header.get)
   }
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
-    blockchain.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
-    blockchain.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
+    blockchainReader.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
+    blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
   }
 
   it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {
@@ -74,7 +74,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
-    val retrievedBlock = blockchain.getBlockByHash(validBlock.header.hash)
+    val retrievedBlock = blockchainReader.getBlockByHash(validBlock.header.hash)
     retrievedBlock.isDefined should ===(true)
     validBlock should ===(retrievedBlock.get)
 
@@ -276,6 +276,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     trait StubPersistingBlockchainSetup {
       def stubStateStorage: StateStorage
       def blockchainStoragesWithStubPersisting: BlockchainStorages
+      def blockchainReaderWithStubPersisting: BlockchainReader
       def blockchainWithStubPersisting: BlockchainImpl
     }
 
@@ -296,7 +297,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val cachedNodeStorage = storagesInstance.storages.cachedNodeStorage
           val stateStorage = stubStateStorage
         }
-        override val blockchainWithStubPersisting = BlockchainImpl(blockchainStoragesWithStubPersisting)
+        override val blockchainReaderWithStubPersisting = BlockchainReader(blockchainStoragesWithStubPersisting)
+        override val blockchainWithStubPersisting =
+          BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting)
 
         blockchainWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }

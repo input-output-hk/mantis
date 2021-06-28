@@ -28,6 +28,7 @@ class BlockPreparator(
     vm: VMImpl,
     signedTxValidator: SignedTransactionValidator,
     blockchain: BlockchainImpl, // FIXME Depend on the interface
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig
 ) extends Logger {
 
@@ -382,7 +383,7 @@ class BlockPreparator(
         InMemoryWorldStateProxy(
           evmCodeStorage = evmCodeStorage,
           mptStorage = blockchain.getReadOnlyMptStorage(),
-          getBlockHashByNumber = (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+          getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
           accountStartNonce = blockchainConfig.accountStartNonce,
           stateRootHash = parent.stateRoot,
           noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,

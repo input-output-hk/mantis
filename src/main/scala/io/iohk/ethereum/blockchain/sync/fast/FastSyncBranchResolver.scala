@@ -1,7 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.utils.Logger
 
@@ -10,6 +10,7 @@ trait FastSyncBranchResolver {
   import FastSyncBranchResolver._
 
   protected def blockchain: Blockchain
+  protected def blockchainReader: BlockchainReader
 
   // TODO [ETCM-676] move to [[Blockchain]] and make sure it's atomic
   def discardBlocksAfter(lastValidBlock: BigInt): Unit =
@@ -19,7 +20,7 @@ trait FastSyncBranchResolver {
   private def discardBlocks(fromBlock: BigInt, toBlock: BigInt): Unit = {
     val blocksToBeRemoved = childOf(fromBlock).to(toBlock).reverse.toList
     blocksToBeRemoved.foreach { toBeRemoved =>
-      blockchain
+      blockchainReader
         .getBlockHeaderByNumber(toBeRemoved)
         .foreach(header => blockchain.removeBlock(header.hash, withState = false))
     }
@@ -43,7 +44,7 @@ object FastSyncBranchResolver {
   * Attempt to find last common block within recent blocks by looking for a parent/child
   * relationship between our block headers and remote peer's block headers.
   */
-class RecentBlocksSearch(blockchain: Blockchain) {
+class RecentBlocksSearch(blockchainReader: BlockchainReader) {
 
   /**
     * Find the highest common block by trying to find a block so that our block n is the parent of remote candidate block n + 1
@@ -53,7 +54,7 @@ class RecentBlocksSearch(blockchain: Blockchain) {
       bestBlockNumber: BigInt
   ): Option[BigInt] = {
     def isParent(potentialParent: BigInt, childCandidate: BlockHeader): Boolean =
-      blockchain.getBlockHeaderByNumber(potentialParent).exists { _.isParentOf(childCandidate) }
+      blockchainReader.getBlockHeaderByNumber(potentialParent).exists { _.isParentOf(childCandidate) }
     NonEmptyList.fromList(candidateHeaders.reverse.toList).flatMap { remoteHeaders =>
       val blocksToBeCompared = bestBlockNumber.until(bestBlockNumber - remoteHeaders.size).by(-1).toList
       remoteHeaders.toList

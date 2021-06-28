@@ -85,7 +85,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingMptStorage(-1),
-    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
     UInt256.Zero,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,
@@ -138,7 +138,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     val initialWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
-      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
       noEmptyAccounts = false,
@@ -197,6 +197,7 @@ trait BlockchainSetup extends TestSetup {
 
 trait DaoForkTestSetup extends TestSetup with MockFactory {
 
+  lazy val testBlockchainReader: BlockchainReader = mock[BlockchainReader]
   lazy val testBlockchain: BlockchainImpl = mock[BlockchainImpl]
   val worldState: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
   val proDaoBlock: Block = Fixtures.Blocks.ProDaoForkBlock.block
@@ -234,7 +235,7 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
 
   val parentBlockHeader = Fixtures.Blocks.DaoParentBlock.header
 
-  (testBlockchain.getBlockHeaderByHash _)
+  (testBlockchainReader.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
     .returning(Some(parentBlockHeader))
   (testBlockchain.getBackingMptStorage _)
@@ -271,6 +272,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   class TestLedgerImplNotMockedBlockExecution(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockQueue,
         blockchainConfig,
@@ -281,6 +283,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockQueue,
         blockchainConfig,
@@ -290,6 +293,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     override private[ledger] lazy val blockExecution =
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -302,7 +306,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
             blockchain.getBackingMptStorage(-1),
-            (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+            (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
             blockchainConfig.accountStartNonce,
             ByteString(MerklePatriciaTrie.EmptyRootHash),
             noEmptyAccounts = false,
@@ -401,6 +405,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
+  override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -408,7 +413,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
-    (blockchain.getBlockByHash _)
+    (blockchainReader.getBlockByHash _)
       .expects(block.header.hash)
       .anyNumberOfTimes()
       .returning(Some(block).filter(_ => inChain))
@@ -445,7 +450,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.isInChain _).expects(hash).returning(result)
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (blockchain.getBlockByNumber _).expects(number).returning(block)
+    (blockchainReader.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchain.genesisHeader).expects().returning(header)

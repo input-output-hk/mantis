@@ -8,14 +8,13 @@ import com.typesafe.config.ConfigFactory
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
-import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate, RocksDbDataSource}
+import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, MptStorage, StateStorage}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
-import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey, StorageValueProof}
+import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey}
 import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -23,19 +22,23 @@ import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.PeerStatisticsActor
 import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
 import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
-import monix.reactive.Observable
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration._
 
-object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder with AuthHandshakerBuilder {
+object DumpChainApp
+    extends App
+    with NodeKeyBuilder
+    with SecureRandomBuilder
+    with AuthHandshakerBuilder
+    with MockFactory {
   val conf = ConfigFactory.load("txExecTest/chainDump.conf")
   val node = conf.getString("node")
   val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
@@ -78,6 +81,8 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
   val storagesInstance = new RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages
 
   val blockchain: Blockchain = new BlockchainMock(genesisHash)
+  val blockchainReader = mock[BlockchainReader]
+  (blockchainReader.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
 
   val nodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
@@ -92,6 +97,7 @@ object DumpChainApp extends App with NodeKeyBuilder with SecureRandomBuilder wit
       override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = peerConfig
       override val blockchain: Blockchain = DumpChainApp.blockchain
+      override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
@@ -156,14 +162,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] = Some(genesisHash)
-
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] = Some(new FakeHeader())
-
-  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] = ???
-
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] = ???
-
   override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = ???
 
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = ???
@@ -179,8 +177,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = ???
-
-  override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = ???
 
   def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
@@ -201,6 +197,12 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
+
+  override def isInChain(hash: NodeHash): Boolean = ???
+
+  override def genesisHeader: BlockHeader = ???
+
+  override def genesisBlock: Block = ???
 
   override def getBackingMptStorage(blockNumber: BigInt): MptStorage = ???
 

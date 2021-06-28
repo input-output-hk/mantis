@@ -1,6 +1,6 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader, SignedTransaction, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
 import io.iohk.ethereum.jsonrpc.{
   BaseBlockResponse,
@@ -11,11 +11,13 @@ import io.iohk.ethereum.jsonrpc.{
 }
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.consensus.Consensus
 import akka.util.ByteString
 
-class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consensus: Consensus)
-    extends EthBlocksService(blockchain, ledger)
+class TestEthBlockServiceWrapper(
+    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
+    ledger: Ledger
+) extends EthBlocksService(blockchain, blockchainReader, ledger)
     with Logger {
 
   /**
@@ -30,7 +32,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     .getByBlockHash(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )
@@ -47,7 +49,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, ledger: Ledger, consens
     .getBlockByNumber(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )

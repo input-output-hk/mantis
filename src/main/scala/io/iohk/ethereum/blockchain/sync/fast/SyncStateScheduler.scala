@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoad
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.{EvmCodeStorage, NodeStorage}
-import io.iohk.ethereum.domain.{Account, Blockchain}
+import io.iohk.ethereum.domain.{Account, Blockchain, BlockchainReader}
 import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
 import io.vavr.collection.PriorityQueue
@@ -47,6 +47,7 @@ import scala.util.Try
   */
 class SyncStateScheduler(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     bloomFilter: LoadableBloomFilter[ByteString]
 ) {
@@ -56,7 +57,7 @@ class SyncStateScheduler(
   def initState(targetRootHash: ByteString): Option[SchedulerState] = {
     if (targetRootHash == emptyStateRootHash) {
       None
-    } else if (blockchain.getMptNodeByHash(targetRootHash).isDefined) {
+    } else if (blockchainReader.getMptNodeByHash(targetRootHash).isDefined) {
       None
     } else {
       val initialState = SchedulerState()
@@ -251,7 +252,7 @@ class SyncStateScheduler(
       case _: CodeRequest =>
         evmCodeStorage.get(req.nodeHash).isDefined
       case _: NodeRequest =>
-        blockchain.getMptNodeByHash(req.nodeHash).isDefined
+        blockchainReader.getMptNodeByHash(req.nodeHash).isDefined
     }
   }
 
@@ -292,6 +293,7 @@ object SyncStateScheduler {
 
   def apply(
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       expectedBloomFilterSize: Int
@@ -304,6 +306,7 @@ object SyncStateScheduler {
 
     new SyncStateScheduler(
       blockchain,
+      blockchainReader,
       evmCodeStorage,
       LoadableBloomFilter[ByteString](expectedBloomFilterSize, mptStateSavedKeys)
     )

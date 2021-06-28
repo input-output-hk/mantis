@@ -139,6 +139,7 @@ class EthUserServiceSpec
     override lazy val ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
+      blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       ledger,
       blockchainConfig

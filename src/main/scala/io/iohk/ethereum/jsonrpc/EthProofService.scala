@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import cats.implicits._
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
-import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, Block, Blockchain, BlockchainReader, UInt256}
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof.asRlpSerializedNode
 import io.iohk.ethereum.jsonrpc.ProofService.{
   GetProofRequest,
@@ -140,8 +140,12 @@ trait ProofService {
   * parity: https://github.com/openethereum/parity-ethereum/pull/9001
   * geth: https://github.com/ethereum/go-ethereum/pull/17737
   */
-class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, ethCompatibleStorage: Boolean)
-    extends ProofService {
+class EthProofService(
+    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
+    blockGenerator: BlockGenerator,
+    ethCompatibleStorage: Boolean
+) extends ProofService {
 
   def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
     getProofAccount(req.address, req.storageKeys, req.blockNumber)
@@ -201,7 +205,7 @@ class EthProofService(blockchain: Blockchain, blockGenerator: BlockGenerator, et
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] =
-      blockchain
+      blockchainReader
         .getBlockByNumber(number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 

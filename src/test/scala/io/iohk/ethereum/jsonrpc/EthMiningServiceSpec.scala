@@ -238,7 +238,7 @@ class EthMiningServiceSpec
     lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
-      blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       consensusConfig = consensusConfig,
       blockPreparator = consensus.blockPreparator,
@@ -307,7 +307,7 @@ class EthMiningServiceSpec
     val fakeWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getReadOnlyMptStorage(),
-      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,

@@ -16,7 +16,7 @@ import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -33,6 +33,7 @@ class PoWConsensus private (
     val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     val blockchainConfig: BlockchainConfig,
     val config: FullConsensusConfig[EthashConfig],
     val validators: ValidatorsExecutor,
@@ -47,6 +48,7 @@ class PoWConsensus private (
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
+    blockchainReader = blockchainReader,
     blockchainConfig = blockchainConfig
   )
 
@@ -158,13 +160,14 @@ class PoWConsensus private (
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig
         )
 
         new PoWBlockGeneratorImpl(
           evmCodeStorage = evmCodeStorage,
           validators = _validators,
-          blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
@@ -187,6 +190,7 @@ class PoWConsensus private (
           vm = vm,
           evmCodeStorage = evmCodeStorage,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           config = config,
           validators = _validators,
@@ -204,6 +208,7 @@ class PoWConsensus private (
       vm = vm,
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
@@ -217,6 +222,7 @@ class PoWConsensus private (
       evmCodeStorage = evmCodeStorage,
       vm = vm,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
@@ -227,10 +233,12 @@ class PoWConsensus private (
 }
 
 object PoWConsensus {
+  // scalastyle:off method.length
   def apply(
       vm: VMImpl,
       evmCodeStorage: EvmCodeStorage,
       blockchain: BlockchainImpl,
+      blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
       config: FullConsensusConfig[EthashConfig],
       validators: ValidatorsExecutor,
@@ -241,6 +249,7 @@ object PoWConsensus {
       vm = vm,
       signedTxValidator = validators.signedTransactionValidator,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig
     )
     val blockGenerator = additionalEthashProtocolData match {
@@ -248,7 +257,7 @@ object PoWConsensus {
         new RestrictedPoWBlockGeneratorImpl(
           evmCodeStorage = evmCodeStorage,
           validators = validators,
-          blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
@@ -259,7 +268,7 @@ object PoWConsensus {
         new PoWBlockGeneratorImpl(
           evmCodeStorage = evmCodeStorage,
           validators = validators,
-          blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
@@ -270,6 +279,7 @@ object PoWConsensus {
       vm = vm,
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,

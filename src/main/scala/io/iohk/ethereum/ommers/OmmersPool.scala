@@ -3,12 +3,17 @@ package io.iohk.ethereum.ommers
 import akka.util.ByteString
 import akka.actor.{Actor, ActorLogging, Props}
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
+
 import scala.annotation.tailrec
 
-class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLimit: Int, returnedOmmersSizeLimit: Int)
-    extends Actor
+class OmmersPool(
+    blockchainReader: BlockchainReader,
+    ommersPoolSize: Int,
+    ommerGenerationLimit: Int,
+    returnedOmmersSizeLimit: Int
+) extends Actor
     with ActorLogging {
 
   var ommersPool: Seq[BlockHeader] = Nil
@@ -34,7 +39,7 @@ class OmmersPool(blockchain: Blockchain, ommersPoolSize: Int, ommerGenerationLim
     @tailrec
     def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] = {
       if (limit > 0) {
-        blockchain.getBlockHeaderByHash(hash) match {
+        blockchainReader.getBlockHeaderByHash(hash) match {
           case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
           case None => acc
         }
@@ -62,12 +67,12 @@ object OmmersPool {
     * ^ Probably not worthy but those params could be placed in consensus config.
     */
   def props(
-      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       ommersPoolSize: Int,
       ommerGenerationLimit: Int = 6,
       returnedOmmersSizeLimit: Int = 2
   ): Props = Props(
-    new OmmersPool(blockchain, ommersPoolSize, ommerGenerationLimit, returnedOmmersSizeLimit)
+    new OmmersPool(blockchainReader, ommersPoolSize, ommerGenerationLimit, returnedOmmersSizeLimit)
   )
 
   case class AddOmmers(ommers: List[BlockHeader])

@@ -3,7 +3,7 @@ package io.iohk.ethereum.testmode
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig}
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -13,6 +13,7 @@ import monix.execution.Scheduler
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
@@ -24,6 +25,7 @@ class TestModeComponentsProvider(
   def ledger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): Ledger =
     new LedgerImpl(
       blockchain,
+      blockchainReader,
       evmCodeStorage,
       blockchainConfig,
       syncConfig,
@@ -31,7 +33,13 @@ class TestModeComponentsProvider(
       validationExecutionContext
     )
   def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
-    new StxLedger(blockchain, evmCodeStorage, blockchainConfig, consensus(blockchainConfig, sealEngine).blockPreparator)
+    new StxLedger(
+      blockchain,
+      blockchainReader,
+      evmCodeStorage,
+      blockchainConfig,
+      consensus(blockchainConfig, sealEngine).blockPreparator
+    )
   def consensus(
       blockchainConfig: BlockchainConfig,
       sealEngine: SealEngineType,
@@ -41,6 +49,7 @@ class TestModeComponentsProvider(
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       consensusConfig,
       difficultyCalculator,

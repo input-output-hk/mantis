@@ -5,13 +5,14 @@ import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, Checkpoint}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
 import monix.eval.Task
 
 class CheckpointingService(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     ledger: Ledger,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     syncController: ActorRef
@@ -26,10 +27,10 @@ class CheckpointingService(
         bestBlockNum - bestBlockNum % req.checkpointingInterval
       else bestBlockNum
     lazy val isValidParent =
-      req.parentCheckpoint.forall(blockchain.getBlockHeaderByHash(_).exists(_.number < blockToReturnNum))
+      req.parentCheckpoint.forall(blockchainReader.getBlockHeaderByHash(_).exists(_.number < blockToReturnNum))
 
     Task {
-      blockchain.getBlockByNumber(blockToReturnNum)
+      blockchainReader.getBlockByNumber(blockToReturnNum)
     }.flatMap {
       case Some(b) if isValidParent =>
         Task.now(Right(GetLatestBlockResponse(Some(BlockInfo(b.hash, b.number)))))

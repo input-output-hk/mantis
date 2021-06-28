@@ -2,7 +2,6 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 import java.util.concurrent.ThreadLocalRandom
-
 import akka.actor.{ActorRef, ActorSystem}
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.{TestKit, TestProbe}
@@ -16,7 +15,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
   StateSyncStats,
   WaitingForNewTargetBlock
 }
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, ChainWeight}
+import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, ChainWeight}
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
@@ -102,21 +101,13 @@ class StateSyncSpec
     var loadingFinished = false
     val externalScheduler = Scheduler(system.dispatcher)
 
-    override def buildBlockChain(): BlockchainImpl = {
+    override def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
       val storages = getNewStorages.storages
 
-      new BlockchainImpl(
-        blockHeadersStorage = storages.blockHeadersStorage,
-        blockBodiesStorage = storages.blockBodiesStorage,
-        blockNumberMappingStorage = storages.blockNumberMappingStorage,
-        receiptStorage = storages.receiptStorage,
-        evmCodeStorage = storages.evmCodeStorage,
-        chainWeightStorage = storages.chainWeightStorage,
-        transactionMappingStorage = storages.transactionMappingStorage,
-        appStateStorage = storages.appStateStorage,
-        stateStorage = storages.stateStorage
-      )
+      val blockchainReader = BlockchainReader(storages)
+      (blockchainReader, BlockchainImpl(storages, blockchainReader))
     }
+
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
     val initiator = TestProbe()
     initiator.ignoreMsg { case SyncStateSchedulerActor.StateSyncStats(_, _) => true }
@@ -151,7 +142,8 @@ class StateSyncSpec
       bestBlockHash = peerStatus.bestHash
     )
 
-    val trieProvider = new TrieProvider(blockchain, getNewStorages.storages.evmCodeStorage, blockchainConfig)
+    val trieProvider =
+      new TrieProvider(blockchain, blockchainReader, getNewStorages.storages.evmCodeStorage, blockchainConfig)
 
     val peersMap = (1 to 8).map { i =>
       (
@@ -234,8 +226,15 @@ class StateSyncSpec
       syncRetryInterval = 50.milliseconds
     )
 
-    def buildBlockChain() = {
-      BlockchainImpl(getNewStorages.storages)
+    def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
+      val storages = getNewStorages.storages
+      (
+        BlockchainReader(storages),
+        BlockchainImpl(
+          storages,
+          BlockchainReader(storages)
+        )
+      )
     }
 
     def genRandomArray(): Array[Byte] = {
@@ -248,21 +247,25 @@ class StateSyncSpec
       ByteString.fromArrayUnsafe(genRandomArray())
     }
 
-    lazy val syncStateSchedulerActor = system.actorOf(
-      SyncStateSchedulerActor.props(
-        SyncStateScheduler(
-          buildBlockChain(),
-          getNewStorages.storages.evmCodeStorage,
-          getNewStorages.storages.nodeStorage,
-          syncConfig.stateSyncBloomFilterSize
-        ),
-        syncConfig,
-        etcPeerManager.ref,
-        peerEventBus.ref,
-        blacklist,
-        system.scheduler
+    lazy val syncStateSchedulerActor = {
+      val (blockchainReader, blockchain) = buildBlockChain()
+      system.actorOf(
+        SyncStateSchedulerActor.props(
+          SyncStateScheduler(
+            blockchain,
+            blockchainReader,
+            getNewStorages.storages.evmCodeStorage,
+            getNewStorages.storages.nodeStorage,
+            syncConfig.stateSyncBloomFilterSize
+          ),
+          syncConfig,
+          etcPeerManager.ref,
+          peerEventBus.ref,
+          blacklist,
+          system.scheduler
+        )
       )
-    )
+    }
   }
 
 }

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.ledger
 
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, ChainWeight}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader, ChainWeight}
 import io.iohk.ethereum.utils.Logger
 
-class BranchResolution(blockchain: Blockchain) extends Logger {
+class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReader) extends Logger {
 
   def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
     if (!doHeadersFormChain(headers)) {
@@ -70,7 +70,7 @@ class BranchResolution(blockchain: Blockchain) extends Logger {
 
   private def getTopBlocksFromNumber(from: BigInt): List[Block] =
     (from to blockchain.getBestBlockNumber())
-      .flatMap(blockchain.getBlockByNumber)
+      .flatMap(blockchainReader.getBlockByNumber)
       .toList
 }
 

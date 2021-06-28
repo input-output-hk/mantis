@@ -1,10 +1,10 @@
 package io.iohk.ethereum.ommers
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestProbe, TestKit, ImplicitSender}
+import akka.testkit.{ImplicitSender, TestKit, TestProbe}
 import io.iohk.ethereum.Fixtures.Blocks.Block3125369
 import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
 import io.iohk.ethereum.WithActorSystemShutDown
 import org.scalamock.scalatest.MockFactory
@@ -29,9 +29,9 @@ class OmmersPoolSpec
         *  [] new block, reference!
         *  () ommer given the new block
         */
-      (blockchain.getBlockHeaderByHash _).expects(block2Chain1.hash).returns(Some(block2Chain1))
-      (blockchain.getBlockHeaderByHash _).expects(block1Chain1.hash).returns(Some(block1Chain1))
-      (blockchain.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
+      (blockchainReader.getBlockHeaderByHash _).expects(block2Chain1.hash).returns(Some(block2Chain1))
+      (blockchainReader.getBlockHeaderByHash _).expects(block1Chain1.hash).returns(Some(block1Chain1))
+      (blockchainReader.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
 
       ommersPool ! AddOmmers(
         block0,
@@ -56,8 +56,8 @@ class OmmersPoolSpec
           *  [] new block, reference!
           *  () ommer given the new block
           */
-        (blockchain.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
-        (blockchain.getBlockHeaderByHash _).expects(block0.parentHash).returns(None)
+        (blockchainReader.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
+        (blockchainReader.getBlockHeaderByHash _).expects(block0.parentHash).returns(None)
 
         ommersPool ! AddOmmers(
           block0,
@@ -85,9 +85,9 @@ class OmmersPoolSpec
           *  () ommer given the new block
           *  XX removed block
           */
-        (blockchain.getBlockHeaderByHash _).expects(block1Chain4.hash).returns(Some(block1Chain4)).once()
-        (blockchain.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0)).once()
-        (blockchain.getBlockHeaderByHash _).expects(block0.parentHash).returns(None).once()
+        (blockchainReader.getBlockHeaderByHash _).expects(block1Chain4.hash).returns(Some(block1Chain4)).once()
+        (blockchainReader.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0)).once()
+        (blockchainReader.getBlockHeaderByHash _).expects(block0.parentHash).returns(None).once()
 
         ommersPool ! AddOmmers(
           block0,
@@ -118,9 +118,9 @@ class OmmersPoolSpec
           *  [] new block, reference!
           *  () ommer given the new block
           */
-        (blockchain.getBlockHeaderByHash _).expects(block2Chain1.hash).returns(Some(block2Chain1))
-        (blockchain.getBlockHeaderByHash _).expects(block1Chain1.hash).returns(Some(block1Chain1))
-        (blockchain.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
+        (blockchainReader.getBlockHeaderByHash _).expects(block2Chain1.hash).returns(Some(block2Chain1))
+        (blockchainReader.getBlockHeaderByHash _).expects(block1Chain1.hash).returns(Some(block1Chain1))
+        (blockchainReader.getBlockHeaderByHash _).expects(block0.hash).returns(Some(block0))
 
         ommersPool ! AddOmmers(
           block0,
@@ -174,8 +174,10 @@ class OmmersPoolSpec
 
     val testProbe = TestProbe()
 
-    val blockchain = mock[BlockchainImpl]
+    val blockchainReader = mock[BlockchainReader]
     val ommersPool =
-      system.actorOf(OmmersPool.props(blockchain, ommersPoolSize, ommerGenerationLimit, returnedOmmerSizeLimit))
+      system.actorOf(
+        OmmersPool.props(blockchainReader, ommersPoolSize, ommerGenerationLimit, returnedOmmerSizeLimit)
+      )
   }
 }

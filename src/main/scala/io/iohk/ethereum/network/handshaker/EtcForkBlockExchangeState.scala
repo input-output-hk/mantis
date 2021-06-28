@@ -52,7 +52,7 @@ case class EtcForkBlockExchangeState(
 
     case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
       log.debug("Received request for fork block")
-      blockchain.getBlockHeaderByNumber(number) match {
+      blockchainReader.getBlockHeaderByNumber(number) match {
         case Some(header) => Some(BlockHeaders(Seq(header)))
         case None => Some(BlockHeaders(Nil))
       }

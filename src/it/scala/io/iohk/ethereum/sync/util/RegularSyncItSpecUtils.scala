@@ -65,6 +65,7 @@ object RegularSyncItSpecUtils {
           vm,
           storagesInstance.storages.evmCodeStorage,
           bl,
+          blockchainReader,
           blockchainConfig,
           fullConfig,
           ValidatorsExecutorAlwaysSucceed,
@@ -83,6 +84,7 @@ object RegularSyncItSpecUtils {
     lazy val ledger: Ledger =
       new LedgerImpl(
         bl,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         syncConfig,
@@ -90,7 +92,7 @@ object RegularSyncItSpecUtils {
         Scheduler.global
       )
 
-    lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
+    lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 
     lazy val pendingTransactionsManager: ActorRef = system.actorOf(
       PendingTransactionsManager.props(TxPoolConfig(config), peerManager, etcPeerManager, peerEventBus),
@@ -156,7 +158,9 @@ object RegularSyncItSpecUtils {
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
       Task(blockNumber match {
         case Some(bNumber) =>
-          bl.getBlockByNumber(bNumber).getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
+          blockchainReader
+            .getBlockByNumber(bNumber)
+            .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => bl.getBestBlock().get
       }).flatMap { block =>
         Task {
@@ -215,7 +219,7 @@ object RegularSyncItSpecUtils {
       InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
         bl.getBackingMptStorage(block.number),
-        (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
+        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         noEmptyAccounts = false,

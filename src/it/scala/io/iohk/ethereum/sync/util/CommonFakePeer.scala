@@ -14,7 +14,7 @@ import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, ChainWeight, UInt256}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, BlockchainReader, ChainWeight, UInt256}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -115,7 +115,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
-  val bl = BlockchainImpl(storagesInstance.storages)
+  val blockchainReader = BlockchainReader(storagesInstance.storages)
+  val bl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
   val genesis = Block(
@@ -168,7 +169,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val forkResolverOpt: Option[ForkResolver] = None
       override val nodeStatusHolder: AtomicReference[NodeStatus] = nh
       override val peerConfiguration: PeerConfiguration = peerConf
-      override val blockchain: Blockchain = bl
+      override val blockchain: Blockchain = CommonFakePeer.this.bl
+      override val blockchainReader: BlockchainReader = CommonFakePeer.this.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
@@ -205,7 +207,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   val blockchainHost: ActorRef =
     system.actorOf(
-      BlockchainHostActor.props(bl, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
+      BlockchainHostActor
+        .props(blockchainReader, storagesInstance.storages.evmCodeStorage, peerConf, peerEventBus, etcPeerManager),
       "blockchain-host"
     )
 
@@ -244,7 +247,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       bl.getBackingMptStorage(block.number),
-      (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       blockchainConfig.accountStartNonce,
       block.header.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,

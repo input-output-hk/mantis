@@ -23,8 +23,12 @@ import org.bouncycastle.util.encoders.Hex
 import scala.io.Source
 import scala.util.{Failure, Success, Try}
 
-class GenesisDataLoader(blockchain: Blockchain, stateStorage: StateStorage, blockchainConfig: BlockchainConfig)
-    extends Logger {
+class GenesisDataLoader(
+    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
+    stateStorage: StateStorage,
+    blockchainConfig: BlockchainConfig
+) extends Logger {
 
   private val bloomLength = 512
   private val hashLength = 64
@@ -99,7 +103,7 @@ class GenesisDataLoader(blockchain: Blockchain, stateStorage: StateStorage, bloc
 
     log.debug(s"Prepared genesis header: $header")
 
-    blockchain.getBlockHeaderByNumber(0) match {
+    blockchainReader.getBlockHeaderByNumber(0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
         log.debug("Genesis data already in the database")
         Success(())

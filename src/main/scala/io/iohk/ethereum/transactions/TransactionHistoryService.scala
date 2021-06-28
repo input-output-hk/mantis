@@ -20,6 +20,7 @@ import scala.concurrent.duration.FiniteDuration
 
 class TransactionHistoryService(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     pendingTransactionsManager: ActorRef,
     getTransactionFromPoolTimeout: FiniteDuration
 ) extends Logger {
@@ -30,11 +31,13 @@ class TransactionHistoryService(
     val getLastCheckpoint = Task { blockchain.getLatestCheckpointBlockNumber() }.memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
-      .mapParallelOrdered(10)(blockNr => Task { blockchain.getBlockByNumber(blockNr) })(OverflowStrategy.Unbounded)
+      .mapParallelOrdered(10)(blockNr => Task { blockchainReader.getBlockByNumber(blockNr) })(
+        OverflowStrategy.Unbounded
+      )
       .collect { case Some(block) => block }
       .concatMap { block =>
         val getBlockReceipts = Task {
-          blockchain.getReceiptsByHash(block.hash).map(_.toVector).getOrElse(Vector.empty)
+          blockchainReader.getReceiptsByHash(block.hash).map(_.toVector).getOrElse(Vector.empty)
         }.memoizeOnSuccess
 
         Observable

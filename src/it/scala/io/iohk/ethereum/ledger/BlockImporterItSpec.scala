@@ -62,7 +62,7 @@ class BlockImporterItSpec
   val emptyWorld = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingMptStorage(-1),
-    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
     blockchainConfig.accountStartNonce,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,
@@ -85,6 +85,7 @@ class BlockImporterItSpec
     override private[ledger] lazy val blockExecution =
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,

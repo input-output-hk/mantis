@@ -5,13 +5,14 @@ import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage, FastSyncStateStorage, NodeStorage}
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
@@ -79,6 +80,7 @@ class SyncController(
         fastSyncStateStorage,
         appStateStorage,
         blockchain,
+        blockchainReader,
         evmCodeStorage,
         nodeStorage,
         validators,
@@ -124,6 +126,7 @@ object SyncController {
   def props(
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
@@ -140,6 +143,7 @@ object SyncController {
       new SyncController(
         appStateStorage,
         blockchain,
+        blockchainReader,
         evmCodeStorage,
         nodeStorage,
         syncStateStorage,

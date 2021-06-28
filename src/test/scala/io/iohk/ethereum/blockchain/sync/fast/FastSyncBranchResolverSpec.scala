@@ -5,7 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.{BlockHelpers, Fixtures}
 import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.network.{Peer, PeerId}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.must.Matchers
@@ -40,21 +40,23 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
     }
     "correctly discard all blocks after a certain block number" in {
       val mockedBlockchain = mock[BlockchainImpl]
+      val mockedBlockchainReader = mock[BlockchainReader]
 
       val headers = headersMap(amount = 3, parent = Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
 
       inSequence {
         (mockedBlockchain.getBestBlockNumber _).expects().returning(BigInt(100)).once()
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
+        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
         (mockedBlockchain.removeBlock _).expects(headers(100).hash, false).returning(())
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
+        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
         (mockedBlockchain.removeBlock _).expects(headers(99).hash, false).returning(())
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
+        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
         (mockedBlockchain.removeBlock _).expects(headers(98).hash, false).returning(())
       }
 
       val resolver = new FastSyncBranchResolver {
         override val blockchain: Blockchain = mockedBlockchain
+        override val blockchainReader: BlockchainReader = mockedBlockchainReader
       }
       resolver.discardBlocksAfter(97)
     }
@@ -63,7 +65,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
   "RecentBlocksSearch" must {
     "find highest common block header" when {
       "it's at the very end of the search range" in {
-        val mockedBlockchain = mock[BlockchainImpl]
+        val mockedBlockchainReader = mock[BlockchainReader]
 
         // our: [..., 97, 98, 99, *100*]
         // peer: [..., 97, 98, 99, *100*, 101, 102]
@@ -71,15 +73,15 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         val ourBlocks = blocksMap(amount = 3, parent = startBlock)
         val peerBlocks = ourBlocks ++ blocksMap(amount = 1, parent = ourBlocks(100))
 
-        (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+        (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
 
-        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
+        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
         assert(
           recentBlocksSearch.getHighestCommonBlock(peerBlocks.values.map(_.header).toList, 100) === Some(BigInt(100))
         )
       }
       "it's at the very beginning of the search range" in {
-        val mockedBlockchain = mock[BlockchainImpl]
+        val mockedBlockchainReader = mock[BlockchainReader]
 
         val ourBestBlock = 100
         val highestCommonBlock = 97
@@ -91,13 +93,15 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         val peerBlocks = blocksMap(amount = 4, parent = ourBlocks(97)) // 98, 99, 100, 101
 
         inSequence {
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _)
+            .expects(BigInt(100))
+            .returns(ourBlocks.get(100).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
         }
 
-        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
+        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
         assert(
           recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === Some(
             BigInt(highestCommonBlock)
@@ -105,7 +109,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         )
       }
       "it's somewhere in the middle" in {
-        val mockedBlockchain = mock[BlockchainImpl]
+        val mockedBlockchainReader = mock[BlockchainReader]
 
         val ourBestBlock = 100
         val highestCommonBlock = 98
@@ -118,17 +122,19 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         val peerBlocks = blocksMap(amount = 3, parent = commonBlocks(highestCommonBlock))
 
         inSequence {
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-          (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _)
+            .expects(BigInt(100))
+            .returns(ourBlocks.get(100).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+          (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
         }
 
-        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
+        val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
         assert(recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === Some(BigInt(98)))
       }
     }
     "return None if there's no common block header" in {
-      val mockedBlockchain = mock[BlockchainImpl]
+      val mockedBlockchainReader = mock[BlockchainReader]
 
       val ourBestBlock = 100
 
@@ -139,13 +145,13 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val ourBlocks = blocksMap(amount = 5, parent = startBlock)
       val peerBlocks = blocksMap(amount = 5, parent = divergedStartBlock)
 
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
-      (mockedBlockchain.getBlockHeaderByNumber _).expects(BigInt(96)).returns(ourBlocks.get(96).map(_.header))
+      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returns(ourBlocks.get(100).map(_.header))
+      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returns(ourBlocks.get(99).map(_.header))
+      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returns(ourBlocks.get(98).map(_.header))
+      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(97)).returns(ourBlocks.get(97).map(_.header))
+      (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(96)).returns(ourBlocks.get(96).map(_.header))
 
-      val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchain)
+      val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(mockedBlockchainReader)
       assert(recentBlocksSearch.getHighestCommonBlock(headersList(peerBlocks), ourBestBlock) === None)
     }
   }

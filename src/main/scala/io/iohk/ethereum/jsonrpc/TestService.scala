@@ -9,7 +9,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.{StateStorage, TransactionMappingStorage}
 import io.iohk.ethereum.{crypto, domain, rlp}
 import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, UInt256}
+import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, BlockchainReader, UInt256}
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.testmode.{SealEngineType, TestModeComponentsProvider}
 import io.iohk.ethereum.transactions.PendingTransactionsManager
@@ -111,6 +111,7 @@ object TestService {
 
 class TestService(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
@@ -158,7 +159,7 @@ class TestService(
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, stateStorage, currentConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -259,7 +260,7 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
-      blockchain.removeBlock(blockchain.getBlockHeaderByNumber(n).get.hash, withState = false)
+      blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     RewindToBlockResponse().rightNow
   }
@@ -335,7 +336,10 @@ class TestService(
     // It might not cover all the cases as an account created inside a transaction won't be there.
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchain.getBlockByNumber(number), blockHash => blockchain.getBlockByHash(blockHash))
+      .fold(
+        number => blockchainReader.getBlockByNumber(number),
+        blockHash => blockchainReader.getBlockByHash(blockHash)
+      )
 
     if (blockOpt.isEmpty) {
       AccountsInRangeResponse(Map(), ByteString(0)).rightNow
@@ -372,7 +376,7 @@ class TestService(
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchain.getBlockByNumber(number), hash => blockchain.getBlockByHash(hash))
+      .fold(number => blockchainReader.getBlockByNumber(number), hash => blockchainReader.getBlockByHash(hash))
 
     (for {
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
@@ -413,9 +417,9 @@ class TestService(
 
     val result = for {
       transactionLocation <- transactionMappingStorage.get(request.transactionHash)
-      block <- blockchain.getBlockByHash(transactionLocation.blockHash)
+      block <- blockchainReader.getBlockByHash(transactionLocation.blockHash)
       _ <- block.body.transactionList.lift(transactionLocation.txIndex)
-      receipts <- blockchain.getReceiptsByHash(block.header.hash)
+      receipts <- blockchainReader.getReceiptsByHash(block.header.hash)
       logs = receipts.flatMap(receipt => receipt.logs)
       rlpList: RLPList = RLPList(logs.map(_.toRLPEncodable).toList: _*)
     } yield ByteString(crypto.kec256(rlp.encode(rlpList)))

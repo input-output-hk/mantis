@@ -66,9 +66,9 @@ class FilterManagerSpec
     val bh3 = blockHeader.copy(number = 3, logsBloom = BloomFilter.create(Nil))
 
     (blockchain.getBestBlockNumber _).expects().returning(3).twice()
-    (blockchain.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
-    (blockchain.getBlockHeaderByNumber _).expects(bh2.number).returning(Some(bh2))
-    (blockchain.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
+    (blockchainReader.getBlockHeaderByNumber _).expects(bh1.number).returning(Some(bh1))
+    (blockchainReader.getBlockHeaderByNumber _).expects(bh2.number).returning(Some(bh2))
+    (blockchainReader.getBlockHeaderByNumber _).expects(bh3.number).returning(Some(bh3))
 
     val bb2 = BlockBody(
       transactionList = Seq(
@@ -87,8 +87,8 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getBlockBodyByHash _).expects(bh2.hash).returning(Some(bb2))
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh2.hash)
       .returning(
         Some(
@@ -146,7 +146,7 @@ class FilterManagerSpec
 
     val bh4 = blockHeader.copy(number = 4, logsBloom = BloomFilter.create(Seq(log4_1, log4_2)))
 
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(4)).returning(Some(bh4))
+    (blockchainReader.getBlockHeaderByNumber _).expects(BigInt(4)).returning(Some(bh4))
 
     val bb4 = BlockBody(
       transactionList = Seq(
@@ -176,8 +176,8 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getBlockBodyByHash _).expects(bh4.hash).returning(Some(bb4))
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh4.hash)
       .returning(
         Some(
@@ -233,7 +233,7 @@ class FilterManagerSpec
     val bh = blockHeader.copy(number = 1, logsBloom = BloomFilter.create(logs))
 
     (blockchain.getBestBlockNumber _).expects().returning(1).anyNumberOfTimes()
-    (blockchain.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
+    (blockchainReader.getBlockHeaderByNumber _).expects(bh.number).returning(Some(bh))
     val bb = BlockBody(
       transactionList = Seq(
         SignedTransaction(
@@ -251,8 +251,8 @@ class FilterManagerSpec
       uncleNodesList = Nil
     )
 
-    (blockchain.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
-    (blockchain.getReceiptsByHash _)
+    (blockchainReader.getBlockBodyByHash _).expects(bh.hash).returning(Some(bb))
+    (blockchainReader.getReceiptsByHash _)
       .expects(bh.hash)
       .returning(
         Some(
@@ -360,9 +360,9 @@ class FilterManagerSpec
     val bh5 = blockHeader.copy(number = 5)
     val bh6 = blockHeader.copy(number = 6)
 
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(4)).returning(Some(bh4))
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(5)).returning(Some(bh5))
-    (blockchain.getBlockHeaderByNumber _).expects(BigInt(6)).returning(Some(bh6))
+    (blockchainReader.getBlockHeaderByNumber _).expects(BigInt(4)).returning(Some(bh4))
+    (blockchainReader.getBlockHeaderByNumber _).expects(BigInt(5)).returning(Some(bh5))
+    (blockchainReader.getBlockHeaderByNumber _).expects(BigInt(6)).returning(Some(bh6))
 
     val getChangesRes =
       (filterManager ? FilterManager.GetFilterChanges(createResp.id))
@@ -483,8 +483,8 @@ class FilterManagerSpec
 
     val time = new VirtualTime
 
+    val blockchainReader = mock[BlockchainReader]
     val blockchain = mock[BlockchainImpl]
-    val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
     val blockGenerator = mock[BlockGenerator]
     val pendingTransactionsManager = TestProbe()
@@ -515,8 +515,8 @@ class FilterManagerSpec
       Props(
         new FilterManager(
           blockchain,
+          blockchainReader,
           blockGenerator,
-          appStateStorage,
           keyStore,
           pendingTransactionsManager.ref,
           config,
