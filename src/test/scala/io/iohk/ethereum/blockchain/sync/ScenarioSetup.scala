@@ -87,6 +87,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
     new LedgerImpl(
       blockchain = blockchain,
       blockchainReader = blockchainReader,
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
@@ -97,6 +98,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
     new LedgerImpl(
       blockchain = blockchain,
       blockchainReader = blockchainReader,
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,
@@ -111,6 +113,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with SyncConfigBuilder with 
     new LedgerImpl(
       blockchain = blockchain,
       blockchainReader = blockchainReader,
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       blockchainConfig = blockchainConfig,
       syncConfig = syncConfig,
       theConsensus = consensus,

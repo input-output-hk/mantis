@@ -11,10 +11,11 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{BloomFilter, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{BloomFilter, InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{Config, FilterConfig}
@@ -110,6 +111,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethUserService = new EthUserService(
     blockchain,
     blockchainReader,
+    storagesInstance.storages.evmCodeStorage,
     ledger,
     blockchainConfig
   )
@@ -175,9 +177,11 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   def newJsonRpcRequest(method: String) =
     JsonRpcRequest("2.0", method, None, Some(JInt(1)))
 
-  val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
-    None,
-    UInt256.Zero,
+  val fakeWorld = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getReadOnlyMptStorage(),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+    blockchainConfig.accountStartNonce,
     ByteString.empty,
     noEmptyAccounts = false,
     ethCompatibleStorage = true

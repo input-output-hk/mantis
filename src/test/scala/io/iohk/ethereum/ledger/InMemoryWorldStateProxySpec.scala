@@ -123,15 +123,16 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     validateInitialWorld(persistedWorldState)
 
     // Create a new WS instance based on storages and new root state and check
-    val newWorldState =
-      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
-        .getWorldStateProxy(
-          -1,
-          UInt256.Zero,
-          persistedWorldState.stateRootHash,
-          noEmptyAccounts = true,
-          ethCompatibleStorage = true
-        )
+    val newWorldState = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      persistedWorldState.stateRootHash,
+      noEmptyAccounts = true,
+      ethCompatibleStorage = true
+    )
+
     validateInitialWorld(newWorldState)
 
     // Update this new WS check everything is ok
@@ -254,14 +255,15 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
 
     val persistedWorldStateWithAnAccount = InMemoryWorldStateProxy.persistState(worldStateWithAnAccount)
 
-    val readWorldState =
-      blockchain.getReadOnlyWorldStateProxy(
-        None,
-        UInt256.Zero,
-        persistedWorldStateWithAnAccount.stateRootHash,
-        noEmptyAccounts = false,
-        ethCompatibleStorage = false
-      )
+    val readWorldState = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getReadOnlyMptStorage(),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      persistedWorldStateWithAnAccount.stateRootHash,
+      noEmptyAccounts = false,
+      ethCompatibleStorage = false
+    )
 
     readWorldState.getAccount(address1) shouldEqual Some(account)
 
@@ -275,13 +277,16 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     )
 
     assertThrows[MPTException] {
-      val newReadWorld = blockchain.getReadOnlyWorldStateProxy(
-        None,
+      val newReadWorld = InMemoryWorldStateProxy(
+        storagesInstance.storages.evmCodeStorage,
+        blockchain.getReadOnlyMptStorage(),
+        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         UInt256.Zero,
         changedReadWorld.stateRootHash,
         noEmptyAccounts = false,
         ethCompatibleStorage = false
       )
+
       newReadWorld.getAccount(address1) shouldEqual Some(changedAccount)
     }
 
@@ -301,8 +306,10 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
         .saveStorage(alreadyExistingAddress, worldState.getStorage(alreadyExistingAddress).store(0, 1))
     )
 
-    val world2 = blockchain.getWorldStateProxy(
-      -1,
+    val world2 = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       world1.stateRootHash,
       noEmptyAccounts = false,
@@ -325,16 +332,20 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
-    val worldState =
-      blockchain.getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
-    val postEIP161WorldState = blockchain.getWorldStateProxy(
-      -1,
+    val worldState = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
+
+    val postEIP161WorldState = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = postEip161Config.noEmptyAccounts,

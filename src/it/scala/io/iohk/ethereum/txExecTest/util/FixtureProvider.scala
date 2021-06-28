@@ -71,6 +71,7 @@ object FixtureProvider {
         .get(block.header.hash)
         .map(r => storages.receiptStorage.put(block.header.hash, r))
         .getOrElse(storages.receiptStorage.emptyBatchUpdate)
+
       storages.blockBodiesStorage
         .put(block.header.hash, fixtures.blockBodies(block.header.hash))
         .and(storages.blockHeadersStorage.put(block.header.hash, fixtures.blockHeaders(block.header.hash)))
@@ -204,6 +205,8 @@ object FixtureProvider {
     )
   }
 
-  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = try { f(closeable) }
-  finally { closeable.close() }
+  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = {
+    try { f(closeable) }
+    finally { closeable.close() }
+  }
 }

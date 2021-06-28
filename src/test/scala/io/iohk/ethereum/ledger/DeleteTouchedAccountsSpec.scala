@@ -9,20 +9,15 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.vm.{BlockchainConfigForEvm, EvmConfig}
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFactory {
+class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
   val syncConfig = SyncConfig(Config.config)
 
-  // FIXME Delete
-  // val blockchain = mock[BlockchainImpl]
-
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
-
     val newWorld =
       InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach { a => assert(newWorld.getAccount(a).isDefined) }
@@ -30,7 +25,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "delete no accounts when there are no empty touched accounts" in new TestSetup {
-
     val worldAfterTransfer = worldStatePostEIP161.transfer(validAccountAddress, validAccountAddress2, transferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
@@ -40,7 +34,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "delete touched empty account" in new TestSetup {
-
     val worldAfterTransfer =
       worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
@@ -54,7 +47,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "delete touched empty account after transfer to self" in new TestSetup {
-
     val worldAfterTransfer =
       worldStatePostEIP161.transfer(validEmptyAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 1
@@ -68,7 +60,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "not mark for deletion and delete any account pre EIP161" in new TestSetup {
-
     val worldAfterTransfer =
       worldStatePreEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
@@ -87,7 +78,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "delete multiple touched empty accounts" in new TestSetup {
-
     val worldAfterTransfer =
       worldStatePostEIP161.transfer(validAccountAddress, validEmptyAccountAddress, zeroTransferBalance)
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
@@ -112,7 +102,6 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
   }
 
   it should "not delete touched new account resulting from contract creation (initialised)" in new TestSetup {
-
     val worldAfterInitAndTransfer =
       worldStatePostEIP161
         .initialiseAccount(validCreatedAccountAddress)
@@ -159,35 +148,35 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers with MockFacto
       validEmptyAccountAddress1
     )
 
-    val worldStateWithoutPersist: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
-        .getWorldStateProxy(
-          -1,
-          UInt256.Zero,
-          ByteString(MerklePatriciaTrie.EmptyRootHash),
-          postEip161Config.noEmptyAccounts,
-          ethCompatibleStorage = true
-        )
-        .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
-        .saveAccount(validAccountAddress2, Account(balance = 20))
-        .saveAccount(validAccountAddress3, Account(balance = 30))
-        .saveAccount(validEmptyAccountAddress, Account.empty())
-        .saveAccount(validEmptyAccountAddress1, Account.empty())
+    val worldStateWithoutPersist = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = postEip161Config.noEmptyAccounts,
+      ethCompatibleStorage = true
+    )
+      .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
+      .saveAccount(validAccountAddress2, Account(balance = 20))
+      .saveAccount(validAccountAddress3, Account(balance = 30))
+      .saveAccount(validEmptyAccountAddress, Account.empty())
+      .saveAccount(validEmptyAccountAddress1, Account.empty())
 
-    val worldStateWithoutPersistPreEIP161: InMemoryWorldStateProxy =
-      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
-        .getWorldStateProxy(
-          -1,
-          UInt256.Zero,
-          ByteString(MerklePatriciaTrie.EmptyRootHash),
-          postEip160Config.noEmptyAccounts,
-          ethCompatibleStorage = true
-        )
-        .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
-        .saveAccount(validAccountAddress2, Account(balance = 20))
-        .saveAccount(validAccountAddress3, Account(balance = 30))
-        .saveAccount(validEmptyAccountAddress, Account.empty())
-        .saveAccount(validEmptyAccountAddress1, Account.empty())
+    val worldStateWithoutPersistPreEIP161 = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = postEip160Config.noEmptyAccounts,
+      ethCompatibleStorage = true
+    )
+      .saveAccount(validAccountAddress, Account(balance = validAccountBalance))
+      .saveAccount(validAccountAddress2, Account(balance = 20))
+      .saveAccount(validAccountAddress3, Account(balance = 30))
+      .saveAccount(validEmptyAccountAddress, Account.empty())
+      .saveAccount(validEmptyAccountAddress1, Account.empty())
 
     val transferBalance = 5
     val zeroTransferBalance = 0

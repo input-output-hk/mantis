@@ -11,6 +11,7 @@ import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
@@ -42,6 +43,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   val fakeWorld = mock[InMemoryWorldStateProxy]
   val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
   val ethMiningService: EthMiningService = mock[EthMiningService]
+  val evmCodeStorage: EvmCodeStorage = mock[EvmCodeStorage]
 
   lazy val vm: VMImpl = new VMImpl
 
@@ -77,7 +79,16 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
-    PoWConsensus(vm, blockchain, blockchainReader, blockchainConfig, fullConfig, validators, additionalPoWData)
+    PoWConsensus(
+      vm,
+      evmCodeStorage,
+      blockchain,
+      blockchainReader,
+      blockchainConfig,
+      fullConfig,
+      validators,
+      additionalPoWData
+    )
   }
 
   protected def setBlockForMining(parentBlock: Block, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {

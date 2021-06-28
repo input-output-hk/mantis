@@ -8,7 +8,7 @@ import io.iohk.ethereum.consensus.pow.blocks.Ommers
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.db.storage.{EvmCodeStorage, StateStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
@@ -81,6 +81,7 @@ abstract class BlockGeneratorSkeleton(
   ): BlockHeader
 
   protected def prepareBlock(
+      evmCodeStorage: EvmCodeStorage,
       parent: Block,
       transactions: Seq[SignedTransaction],
       beneficiary: Address,
@@ -96,7 +97,7 @@ abstract class BlockGeneratorSkeleton(
     val body = newBlockBody(transactionsForBlock, x)
     val block = Block(header, body)
 
-    blockPreparator.prepareBlock(block, parent.header, initialWorldStateBeforeExecution) match {
+    blockPreparator.prepareBlock(evmCodeStorage, block, parent.header, initialWorldStateBeforeExecution) match {
       case PreparedBlock(prepareBlock, BlockResult(_, gasUsed, receipts), stateRoot, updatedWorld) =>
         val receiptsLogs: Seq[Array[Byte]] =
           BloomFilter.EmptyBloomFilter.toArray +: receipts.map(_.logsBloomFilter.toArray)

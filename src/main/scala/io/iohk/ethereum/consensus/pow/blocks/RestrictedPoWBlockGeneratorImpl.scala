@@ -10,8 +10,10 @@ import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 class RestrictedPoWBlockGeneratorImpl(
+    evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
@@ -21,6 +23,7 @@ class RestrictedPoWBlockGeneratorImpl(
     minerKeyPair: AsymmetricCipherKeyPair,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends PoWBlockGeneratorImpl(
+      evmCodeStorage,
       validators,
       blockchainReader,
       blockchainConfig,
@@ -47,6 +50,7 @@ class RestrictedPoWBlockGeneratorImpl(
         case Right(_) => ommers
       }
     val prepared = prepareBlock(
+      evmCodeStorage,
       parent,
       transactions,
       beneficiary,

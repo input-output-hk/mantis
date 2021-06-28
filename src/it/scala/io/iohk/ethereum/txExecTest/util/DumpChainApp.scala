@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate}
 import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.{AppStateStorage, MptStorage, StateStorage}
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
 import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey}
@@ -186,22 +186,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
 
-  override def getWorldStateProxy(
-      blockNumber: BigInt,
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy = ???
-
-  override def getReadOnlyWorldStateProxy(
-      blockNumber: Option[BigInt],
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy = ???
-
   def getBestBlockNumber(): BigInt = ???
 
   def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
@@ -219,4 +203,8 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override def genesisHeader: BlockHeader = ???
 
   override def genesisBlock: Block = ???
+
+  override def getBackingMptStorage(blockNumber: BigInt): MptStorage = ???
+
+  override def getReadOnlyMptStorage(): MptStorage = ???
 }

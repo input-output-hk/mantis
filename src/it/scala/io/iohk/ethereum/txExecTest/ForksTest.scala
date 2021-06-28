@@ -8,9 +8,6 @@ import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolic
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.ExecutionContext
-
-// scalastyle:off magic.number
 class ForksTest extends AnyFlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
@@ -52,9 +49,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       ethCompatibleStorage = true,
       treasuryAddress = Address(0)
     )
-
     val noErrors = a[Right[_, Seq[Receipt]]]
-    val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   }
 
   "Ledger" should "execute blocks with respect to forks" in new TestSetup {
@@ -63,7 +58,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
     val startBlock = 1
     val endBlock = 11
 
-    protected val testBlockchainStorages = FixtureProvider.prepareStorages(startBlock, fixtures)
+    protected val testBlockchainStorages = FixtureProvider.prepareStorages(endBlock, fixtures)
 
     (startBlock to endBlock) foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
@@ -72,7 +67,14 @@ class ForksTest extends AnyFlatSpec with Matchers {
       val blockValidation =
         new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
       val blockExecution =
-        new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation)
+        new BlockExecution(
+          blockchain,
+          blockchainReader,
+          testBlockchainStorages.evmCodeStorage,
+          blockchainConfig,
+          consensus.blockPreparator,
+          blockValidation
+        )
       blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }

@@ -9,11 +9,11 @@ import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockchainImpl, UInt256, _}
+import io.iohk.ethereum.domain.{Block, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.Ledger.TxResult
-import io.iohk.ethereum.ledger.{Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import monix.execution.Scheduler.Implicits.global
@@ -95,14 +95,17 @@ class EthServiceSpec
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
-    val txResult = TxResult(
-      BlockchainImpl(storagesInstance.storages, BlockchainReader(storagesInstance.storages))
-        .getWorldStateProxy(-1, UInt256.Zero, ByteString.empty, noEmptyAccounts = false, ethCompatibleStorage = true),
-      123,
-      Nil,
-      ByteString("return_value"),
-      None
+    val worldStateProxy = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      ByteString.empty,
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
     )
+
+    val txResult = TxResult(worldStateProxy, 123, Nil, ByteString("return_value"), None)
     (stxLedger.simulateTransaction _).expects(*, *, *).returning(txResult)
 
     val tx = CallTx(

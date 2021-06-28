@@ -59,14 +59,15 @@ class BlockImporterItSpec
   val pendingTransactionsManagerProbe = TestProbe()
   val supervisor = TestProbe()
 
-  val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getBackingMptStorage(-1),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+    blockchainConfig.accountStartNonce,
+    ByteString(MerklePatriciaTrie.EmptyRootHash),
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val ommersValidator: OmmersValidator = (
@@ -82,7 +83,14 @@ class BlockImporterItSpec
 
   override lazy val ledger = new TestLedgerImpl(successValidators) {
     override private[ledger] lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainReader, blockchainConfig, consensus.blockPreparator, blockValidation) {
+      new BlockExecution(
+        blockchain,
+        blockchainReader,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false
@@ -134,7 +142,7 @@ class BlockImporterItSpec
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
     //ledger with not mocked blockExecution
-    val ledger = new TestLedgerImpl(successValidators)
+    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -246,7 +254,7 @@ class BlockImporterItSpec
     val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
     val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
 
-    val ledger = new TestLedgerImpl(successValidators)
+    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -264,7 +272,6 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
 
     eventually {
-
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
           case BlockFetcher.FetchStateNode(_, _) => true

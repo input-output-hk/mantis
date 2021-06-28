@@ -2,6 +2,7 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
@@ -27,6 +28,7 @@ class BlockPreparator(
     vm: VMImpl,
     signedTxValidator: SignedTransactionValidator,
     blockchain: BlockchainImpl, // FIXME Depend on the interface
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig
 ) extends Logger {
 
@@ -370,6 +372,7 @@ class BlockPreparator(
   }
 
   def prepareBlock(
+      evmCodeStorage: EvmCodeStorage,
       block: Block,
       parent: BlockHeader,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
@@ -377,10 +380,12 @@ class BlockPreparator(
 
     val initialWorld =
       initialWorldStateBeforeExecution.getOrElse(
-        blockchain.getReadOnlyWorldStateProxy(
-          None,
-          blockchainConfig.accountStartNonce,
-          parent.stateRoot,
+        InMemoryWorldStateProxy(
+          evmCodeStorage = evmCodeStorage,
+          mptStorage = blockchain.getReadOnlyMptStorage(),
+          getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+          accountStartNonce = blockchainConfig.accountStartNonce,
+          stateRootHash = parent.stateRoot,
           noEmptyAccounts = EvmConfig.forBlock(block.header.number, blockchainConfig).noEmptyAccounts,
           ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
         )

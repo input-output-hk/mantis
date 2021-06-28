@@ -11,6 +11,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 /** Internal API, used for testing (especially mocks) */
 trait PoWBlockGenerator extends TestBlockGenerator {
@@ -23,6 +24,7 @@ trait PoWBlockGenerator extends TestBlockGenerator {
 }
 
 class PoWBlockGeneratorImpl(
+    evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
@@ -85,6 +87,7 @@ class PoWBlockGeneratorImpl(
     }
 
     val prepared = prepareBlock(
+      evmCodeStorage,
       parent,
       transactions,
       beneficiary,
@@ -103,6 +106,7 @@ class PoWBlockGeneratorImpl(
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): PoWBlockGeneratorImpl =
     new PoWBlockGeneratorImpl(
+      evmCodeStorage,
       validators,
       blockchainReader,
       blockchainConfig,

@@ -14,7 +14,7 @@ import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
 import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
 import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
 import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, BlockchainReader, ChainWeight}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, BlockchainReader, ChainWeight, UInt256}
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -244,10 +244,12 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
 
   private def getMptForBlock(block: Block) = {
-    bl.getWorldStateProxy(
-      blockNumber = block.number,
-      accountStartNonce = blockchainConfig.accountStartNonce,
-      stateRootHash = block.header.stateRoot,
+    InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      bl.getBackingMptStorage(block.number),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      blockchainConfig.accountStartNonce,
+      block.header.stateRoot,
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )

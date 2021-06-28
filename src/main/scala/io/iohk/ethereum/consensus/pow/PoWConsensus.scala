@@ -15,7 +15,8 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.Mi
 import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.Ledger.VMImpl
@@ -30,6 +31,7 @@ import scala.concurrent.duration._
   */
 class PoWConsensus private (
     val vm: VMImpl,
+    evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     val blockchainConfig: BlockchainConfig,
@@ -46,6 +48,7 @@ class PoWConsensus private (
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
+    blockchainReader = blockchainReader,
     blockchainConfig = blockchainConfig
   )
 
@@ -157,10 +160,12 @@ class PoWConsensus private (
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig
         )
 
         new PoWBlockGeneratorImpl(
+          evmCodeStorage = evmCodeStorage,
           validators = _validators,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
@@ -183,6 +188,7 @@ class PoWConsensus private (
 
         new PoWConsensus(
           vm = vm,
+          evmCodeStorage = evmCodeStorage,
           blockchain = blockchain,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
@@ -200,6 +206,7 @@ class PoWConsensus private (
   def withVM(vm: VMImpl): PoWConsensus =
     new PoWConsensus(
       vm = vm,
+      evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
@@ -212,6 +219,7 @@ class PoWConsensus private (
   /** Internal API, used for testing */
   def withBlockGenerator(blockGenerator: TestBlockGenerator): PoWConsensus =
     new PoWConsensus(
+      evmCodeStorage = evmCodeStorage,
       vm = vm,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
@@ -219,14 +227,16 @@ class PoWConsensus private (
       config = config,
       validators = validators,
       blockGenerator = blockGenerator.asInstanceOf[PoWBlockGenerator],
-      difficultyCalculator
+      difficultyCalculator = difficultyCalculator
     )
 
 }
 
 object PoWConsensus {
+  // scalastyle:off method.length
   def apply(
       vm: VMImpl,
+      evmCodeStorage: EvmCodeStorage,
       blockchain: BlockchainImpl,
       blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
@@ -234,28 +244,40 @@ object PoWConsensus {
       validators: ValidatorsExecutor,
       additionalEthashProtocolData: AdditionalPoWProtocolData
   ): PoWConsensus = {
-
     val difficultyCalculator = DifficultyCalculator(blockchainConfig)
-
     val blockPreparator = new BlockPreparator(
       vm = vm,
       signedTxValidator = validators.signedTransactionValidator,
       blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig
     )
-
-    val blockGenerator: PoWBlockGeneratorImpl = buildBlockGenerator(
-      blockchainReader,
-      blockchainConfig,
-      config,
-      validators,
-      additionalEthashProtocolData,
-      difficultyCalculator,
-      blockPreparator
-    )
-
+    val blockGenerator = additionalEthashProtocolData match {
+      case RestrictedPoWMinerData(key) =>
+        new RestrictedPoWBlockGeneratorImpl(
+          evmCodeStorage = evmCodeStorage,
+          validators = validators,
+          blockchainReader = blockchainReader,
+          blockchainConfig = blockchainConfig,
+          consensusConfig = config.generic,
+          blockPreparator = blockPreparator,
+          difficultyCalc = difficultyCalculator,
+          minerKeyPair = key
+        )
+      case NoAdditionalPoWData =>
+        new PoWBlockGeneratorImpl(
+          evmCodeStorage = evmCodeStorage,
+          validators = validators,
+          blockchainReader = blockchainReader,
+          blockchainConfig = blockchainConfig,
+          consensusConfig = config.generic,
+          blockPreparator = blockPreparator,
+          difficultyCalc = difficultyCalculator
+        )
+    }
     new PoWConsensus(
       vm = vm,
+      evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
@@ -264,36 +286,5 @@ object PoWConsensus {
       blockGenerator = blockGenerator,
       difficultyCalculator
     )
-  }
-
-  private def buildBlockGenerator(
-      blockchainReader: BlockchainReader,
-      blockchainConfig: BlockchainConfig,
-      config: FullConsensusConfig[EthashConfig],
-      validators: ValidatorsExecutor,
-      additionalEthashProtocolData: AdditionalPoWProtocolData,
-      difficultyCalculator: DifficultyCalculator,
-      blockPreparator: BlockPreparator
-  ) = additionalEthashProtocolData match {
-    case RestrictedPoWMinerData(key) =>
-      new RestrictedPoWBlockGeneratorImpl(
-        validators = validators,
-        blockchainReader = blockchainReader,
-        blockchainConfig = blockchainConfig,
-        consensusConfig = config.generic,
-        blockPreparator = blockPreparator,
-        difficultyCalc = difficultyCalculator,
-        minerKeyPair = key
-      )
-
-    case NoAdditionalPoWData =>
-      new PoWBlockGeneratorImpl(
-        validators = validators,
-        blockchainReader = blockchainReader,
-        blockchainConfig = blockchainConfig,
-        consensusConfig = config.generic,
-        blockPreparator = blockPreparator,
-        difficultyCalc = difficultyCalculator
-      )
   }
 }

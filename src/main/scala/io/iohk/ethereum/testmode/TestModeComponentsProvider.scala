@@ -2,6 +2,7 @@ package io.iohk.ethereum.testmode
 
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig}
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.Ledger.VMImpl
 import io.iohk.ethereum.ledger.{Ledger, LedgerImpl, StxLedger}
@@ -13,6 +14,7 @@ import monix.execution.Scheduler
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    evmCodeStorage: EvmCodeStorage,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
     consensusConfig: ConsensusConfig,
@@ -24,13 +26,20 @@ class TestModeComponentsProvider(
     new LedgerImpl(
       blockchain,
       blockchainReader,
+      evmCodeStorage,
       blockchainConfig,
       syncConfig,
       consensus(blockchainConfig, sealEngine),
       validationExecutionContext
     )
   def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
-    new StxLedger(blockchain, blockchainConfig, consensus(blockchainConfig, sealEngine).blockPreparator)
+    new StxLedger(
+      blockchain,
+      blockchainReader,
+      evmCodeStorage,
+      blockchainConfig,
+      consensus(blockchainConfig, sealEngine).blockPreparator
+    )
   def consensus(
       blockchainConfig: BlockchainConfig,
       sealEngine: SealEngineType,
@@ -38,7 +47,9 @@ class TestModeComponentsProvider(
   ): TestmodeConsensus =
     new TestmodeConsensus(
       vm,
+      evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       consensusConfig,
       difficultyCalculator,

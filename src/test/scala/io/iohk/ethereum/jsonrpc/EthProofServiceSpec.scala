@@ -276,6 +276,7 @@ class EthProofServiceSpec
     val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
+      storagesInstance.storages.evmCodeStorage,
       ledger,
       blockchainConfig
     )

@@ -25,25 +25,7 @@ trait TestBlockchainBuilder extends BlockchainBuilder {
       appStateStorage = storages.appStateStorage,
       stateStorage = storages.stateStorage,
       blockchainReader = blockchainReader
-    ) {
-      override def getWorldStateProxy(
-          blockNumber: BigInt,
-          accountStartNonce: UInt256,
-          stateRootHash: ByteString,
-          noEmptyAccounts: Boolean,
-          ethCompatibleStorage: Boolean
-      ): InMemoryWorldStateProxy =
-        TestModeWorldStateProxy(
-          evmCodeStorage,
-          stateStorage.getBackingStorage(blockNumber),
-          accountStartNonce,
-          (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
-          stateRootHash,
-          noEmptyAccounts,
-          ethCompatibleStorage,
-          key => preimages.put(crypto.kec256(key.bytes), key)
-        )
-    }
+    )
   }
 
 }

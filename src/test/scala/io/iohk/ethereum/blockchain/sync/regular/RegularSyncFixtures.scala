@@ -161,6 +161,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
         extends LedgerImpl(
           blockchain,
           blockchainReader,
+          storagesInstance.storages.evmCodeStorage,
           blockchainConfig,
           syncConfig,
           consensus,
