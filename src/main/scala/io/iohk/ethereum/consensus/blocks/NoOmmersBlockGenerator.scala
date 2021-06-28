@@ -6,16 +6,16 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 abstract class NoOmmersBlockGenerator(
-    blockchain: Blockchain,
+    evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchain,
       blockchainConfig,
       consensusConfig,
       difficultyCalc,
@@ -50,7 +50,16 @@ abstract class NoOmmersBlockGenerator(
     val blockNumber = pHeader.number + 1
 
     val prepared =
-      prepareBlock(parent, transactions, beneficiary, blockNumber, blockPreparator, x, initialWorldStateBeforeExecution)
+      prepareBlock(
+        evmCodeStorage,
+        parent,
+        transactions,
+        beneficiary,
+        blockNumber,
+        blockPreparator,
+        x,
+        initialWorldStateBeforeExecution
+      )
     cache.updateAndGet((t: List[PendingBlockAndState]) => (prepared :: t).take(blockCacheSize))
 
     prepared

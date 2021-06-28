@@ -3,6 +3,7 @@ package io.iohk.ethereum.ledger
 import akka.util.ByteString
 import cats.data.NonEmptyList
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
@@ -71,6 +72,7 @@ trait Ledger {
   */
 class LedgerImpl(
     blockchain: BlockchainImpl,
+    evmCodeStorage: EvmCodeStorage,
     blockQueue: BlockQueue,
     blockchainConfig: BlockchainConfig,
     theConsensus: Consensus,
@@ -80,11 +82,19 @@ class LedgerImpl(
 
   def this(
       blockchain: BlockchainImpl,
+      evmCodeStorage: EvmCodeStorage,
       blockchainConfig: BlockchainConfig,
       syncConfig: SyncConfig,
       theConsensus: Consensus,
       validationContext: Scheduler
-  ) = this(blockchain, BlockQueue(blockchain, syncConfig), blockchainConfig, theConsensus, validationContext)
+  ) = this(
+    blockchain,
+    evmCodeStorage,
+    BlockQueue(blockchain, syncConfig),
+    blockchainConfig,
+    theConsensus,
+    validationContext
+  )
 
   val consensus: Consensus = theConsensus
 
@@ -94,7 +104,7 @@ class LedgerImpl(
 
   private[ledger] lazy val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
   private[ledger] lazy val blockExecution =
-    new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+    new BlockExecution(blockchain, evmCodeStorage, blockchainConfig, consensus.blockPreparator, blockValidation)
   private[ledger] val branchResolution = new BranchResolution(blockchain)
   private[ledger] val blockImport =
     new BlockImport(

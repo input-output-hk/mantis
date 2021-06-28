@@ -81,7 +81,12 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
     val preparedBlock: Ledger.PreparedBlock =
-      consensus.blockPreparator.prepareBlock(newBlock, genesisBlock.header, None)
+      consensus.blockPreparator.prepareBlock(
+        storagesInstance.storages.evmCodeStorage,
+        newBlock,
+        genesisBlock.header,
+        None
+      )
     val preparedWorld: InMemoryWorldStateProxy = preparedBlock.updatedWorld
     val header: BlockHeader = preparedBlock.block.header.copy(number = 1, stateRoot = preparedBlock.stateRootHash)
 
@@ -143,11 +148,14 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
     treasuryAddress = Address(0)
   )
 
-  override lazy val stxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
+  override lazy val stxLedger =
+    new StxLedger(blockchain, storagesInstance.storages.evmCodeStorage, blockchainConfig, consensus.blockPreparator)
 
   val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(
-      -1,
+    InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       noEmptyAccounts = false,

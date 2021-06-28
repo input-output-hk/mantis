@@ -12,7 +12,7 @@ import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestCon
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.Ledger.{PC, PR, VMImpl}
+import io.iohk.ethereum.ledger.Ledger.{BlockResult, PC, PR, VMImpl}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -82,14 +82,15 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultGasLimit: UInt256 = 1000000
   val defaultValue: BigInt = 1000
 
-  val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-    .getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getBackingMptStorage(-1),
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    UInt256.Zero,
+    ByteString(MerklePatriciaTrie.EmptyRootHash),
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 
   val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
     emptyWorld
@@ -134,13 +135,16 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
-    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
-      -1,
+    val initialWorld = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
+
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld) { case (recWorld, (address, change)) =>
       change match {
         case UpdateBalance(balanceIncrease) =>
@@ -233,15 +237,9 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
   (testBlockchain.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
     .returning(Some(parentBlockHeader))
-  (testBlockchain.getWorldStateProxy _)
-    .expects(
-      proDaoBlock.header.number,
-      proDaoBlockchainConfig.accountStartNonce,
-      Fixtures.Blocks.DaoParentBlock.header.stateRoot,
-      false,
-      true
-    )
-    .returning(worldState)
+  (testBlockchain.getBackingMptStorage _)
+    .expects(*)
+    .returning(storagesInstance.storages.stateStorage.getBackingStorage(1920000))
 }
 
 trait BinarySimulationChopSetup {
@@ -270,16 +268,53 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
+  class TestLedgerImplNotMockedBlockExecution(validators: Validators)(implicit testContext: Scheduler)
       extends LedgerImpl(
         blockchain,
+        storagesInstance.storages.evmCodeStorage,
         blockQueue,
         blockchainConfig,
         consensus.withValidators(validators).withVM(new Mocks.MockVM()),
         testContext
       )
 
+  class TestLedgerImpl(validators: Validators)(implicit testContext: Scheduler)
+      extends LedgerImpl(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockQueue,
+        blockchainConfig,
+        consensus.withValidators(validators).withVM(new Mocks.MockVM()),
+        testContext
+      ) {
+    override private[ledger] lazy val blockExecution =
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      ) {
+        override def executeAndValidateBlock(
+            block: Block,
+            alreadyValidated: Boolean = false
+        ): Either[BlockExecutionError, Seq[Receipt]] = {
+          val emptyWorld = InMemoryWorldStateProxy(
+            storagesInstance.storages.evmCodeStorage,
+            blockchain.getBackingMptStorage(-1),
+            (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+            blockchainConfig.accountStartNonce,
+            ByteString(MerklePatriciaTrie.EmptyRootHash),
+            noEmptyAccounts = false,
+            ethCompatibleStorage = true
+          )
+          Right(BlockResult(emptyWorld).receipts)
+        }
+      }
+  }
+
   override lazy val ledger = new TestLedgerImpl(successValidators)
+  lazy val failingLedger = new TestLedgerImplNotMockedBlockExecution(successValidators)
 
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get

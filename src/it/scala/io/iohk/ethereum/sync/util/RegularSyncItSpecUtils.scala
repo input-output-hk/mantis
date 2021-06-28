@@ -32,11 +32,11 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.def
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.vm.EvmConfig
 import monix.eval.Task
 import monix.execution.Scheduler
 import akka.actor.typed.scaladsl.adapter._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 
 import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
@@ -61,7 +61,15 @@ object RegularSyncItSpecUtils {
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
       val consensus =
-        PoWConsensus(vm, bl, blockchainConfig, fullConfig, ValidatorsExecutorAlwaysSucceed, NoAdditionalPoWData)
+        PoWConsensus(
+          vm,
+          storagesInstance.storages.evmCodeStorage,
+          bl,
+          blockchainConfig,
+          fullConfig,
+          ValidatorsExecutorAlwaysSucceed,
+          NoAdditionalPoWData
+        )
       consensus
     }
 
@@ -73,7 +81,14 @@ object RegularSyncItSpecUtils {
       )
 
     lazy val ledger: Ledger =
-      new LedgerImpl(bl, blockchainConfig, syncConfig, buildEthashConsensus(), Scheduler.global)
+      new LedgerImpl(
+        bl,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        syncConfig,
+        buildEthashConsensus(),
+        Scheduler.global
+      )
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(bl, 1), "ommers-pool")
 
@@ -197,12 +212,14 @@ object RegularSyncItSpecUtils {
     }
 
     private def getMptForBlock(block: Block) = {
-      bl.getWorldStateProxy(
-        blockNumber = block.number,
-        accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = block.header.stateRoot,
-        noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
-        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+      InMemoryWorldStateProxy(
+        storagesInstance.storages.evmCodeStorage,
+        bl.getBackingMptStorage(block.number),
+        (number: BigInt) => bl.getBlockHeaderByNumber(number).map(_.hash),
+        UInt256.Zero,
+        ByteString(MerklePatriciaTrie.EmptyRootHash),
+        noEmptyAccounts = false,
+        ethCompatibleStorage = true
       )
     }
 

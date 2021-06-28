@@ -6,14 +6,16 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie}
 import org.scalatest.concurrent.ScalaFutures
-import scala.concurrent.duration._
-import scala.language.postfixOps
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
@@ -46,14 +48,6 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
-    val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
 
     // Just to bypass metrics needs
     (blockchain.getBlockByHash _).expects(*).returning(None)
@@ -62,7 +56,9 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
-    (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
+    (blockchain.getBackingMptStorage _)
+      .expects(*)
+      .returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
 
@@ -84,20 +80,22 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .returning(Some(Leaf(hash, currentWeight.increase(block.header))))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
-    val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
+    val mptStorage = mock[MptStorage]
+    val mptNode = LeafNode(
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      Some(MerklePatriciaTrie.EmptyRootHash),
+      Some(MerklePatriciaTrie.EmptyRootHash)
+    )
 
     (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
-    (blockchain.getWorldStateProxy _).expects(*, *, *, *, *).returning(emptyWorld)
-    (blockQueue.removeSubtree _).expects(hash)
+    (blockchain.getBlockHeaderByNumber _).expects(*).returning(Some(block.header))
+    (blockchain.getBackingMptStorage _).expects(*).returning(mptStorage)
+    (mptStorage.get _).expects(*).returning(mptNode)
 
-    whenReady(ledger.importBlock(block).runToFuture) { _ shouldBe a[BlockImportFailed] }
+    (blockQueue.removeSubtree _).expects(*)
+
+    whenReady(failingLedger.importBlock(block).runToFuture) { _ shouldBe a[BlockImportFailed] }
   }
 
   // scalastyle:off magic.number
@@ -239,7 +237,14 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
+      new LedgerImpl(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockQueue,
+        blockchainConfig,
+        newConsensus,
+        scheduler
+      )
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)
@@ -261,7 +266,14 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val newConsensus: TestConsensus = consensus.withValidators(validators).withVM(new Mocks.MockVM())
     val ledgerWithMockedValidators =
-      new LedgerImpl(blockchain, blockQueue, blockchainConfig, newConsensus, scheduler)
+      new LedgerImpl(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockQueue,
+        blockchainConfig,
+        newConsensus,
+        scheduler
+      )
 
     val newBlock: Block = getBlock(number = bestNum + 1)
     setBlockExists(newBlock, inChain = false, inQueue = false)

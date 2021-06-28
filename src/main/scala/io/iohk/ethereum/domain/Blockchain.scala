@@ -108,6 +108,19 @@ trait Blockchain {
   ): StorageProof
 
   /**
+    * Get the MptStorage
+    * @param blockNumber
+    * @return MptStorage
+    */
+  def getBackingMptStorage(blockNumber: BigInt): MptStorage
+
+  /** Get the MptStorage for read-only
+    *
+    * @return MptStorage
+    */
+  def getReadOnlyMptStorage(): MptStorage
+
+  /**
     * Returns the receipts based on a block hash
     * @param blockhash
     * @return Receipts if found
@@ -183,22 +196,6 @@ trait Blockchain {
   def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
 
   def genesisBlock: Block = getBlockByNumber(0).get
-
-  def getWorldStateProxy(
-      blockNumber: BigInt,
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): WS
-
-  def getReadOnlyWorldStateProxy(
-      blockNumber: Option[BigInt],
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): WS
 
   /**
     * Strict check if given block hash is in chain
@@ -324,6 +321,10 @@ class BlockchainImpl(
     val proof: Option[Vector[MptNode]] = mpt.getProof(position)
     StorageProof(position, value, proof)
   }
+
+  def getBackingMptStorage(blockNumber: BigInt): MptStorage = stateStorage.getBackingStorage(blockNumber)
+
+  def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
   private def persistBestBlocksData(): Unit = {
     val currentBestBlockNumber = getBestBlockNumber()
@@ -534,41 +535,6 @@ class BlockchainImpl(
 
   override type S = InMemoryWorldStateProxyStorage
   override type WS = InMemoryWorldStateProxy
-
-  override def getWorldStateProxy(
-      blockNumber: BigInt,
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy =
-    InMemoryWorldStateProxy(
-      evmCodeStorage,
-      stateStorage.getBackingStorage(blockNumber),
-      accountStartNonce,
-      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash,
-      noEmptyAccounts,
-      ethCompatibleStorage
-    )
-
-  //FIXME Maybe we can use this one in regular execution too and persist underlying storage when block execution is successful
-  override def getReadOnlyWorldStateProxy(
-      blockNumber: Option[BigInt],
-      accountStartNonce: UInt256,
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy =
-    InMemoryWorldStateProxy(
-      evmCodeStorage,
-      stateStorage.getReadOnlyStorage,
-      accountStartNonce,
-      (number: BigInt) => getBlockHeaderByNumber(number).map(_.hash),
-      stateRootHash,
-      noEmptyAccounts = noEmptyAccounts,
-      ethCompatibleStorage = ethCompatibleStorage
-    )
 }
 
 trait BlockchainStorages {
