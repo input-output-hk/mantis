@@ -349,7 +349,41 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   lazy val failLedger = mkBlockImport(validators = FailHeaderValidation)
 
-  lazy val ledgerNotFailingAfterExecValidation = mkBlockImport(validators = NotFailAfterExecValidation)
+  lazy val ledgerNotFailingAfterExecValidation = {
+    val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
+    new BlockImport(
+      blockchain,
+      blockchainReader,
+      blockQueue,
+      blockValidation,
+      new BlockExecution(
+        blockchain,
+        blockchainReader,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensuz.blockPreparator,
+        blockValidation
+      ) {
+        override def executeAndValidateBlock(
+            block: Block,
+            alreadyValidated: Boolean = false
+        ): Either[BlockExecutionError, Seq[Receipt]] = {
+          val emptyWorld = InMemoryWorldStateProxy(
+            storagesInstance.storages.evmCodeStorage,
+            blockchain.getBackingMptStorage(-1),
+            (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+            blockchainConfig.accountStartNonce,
+            ByteString(MerklePatriciaTrie.EmptyRootHash),
+            noEmptyAccounts = false,
+            ethCompatibleStorage = true
+          )
+          Right(BlockResult(emptyWorld).receipts)
+        }
+      },
+      Scheduler(system.dispatchers.lookup("validation-context"))
+    )
+  }
 }
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>

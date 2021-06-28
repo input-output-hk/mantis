@@ -61,7 +61,6 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
-
     whenReady(ledgerNotFailingAfterExecValidation.importBlock(block).runToFuture) {
       _ shouldEqual BlockImportedToTop(List(blockData))
     }
