@@ -563,6 +563,7 @@ class PeerActorSpec
       override val nodeStatusHolder: AtomicReference[NodeStatus] = self.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = self.peerConf
       override val blockchain: Blockchain = self.blockchain
+      override val blockchainReader: BlockchainReader = self.blockchainReader
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = List(protocol)
     }

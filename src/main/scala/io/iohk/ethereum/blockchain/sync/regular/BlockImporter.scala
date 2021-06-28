@@ -316,28 +316,6 @@ class BlockImporter(
 }
 
 object BlockImporter {
-  def props(
-      fetcher: ActorRef,
-      blockImport: BlockImport,
-      blockchain: Blockchain,
-      syncConfig: SyncConfig,
-      ommersPool: ActorRef,
-      broadcaster: ActorRef,
-      pendingTransactionsManager: ActorRef,
-      supervisor: ActorRef
-  ): Props =
-    props(
-      fetcher,
-      blockImport,
-      blockchain,
-      new BranchResolution(blockchain),
-      syncConfig,
-      ommersPool,
-      broadcaster,
-      pendingTransactionsManager,
-      supervisor
-    )
-
   // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,

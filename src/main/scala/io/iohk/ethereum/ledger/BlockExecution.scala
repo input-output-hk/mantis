@@ -13,6 +13,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
@@ -59,13 +60,13 @@ class BlockExecution(
   /** Executes a block (executes transactions and pays rewards) */
   private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
     for {
-      parentHeader <- blockchain
+      parentHeader <- blockchainReader
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
       initialWorld = InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         blockchain.getBackingMptStorage(block.header.number),
-        (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = parentHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,

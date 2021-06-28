@@ -168,14 +168,14 @@ class EthashBlockHeaderValidatorSpec
       .storeBlockHeader(validParentBlockHeader)
       .and(blockchain.storeBlockBody(validParentBlockHeader.hash, validParentBlockBody))
       .commit()
-    powBlockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
+    powBlockHeaderValidator.validate(validBlockHeader, blockchainReader.getBlockHeaderByHash _) match {
       case Right(_) => succeed
       case _ => fail()
     }
   }
 
   it should "return a failure if the parent's header is not in storage" in new EphemBlockchainTestSetup {
-    powBlockHeaderValidator.validate(validBlockHeader, blockchain.getBlockHeaderByHash _) match {
+    powBlockHeaderValidator.validate(validBlockHeader, blockchainReader.getBlockHeaderByHash _) match {
       case Left(HeaderParentNotFoundError) => succeed
       case _ => fail()
     }

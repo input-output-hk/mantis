@@ -16,6 +16,7 @@ import scala.concurrent.ExecutionContext
 
 class BlockImport(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     private[ledger] val blockExecution: BlockExecution,
@@ -70,7 +71,9 @@ class BlockImport(
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
-    blockchain.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(hash)
+    blockchainReader.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(
+      hash
+    )
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
@@ -79,9 +82,9 @@ class BlockImport(
   private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
     importResult match {
       case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchain.getBlockByHash))
+        blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchainReader.getBlockByHash))
       case ChainReorganised(_, newBranch, _) =>
-        newBranch.foreach(block => BlockMetrics.measure(block, blockchain.getBlockByHash))
+        newBranch.foreach(block => BlockMetrics.measure(block, blockchainReader.getBlockByHash))
       case _ => ()
     }
   }
@@ -303,7 +306,7 @@ class BlockImport(
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
     def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] = {
-      blockchain.getBlockByNumber(fromNumber) match {
+      blockchainReader.getBlockByNumber(fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
 
@@ -311,7 +314,7 @@ class BlockImport(
           val hash = block.header.hash
 
           val blockDataOpt = for {
-            receipts <- blockchain.getReceiptsByHash(hash)
+            receipts <- blockchainReader.getReceiptsByHash(hash)
             weight <- blockchain.getChainWeightByHash(hash)
           } yield BlockData(block, receipts, weight)
 

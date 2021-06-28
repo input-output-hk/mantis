@@ -47,7 +47,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
-      blockchain.getBlockHeaderByHash
+      blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
@@ -74,7 +74,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
-      blockchain.getBlockHeaderByHash
+      blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
@@ -155,7 +155,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
-      blockchain.getBlockHeaderByHash
+      blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
 
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
@@ -194,7 +194,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     validators.blockHeaderValidator.validate(
       fullBlock.header,
-      blockchain.getBlockHeaderByHash
+      blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
@@ -245,6 +245,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     override lazy val blockExecution =
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -276,7 +277,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       )
     validators.blockHeaderValidator.validate(
       fullBlock.header,
-      blockchain.getBlockHeaderByHash
+      blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(generalTx)
@@ -327,6 +328,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     override lazy val blockExecution =
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -379,7 +381,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           gasLimit = generatedBlockGasLimit
         )
       )
-    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
+    validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
@@ -416,7 +418,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           gasLimit = generatedBlockGasLimit
         )
       )
-    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
+    validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
@@ -466,7 +468,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         gasLimit = generatedBlockGasLimit
       )
     )
-    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
+    validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
@@ -503,7 +505,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         gasLimit = generatedBlockGasLimit
       )
     )
-    validators.blockHeaderValidator.validate(fullBlock.header, blockchain.getBlockHeaderByHash) shouldBe Right(
+    validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
@@ -703,7 +705,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
     override lazy val blockchainConfig = baseBlockchainConfig
 
-    val genesisDataLoader = new GenesisDataLoader(blockchain, storagesInstance.storages.stateStorage, blockchainConfig)
+    val genesisDataLoader =
+      new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
     val bestBlock = blockchain.getBestBlock()
@@ -720,10 +723,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
-    lazy val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
+    lazy val blockValidation =
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
     lazy val blockExecution =
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,

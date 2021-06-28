@@ -137,6 +137,7 @@ class EthUserServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     lazy val ethUserService = new EthUserService(
       blockchain,
+      blockchainReader,
       consensus,
       storagesInstance.storages.evmCodeStorage,
       blockchainConfig

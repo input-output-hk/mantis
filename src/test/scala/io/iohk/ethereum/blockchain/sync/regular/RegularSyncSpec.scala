@@ -446,6 +446,7 @@ class RegularSyncSpec
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         override lazy val blockImport: BlockImport = stub[BlockImport]
 
+        override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
@@ -458,7 +459,7 @@ class RegularSyncSpec
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
         (blockchain.getBestBlockNumber _).when().returns(0)
-        (blockchain.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
+        (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
           .onCall((hash, encoded, totalDifficulty) => {
@@ -869,7 +870,7 @@ class RegularSyncSpec
       }
     }
 
-    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl]) {
+    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl], stub[BlockchainReader]) {
       override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
         val importedHashes = importedBlocksSet.map(_.hash).toSet
 

@@ -17,8 +17,8 @@ import scala.util.Random
 
 class FilterManager(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockGenerator: BlockGenerator,
-    appStateStorage: AppStateStorage,
     keyStore: KeyStore,
     pendingTransactionsManager: ActorRef,
     filterConfig: FilterConfig,
@@ -120,20 +120,20 @@ class FilterManager(
       if (currentBlockNumber > toBlockNumber) {
         logsSoFar
       } else {
-        blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
+        blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match {
           case Some(header)
               if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(
                 header.logsBloom,
                 bytesToCheckInBloomFilter
               ) =>
-            blockchain.getReceiptsByHash(header.hash) match {
+            blockchainReader.getReceiptsByHash(header.hash) match {
               case Some(receipts) =>
                 recur(
                   currentBlockNumber + 1,
                   toBlockNumber,
                   logsSoFar ++ getLogsFromBlock(
                     filter,
-                    Block(header, blockchain.getBlockBodyByHash(header.hash).get),
+                    Block(header, blockchainReader.getBlockBodyByHash(header.hash).get),
                     receipts
                   )
                 )
@@ -237,7 +237,7 @@ class FilterManager(
       if (currentBlockNumber > bestBlock) {
         hashesSoFar
       } else
-        blockchain.getBlockHeaderByNumber(currentBlockNumber) match {
+        blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match {
           case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
           case None => hashesSoFar
         }
@@ -275,8 +275,8 @@ class FilterManager(
 object FilterManager {
   def props(
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       blockGenerator: BlockGenerator,
-      appStateStorage: AppStateStorage,
       keyStore: KeyStore,
       pendingTransactionsManager: ActorRef,
       filterConfig: FilterConfig,
@@ -285,8 +285,8 @@ object FilterManager {
     Props(
       new FilterManager(
         blockchain,
+        blockchainReader,
         blockGenerator,
-        appStateStorage,
         keyStore,
         pendingTransactionsManager,
         filterConfig,

@@ -62,7 +62,7 @@ class BlockImporterItSpec
   val emptyWorld = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingMptStorage(-1),
-    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
     blockchainConfig.accountStartNonce,
     ByteString(MerklePatriciaTrie.EmptyRootHash),
     noEmptyAccounts = false,
@@ -86,10 +86,11 @@ class BlockImporterItSpec
     blockExecutionOpt = Some(
       new BlockExecution(
         blockchain,
+        blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
-        new BlockValidation(consensus, blockchain, blockQueue)
+        new BlockValidation(consensus, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,
@@ -106,6 +107,7 @@ class BlockImporterItSpec
       fetcherProbe.ref,
       blockImport,
       blockchain,
+      new BranchResolution(blockchain, blockchainReader),
       syncConfig,
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
@@ -148,6 +150,7 @@ class BlockImporterItSpec
         fetcherProbe.ref,
         mkBlockImport(validators = successValidators),
         blockchain,
+        new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
@@ -259,6 +262,7 @@ class BlockImporterItSpec
         fetcherProbe.ref,
         mkBlockImport(validators = successValidators),
         blockchain,
+        new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,

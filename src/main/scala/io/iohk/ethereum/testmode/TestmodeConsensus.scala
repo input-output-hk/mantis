@@ -9,7 +9,7 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, M
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, Receipt}
+import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, BlockchainReader, Receipt}
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.nodebuilder._
@@ -22,6 +22,7 @@ class TestmodeConsensus(
     override val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val difficultyCalculator: DifficultyCalculator,
@@ -75,6 +76,7 @@ class TestmodeConsensus(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
+    blockchainReader = blockchainReader,
     blockchainConfig = blockchainConfig
   ) {
     override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
@@ -126,6 +128,7 @@ trait TestmodeConsensusBuilder extends ConsensusBuilder {
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,
+    blockchainReader,
     blockchainConfig,
     consensusConfig,
     DifficultyCalculator(blockchainConfig),

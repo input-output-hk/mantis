@@ -20,14 +20,14 @@ class BranchResolutionSpec
   "BranchResolution" should {
 
     "check if headers are from chain" in new BlockchainSetup {
-      val branchResolution = new BranchResolution(blockchain)
+      val branchResolution = new BranchResolution(blockchain, blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
       branchResolution.doHeadersFormChain(NonEmptyList.of(parent, child)) shouldBe true
     }
 
     "check if headers are not from chain" in new BlockchainSetup {
-      val branchResolution = new BranchResolution(blockchain)
+      val branchResolution = new BranchResolution(blockchain, blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val otherParent: BlockHeader = defaultBlockHeader.copy(number = 3)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
@@ -190,7 +190,7 @@ class BranchResolutionSpec
   }
 
   trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain {
-    val branchResolution = new BranchResolution(blockchain)
+    val branchResolution = new BranchResolution(blockchain, blockchainReader)
   }
 
 }

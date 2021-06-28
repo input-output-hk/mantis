@@ -7,7 +7,7 @@ import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, Respo
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor._
 import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg, PeerRequestHandler}
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
@@ -25,6 +25,7 @@ class FastSyncBranchResolverActor(
     val peerEventBus: ActorRef,
     val etcPeerManager: ActorRef,
     val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
     val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     val appStateStorage: AppStateStorage,
@@ -41,7 +42,7 @@ class FastSyncBranchResolverActor(
 
   private val recentHeadersSize: Int = syncConfig.blockHeadersPerRequest
 
-  private val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(blockchain)
+  private val recentBlocksSearch: RecentBlocksSearch = new RecentBlocksSearch(blockchainReader)
 
   override def receive: Receive = waitingForPeerWithHighestBlock
 
@@ -136,7 +137,7 @@ class FastSyncBranchResolverActor(
 
   private def handleBinarySearchBlockHeaderResponse(searchState: SearchState, childHeader: BlockHeader): Unit = {
     import BinarySearchSupport._
-    blockchain.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
+    blockchainReader.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
       case Some(parentHeader) =>
         validateBlockHeaders(parentHeader, childHeader, searchState) match {
           case NoCommonBlock => stopWithFailure(BranchResolutionFailed.noCommonBlock)
@@ -234,11 +235,13 @@ object FastSyncBranchResolverActor {
   protected val peerTerminatedLog: String =
     "Peer request handler [{}] for peer [{}] terminated. Restarting branch resolver."
 
+  // scalastyle:off parameter.number
   def props(
       fastSync: ActorRef,
       peerEventBus: ActorRef,
       etcPeerManager: ActorRef,
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       blacklist: Blacklist,
       syncConfig: SyncConfig,
       appStateStorage: AppStateStorage,
@@ -250,6 +253,7 @@ object FastSyncBranchResolverActor {
         peerEventBus,
         etcPeerManager,
         blockchain,
+        blockchainReader,
         blacklist,
         syncConfig,
         appStateStorage,

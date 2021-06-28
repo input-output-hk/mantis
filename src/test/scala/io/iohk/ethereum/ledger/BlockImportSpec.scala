@@ -50,12 +50,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
 
     // Just to bypass metrics needs
-    (blockchain.getBlockByHash _).expects(*).returning(None)
+    (blockchainReader.getBlockByHash _).expects(*).returning(None)
 
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
-    (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
+    (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
     (blockchain.getBackingMptStorage _)
       .expects(*)
       .returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
@@ -88,8 +88,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       Some(MerklePatriciaTrie.EmptyRootHash)
     )
 
-    (blockchain.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
-    (blockchain.getBlockHeaderByNumber _).expects(*).returning(Some(block.header))
+    (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
+    (blockchainReader.getBlockHeaderByNumber _).expects(*).returning(Some(block.header))
     (blockchain.getBackingMptStorage _).expects(*).returning(mptStorage)
     (mptStorage.get _).expects(*).returning(mptNode)
 

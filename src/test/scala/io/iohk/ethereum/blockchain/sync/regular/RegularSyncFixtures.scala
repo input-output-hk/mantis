@@ -60,7 +60,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
-    lazy val branchResolution = new BranchResolution(blockchain)
+    lazy val branchResolution = new BranchResolution(blockchain, blockchainReader)
 
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
@@ -178,6 +178,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     class TestBlockImport
         extends BlockImport(
           stub[BlockchainImpl],
+          stub[BlockchainReader],
           stub[BlockQueue],
           stub[BlockValidation],
           stub[BlockExecution],

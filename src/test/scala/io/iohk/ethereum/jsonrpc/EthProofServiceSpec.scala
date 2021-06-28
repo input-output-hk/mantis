@@ -254,7 +254,8 @@ class EthProofServiceSpec
     blockchain.storeBlock(newblock).commit()
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
-    val ethGetProof = new EthProofService(blockchain, blockGenerator, blockchainConfig.ethCompatibleStorage)
+    val ethGetProof =
+      new EthProofService(blockchain, blockchainReader, blockGenerator, blockchainConfig.ethCompatibleStorage)
 
     val storageKeys = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
@@ -271,6 +272,7 @@ class EthProofServiceSpec
 
     val ethUserService = new EthUserService(
       blockchain,
+      blockchainReader,
       consensus,
       storagesInstance.storages.evmCodeStorage,
       blockchainConfig

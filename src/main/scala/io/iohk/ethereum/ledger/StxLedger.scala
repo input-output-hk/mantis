@@ -1,13 +1,14 @@
 package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, SignedTransactionWithSender}
+import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, BlockchainReader, SignedTransactionWithSender}
 import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
 
 class StxLedger(
     blockchain: BlockchainImpl,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator
@@ -24,7 +25,7 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber = (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+        getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,

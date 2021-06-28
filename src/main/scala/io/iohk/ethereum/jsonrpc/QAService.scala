@@ -11,7 +11,7 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MineBlocks, MockedMinerResponse, MockedMinerResponses}
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Block, Blockchain, Checkpoint}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, Checkpoint}
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
@@ -21,6 +21,7 @@ import mouse.all._
 class QAService(
     consensus: Consensus,
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     blockchainConfig: BlockchainConfig,
     syncController: ActorRef
@@ -50,7 +51,10 @@ class QAService(
       case Some(hashValue) =>
         Task {
           val parent =
-            blockchain.getBlockByHash(hashValue).orElse(blockchain.getBestBlock()).getOrElse(blockchain.genesisBlock)
+            blockchainReader
+              .getBlockByHash(hashValue)
+              .orElse(blockchain.getBestBlock())
+              .getOrElse(blockchain.genesisBlock)
           val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
           val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, checkpoint)
           syncController ! NewCheckpoint(checkpointBlock)

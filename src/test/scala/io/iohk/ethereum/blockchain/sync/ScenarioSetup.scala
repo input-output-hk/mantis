@@ -79,14 +79,16 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StdLedgerBuilder {
       blockExecutionOpt: Option[BlockExecution] = None
   ): BlockImport = {
     val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(consensuz, blockchain, blockQueue)
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,
+      blockchainReader,
       blockQueue,
       blockValidation,
       blockExecutionOpt.getOrElse(
         new BlockExecution(
           blockchain,
+          blockchainReader,
           storagesInstance.storages.evmCodeStorage,
           blockchainConfig,
           consensuz.blockPreparator,

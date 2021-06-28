@@ -37,6 +37,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
 
   val origin = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
+  val blockchainReader: BlockchainReader = mock[BlockchainReader]
   val blockchain: BlockchainImpl = mock[BlockchainImpl]
   val blockCreator = mock[PoWBlockCreator]
   val fakeWorld = mock[InMemoryWorldStateProxy]
@@ -78,7 +79,16 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
-    PoWConsensus(vm, evmCodeStorage, blockchain, blockchainConfig, fullConfig, validators, additionalPoWData)
+    PoWConsensus(
+      vm,
+      evmCodeStorage,
+      blockchain,
+      blockchainReader,
+      blockchainConfig,
+      fullConfig,
+      validators,
+      additionalPoWData
+    )
   }
 
   protected def setBlockForMining(parentBlock: Block, transactions: Seq[SignedTransaction] = Seq(txToMine)): Block = {

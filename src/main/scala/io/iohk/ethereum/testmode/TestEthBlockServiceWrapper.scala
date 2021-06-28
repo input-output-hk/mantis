@@ -1,6 +1,6 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, SignedTransaction, UInt256}
+import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader, SignedTransaction, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
 import io.iohk.ethereum.jsonrpc.{
   BaseBlockResponse,
@@ -10,11 +10,14 @@ import io.iohk.ethereum.jsonrpc.{
   TransactionData
 }
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.consensus.Consensus
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.Consensus
 
-class TestEthBlockServiceWrapper(blockchain: Blockchain, consensus: Consensus)
-    extends EthBlocksService(blockchain, consensus)
+class TestEthBlockServiceWrapper(
+    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
+    consensus: Consensus
+) extends EthBlocksService(blockchain, blockchainReader, consensus)
     with Logger {
 
   /**
@@ -29,7 +32,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, consensus: Consensus)
     .getByBlockHash(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )
@@ -46,7 +49,7 @@ class TestEthBlockServiceWrapper(blockchain: Blockchain, consensus: Consensus)
     .getBlockByNumber(request)
     .map(
       _.map(blockByBlockResponse => {
-        val fullBlock = blockchain.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       })
     )

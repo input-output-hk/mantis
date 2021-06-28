@@ -3,11 +3,8 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import monix.eval.Task
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, Receipt, SignedTransaction}
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
@@ -16,6 +13,7 @@ import scala.util.Try
 import scala.util.Success
 import scala.util.Failure
 import akka.actor.ActorRef
+
 import scala.concurrent.duration.FiniteDuration
 import io.iohk.ethereum.consensus.Consensus
 
@@ -39,6 +37,7 @@ object EthTxService {
 
 class EthTxService(
     val blockchain: Blockchain,
+    val blockchainReader: BlockchainReader,
     val consensus: Consensus,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
@@ -94,7 +93,7 @@ class EthTxService(
       txPending.orElse {
         for {
           TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(txHash)
-          Block(header, body) <- blockchain.getBlockByHash(blockHash)
+          Block(header, body) <- blockchainReader.getBlockByHash(blockHash)
           stx <- body.transactionList.lift(txIndex)
         } yield TransactionData(stx, Some(header), Some(txIndex))
       }
@@ -105,9 +104,9 @@ class EthTxService(
     Task {
       val result: Option[TransactionReceiptResponse] = for {
         TransactionLocation(blockHash, txIndex) <- transactionMappingStorage.get(req.txHash)
-        Block(header, body) <- blockchain.getBlockByHash(blockHash)
+        Block(header, body) <- blockchainReader.getBlockByHash(blockHash)
         stx <- body.transactionList.lift(txIndex)
-        receipts <- blockchain.getReceiptsByHash(blockHash)
+        receipts <- blockchainReader.getReceiptsByHash(blockHash)
         receipt: Receipt <- receipts.lift(txIndex)
         // another possibility would be to throw an exception and fail hard, as if we cannot calculate sender for transaction
         // included in blockchain it means that something is terribly wrong
@@ -146,7 +145,7 @@ class EthTxService(
   private def getTransactionByBlockHashAndIndex(blockHash: ByteString, transactionIndex: BigInt) =
     Task {
       for {
-        blockWithTx <- blockchain.getBlockByHash(blockHash)
+        blockWithTx <- blockchainReader.getBlockByHash(blockHash)
         blockTxs = blockWithTx.body.transactionList if transactionIndex >= 0 && transactionIndex < blockTxs.size
         transaction <- blockTxs.lift(transactionIndex.toInt)
       } yield TransactionData(transaction, Some(blockWithTx.header), Some(transactionIndex.toInt))
@@ -158,7 +157,7 @@ class EthTxService(
 
     Task {
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
-        .flatMap(blockchain.getBlockByNumber)
+        .flatMap(blockchainReader.getBlockByNumber)
         .flatMap(_.body.transactionList)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {

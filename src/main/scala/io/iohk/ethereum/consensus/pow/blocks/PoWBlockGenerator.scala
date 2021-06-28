@@ -26,7 +26,7 @@ trait PoWBlockGenerator extends TestBlockGenerator {
 class PoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     val blockPreparator: BlockPreparator,
@@ -81,7 +81,7 @@ class PoWBlockGeneratorImpl(
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
 
-    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchain) match {
+    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
       case Left(_) => emptyX
       case Right(_) => x
     }
@@ -108,7 +108,7 @@ class PoWBlockGeneratorImpl(
     new PoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
-      blockchain,
+      blockchainReader,
       blockchainConfig,
       consensusConfig,
       blockPreparator,

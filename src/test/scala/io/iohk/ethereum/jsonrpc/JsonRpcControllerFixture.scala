@@ -80,6 +80,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethInfoService = new EthInfoService(
     blockchain,
+    blockchainReader,
     blockchainConfig,
     consensus,
     stxLedger,
@@ -100,10 +101,11 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, consensus)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus)
 
   val ethTxService = new EthTxService(
     blockchain,
+    blockchainReader,
     consensus,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout,
@@ -112,6 +114,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethUserService = new EthUserService(
     blockchain,
+    blockchainReader,
     consensus,
     storagesInstance.storages.evmCodeStorage,
     blockchainConfig
@@ -181,7 +184,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val fakeWorld = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getReadOnlyMptStorage(),
-    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
     blockchainConfig.accountStartNonce,
     ByteString.empty,
     noEmptyAccounts = false,

@@ -2,10 +2,14 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, Receipt}
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainReader, Receipt}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
-class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: BlockQueue) {
+class BlockValidation(
+    consensus: Consensus,
+    blockchainReader: BlockchainReader,
+    blockQueue: BlockQueue
+) {
 
   def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
     consensus.validators.validateBlockBeforeExecution(
@@ -16,7 +20,7 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
   }
 
   private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
-    blockchain.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
+    blockchainReader.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
   }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
@@ -25,7 +29,7 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
       queuedBlocks
     } else {
       val chainedBlockHash = queuedBlocks.headOption.map(_.header.parentHash).getOrElse(hash)
-      blockchain.getBlockByHash(chainedBlockHash) match {
+      blockchainReader.getBlockByHash(chainedBlockHash) match {
         case None =>
           // The in memory blocks aren't connected to the db ones, we don't have n blocks to return so we return none
           Nil
@@ -35,7 +39,7 @@ class BlockValidation(consensus: Consensus, blockchain: Blockchain, blockQueue: 
           val remaining = n - queuedBlocks.length - 1
 
           val numbers = (block.header.number - remaining) until block.header.number
-          val blocks = (numbers.toList.flatMap(blockchain.getBlockByNumber) :+ block) ::: queuedBlocks
+          val blocks = (numbers.toList.flatMap(blockchainReader.getBlockByNumber) :+ block) ::: queuedBlocks
           blocks
       }
     }

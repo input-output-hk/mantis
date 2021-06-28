@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
@@ -20,7 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.Codes
   * node and block data.
   */
 class BlockchainHostActor(
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     peerConfiguration: PeerConfiguration,
     peerEventBusActor: ActorRef,
@@ -53,7 +53,7 @@ class BlockchainHostActor(
 
       val nodeData: Seq[ByteString] = hashesRequested.flatMap { hash =>
         //Fetch mpt node by hash
-        val maybeMptNodeData = blockchain.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
+        val maybeMptNodeData = blockchainReader.getMptNodeByHash(hash).map(e => e.toBytes: ByteString)
 
         //If no mpt node was found, fetch evm by hash
         maybeMptNodeData.orElse(evmCodeStorage.get(hash))
@@ -74,19 +74,19 @@ class BlockchainHostActor(
     case request: GetReceipts =>
       val receipts = request.blockHashes
         .take(peerConfiguration.fastSyncHostConfiguration.maxReceiptsPerMessage)
-        .flatMap(hash => blockchain.getReceiptsByHash(hash))
+        .flatMap(hash => blockchainReader.getReceiptsByHash(hash))
 
       Some(Receipts(receipts))
 
     case request: GetBlockBodies =>
       val blockBodies = request.hashes
         .take(peerConfiguration.fastSyncHostConfiguration.maxBlocksBodiesPerMessage)
-        .flatMap(hash => blockchain.getBlockBodyByHash(hash))
+        .flatMap(hash => blockchainReader.getBlockBodyByHash(hash))
 
       Some(BlockBodies(blockBodies))
 
     case request: GetBlockHeaders =>
-      val blockNumber = request.block.fold(a => Some(a), b => blockchain.getBlockHeaderByHash(b).map(_.number))
+      val blockNumber = request.block.fold(a => Some(a), b => blockchainReader.getBlockHeaderByHash(b).map(_.number))
 
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
@@ -99,7 +99,7 @@ class BlockchainHostActor(
             startBlockNumber to (startBlockNumber + (request.skip + 1) * headersCount - 1) by (request.skip + 1)
           }
 
-          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => blockchain.getBlockHeaderByNumber(a) }
+          val blockHeaders: Seq[BlockHeader] = range.flatMap { a: BigInt => blockchainReader.getBlockHeaderByNumber(a) }
 
           Some(BlockHeaders(blockHeaders))
 
@@ -117,14 +117,20 @@ class BlockchainHostActor(
 object BlockchainHostActor {
 
   def props(
-      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       peerConfiguration: PeerConfiguration,
       peerEventBusActor: ActorRef,
       etcPeerManagerActor: ActorRef
   ): Props =
     Props(
-      new BlockchainHostActor(blockchain, evmCodeStorage, peerConfiguration, peerEventBusActor, etcPeerManagerActor)
+      new BlockchainHostActor(
+        blockchainReader,
+        evmCodeStorage,
+        peerConfiguration,
+        peerEventBusActor,
+        etcPeerManagerActor
+      )
     )
 
 }

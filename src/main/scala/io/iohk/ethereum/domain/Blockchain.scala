@@ -31,53 +31,6 @@ trait Blockchain {
   type WS <: WorldStateProxy[WS, S]
 
   /**
-    * Allows to query a blockHeader by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[BlockHeader]] if found
-    */
-  def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader]
-
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
-    for {
-      hash <- getHashByBlockNumber(number)
-      header <- getBlockHeaderByHash(hash)
-    } yield header
-  }
-
-  /**
-    * Allows to query a blockBody by block hash
-    *
-    * @param hash of the block that's being searched
-    * @return [[io.iohk.ethereum.domain.BlockBody]] if found
-    */
-  def getBlockBodyByHash(hash: ByteString): Option[BlockBody]
-
-  /**
-    * Allows to query for a block based on it's hash
-    *
-    * @param hash of the block that's being searched
-    * @return Block if found
-    */
-  def getBlockByHash(hash: ByteString): Option[Block] =
-    for {
-      header <- getBlockHeaderByHash(hash)
-      body <- getBlockBodyByHash(hash)
-    } yield Block(header, body)
-
-  /**
-    * Allows to query for a block based on it's number
-    *
-    * @param number Block number
-    * @return Block if it exists
-    */
-  def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- getBlockByHash(hash)
-    } yield block
-
-  /**
     * Get an account for an address and a block number
     *
     * @param address address of the account
@@ -119,20 +72,6 @@ trait Blockchain {
     * @return MptStorage
     */
   def getReadOnlyMptStorage(): MptStorage
-
-  /**
-    * Returns the receipts based on a block hash
-    * @param blockhash
-    * @return Receipts if found
-    */
-  def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]]
-
-  /**
-    * Returns MPT node searched by it's hash
-    * @param hash Node Hash
-    * @return MPT node
-    */
-  def getMptNodeByHash(hash: ByteString): Option[MptNode]
 
   /**
     * Looks up ChainWeight for a given chain
@@ -185,17 +124,9 @@ trait Blockchain {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
-  /**
-    * Returns a block hash given a block number
-    *
-    * @param number Number of the searchead block
-    * @return Block hash if found
-    */
-  protected def getHashByBlockNumber(number: BigInt): Option[ByteString]
+  def genesisHeader: BlockHeader
 
-  def genesisHeader: BlockHeader = getBlockHeaderByNumber(0).get
-
-  def genesisBlock: Block = getBlockByNumber(0).get
+  def genesisBlock: Block
 
   /**
     * Strict check if given block hash is in chain
@@ -203,12 +134,7 @@ trait Blockchain {
     * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
     * @param hash block hash
     */
-  def isInChain(hash: ByteString): Boolean = {
-    (for {
-      header <- getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
-      hash <- getHashByBlockNumber(header.number)
-    } yield header.hash == hash).getOrElse(false)
-  }
+  def isInChain(hash: ByteString): Boolean
 }
 // scalastyle:on
 
@@ -221,7 +147,8 @@ class BlockchainImpl(
     protected val chainWeightStorage: ChainWeightStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
-    protected val stateStorage: StateStorage
+    protected val stateStorage: StateStorage,
+    blockchainReader: BlockchainReader
 ) extends Blockchain
     with Logger {
 
@@ -236,13 +163,12 @@ class BlockchainImpl(
       )
     )
 
-  override def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
-    blockHeadersStorage.get(hash)
-
-  override def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
-    blockBodiesStorage.get(hash)
-
-  override def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
+  override def isInChain(hash: ByteString): Boolean = {
+    (for {
+      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
+      hash <- blockchainReader.getHashByBlockNumber(header.number)
+    } yield header.hash == hash).getOrElse(false)
+  }
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
@@ -267,7 +193,9 @@ class BlockchainImpl(
   override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber) orElse getBlockByNumber(appStateStorage.getBestBlockNumber())
+    blockchainReader.getBlockByNumber(bestBlockNumber) orElse blockchainReader.getBlockByNumber(
+      appStateStorage.getBestBlockNumber()
+    )
   }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
@@ -277,7 +205,7 @@ class BlockchainImpl(
     getAccountMpt(blockNumber) >>= (_.getProof(address))
 
   private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
-    getBlockHeaderByNumber(blockNumber).map { bh =>
+    blockchainReader.getBlockHeaderByNumber(blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
       MerklePatriciaTrie[Address, Account](
         rootHash = bh.stateRoot.toArray,
@@ -374,9 +302,6 @@ class BlockchainImpl(
     blockHeadersStorage.put(hash, blockHeader).and(saveBlockNumberMapping(blockHeader.number, hash))
   }
 
-  override def getMptNodeByHash(hash: ByteString): Option[MptNode] =
-    stateStorage.getNode(hash)
-
   override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = {
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
   }
@@ -408,8 +333,9 @@ class BlockchainImpl(
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
 
-  override protected def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
+  def genesisHeader: BlockHeader = blockchainReader.getBlockHeaderByNumber(0).get
+
+  def genesisBlock: Block = blockchainReader.getBlockByNumber(0).get
 
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
     blockNumberMappingStorage.put(number, hash)
@@ -419,7 +345,7 @@ class BlockchainImpl(
   }
 
   override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
-    val maybeBlock = getBlockByHash(blockHash)
+    val maybeBlock = blockchainReader.getBlockByHash(blockHash)
 
     maybeBlock match {
       case Some(block) => removeBlock(block, withState)
@@ -439,7 +365,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getHashByBlockNumber(block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -509,7 +435,7 @@ class BlockchainImpl(
   ): BigInt = {
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBlockByNumber(blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number
@@ -551,7 +477,7 @@ trait BlockchainStorages {
 }
 
 object BlockchainImpl {
-  def apply(storages: BlockchainStorages): BlockchainImpl =
+  def apply(storages: BlockchainStorages, blockchainReader: BlockchainReader): BlockchainImpl =
     new BlockchainImpl(
       blockHeadersStorage = storages.blockHeadersStorage,
       blockBodiesStorage = storages.blockBodiesStorage,
@@ -561,7 +487,8 @@ object BlockchainImpl {
       chainWeightStorage = storages.chainWeightStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
-      stateStorage = storages.stateStorage
+      stateStorage = storages.stateStorage,
+      blockchainReader = blockchainReader
     )
 
   private case class BestBlockLatestCheckpointNumbers(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt)

@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGeneratorImpl, RestrictedP
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.{ConsensusConfigs, FullConsensusConfig, Protocol}
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.nodebuilder.StdNode
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
@@ -28,6 +28,7 @@ class PoWConsensusSpec
       vm,
       storagesInstance.storages.evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
@@ -44,6 +45,7 @@ class PoWConsensusSpec
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
@@ -61,6 +63,7 @@ class PoWConsensusSpec
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -80,6 +83,7 @@ class PoWConsensusSpec
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -99,6 +103,7 @@ class PoWConsensusSpec
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -118,6 +123,7 @@ class PoWConsensusSpec
       vm,
       evmCodeStorage,
       blockchain,
+      blockchainReader,
       blockchainConfig,
       fullConsensusConfig,
       validator,
@@ -130,6 +136,7 @@ class PoWConsensusSpec
   }
 
   trait TestSetup extends EphemBlockchainTestSetup with MockFactory {
+    override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
     override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val evmCodeStorage: EvmCodeStorage = mock[EvmCodeStorage]
     val validator: ValidatorsExecutor = successValidators.asInstanceOf[ValidatorsExecutor]

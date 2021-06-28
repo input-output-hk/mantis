@@ -15,7 +15,7 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.{
 }
 import io.iohk.ethereum.consensus.pow.{PoWBlockCreator, PoWConsensus}
 import io.iohk.ethereum.consensus.wrongConsensusArgument
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -26,6 +26,7 @@ import scala.concurrent.duration._
 
 class MockedMiner(
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockCreator: PoWBlockCreator,
     syncEventListener: ActorRef
 ) extends Actor
@@ -44,7 +45,7 @@ class MockedMiner(
     case mineBlocks: MineBlocks =>
       mineBlocks.parentBlock match {
         case Some(parentHash) =>
-          blockchain.getBlockByHash(parentHash) match {
+          blockchainReader.getBlockByHash(parentHash) match {
             case Some(parentBlock) => startMiningBlocks(mineBlocks, parentBlock)
             case None =>
               val error = s"Unable to get parent block with hash ${ByteStringUtils.hash2string(parentHash)} for mining"
@@ -110,12 +111,14 @@ object MockedMiner {
 
   private[pow] def props(
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       blockCreator: PoWBlockCreator,
       syncEventListener: ActorRef
   ): Props =
     Props(
       new MockedMiner(
         blockchain,
+        blockchainReader,
         blockCreator,
         syncEventListener
       )
@@ -132,6 +135,7 @@ object MockedMiner {
         )
         val minerProps = props(
           blockchain = node.blockchain,
+          blockchainReader = node.blockchainReader,
           blockCreator = blockCreator,
           syncEventListener = node.syncController
         )

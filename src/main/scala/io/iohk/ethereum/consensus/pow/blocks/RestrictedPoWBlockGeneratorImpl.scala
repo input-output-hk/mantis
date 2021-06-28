@@ -5,7 +5,7 @@ import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, DefaultBlockTi
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.domain.{Address, Block, Blockchain, SignedTransaction}
+import io.iohk.ethereum.domain.{Address, Block, BlockchainReader, SignedTransaction}
 import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
@@ -15,7 +15,7 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage
 class RestrictedPoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val blockPreparator: BlockPreparator,
@@ -25,7 +25,7 @@ class RestrictedPoWBlockGeneratorImpl(
 ) extends PoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
-      blockchain,
+      blockchainReader,
       blockchainConfig,
       consensusConfig,
       blockPreparator,
@@ -44,10 +44,11 @@ class RestrictedPoWBlockGeneratorImpl(
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
 
-    val validatedOmmers = validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchain) match {
-      case Left(_) => emptyX
-      case Right(_) => ommers
-    }
+    val validatedOmmers =
+      validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchainReader) match {
+        case Left(_) => emptyX
+        case Right(_) => ommers
+      }
     val prepared = prepareBlock(
       evmCodeStorage,
       parent,

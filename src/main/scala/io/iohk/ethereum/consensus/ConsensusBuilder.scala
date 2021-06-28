@@ -44,15 +44,17 @@ trait StdConsensusBuilder extends ConsensusBuilder {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
       case Protocol.RestrictedPoW => RestrictedPoWMinerData(nodeKey)
     }
-    val consensus = PoWConsensus(
-      vm,
-      storagesInstance.storages.evmCodeStorage,
-      blockchain,
-      blockchainConfig,
-      fullConfig,
-      validators,
-      additionalPoWData
-    )
+    val consensus =
+      PoWConsensus(
+        vm,
+        storagesInstance.storages.evmCodeStorage,
+        blockchain,
+        blockchainReader,
+        blockchainConfig,
+        fullConfig,
+        validators,
+        additionalPoWData
+      )
     consensus
   }
 

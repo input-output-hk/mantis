@@ -293,6 +293,7 @@ class FastSyncBranchResolverActorSpec
           peerEventBus = TestProbe("peer_event_bus").ref,
           etcPeerManager = etcPeerManager,
           blockchain = blockchain,
+          blockchainReader = blockchainReader,
           blacklist = blacklist,
           syncConfig = syncConfig,
           appStateStorage = storagesInstance.storages.appStateStorage,

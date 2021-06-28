@@ -3,7 +3,7 @@ package io.iohk.ethereum.blockchain.sync
 import akka.util.ByteString
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl}
+import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl, BlockchainReader}
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils}
@@ -17,10 +17,15 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       accountBalance: Int
   )
 
-  class TrieProvider(blockchain: Blockchain, evmCodeStorage: EvmCodeStorage, blockchainConfig: BlockchainConfig) {
+  class TrieProvider(
+      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
+      evmCodeStorage: EvmCodeStorage,
+      blockchainConfig: BlockchainConfig
+  ) {
     def getNodes(hashes: List[ByteString]) = {
       hashes.map { hash =>
-        val maybeResult = blockchain.getMptNodeByHash(hash) match {
+        val maybeResult = blockchainReader.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
           case None => evmCodeStorage.get(hash)
         }
@@ -35,7 +40,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       val init = InMemoryWorldStateProxy(
         evmCodeStorage,
         blockchain.getBackingMptStorage(1),
-        (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
         blockchainConfig.accountStartNonce,
         existingTree.getOrElse(ByteString(MerklePatriciaTrie.EmptyRootHash)),
         noEmptyAccounts = true,
@@ -67,7 +72,13 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
-      new TrieProvider(BlockchainImpl(freshStorage.storages), freshStorage.storages.evmCodeStorage, blockchainConfig)
+      val blockchainReader = BlockchainReader(freshStorage.storages)
+      new TrieProvider(
+        BlockchainImpl(freshStorage.storages, blockchainReader),
+        blockchainReader,
+        freshStorage.storages.evmCodeStorage,
+        blockchainConfig
+      )
     }
   }
 

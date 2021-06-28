@@ -50,7 +50,7 @@ class QAServiceSpec
   ) { fixture =>
     import fixture._
 
-    (blockchain.getBlockByHash _)
+    (blockchainReader.getBlockByHash _)
       .expects(req.blockHash.get)
       .returning(Some(block))
       .noMoreThanOnce()
@@ -70,7 +70,7 @@ class QAServiceSpec
     import fixture._
     val reqWithoutBlockHash = req.copy(blockHash = None)
 
-    (blockchain.getBlockByHash _)
+    (blockchainReader.getBlockByHash _)
       .expects(req.blockHash.get)
       .returning(Some(block))
       .noMoreThanOnce()
@@ -104,6 +104,7 @@ class QAServiceSpec
     }
 
     lazy val testConsensus: TestConsensus = mock[TestConsensus]
+    lazy val blockchainReader = mock[BlockchainReader]
     lazy val blockchain = mock[BlockchainImpl]
     lazy val syncController = TestProbe()
     lazy val checkpointBlockGenerator = new CheckpointBlockGenerator()
@@ -111,6 +112,7 @@ class QAServiceSpec
     lazy val qaService = new QAService(
       testConsensus,
       blockchain,
+      blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,
       syncController.ref

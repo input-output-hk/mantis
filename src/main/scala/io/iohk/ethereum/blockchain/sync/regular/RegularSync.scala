@@ -121,35 +121,6 @@ object RegularSync {
       peerEventBus: ActorRef,
       blockImport: BlockImport,
       blockchain: Blockchain,
-      blockValidator: BlockValidator,
-      blacklist: Blacklist,
-      syncConfig: SyncConfig,
-      ommersPool: ActorRef,
-      pendingTransactionsManager: ActorRef,
-      scheduler: Scheduler
-  ): Props =
-    props(
-      peersClient,
-      etcPeerManager,
-      peerEventBus,
-      blockImport,
-      blockchain,
-      branchResolution = new BranchResolution(blockchain),
-      blockValidator,
-      blacklist,
-      syncConfig,
-      ommersPool,
-      pendingTransactionsManager,
-      scheduler
-    )
-
-  // scalastyle:off parameter.number
-  def props(
-      peersClient: ActorRef,
-      etcPeerManager: ActorRef,
-      peerEventBus: ActorRef,
-      blockImport: BlockImport,
-      blockchain: Blockchain,
       branchResolution: BranchResolution,
       blockValidator: BlockValidator,
       blacklist: Blacklist,

@@ -25,6 +25,7 @@ trait TestModeServiceBuilder extends LedgerBuilder {
   lazy val testModeComponentsProvider: TestModeComponentsProvider =
     new TestModeComponentsProvider(
       blockchain,
+      blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       syncConfig,
       scheduler,

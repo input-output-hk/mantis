@@ -113,10 +113,10 @@ class EthMiningServiceSpec
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
     val testConsensus = buildTestConsensus()
-    lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
+    override lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
-      blockchain = blockchain,
+      blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       consensusConfig = consensusConfig,
       blockPreparator = testConsensus.blockPreparator,
@@ -233,6 +233,17 @@ class EthMiningServiceSpec
 
     lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
 
+    lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
+      validators = MockValidatorsAlwaysSucceed,
+      blockchainReader = blockchainReader,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = consensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
+
     val jsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     lazy val ethMiningService = new EthMiningService(
@@ -294,7 +305,7 @@ class EthMiningServiceSpec
     val fakeWorld = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getReadOnlyMptStorage(),
-      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,
