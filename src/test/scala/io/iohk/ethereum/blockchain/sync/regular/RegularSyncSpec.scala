@@ -449,9 +449,7 @@ class RegularSyncSpec
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
-        // throw new Error("****************1")
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
-        // throw new Error("****************2")
         (blockImport
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)

@@ -81,7 +81,6 @@ class BlockImporterItSpec
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  // override lazy val ledger = new TestLedgerImpl(successValidators) {
   override lazy val blockImport = mkBlockImport(
     validators = successValidators,
     blockExecutionOpt = Some(

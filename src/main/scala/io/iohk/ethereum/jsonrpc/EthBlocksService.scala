@@ -38,8 +38,6 @@ object EthBlocksService {
 class EthBlocksService(val blockchain: Blockchain, val consensus: Consensus) extends ResolveBlock {
   import EthBlocksService._
 
-  // private[jsonrpc] def blockGenerator = consensus.blockGenerator
-
   /**
     * eth_blockNumber that returns the number of most recent block.
     *
