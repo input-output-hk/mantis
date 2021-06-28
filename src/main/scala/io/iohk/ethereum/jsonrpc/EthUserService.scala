@@ -1,7 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
@@ -23,6 +25,7 @@ object EthUserService {
 class EthUserService(
     val blockchain: Blockchain,
     val consensus: Consensus,
+    evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig
 ) extends ResolveBlock {
   import EthUserService._
@@ -30,8 +33,10 @@ class EthUserService(
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] = {
     Task {
       resolveBlock(req.block).map { case ResolvedBlock(block, _) =>
-        val world = blockchain.getWorldStateProxy(
-          block.header.number,
+        val world = InMemoryWorldStateProxy(
+          evmCodeStorage,
+          blockchain.getBackingMptStorage(block.header.number),
+          (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
           blockchainConfig.accountStartNonce,
           block.header.stateRoot,
           noEmptyAccounts = false,

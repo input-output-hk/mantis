@@ -243,7 +243,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     override lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      )
 
     val generalTx = SignedTransaction.sign(transaction, keyPair, None).tx
     val specificTx =
@@ -319,7 +325,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     override lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      )
 
     val transaction1 = Transaction(
       nonce = 0,
@@ -710,7 +722,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     lazy val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
     lazy val blockExecution =
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      )
 
     // FIXME: the change in gas limit voting strategy caused the hardcoded nonce and mixHash in this file to be invalid
     //        The gas limit of all the generated blocks has to be set to the old strategy of increasing as much as possible

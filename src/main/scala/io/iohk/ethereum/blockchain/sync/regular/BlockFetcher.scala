@@ -15,7 +15,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
   HeadersNotFormingSeq,
   HeadersNotMatchingReadyBlocks
 }
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.{ImportNewBlock, NotOnTop, OnTop}
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.ImportNewBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -255,7 +255,6 @@ class BlockFetcher(
         .withPeerForBlocks(peerId, Seq(newBlockNr))
         .withLastBlock(newBlockNr)
         .withKnownTopAt(newBlockNr)
-      state.importer ! OnTop
       state.importer ! ImportNewBlock(block, peerId)
       supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)
       processFetchCommands(newState)
@@ -276,9 +275,8 @@ class BlockFetcher(
       replyTo: ClassicActorRef
   )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState =
     pickResult
-      .tap { case (blocks, newState) =>
+      .tap { case (blocks, _) =>
         replyTo ! PickedBlocks(blocks)
-        replyTo ! (if (newState.isOnTop) OnTop else NotOnTop)
       }
       .fold(state)(_._2)
 

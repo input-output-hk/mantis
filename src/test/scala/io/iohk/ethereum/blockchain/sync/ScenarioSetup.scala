@@ -82,7 +82,13 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StdLedgerBuilder {
       blockQueue,
       blockValidation,
       blockExecutionOpt.getOrElse(
-        new BlockExecution(blockchain, blockchainConfig, consensuz.blockPreparator, blockValidation)
+        new BlockExecution(
+          blockchain,
+          storagesInstance.storages.evmCodeStorage,
+          blockchainConfig,
+          consensuz.blockPreparator,
+          blockValidation
+        )
       ),
       Scheduler(system.dispatchers.lookup("validation-context"))
     )

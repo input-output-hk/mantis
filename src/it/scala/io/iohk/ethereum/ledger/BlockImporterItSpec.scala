@@ -59,14 +59,15 @@ class BlockImporterItSpec
   val pendingTransactionsManagerProbe = TestProbe()
   val supervisor = TestProbe()
 
-  val emptyWorld: InMemoryWorldStateProxy =
-    blockchain.getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getBackingMptStorage(-1),
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    blockchainConfig.accountStartNonce,
+    ByteString(MerklePatriciaTrie.EmptyRootHash),
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val ommersValidator: OmmersValidator = (
@@ -86,6 +87,7 @@ class BlockImporterItSpec
     blockExecutionOpt = Some(
       new BlockExecution(
         blockchain,
+        storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
         new BlockValidation(consensus, blockchain, blockQueue)
@@ -142,8 +144,6 @@ class BlockImporterItSpec
 
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
-    //ledger with not mocked blockExecution
-    // val ledger = new TestLedgerImpl(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
@@ -272,7 +272,6 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
 
     eventually {
-
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
           case BlockFetcher.FetchStateNode(_, _) => true

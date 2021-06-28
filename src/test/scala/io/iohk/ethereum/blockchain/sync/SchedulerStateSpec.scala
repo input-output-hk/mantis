@@ -5,8 +5,8 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{SchedulerState,
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 
-class SyncSchedulerStateSpec extends AnyFlatSpec with Matchers {
-  "SyncSchedulerState" should "schedule node hashes for retrieval" in new TestSetup {
+class SchedulerStateSpec extends AnyFlatSpec with Matchers {
+  "SchedulerState" should "schedule node hashes for retrieval" in new TestSetup {
     val stateWithRequest = schedulerState.schedule(request1)
     assert(stateWithRequest != schedulerState)
     assert(stateWithRequest.getPendingRequestByHash(request1.nodeHash).contains(request1))

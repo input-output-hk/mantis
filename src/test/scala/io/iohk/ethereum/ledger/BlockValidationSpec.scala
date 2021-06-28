@@ -11,26 +11,27 @@ import org.scalatest.wordspec.AnyWordSpec
 import io.iohk.ethereum.utils.ByteStringUtils._
 
 class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
+  import BlockValidationTestSetup._
 
   "BlockValidation" should {
     "validate block after execution" when {
-      "report valid results from execution as correct" in new BlockValidationTestSetup {
+      "report valid results from execution as correct" in {
         blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, gasUsed) shouldBe Right(
           BlockExecutionSuccess
         )
       }
 
-      "report as invalid a block that doesn't have the correct gas used" in new BlockValidationTestSetup {
+      "report as invalid a block that doesn't have the correct gas used" in {
         val invalidGasUsed: BigInt = gasUsed + 1
         blockValidation.validateBlockAfterExecution(block, stateRootHash, receipts, invalidGasUsed).isLeft shouldBe true
       }
 
-      "report as invalid a block that doesn't have the correct state root hash" in new BlockValidationTestSetup {
+      "report as invalid a block that doesn't have the correct state root hash" in {
         val invalidStateRootHash: ByteString = concatByteStrings((stateRootHash.head + 1).toByte, stateRootHash.tail)
         blockValidation.validateBlockAfterExecution(block, invalidStateRootHash, receipts, gasUsed).isLeft shouldBe true
       }
 
-      "report as invalid a block that doesn't have the correct receipts information" in new BlockValidationTestSetup {
+      "report as invalid a block that doesn't have the correct receipts information" in {
         val invalidReceipts: Seq[Receipt] = Seq.empty[Receipt]
         blockValidation.validateBlockAfterExecution(block, stateRootHash, invalidReceipts, gasUsed).isLeft shouldBe true
       }
@@ -38,7 +39,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
   }
 
   // scalastyle:off magic.number
-  trait BlockValidationTestSetup {
+  object BlockValidationTestSetup {
     private val setup = new io.iohk.ethereum.blockchain.sync.ScenarioSetup {
       override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
 

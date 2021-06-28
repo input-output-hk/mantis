@@ -189,14 +189,15 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
     val afterByzantiumNewBlockReward: BigInt = BigInt(10).pow(18) * 3
 
-    val worldState: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-      .getWorldStateProxy(
-        -1,
-        UInt256.Zero,
-        ByteString(MerklePatriciaTrie.EmptyRootHash),
-        noEmptyAccounts = false,
-        ethCompatibleStorage = true
-      )
+    val worldState = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+      UInt256.Zero,
+      ByteString(MerklePatriciaTrie.EmptyRootHash),
+      noEmptyAccounts = false,
+      ethCompatibleStorage = true
+    )
       .saveAccount(validAccountAddress, Account(balance = 10))
       .saveAccount(validAccountAddress2, Account(balance = 20))
       .saveAccount(validAccountAddress3, Account(balance = 30))

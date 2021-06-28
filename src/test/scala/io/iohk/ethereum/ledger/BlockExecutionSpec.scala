@@ -8,7 +8,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
-import io.iohk.ethereum.vm.OutOfGas
+import io.iohk.ethereum.vm.{EvmConfig, OutOfGas}
 import io.iohk.ethereum.{BlockHelpers, Mocks, ObjectGenerators}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor4
@@ -58,7 +58,13 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
-          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+          new BlockExecution(
+            blockchain,
+            blockchainStorages.evmCodeStorage,
+            blockchainConfig,
+            newConsensus.blockPreparator,
+            blockValidation
+          )
 
         val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
@@ -92,7 +98,13 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
-          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+          new BlockExecution(
+            blockchain,
+            blockchainStorages.evmCodeStorage,
+            blockchainConfig,
+            newConsensus.blockPreparator,
+            blockValidation
+          )
 
         val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
 
@@ -119,7 +131,13 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
-          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+          new BlockExecution(
+            blockchain,
+            blockchainStorages.evmCodeStorage,
+            blockchainConfig,
+            newConsensus.blockPreparator,
+            blockValidation
+          )
 
         val (blocks, error) = blockExecution.executeAndValidateBlocks(chain, defaultChainWeight)
 
@@ -138,7 +156,13 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
-          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+          new BlockExecution(
+            blockchain,
+            blockchainStorages.evmCodeStorage,
+            blockchainConfig,
+            newConsensus.blockPreparator,
+            blockValidation
+          )
 
         val (blocks, error) =
           blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
@@ -159,7 +183,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val block = Block(validBlockHeader, validBlockBodyWithNoTxs)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
-          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+          blockExecution.executeBlockTransactions(block, initialWorld)
 
         txsExecResult.isRight shouldBe true
 
@@ -189,10 +213,16 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
         val blockExecution =
-          new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+          new BlockExecution(
+            blockchain,
+            blockchainStorages.evmCodeStorage,
+            blockchainConfig,
+            newConsensus.blockPreparator,
+            blockValidation
+          )
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
-          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+          blockExecution.executeBlockTransactions(block, initialWorld)
 
         txsExecResult.isRight shouldBe true
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
@@ -257,9 +287,15 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           val newConsensus = consensus.withValidators(mockValidators).withVM(mockVm)
           val blockValidation = new BlockValidation(newConsensus, blockchain, BlockQueue(blockchain, syncConfig))
           val blockExecution =
-            new BlockExecution(blockchain, blockchainConfig, newConsensus.blockPreparator, blockValidation)
+            new BlockExecution(
+              blockchain,
+              blockchainStorages.evmCodeStorage,
+              blockchainConfig,
+              newConsensus.blockPreparator,
+              blockValidation
+            )
 
-          val txsExecResult = blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+          val txsExecResult = blockExecution.executeBlockTransactions(block, initialWorld)
 
           txsExecResult.isRight shouldBe txValidAccordingToValidators
           if (txsExecResult.isRight) {
@@ -297,7 +333,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
-          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+          blockExecution.executeBlockTransactions(block, initialWorld)
 
         txsExecResult.isLeft shouldBe true
       }
@@ -309,7 +345,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
-          blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+          blockExecution.executeBlockTransactions(block, initialWorld)
 
         txsExecResult.isLeft shouldBe true
       }
@@ -512,7 +548,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
         val block = Block(validBlockHeader, validBlockBodyWithTxs)
 
-        val txsExecResult = blockImport.blockExecution.executeBlockTransactions(block, validBlockParentHeader)
+        val txsExecResult = blockImport.blockExecution.executeBlockTransactions(block, initialWorld)
 
         assert(txsExecResult.isRight)
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
@@ -591,7 +627,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       // We don't care about block txs in this test
       blockImport.blockExecution.executeBlockTransactions(
         proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
-        parentBlockHeader
+        initialWorld
       )
     }
 
@@ -604,15 +640,19 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       // We don't care about block txs in this test
       blockImport.blockExecution.executeBlockTransactions(
         proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
-        parentBlockHeader
+        initialWorld
       )
     }
   }
 
   trait BlockExecutionTestSetup extends BlockchainSetup {
-
     val blockValidation = new BlockValidation(consensus, blockchain, BlockQueue(blockchain, syncConfig))
-    val blockExecution = new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation)
-
+    val blockExecution = new BlockExecution(
+      blockchain,
+      blockchainStorages.evmCodeStorage,
+      blockchainConfig,
+      consensus.blockPreparator,
+      blockValidation
+    )
   }
 }

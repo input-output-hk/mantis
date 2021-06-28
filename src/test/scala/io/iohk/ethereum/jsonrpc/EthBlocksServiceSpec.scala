@@ -10,6 +10,7 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
@@ -413,8 +414,10 @@ class EthBlocksServiceSpec
     val uncleWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
     val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
-    val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
-      None,
+    val fakeWorld = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,

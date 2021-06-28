@@ -67,13 +67,6 @@ class RegularSync(
       fetcher.toClassic,
       BlockFetcher.PrintStatus
     )(context.dispatcher)
-  val printImporterSchedule: Cancellable =
-    scheduler.scheduleWithFixedDelay(
-      syncConfig.printStatusInterval,
-      syncConfig.printStatusInterval,
-      importer,
-      BlockImporter.PrintStatus
-    )(context.dispatcher)
 
   override def receive: Receive = running(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)
@@ -118,7 +111,6 @@ class RegularSync(
   override def postStop(): Unit = {
     log.info("Regular Sync stopped")
     printFetcherSchedule.cancel()
-    printImporterSchedule.cancel()
   }
 }
 object RegularSync {

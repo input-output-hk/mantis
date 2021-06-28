@@ -80,14 +80,15 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val defaultGasLimit: UInt256 = 1000000
   val defaultValue: BigInt = 1000
 
-  val emptyWorld: InMemoryWorldStateProxy = BlockchainImpl(storagesInstance.storages)
-    .getWorldStateProxy(
-      -1,
-      UInt256.Zero,
-      ByteString(MerklePatriciaTrie.EmptyRootHash),
-      noEmptyAccounts = false,
-      ethCompatibleStorage = true
-    )
+  val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
+    storagesInstance.storages.evmCodeStorage,
+    blockchain.getBackingMptStorage(-1),
+    (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+    UInt256.Zero,
+    ByteString(MerklePatriciaTrie.EmptyRootHash),
+    noEmptyAccounts = false,
+    ethCompatibleStorage = true
+  )
 
   val worldWithMinerAndOriginAccounts: InMemoryWorldStateProxy = InMemoryWorldStateProxy.persistState(
     emptyWorld
@@ -132,13 +133,16 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
       blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
-    val initialWorld = BlockchainImpl(blockchainStorages).getWorldStateProxy(
-      -1,
+    val initialWorld = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getBackingMptStorage(-1),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       stateRootHash,
       noEmptyAccounts = false,
       ethCompatibleStorage = true
     )
+
     val newWorld = changes.foldLeft[InMemoryWorldStateProxy](initialWorld) { case (recWorld, (address, change)) =>
       change match {
         case UpdateBalance(balanceIncrease) =>
@@ -231,15 +235,9 @@ trait DaoForkTestSetup extends TestSetup with MockFactory {
   (testBlockchain.getBlockHeaderByHash _)
     .expects(proDaoBlock.header.parentHash)
     .returning(Some(parentBlockHeader))
-  (testBlockchain.getWorldStateProxy _)
-    .expects(
-      proDaoBlock.header.number,
-      proDaoBlockchainConfig.accountStartNonce,
-      Fixtures.Blocks.DaoParentBlock.header.stateRoot,
-      false,
-      true
-    )
-    .returning(worldState)
+  (testBlockchain.getBackingMptStorage _)
+    .expects(*)
+    .returning(storagesInstance.storages.stateStorage.getBackingStorage(1920000))
 }
 
 trait BinarySimulationChopSetup {

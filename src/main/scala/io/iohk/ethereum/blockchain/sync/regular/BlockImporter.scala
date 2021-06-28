@@ -24,7 +24,6 @@ import monix.execution.Scheduler
 
 import scala.concurrent.duration._
 
-// scalastyle:off cyclomatic.complexity
 class BlockImporter(
     fetcher: ActorRef,
     blockImport: BlockImport,
@@ -54,15 +53,8 @@ class BlockImporter(
     start()
   }
 
-  private def handleTopMessages(state: ImporterState, currentBehavior: Behavior): Receive = {
-    case OnTop => context become currentBehavior(state.onTop())
-    case NotOnTop => context become currentBehavior(state.notOnTop())
-  }
-
-  private def running(state: ImporterState): Receive = handleTopMessages(state, running) orElse {
+  private def running(state: ImporterState): Receive = {
     case ReceiveTimeout => self ! PickBlocks
-
-    case PrintStatus => log.info("Block: {}, is on top?: {}", blockchain.getBestBlockNumber(), state.isOnTop)
 
     case BlockFetcher.PickedBlocks(blocks) =>
       SignedTransaction.retrieveSendersInBackGround(blocks.toList.map(_.body))
@@ -90,7 +82,7 @@ class BlockImporter(
         internally = true
       )(state)
 
-    case ImportNewBlock(block, peerId) if state.isOnTop && !state.importing =>
+    case ImportNewBlock(block, peerId) if !state.importing =>
       importBlock(
         block,
         new NewBlockImportMessages(block, peerId),
@@ -122,36 +114,34 @@ class BlockImporter(
     running(state.resolvingBranch(from))
 
   private def start(): Unit = {
-    log.debug("Starting Regular Sync, current best block is {}", startingBlockNumber)
-    fetcher ! BlockFetcher.Start(self, startingBlockNumber)
-    supervisor ! ProgressProtocol.StartingFrom(startingBlockNumber)
+    log.debug("Starting Regular Sync, current best block is {}", bestKnownBlockNumber)
+    fetcher ! BlockFetcher.Start(self, bestKnownBlockNumber)
+    supervisor ! ProgressProtocol.StartingFrom(bestKnownBlockNumber)
     context become running(ImporterState.initial)
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
-    val msg =
-      state.resolvingBranchFrom.fold[BlockFetcher.FetchCommand](
-        BlockFetcher.PickBlocks(syncConfig.blocksBatchSize, self)
-      )(from => BlockFetcher.StrictPickBlocks(from, startingBlockNumber, self))
+    val msg = state.resolvingBranchFrom.fold[BlockFetcher.FetchCommand](
+      BlockFetcher.PickBlocks(syncConfig.blocksBatchSize, self)
+    )(from => BlockFetcher.StrictPickBlocks(from, bestKnownBlockNumber, self))
 
     fetcher ! msg
   }
 
   private def importBlocks(blocks: NonEmptyList[Block], blockImportType: BlockImportType): ImportFn = importWith(
-    {
-      Task(
+    Task
+      .now {
         log.debug(
           "Attempting to import blocks starting from {} and ending with {}",
           blocks.head.number,
           blocks.last.number
         )
-      )
-        .flatMap(_ => Task.now(resolveBranch(blocks)))
-        .flatMap {
-          case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-          case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
-        }
-    },
+        resolveBranch(blocks)
+      }
+      .flatMap {
+        case Right(blocksToImport) => handleBlocksImport(blocksToImport)
+        case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
+      },
     blockImportType
   )
 
@@ -188,12 +178,9 @@ class BlockImporter(
       importedBlocks: List[Block] = Nil
   ): Task[(List[Block], Option[Any])] =
     if (blocks.isEmpty) {
-      importedBlocks.headOption match {
-        case Some(block) =>
-          supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
-        case None => ()
-      }
-
+      importedBlocks.headOption.foreach(block =>
+        supervisor ! ProgressProtocol.ImportedBlock(block.number, internally = false)
+      )
       Task.now((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
@@ -245,27 +232,22 @@ class BlockImporter(
               broadcastBlocks(blocks, weights)
               updateTxPool(importedBlocksData.map(_.block), Seq.empty)
               supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-            case BlockEnqueued => ()
-            case DuplicateBlock => ()
-            case UnknownParent => () // This is normal when receiving broadcast blocks
             case ChainReorganised(oldBranch, newBranch, weights) =>
               updateTxPool(newBranch, oldBranch)
               broadcastBlocks(newBranch, weights)
-              newBranch.lastOption match {
-                case Some(newBlock) =>
-                  supervisor ! ProgressProtocol.ImportedBlock(newBlock.number, internally)
-                case None => ()
-              }
+              newBranch.lastOption.foreach(block =>
+                supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
+              )
             case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
               // state node re-download will be handled when downloading headers
               doLog(importMessages.missingStateNode(missingNodeException))
               Running
             case BlockImportFailedDueToMissingNode(missingNodeException) =>
               Task.raiseError(missingNodeException)
-            case BlockImportFailed(error) =>
-              if (informFetcherOnFail) {
-                fetcher ! BlockFetcher.BlockImportFailed(block.number, BlacklistReason.BlockImportError(error))
-              }
+            case BlockImportFailed(error) if informFetcherOnFail =>
+              fetcher ! BlockFetcher.BlockImportFailed(block.number, BlacklistReason.BlockImportError(error))
+            case BlockEnqueued | DuplicateBlock | UnknownParent | BlockImportFailed(_) => ()
+            case result => log.error("Unknown block import result {}", result)
           }
           .map(_ => Running)
       },
@@ -280,9 +262,7 @@ class BlockImporter(
 
   private def updateTxPool(blocksAdded: Seq[Block], blocksRemoved: Seq[Block]): Unit = {
     blocksRemoved.foreach(block => pendingTransactionsManager ! AddUncheckedTransactions(block.body.transactionList))
-    blocksAdded.foreach { block =>
-      pendingTransactionsManager ! RemoveTransactions(block.body.transactionList)
-    }
+    blocksAdded.foreach(block => pendingTransactionsManager ! RemoveTransactions(block.body.transactionList))
   }
 
   private def importWith(importTask: Task[NewBehavior], blockImportType: BlockImportType)(
@@ -304,7 +284,6 @@ class BlockImporter(
       case NewBetterBranch(oldBranch) =>
         val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
         pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
-
         // Add first block from branch as an ommer
         oldBranch.headOption.map(_.header).foreach(ommersPool ! AddOmmers(_))
         Right(blocks.toList)
@@ -313,23 +292,21 @@ class BlockImporter(
         ommersPool ! AddOmmers(blocks.head.header)
         Right(Nil)
       case UnknownBranch =>
-        val currentBlock = blocks.head.number.min(startingBlockNumber)
+        val currentBlock = blocks.head.number.min(bestKnownBlockNumber)
         val goingBackTo = (currentBlock - syncConfig.branchResolutionRequestSize).max(0)
         val msg = s"Unknown branch, going back to block nr $goingBackTo in order to resolve branches"
-
         log.info(msg)
         fetcher ! BlockFetcher.InvalidateBlocksFrom(goingBackTo, msg, shouldBlacklist = false)
         Left(goingBackTo)
       case InvalidBranch =>
         val goingBackTo = blocks.head.number
         val msg = s"Invalid branch, going back to $goingBackTo"
-
         log.info(msg)
         fetcher ! BlockFetcher.InvalidateBlocksFrom(goingBackTo, msg)
         Right(Nil)
     }
 
-  private def startingBlockNumber: BigInt = blockchain.getBestBlockNumber()
+  private def bestKnownBlockNumber: BigInt = blockchain.getBestBlockNumber()
 
   private def getBehavior(newBehavior: NewBehavior, blockImportType: BlockImportType): Behavior = newBehavior match {
     case Running => running
@@ -339,7 +316,6 @@ class BlockImporter(
 }
 
 object BlockImporter {
-  // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
       blockImport: BlockImport,
@@ -393,8 +369,6 @@ object BlockImporter {
 
   sealed trait ImporterMsg
   case object Start extends ImporterMsg
-  case object OnTop extends ImporterMsg
-  case object NotOnTop extends ImporterMsg
   case class MinedBlock(block: Block) extends ImporterMsg
   case class NewCheckpoint(block: Block) extends ImporterMsg
   case class ImportNewBlock(block: Block, peerId: PeerId) extends ImporterMsg
@@ -428,14 +402,9 @@ object BlockImporter {
   }
 
   case class ImporterState(
-      isOnTop: Boolean,
       importing: Boolean,
       resolvingBranchFrom: Option[BigInt]
   ) {
-    def onTop(): ImporterState = copy(isOnTop = true)
-
-    def notOnTop(): ImporterState = copy(isOnTop = false)
-
     def importingBlocks(): ImporterState = copy(importing = true)
 
     def notImportingBlocks(): ImporterState = copy(importing = false)
@@ -449,7 +418,6 @@ object BlockImporter {
 
   object ImporterState {
     def initial: ImporterState = ImporterState(
-      isOnTop = false,
       importing = false,
       resolvingBranchFrom = None
     )

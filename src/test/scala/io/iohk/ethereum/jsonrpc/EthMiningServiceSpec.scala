@@ -15,7 +15,7 @@ import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.StxLedger
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
@@ -114,6 +114,7 @@ class EthMiningServiceSpec
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
     val testConsensus = buildTestConsensus()
     lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchain = blockchain,
       blockchainConfig = blockchainConfig,
@@ -290,8 +291,10 @@ class EthMiningServiceSpec
     val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
     val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
-    val fakeWorld = blockchain.getReadOnlyWorldStateProxy(
-      None,
+    val fakeWorld = InMemoryWorldStateProxy(
+      storagesInstance.storages.evmCodeStorage,
+      blockchain.getReadOnlyMptStorage(),
+      (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
       UInt256.Zero,
       ByteString.empty,
       noEmptyAccounts = false,

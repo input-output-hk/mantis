@@ -16,9 +16,11 @@ import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 class TestmodeConsensus(
     override val vm: VMImpl,
+    evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
@@ -86,7 +88,7 @@ class TestmodeConsensus(
 
   override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
-      blockchain,
+      evmCodeStorage,
       blockchainConfig,
       consensusConfig,
       blockPreparator,
@@ -114,10 +116,15 @@ class TestmodeConsensus(
 }
 
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with TestBlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder =>
+  self: VmBuilder
+    with TestBlockchainBuilder
+    with BlockchainConfigBuilder
+    with ConsensusConfigBuilder
+    with StorageBuilder =>
 
   override lazy val consensus = new TestmodeConsensus(
     vm,
+    storagesInstance.storages.evmCodeStorage,
     blockchain,
     blockchainConfig,
     consensusConfig,

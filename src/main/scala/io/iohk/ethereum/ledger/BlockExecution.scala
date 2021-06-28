@@ -3,15 +3,17 @@ package io.iohk.ethereum.ledger
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.BlockResult
-import io.iohk.ethereum.utils.{BlockchainConfig, DaoForkConfig, Logger}
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, DaoForkConfig, Logger}
 import io.iohk.ethereum.vm.EvmConfig
 
 import scala.annotation.tailrec
 import cats.implicits._
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 
 class BlockExecution(
     blockchain: BlockchainImpl,
+    evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
     blockValidation: BlockValidation
@@ -57,10 +59,19 @@ class BlockExecution(
   /** Executes a block (executes transactions and pays rewards) */
   private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
     for {
-      parent <- blockchain
+      parentHeader <- blockchain
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
-      execResult <- executeBlockTransactions(block, parent)
+      initialWorld = InMemoryWorldStateProxy(
+        evmCodeStorage = evmCodeStorage,
+        blockchain.getBackingMptStorage(block.header.number),
+        (number: BigInt) => blockchain.getBlockHeaderByNumber(number).map(_.hash),
+        accountStartNonce = blockchainConfig.accountStartNonce,
+        stateRootHash = parentHeader.stateRoot,
+        noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,
+        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+      )
+      execResult <- executeBlockTransactions(block, initialWorld)
       worldToPersist <- Either
         .catchOnly[MPTException](blockPreparator.payBlockReward(block, execResult.worldState))
         .leftMap(BlockExecutionError.MPTError.apply)
@@ -75,18 +86,9 @@ class BlockExecution(
     */
   protected[ledger] def executeBlockTransactions(
       block: Block,
-      parent: BlockHeader
+      initialWorld: InMemoryWorldStateProxy
   ): Either[BlockExecutionError, BlockResult] = {
-    val parentStateRoot = parent.stateRoot
     val blockHeaderNumber = block.header.number
-    val initialWorld = blockchain.getWorldStateProxy(
-      blockNumber = blockHeaderNumber,
-      accountStartNonce = blockchainConfig.accountStartNonce,
-      stateRootHash = parentStateRoot,
-      noEmptyAccounts = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig).noEmptyAccounts,
-      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-    )
-
     executeBlockTransactions(block, blockHeaderNumber, initialWorld)
   }
 

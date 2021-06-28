@@ -171,7 +171,8 @@ trait BlockImportBuilder {
     with BlockQueueBuilder
     with ConsensusBuilder
     with BlockchainConfigBuilder
-    with ActorSystemBuilder =>
+    with ActorSystemBuilder
+    with StorageBuilder =>
 
   lazy val blockImport = {
     val blockValidation = new BlockValidation(consensus, blockchain, blockQueue)
@@ -179,7 +180,13 @@ trait BlockImportBuilder {
       blockchain,
       blockQueue,
       blockValidation,
-      new BlockExecution(blockchain, blockchainConfig, consensus.blockPreparator, blockValidation),
+      new BlockExecution(
+        blockchain,
+        storagesInstance.storages.evmCodeStorage,
+        blockchainConfig,
+        consensus.blockPreparator,
+        blockValidation
+      ),
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
   }
@@ -491,11 +498,12 @@ trait EthBlocksServiceBuilder {
 }
 
 trait EthUserServiceBuilder {
-  self: BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
+  self: BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder with StorageBuilder =>
 
   lazy val ethUserService = new EthUserService(
     blockchain,
     consensus,
+    storagesInstance.storages.evmCodeStorage,
     blockchainConfig
   )
 }
@@ -700,11 +708,13 @@ trait LedgerBuilder {
 trait StdLedgerBuilder extends LedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
+    with StorageBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder =>
 
-  override lazy val stxLedger: StxLedger = new StxLedger(blockchain, blockchainConfig, consensus.blockPreparator)
+  override lazy val stxLedger: StxLedger =
+    new StxLedger(blockchain, storagesInstance.storages.evmCodeStorage, blockchainConfig, consensus.blockPreparator)
 }
 
 trait CheckpointBlockGeneratorBuilder {
