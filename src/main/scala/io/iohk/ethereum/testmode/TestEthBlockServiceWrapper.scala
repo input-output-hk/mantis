@@ -11,6 +11,7 @@ import io.iohk.ethereum.jsonrpc.{
   TransactionData
 }
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.ByteStringUtils._
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.ledger.BlockQueue
@@ -34,8 +35,7 @@ class TestEthBlockServiceWrapper(
   ): ServiceResponse[EthBlocksService.BlockByBlockHashResponse] = super
     .getByBlockHash(request)
     .map(
-      _.map(blockByBlockResponse => {
-        import io.iohk.ethereum.utils.ByteStringUtils._
+      _.flatMap { blockByBlockResponse =>
         blockByBlockResponse.blockResponse
           .toRight(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}")
           .flatMap(baseBlockResponse => baseBlockResponse.hash.toRight(s"missing hash for block $baseBlockResponse"))
@@ -49,7 +49,7 @@ class TestEthBlockServiceWrapper(
           )
           .left
           .map(errorMessage => JsonRpcError.LogicError(errorMessage))
-      }).flatten
+      }
     )
 
   /**
