@@ -404,7 +404,8 @@ class EthBlocksServiceSpec
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
       blockchainReader,
-      consensus
+      consensus,
+      blockQueue
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

@@ -101,7 +101,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
 
   val ethTxService = new EthTxService(
     blockchain,
