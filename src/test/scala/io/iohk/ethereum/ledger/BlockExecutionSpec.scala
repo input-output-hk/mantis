@@ -293,7 +293,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             )
           )
 
-          // Beware we are not using `ledger`
           val newConsensus = consensus.withValidators(mockValidators).withVM(mockVm)
           val blockValidation =
             new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))

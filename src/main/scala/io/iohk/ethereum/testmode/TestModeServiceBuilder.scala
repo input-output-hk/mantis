@@ -10,7 +10,7 @@ import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, _}
 import monix.eval.Task
 import monix.execution.Scheduler
 
-trait TestModeServiceBuilder extends LedgerBuilder {
+trait TestModeServiceBuilder extends StxLedgerBuilder {
   self: BlockchainConfigBuilder
     with StorageBuilder
     with TestBlockchainBuilder

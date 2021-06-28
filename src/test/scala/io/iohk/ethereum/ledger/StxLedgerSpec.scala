@@ -110,7 +110,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
   // migrated from old LedgerSpec
   "binaryChop" should "properly find minimal required gas limit to execute transaction" in new BinarySimulationChopSetup {
     testGasValues.foreach { minimumRequiredGas =>
-      LedgerUtils.binaryChop[TxError](minimalGas, maximalGas)(
+      StxLedger.binaryChop[TxError](minimalGas, maximalGas)(
         mockTransaction(minimumRequiredGas)
       ) shouldEqual minimumRequiredGas
     }

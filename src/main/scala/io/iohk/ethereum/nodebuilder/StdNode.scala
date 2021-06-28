@@ -104,7 +104,7 @@ abstract class BaseNode extends Node {
   }
 }
 
-class StdNode extends BaseNode with StdLedgerBuilder with StdConsensusBuilder
+class StdNode extends BaseNode with StdConsensusBuilder
 class TestNode
     extends BaseNode
     with TestModeServiceBuilder

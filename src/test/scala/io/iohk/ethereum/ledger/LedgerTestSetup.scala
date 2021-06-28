@@ -347,9 +347,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
   }
 
-  lazy val failLedger = mkBlockImport(validators = FailHeaderValidation)
+  lazy val failBlockImport = mkBlockImport(validators = FailHeaderValidation)
 
-  lazy val ledgerNotFailingAfterExecValidation = {
+  lazy val blockImportNotFailingAfterExecValidation = {
     val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
@@ -442,7 +442,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
-  lazy val ledgerWithMockedBlockExecution: BlockImport =
+  lazy val blockImportWithMockedBlockExecution: BlockImport =
     mkBlockImport(blockExecutionOpt = Some(mock[BlockExecution]))
 }
 
@@ -466,6 +466,6 @@ trait OmmersTestSetup extends EphemBlockchain {
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledgerWithMockedBlockExecution: BlockImport =
+  override lazy val blockImportWithMockedBlockExecution: BlockImport =
     mkBlockImport(validators = OmmerValidation, blockExecutionOpt = Some(mock[BlockExecution]))
 }

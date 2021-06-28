@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, Blockchain
 import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
+import scala.annotation.tailrec
 
 class StxLedger(
     blockchain: BlockchainImpl,
@@ -60,10 +61,36 @@ class StxLedger(
     if (highLimit < lowLimit) {
       highLimit
     } else {
-      LedgerUtils.binaryChop(lowLimit, highLimit) { gasLimit =>
+      StxLedger.binaryChop(lowLimit, highLimit) { gasLimit =>
         simulateTransaction(stx.copy(tx = tx.copy(tx = tx.tx.copy(gasLimit = gasLimit))), blockHeader, world).vmError
       }
     }
   }
+}
 
+object StxLedger {
+
+  /**
+    * Function finds minimal value in some interval for which provided function do not return error
+    * If searched value is not in provided interval, function returns maximum value of searched interval
+    * @param min minimum of searched interval
+    * @param max maximum of searched interval
+    * @param f function which return error in case to little value provided
+    * @return minimal value for which provided function do not return error
+    */
+  @tailrec
+  private[ledger] def binaryChop[Error](min: BigInt, max: BigInt)(f: BigInt => Option[Error]): BigInt = {
+    assert(min <= max)
+
+    if (min == max)
+      max
+    else {
+      val mid = min + (max - min) / 2
+      val possibleError = f(mid)
+      if (possibleError.isEmpty)
+        binaryChop(min, mid)(f)
+      else
+        binaryChop(mid + 1, max)(f)
+    }
+  }
 }

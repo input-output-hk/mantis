@@ -24,7 +24,7 @@ import io.iohk.ethereum.ledger.BlockValidation
   * Specifically it relates to the creation and wiring of the several components of a
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
   */
-trait ScenarioSetup extends StdTestConsensusBuilder with StdLedgerBuilder {
+trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
   protected lazy val executionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   protected lazy val monixScheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed

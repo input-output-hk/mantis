@@ -265,7 +265,7 @@ class RegularSyncSpec
     "resolving branches" should {
 
       "go back to earlier block in order to find a common parent with new branch" in sync(
-        new Fixture(testSystem) with FakeLedger {
+        new Fixture(testSystem) {
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
           (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
           override lazy val blockImport: BlockImport = new FakeImportBlock()
@@ -320,7 +320,7 @@ class RegularSyncSpec
     }
 
     "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in sync(
-      new Fixture(testSystem) with FakeLedger {
+      new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
         override lazy val blockImport: BlockImport = new FakeImportBlock()
@@ -653,7 +653,7 @@ class RegularSyncSpec
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)
         setImportResult(
           checkpointBlock,
-          // FIXME: lastCheckpointNumber == 0, refactor FakeLedger?
+          // FIXME: lastCheckpointNumber == 0, refactor RegularSyncFixture?
           Task.eval(
             BlockImportedToTop(List(BlockData(checkpointBlock, Nil, ChainWeight(parentBlock.number + 1, 42))))
           )
@@ -841,47 +841,6 @@ class RegularSyncSpec
             _ <- Task { goToTop() }
             status <- getSyncStatus
           } yield assert(status === Status.SyncDone)
-      }
-    }
-  }
-
-  trait FakeLedger { self: Fixture =>
-    class FakeImportBlock extends TestBlockImport {
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-        val result: BlockImportResult = if (didTryToImportBlock(block)) {
-          DuplicateBlock
-        } else {
-          if (
-            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-          ) {
-            importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-          } else if (block.number > bestBlock.number) {
-            importedBlocksSet.add(block)
-            BlockEnqueued
-          } else {
-            BlockImportFailed("foo")
-          }
-        }
-
-        Task.now(result)
-      }
-    }
-
-    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl], stub[BlockchainReader]) {
-      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
-        val importedHashes = importedBlocksSet.map(_.hash).toSet
-
-        if (
-          importedBlocksSet.isEmpty || (importedHashes.contains(
-            headers.head.parentHash
-          ) && headers.last.number > bestBlock.number)
-        )
-          NewBetterBranch(Nil)
-        else
-          UnknownBranch
       }
     }
   }

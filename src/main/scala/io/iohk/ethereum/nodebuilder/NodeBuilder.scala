@@ -453,7 +453,7 @@ trait EthInfoServiceBuilder {
     with BlockchainBuilder
     with BlockchainConfigBuilder
     with ConsensusBuilder
-    with LedgerBuilder
+    with StxLedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
     with AsyncConfigBuilder =>
@@ -575,7 +575,7 @@ trait QaServiceBuilder {
 trait CheckpointingServiceBuilder {
   self: BlockchainBuilder
     with SyncControllerBuilder
-    with LedgerBuilder
+    with StxLedgerBuilder
     with CheckpointBlockGeneratorBuilder
     with BlockQueueBuilder =>
 
@@ -722,11 +722,7 @@ trait VmBuilder {
   lazy val vm: VMImpl = VmSetup.vm(vmConfig, blockchainConfig, testMode = false)
 }
 
-trait LedgerBuilder {
-  def stxLedger: StxLedger
-}
-
-trait StdLedgerBuilder extends LedgerBuilder {
+trait StxLedgerBuilder {
   self: BlockchainConfigBuilder
     with BlockchainBuilder
     with StorageBuilder
@@ -734,7 +730,7 @@ trait StdLedgerBuilder extends LedgerBuilder {
     with ConsensusBuilder
     with ActorSystemBuilder =>
 
-  override lazy val stxLedger: StxLedger =
+  lazy val stxLedger: StxLedger =
     new StxLedger(
       blockchain,
       blockchainReader,
@@ -756,7 +752,7 @@ trait SyncControllerBuilder {
     with BlockImportBuilder
     with NodeStatusBuilder
     with StorageBuilder
-    with LedgerBuilder
+    with StxLedgerBuilder
     with PeerEventBusBuilder
     with PendingTransactionsManagerBuilder
     with OmmersPoolBuilder
@@ -915,7 +911,7 @@ trait Node
     with VmBuilder
     with ConsensusBuilder
     with ConsensusConfigBuilder
-    with LedgerBuilder
+    with StxLedgerBuilder
     with KeyStoreConfigBuilder
     with AsyncConfigBuilder
     with CheckpointBlockGeneratorBuilder

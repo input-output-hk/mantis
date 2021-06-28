@@ -11,7 +11,7 @@ trait Validators {
   def blockHeaderValidator: BlockHeaderValidator
   def signedTransactionValidator: SignedTransactionValidator
 
-  // Note Ledger uses this in importBlock
+  // Note BlockImport uses this in importBlock
   def validateBlockBeforeExecution(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
