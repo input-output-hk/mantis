@@ -55,6 +55,30 @@ object ETC64MessageDecoder extends MessageDecoder {
     }
 }
 
+object ETH64MessageDecoder extends MessageDecoder {
+  import io.iohk.ethereum.network.p2p.messages.ETH64.Status._
+  import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
+
+  def fromBytes(msgCode: Int, payload: Array[Byte]): Message = {
+    msgCode match {
+      case Codes.GetNodeDataCode => payload.toGetNodeData
+      case Codes.NodeDataCode => payload.toNodeData
+      case Codes.GetReceiptsCode => payload.toGetReceipts
+      case Codes.ReceiptsCode => payload.toReceipts
+      case Codes.NewBlockHashesCode => payload.toNewBlockHashes
+      case Codes.GetBlockHeadersCode => payload.toGetBlockHeaders
+      case Codes.BlockHeadersCode => payload.toBlockHeaders
+      case Codes.GetBlockBodiesCode => payload.toGetBlockBodies
+      case Codes.BlockBodiesCode => payload.toBlockBodies
+      case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
+      case Codes.StatusCode => payload.toStatus
+      case Codes.NewBlockCode => payload.toNewBlock
+      case Codes.SignedTransactionsCode => payload.toSignedTransactions
+      case _ => throw new RuntimeException(s"Unknown message type: $msgCode")
+    }
+  }
+}
+
 object ETH63MessageDecoder extends MessageDecoder {
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status._
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
@@ -85,6 +109,7 @@ object EthereumMessageDecoder {
     protocolVersion match {
       case Capability.Capabilities.Etc64Capability => ETC64MessageDecoder.fromBytes
       case Capability.Capabilities.Eth63Capability => ETH63MessageDecoder.fromBytes
+      case Capability.Capabilities.Eth64Capability => ETH64MessageDecoder.fromBytes
       case _                                       => throw new RuntimeException(s"Unsupported Protocol Version $protocolVersion")
     }
 }

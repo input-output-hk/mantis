@@ -8,6 +8,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.forkid.ForkId
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.NetworkMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages._
@@ -56,13 +57,6 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
   }
 
   "Common Messages" when {
-    "encoding and decoding Status" should {
-      "return same result for Status v63" in {
-        val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
-        verify(msg, (m: Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.ETH63)
-      }
-    }
-
     "encoding and decoding SignedTransactions" should {
       "return same result" in {
         val msg = SignedTransactions(Fixtures.Blocks.Block3125369.body.transactionList)
@@ -96,6 +90,28 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
 
   "ETH63" when {
     val version = ProtocolVersions.ETH63
+    "encoding and decoding Status" should {
+      "return same result for Status v63" in {
+        val msg = Status(1, 2, 2, ByteString("HASH"), ByteString("HASH2"))
+        verify(msg, (m: Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.ETH63)
+      }
+    }
+    commonEthAssertions(version)
+  }
+
+  "ETH64" when {
+    val version = ProtocolVersions.ETH64
+    "encoding and decoding Status" should {
+      "return same result" in {
+        val msg = ETH64.Status(1, 2, 3, ByteString("HASH"), ByteString("HASH2"), ForkId(1L, None))
+        verify(msg, (m: ETH64.Status) => m.toBytes, Codes.StatusCode, ProtocolVersions.ETH64)
+      }
+    }
+    commonEthAssertions(version)
+  }
+
+  //scalastyle:off method.length
+  def commonEthAssertions(version: Capability) = {
     "encoding and decoding ETH61.NewBlockHashes" should {
       "throw for unsupported message version" in {
         val msg = ETH61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))
@@ -157,6 +173,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
       }
     }
   }
+  //scalastyle:on
 
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Capability): Unit =
     messageDecoder(version).fromBytes(code, encode(msg)) shouldEqual msg
