@@ -35,10 +35,13 @@ class TestEthBlockServiceWrapper(
     .getByBlockHash(request)
     .map(
       _.map(blockByBlockResponse => {
+        import io.iohk.ethereum.utils.ByteStringUtils._
         blockByBlockResponse.blockResponse
-          .toRight("missing block response")
+          .toRight(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}")
           .flatMap(baseBlockResponse => baseBlockResponse.hash.toRight(s"missing hash for block $baseBlockResponse"))
-          .flatMap(hash => blockchainReader.getBlockByHash(hash).toRight(s"unable to find block for hash=$hash"))
+          .flatMap(hash =>
+            blockchainReader.getBlockByHash(hash).toRight(s"unable to find block for hash=${hash.toHex}")
+          )
           .map(fullBlock =>
             BlockByBlockHashResponse(
               blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response))
