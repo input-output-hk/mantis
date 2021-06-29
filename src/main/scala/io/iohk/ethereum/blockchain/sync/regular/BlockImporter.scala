@@ -26,8 +26,9 @@ import scala.concurrent.duration._
 
 class BlockImporter(
     fetcher: ActorRef,
-    ledger: Ledger,
+    blockImport: BlockImport,
     blockchain: Blockchain,
+    branchResolution: BranchResolution,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     broadcaster: ActorRef,
@@ -183,7 +184,7 @@ class BlockImporter(
       Task.now((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
-      ledger
+      blockImport
         .importBlock(blocks.head)
         .flatMap {
           case BlockImportedToTop(_) =>
@@ -223,7 +224,7 @@ class BlockImporter(
     importWith(
       {
         Task(doLog(importMessages.preImport()))
-          .flatMap(_ => ledger.importBlock(block))
+          .flatMap(_ => blockImport.importBlock(block))
           .tap(importMessages.messageForImportResult _ andThen doLog)
           .tap {
             case BlockImportedToTop(importedBlocksData) =>
@@ -279,7 +280,7 @@ class BlockImporter(
 
   // Either block from which we try resolve branch or list of blocks to be imported
   private def resolveBranch(blocks: NonEmptyList[Block]): Either[BigInt, List[Block]] =
-    ledger.resolveBranch(blocks.map(_.header)) match {
+    branchResolution.resolveBranch(blocks.map(_.header)) match {
       case NewBetterBranch(oldBranch) =>
         val transactionsToAdd = oldBranch.flatMap(_.body.transactionList)
         pendingTransactionsManager ! PendingTransactionsManager.AddUncheckedTransactions(transactionsToAdd)
@@ -315,10 +316,12 @@ class BlockImporter(
 }
 
 object BlockImporter {
+  // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
+      branchResolution: BranchResolution,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       broadcaster: ActorRef,
@@ -328,8 +331,9 @@ object BlockImporter {
     Props(
       new BlockImporter(
         fetcher,
-        ledger,
+        blockImport,
         blockchain,
+        branchResolution,
         syncConfig,
         ommersPool,
         broadcaster,

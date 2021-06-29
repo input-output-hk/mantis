@@ -7,7 +7,6 @@ import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, Receipt, Si
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.TransactionPicker
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 
 import scala.util.Try
@@ -16,6 +15,7 @@ import scala.util.Failure
 import akka.actor.ActorRef
 
 import scala.concurrent.duration.FiniteDuration
+import io.iohk.ethereum.consensus.Consensus
 
 object EthTxService {
   case class GetTransactionByHashRequest(txHash: ByteString) //rename to match request
@@ -38,7 +38,7 @@ object EthTxService {
 class EthTxService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val ledger: Ledger,
+    val consensus: Consensus,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
     transactionMappingStorage: TransactionMappingStorage

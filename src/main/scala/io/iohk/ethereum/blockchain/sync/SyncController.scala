@@ -6,8 +6,9 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage, FastSyncStateStorage, NodeStorage}
 import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.ledger.BlockImport
+import io.iohk.ethereum.ledger.BranchResolution
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -16,7 +17,7 @@ class SyncController(
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
-    ledger: Ledger,
+    blockImport: BlockImport,
     validators: Validators,
     peerEventBus: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -104,8 +105,9 @@ class SyncController(
         peersClient,
         etcPeerManager,
         peerEventBus,
-        ledger,
+        blockImport,
         blockchain,
+        new BranchResolution(blockchain, blockchainReader),
         validators.blockValidator,
         blacklist,
         syncConfig,
@@ -130,7 +132,7 @@ object SyncController {
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
-      ledger: Ledger,
+      blockImport: BlockImport,
       validators: Validators,
       peerEventBus: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -147,7 +149,7 @@ object SyncController {
         evmCodeStorage,
         nodeStorage,
         syncStateStorage,
-        ledger,
+        blockImport,
         validators,
         peerEventBus,
         pendingTransactionsManager,

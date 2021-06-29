@@ -15,7 +15,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience, ObjectGenerators, Timeouts, crypto}
-import io.iohk.ethereum.ledger.Ledger.BlockResult
+import io.iohk.ethereum.ledger.BlockResult
 import monix.execution.Scheduler
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
@@ -41,7 +41,7 @@ class BlockImporterItSpec
     testScheduler.awaitTermination(60.second)
   }
 
-  val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   val genesis = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
@@ -81,15 +81,16 @@ class BlockImporterItSpec
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val ledger = new TestLedgerImpl(successValidators) {
-    override private[ledger] lazy val blockExecution =
+  override lazy val blockImport = mkBlockImport(
+    validators = successValidators,
+    blockExecutionOpt = Some(
       new BlockExecution(
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
-        blockValidation
+        new BlockValidation(consensus, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,
@@ -97,13 +98,16 @@ class BlockImporterItSpec
         ): Either[BlockExecutionError, Seq[Receipt]] =
           Right(BlockResult(emptyWorld).receipts)
       }
-  }
+    )
+  )
+  // }
 
   val blockImporter = system.actorOf(
     BlockImporter.props(
       fetcherProbe.ref,
-      ledger,
+      blockImport,
       blockchain,
+      new BranchResolution(blockchain, blockchainReader),
       syncConfig,
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
@@ -141,13 +145,12 @@ class BlockImporterItSpec
 
   "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
 
-    //ledger with not mocked blockExecution
-    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        ledger,
+        mkBlockImport(validators = successValidators),
         blockchain,
+        new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
@@ -254,12 +257,12 @@ class BlockImporterItSpec
     val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
     val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
 
-    val ledger = new TestLedgerImplNotMockedBlockExecution(successValidators)
     val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        ledger,
+        mkBlockImport(validators = successValidators),
         blockchain,
+        new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,

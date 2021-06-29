@@ -4,7 +4,7 @@ import java.lang.ProcessBuilder.Redirect
 
 import akka.actor.ActorSystem
 import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
 import io.iohk.ethereum.utils.VmConfig.ExternalConfig
 

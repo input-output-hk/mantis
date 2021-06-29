@@ -2,9 +2,9 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
 import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
-import io.iohk.ethereum.ledger.Ledger
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.consensus.Consensus
 
 object EthBlocksService {
   case class BestBlockNumberRequest()
@@ -38,12 +38,9 @@ object EthBlocksService {
 class EthBlocksService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val ledger: Ledger
+    val consensus: Consensus
 ) extends ResolveBlock {
   import EthBlocksService._
-
-  private[jsonrpc] def consensus = ledger.consensus
-  private[jsonrpc] def blockGenerator = consensus.blockGenerator
 
   /**
     * eth_blockNumber that returns the number of most recent block.

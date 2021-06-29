@@ -10,7 +10,7 @@ import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalactic.TypeCheckedTripleEquals
@@ -121,7 +121,6 @@ class EthBlocksServiceSpec
 
   it should "answer eth_getBlockByNumber with the correct block when the pending block is requested" in new TestSetup {
     (appStateStorage.getBestBlockNumber _: () => BigInt).expects().returns(blockToRequest.header.number)
-    (() => ledger.consensus).expects().returns(consensus)
 
     (() => blockGenerator.getPendingBlockAndState)
       .expects()
@@ -140,7 +139,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
@@ -155,14 +153,12 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with None when the requested block isn't in the blockchain" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethBlocksService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).toOption.get
     response.blockResponse shouldBe None
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
@@ -183,7 +179,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is not in blockchain" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -199,7 +194,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
@@ -217,7 +211,6 @@ class EthBlocksServiceSpec
   }
 
   it should "get transaction count by block number" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
 
     val response = ethBlocksService.getBlockTransactionCountByNumber(
@@ -230,7 +223,6 @@ class EthBlocksServiceSpec
   }
 
   it should "get transaction count by latest block number" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -311,7 +303,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockNumberAndIndex with None when the requested block isn't in the blockchain" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
     val response = ethBlocksService.getUncleByBlockNumberAndIndex(request).runSyncUnsafe(Duration.Inf).toOption.get
@@ -319,7 +310,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     blockchain.storeBlock(blockToRequest).commit()
 
@@ -331,7 +321,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle in the requested index" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     blockchain.storeBlock(blockToRequestWithUncles).commit()
 
@@ -355,7 +344,6 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no chain weight for it" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
@@ -369,7 +357,6 @@ class EthBlocksServiceSpec
   }
 
   it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain
       .storeBlock(blockToRequestWithUncles)
       .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
@@ -386,7 +373,6 @@ class EthBlocksServiceSpec
   }
 
   it should "get uncle count by block number" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -411,14 +397,13 @@ class EthBlocksServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
       blockchainReader,
-      ledger
+      consensus
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

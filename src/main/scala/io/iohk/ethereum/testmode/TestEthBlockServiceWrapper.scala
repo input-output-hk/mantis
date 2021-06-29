@@ -9,15 +9,15 @@ import io.iohk.ethereum.jsonrpc.{
   ServiceResponse,
   TransactionData
 }
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.Logger
 import akka.util.ByteString
+import io.iohk.ethereum.consensus.Consensus
 
 class TestEthBlockServiceWrapper(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
-    ledger: Ledger
-) extends EthBlocksService(blockchain, blockchainReader, ledger)
+    consensus: Consensus
+) extends EthBlocksService(blockchain, blockchainReader, consensus)
     with Logger {
 
   /**

@@ -6,7 +6,6 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, BlockchainReader, Checkpoint}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import monix.execution.Scheduler.Implicits.global
 import org.scalacheck.Gen
@@ -15,6 +14,7 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.ledger.BlockQueue
 
 class CheckpointingServiceSpec
     extends TestKit(ActorSystem("CheckpointingServiceSpec_System"))
@@ -143,7 +143,7 @@ class CheckpointingServiceSpec
     val request = PushCheckpointRequest(hash, signatures)
     val expectedResponse = PushCheckpointResponse()
 
-    (ledger.getBlockByHash _).expects(hash).returning(Some(parentBlock)).once()
+    (blockchainReader.getBlockByHash _).expects(hash).returning(Some(parentBlock)).once()
 
     val result = service.pushCheckpoint(request).runSyncUnsafe()
     val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, Checkpoint(signatures))
@@ -175,10 +175,10 @@ class CheckpointingServiceSpec
   trait TestSetup {
     val blockchain = mock[BlockchainImpl]
     val blockchainReader = mock[BlockchainReader]
-    val ledger = mock[Ledger]
+    val blockQueue = mock[BlockQueue]
     val syncController = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val service =
-      new CheckpointingService(blockchain, blockchainReader, ledger, checkpointBlockGenerator, syncController.ref)
+      new CheckpointingService(blockchain, blockchainReader, blockQueue, checkpointBlockGenerator, syncController.ref)
   }
 }

@@ -19,7 +19,7 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, BlockchainImpl}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
 import monix.eval.Task

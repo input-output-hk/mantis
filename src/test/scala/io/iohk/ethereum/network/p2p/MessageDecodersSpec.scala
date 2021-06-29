@@ -48,10 +48,13 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       Hex.decode(
         "f846e2a0fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef601e2a0fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef602"
       )
-    val newBlockHashesETH62 = ETH62.NewBlockHashes(Seq(ETH62.BlockHash(exampleHash, 1), ETH62.BlockHash(exampleHash, 2)))
+    val newBlockHashesETH62 =
+      ETH62.NewBlockHashes(Seq(ETH62.BlockHash(exampleHash, 1), ETH62.BlockHash(exampleHash, 2)))
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+    decode(ProtocolVersions.ETH63)
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+    decode(ProtocolVersions.ETC64)
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
   }
 
   it should "not decode message from older version of protocol as newer version" in {
@@ -135,7 +138,8 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   it should "decode Status message for all supported versions of protocol" in {
     val status63 = BaseETH6XMessages.Status(ProtocolVersions.ETH63.version, 1, BigInt(100), exampleHash, exampleHash)
     val status63Bytes: Array[Byte] = status63.toBytes
-    val status64 = ETC64.Status(ProtocolVersions.ETH63.version, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
+    val status64 =
+      ETC64.Status(ProtocolVersions.ETH63.version, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.StatusCode, status63Bytes) shouldBe status63
     decode(ProtocolVersions.ETC64).fromBytes(Codes.StatusCode, status64.toBytes) shouldBe status64
@@ -154,8 +158,10 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val signedTransactions = SignedTransactions(ObjectGenerators.signedTxSeqGen(3, secureRandom, None).sample.get)
     val signedTransactionsBytes: Array[Byte] = signedTransactions.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+    decode(ProtocolVersions.ETH63)
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+    decode(ProtocolVersions.ETC64)
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
   }
 
   it should "not decode message not existing in given protocol" in {

@@ -265,11 +265,11 @@ class RegularSyncSpec
     "resolving branches" should {
 
       "go back to earlier block in order to find a common parent with new branch" in sync(
-        new Fixture(testSystem) with FakeLedger {
-          implicit val ec: Scheduler = Scheduler(system.dispatcher)
+        new Fixture(testSystem) {
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-          (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
-          override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+          (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
+          override lazy val blockImport: BlockImport = new FakeImportBlock()
+          override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
             blockBodiesPerRequest = 5,
@@ -303,7 +303,7 @@ class RegularSyncSpec
 
           peersClient.setAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
 
-          Await.result(ledger.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+          Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
           regularSync ! SyncProtocol.Start
 
@@ -314,17 +314,17 @@ class RegularSyncSpec
               defaultPeer.id
             )
           )
-          awaitCond(ledger.bestBlock == alternativeBlocks.last, 5.seconds)
+          awaitCond(bestBlock == alternativeBlocks.last, 5.seconds)
         }
       )
     }
 
     "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in sync(
-      new Fixture(testSystem) with FakeLedger {
-        implicit val ec: Scheduler = Scheduler(system.dispatcher)
+      new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-        (blockchain.getBestBlockNumber _).when().onCall(() => ledger.bestBlock.number)
-        override lazy val ledger: TestLedgerImpl = new FakeLedgerImpl()
+        (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
+        override lazy val blockImport: BlockImport = new FakeImportBlock()
+        override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
           printStatusInterval = 0.5.seconds,
@@ -353,7 +353,7 @@ class RegularSyncSpec
 
         peersClient.setAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
 
-        Await.result(ledger.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+        Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
         regularSync ! SyncProtocol.Start
 
@@ -363,21 +363,21 @@ class RegularSyncSpec
           MessageFromPeer(NewBlock(originalBranch.last, ChainWeight(0, originalBranch.last.number)), defaultPeer.id)
         )
 
-        awaitCond(ledger.bestBlock == originalBranch.last, 5.seconds)
+        awaitCond(bestBlock == originalBranch.last, 5.seconds)
 
         // As node will be on top, we have to re-trigger the fetching process by simulating a block from the fork being broadcasted
         blockFetcher ! MessageFromPeer(
           NewBlock(betterBranch.last, ChainWeight(0, betterBranch.last.number)),
           defaultPeer.id
         )
-        awaitCond(ledger.bestBlock == betterBranch.last, 5.seconds)
+        awaitCond(bestBlock == betterBranch.last, 5.seconds)
       }
     )
 
     "fetching state node" should {
       abstract class MissingStateNodeFixture(system: ActorSystem) extends Fixture(system) {
         val failingBlock: Block = testBlocksChunked.head.head
-        ledger.setImportResult(
+        setImportResult(
           failingBlock,
           Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash)))
         )
@@ -444,12 +444,14 @@ class RegularSyncSpec
 
       "save fetched node" in sync(new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
+        override lazy val blockImport: BlockImport = stub[BlockImport]
+
         override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
-        (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
-        (ledger
+        override lazy val branchResolution: BranchResolution = stub[BranchResolution]
+        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
+        (blockImport
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
           .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
@@ -478,7 +480,7 @@ class RegularSyncSpec
 
     "catching the top" should {
       "ignore new blocks if they are too new" in sync(new Fixture(testSystem) {
-        override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+        override lazy val blockImport: BlockImport = stub[BlockImport]
 
         val newBlock: Block = testBlocks.last
 
@@ -489,14 +491,14 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (ledger.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
+        (blockImport.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
         val failingBlock: Block = testBlocksChunked(1).head
 
-        testBlocksChunked.head.foreach(ledger.setImportResult(_, Task.now(BlockImportedToTop(Nil))))
-        ledger.setImportResult(failingBlock, Task.now(BlockImportFailed("test error")))
+        testBlocksChunked.head.foreach(setImportResult(_, Task.now(BlockImportedToTop(Nil))))
+        setImportResult(failingBlock, Task.now(BlockImportFailed("test error")))
 
         peersClient.setAutoPilot(new PeersClientAutoPilot())
 
@@ -507,7 +509,7 @@ class RegularSyncSpec
           MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
         )
 
-        awaitCond(ledger.didTryToImportBlock(failingBlock))
+        awaitCond(didTryToImportBlock(failingBlock))
 
         peersClient.fishForMsgEq(blockHeadersChunkRequest(1))
       })
@@ -555,7 +557,7 @@ class RegularSyncSpec
     "handling mined blocks" should {
       "not import when importing other blocks" in sync(new Fixture(testSystem) {
         val headPromise: Promise[BlockImportResult] = Promise()
-        ledger.setImportResult(testBlocks.head, Task.fromFuture(headPromise.future))
+        setImportResult(testBlocks.head, Task.fromFuture(headPromise.future))
         val minedBlock: Block = BlockHelpers.generateBlock(BlockHelpers.genesis)
         peersClient.setAutoPilot(new PeersClientAutoPilot())
 
@@ -566,11 +568,11 @@ class RegularSyncSpec
           MessageFromPeer(NewBlock(testBlocks.last, ChainWeight(0, testBlocks.last.number)), defaultPeer.id)
         )
 
-        awaitCond(ledger.didTryToImportBlock(testBlocks.head))
+        awaitCond(didTryToImportBlock(testBlocks.head))
         regularSync ! SyncProtocol.MinedBlock(minedBlock)
         headPromise.success(BlockImportedToTop(Nil))
         Thread.sleep(remainingOrDefault.toMillis)
-        ledger.didTryToImportBlock(minedBlock) shouldBe false
+        didTryToImportBlock(minedBlock) shouldBe false
       })
 
       "import when on top" in sync(new OnTopFixture(testSystem) {
@@ -583,13 +585,13 @@ class RegularSyncSpec
 
       "import when not on top and not importing other blocks" in sync(new Fixture(testSystem) {
         val minedBlock: Block = BlockHelpers.generateBlock(BlockHelpers.genesis)
-        ledger.setImportResult(minedBlock, Task.now(BlockImportedToTop(Nil)))
+        setImportResult(minedBlock, Task.now(BlockImportedToTop(Nil)))
 
         regularSync ! SyncProtocol.Start
 
         regularSync ! SyncProtocol.MinedBlock(minedBlock)
 
-        awaitCond(ledger.didTryToImportBlock(minedBlock))
+        awaitCond(didTryToImportBlock(minedBlock))
       })
 
       "broadcast after successful import" in sync(new OnTopFixture(testSystem) {
@@ -617,41 +619,41 @@ class RegularSyncSpec
       "wait while importing other blocks and then import" in sync(new Fixture(testSystem) {
         val block = testBlocks.head
         val blockPromise: Promise[BlockImportResult] = Promise()
-        ledger.setImportResult(block, Task.fromFuture(blockPromise.future))
+        setImportResult(block, Task.fromFuture(blockPromise.future))
 
-        ledger.setImportResult(testBlocks(1), Task.now(BlockImportedToTop(Nil)))
+        setImportResult(testBlocks(1), Task.now(BlockImportedToTop(Nil)))
 
         val checkpointBlock = checkpointBlockGenerator.generate(block, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)
-        ledger.setImportResult(checkpointBlock, Task.eval(BlockImportedToTop(Nil)))
+        setImportResult(checkpointBlock, Task.eval(BlockImportedToTop(Nil)))
 
         regularSync ! SyncProtocol.Start
 
         peersClient.setAutoPilot(new PeersClientAutoPilot())
 
-        awaitCond(ledger.didTryToImportBlock(block))
+        awaitCond(didTryToImportBlock(block))
         regularSync ! newCheckpointMsg
 
         assertForDuration(
-          { ledger.didTryToImportBlock(checkpointBlock) shouldBe false },
+          { didTryToImportBlock(checkpointBlock) shouldBe false },
           1.second
         )
         blockPromise.success(BlockImportedToTop(Nil))
-        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+        awaitCond(didTryToImportBlock(checkpointBlock))
       })
 
       "import checkpoint when not importing other blocks and broadcast it" in sync(new Fixture(testSystem) {
         regularSync ! SyncProtocol.Start
 
         val parentBlock = testBlocks.last
-        ledger.setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        ledger.importBlock(parentBlock)(Scheduler.global)
+        setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
+        blockImport.importBlock(parentBlock)(Scheduler.global)
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)
-        ledger.setImportResult(
+        setImportResult(
           checkpointBlock,
-          // FIXME: lastCheckpointNumber == 0, refactor FakeLedger?
+          // FIXME: lastCheckpointNumber == 0, refactor RegularSyncFixture?
           Task.eval(
             BlockImportedToTop(List(BlockData(checkpointBlock, Nil, ChainWeight(parentBlock.number + 1, 42))))
           )
@@ -662,7 +664,7 @@ class RegularSyncSpec
 
         regularSync ! newCheckpointMsg
 
-        awaitCond(ledger.didTryToImportBlock(checkpointBlock))
+        awaitCond(didTryToImportBlock(checkpointBlock))
         etcPeerManager.fishForSpecificMessageMatching() {
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
@@ -809,7 +811,7 @@ class RegularSyncSpec
 
         for {
           _ <- Task {
-            testBlocks.take(6).foreach(ledger.setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
+            testBlocks.take(6).foreach(setImportResult(_, Task.eval(BlockImportedToTop(Nil))))
 
             peersClient.setAutoPilot(new PeersClientAutoPilot(testBlocks.take(6)))
 
@@ -823,7 +825,7 @@ class RegularSyncSpec
               )
             )
           }
-          _ <- ledger.importedBlocks.take(5).lastL
+          _ <- importedBlocks.take(5).lastL
           _ <- fishForStatus {
             case s: Status.Syncing if s.blocksProgress == Progress(5, 20) && s.startingBlockNumber == 0 =>
               s
@@ -839,45 +841,6 @@ class RegularSyncSpec
             _ <- Task { goToTop() }
             status <- getSyncStatus
           } yield assert(status === Status.SyncDone)
-      }
-    }
-  }
-
-  trait FakeLedger { self: Fixture =>
-    class FakeLedgerImpl extends TestLedgerImpl {
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
-        val result: BlockImportResult = if (didTryToImportBlock(block)) {
-          DuplicateBlock
-        } else {
-          if (
-            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-          ) {
-            importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-          } else if (block.number > bestBlock.number) {
-            importedBlocksSet.add(block)
-            BlockEnqueued
-          } else {
-            BlockImportFailed("foo")
-          }
-        }
-
-        Task.now(result)
-      }
-
-      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
-        val importedHashes = importedBlocksSet.map(_.hash).toSet
-
-        if (
-          importedBlocksSet.isEmpty || (importedHashes.contains(
-            headers.head.parentHash
-          ) && headers.last.number > bestBlock.number)
-        )
-          NewBetterBranch(Nil)
-        else
-          UnknownBranch
       }
     }
   }

@@ -10,7 +10,6 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.ommers.OmmersPool
 import monix.eval.Task
 
@@ -22,6 +21,7 @@ import scala.concurrent.duration.FiniteDuration
 import scala.language.existentials
 import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.Consensus
 
 object EthMiningService {
 
@@ -47,7 +47,7 @@ object EthMiningService {
 class EthMiningService(
     blockchain: Blockchain,
     blockchainConfig: BlockchainConfig,
-    ledger: Ledger,
+    consensus: Consensus,
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
     syncingController: ActorRef,
@@ -57,7 +57,6 @@ class EthMiningService(
 
   import EthMiningService._
 
-  private[this] def consensus = ledger.consensus
   private[this] def fullConsensusConfig = consensus.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 

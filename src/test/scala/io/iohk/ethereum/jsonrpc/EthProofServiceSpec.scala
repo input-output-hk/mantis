@@ -15,7 +15,6 @@ import io.iohk.ethereum.jsonrpc.EthUserService.{
   GetTransactionCountRequest
 }
 import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import monix.execution.Scheduler.Implicits.global
@@ -261,8 +260,6 @@ class EthProofServiceSpec
     val storageKeys = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
 
-    override lazy val ledger = mock[Ledger]
-
     def fetchProof(
         address: Address,
         storageKeys: Seq[StorageProofKey],
@@ -276,8 +273,8 @@ class EthProofServiceSpec
     val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
+      consensus,
       storagesInstance.storages.evmCodeStorage,
-      ledger,
       blockchainConfig
     )
   }

@@ -9,7 +9,8 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionS
 import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
 import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger.{BlockResult, VMImpl}
+import io.iohk.ethereum.ledger.BlockResult
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.vm.{
   InvalidJump,
   InvalidOpCode,
@@ -238,7 +239,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     })
 
@@ -261,7 +262,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
@@ -303,7 +304,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm = new MockVM((pc: Ledger.PC) => {
+    override lazy val vm = new MockVM((pc: PC) => {
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
     })
 
@@ -327,4 +328,76 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
 
+  // migrated from old LedgerSpec
+  "properly assign stateRootHash before byzantium block (exclusive)" in new TestSetup {
+
+    val tx: Transaction = defaultTx.copy(
+      gasPrice = defaultGasPrice,
+      gasLimit = defaultGasLimit,
+      receivingAddress = None,
+      payload = ByteString.empty
+    )
+    val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val header: BlockHeader =
+      defaultBlockHeader.copy(number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber - 1)
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      consensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map { br =>
+      br.receipts.last.postTransactionStateHash shouldBe a[HashOutcome]
+    }
+  }
+
+  "properly assign stateRootHash after byzantium block (inclusive) if operation is a success" in new TestSetup {
+
+    val tx: Transaction = defaultTx.copy(
+      gasPrice = defaultGasPrice,
+      gasLimit = defaultGasLimit,
+      receivingAddress = None,
+      payload = ByteString.empty
+    )
+    val stx: SignedTransaction = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId)).tx
+    val header: BlockHeader =
+      defaultBlockHeader.copy(
+        beneficiary = minerAddress.bytes,
+        number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber
+      )
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
+  }
+
+  "properly assign stateRootHash after byzantium block (inclusive) if operation is a failure" in new TestSetup {
+
+    val defaultsLogs = Seq(defaultLog)
+
+    lazy val mockVM =
+      new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
+
+    val testConsensus: Consensus = newTestConsensus(vm = mockVM)
+
+    val tx: Transaction = defaultTx.copy(
+      gasPrice = defaultGasLimit,
+      gasLimit = defaultGasLimit,
+      receivingAddress = None,
+      payload = ByteString.empty
+    )
+    val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+    val header: BlockHeader =
+      defaultBlockHeader.copy(
+        beneficiary = minerAddress.bytes,
+        number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber
+      )
+
+    val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
+      testConsensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+
+    result shouldBe a[Right[_, BlockResult]]
+    result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)
+  }
 }

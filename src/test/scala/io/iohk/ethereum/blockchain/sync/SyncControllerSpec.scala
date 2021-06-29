@@ -10,8 +10,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFo
 import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
 import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.Ledger
-import io.iohk.ethereum.ledger.Ledger.VMImpl
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
@@ -500,7 +499,6 @@ class SyncControllerSpec
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
 
-    override lazy val ledger: Ledger = mock[Ledger]
     //+ cake overrides
 
     val etcPeerManager = TestProbe()
@@ -537,7 +535,7 @@ class SyncControllerSpec
           storagesInstance.storages.evmCodeStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
-          ledger,
+          blockImport,
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,

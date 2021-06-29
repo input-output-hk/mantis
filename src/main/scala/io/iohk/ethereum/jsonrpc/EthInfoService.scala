@@ -10,7 +10,7 @@ import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.{BlockHeader, _}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -24,6 +24,7 @@ import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
 import scala.language.existentials
 import scala.reflect.ClassTag
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.consensus.Consensus
 
 object EthInfoService {
   case class ChainIdRequest()
@@ -73,7 +74,7 @@ class EthInfoService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    val ledger: Ledger,
+    val consensus: Consensus,
     stxLedger: StxLedger,
     keyStore: KeyStore,
     syncingController: ActorRef,

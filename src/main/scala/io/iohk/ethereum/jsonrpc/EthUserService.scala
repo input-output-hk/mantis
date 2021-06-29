@@ -3,10 +3,11 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import monix.eval.Task
+import io.iohk.ethereum.consensus.Consensus
 
 object EthUserService {
   case class GetStorageAtRequest(address: Address, position: BigInt, block: BlockParam)
@@ -24,8 +25,8 @@ object EthUserService {
 class EthUserService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
+    val consensus: Consensus,
     evmCodeStorage: EvmCodeStorage,
-    val ledger: Ledger,
     blockchainConfig: BlockchainConfig
 ) extends ResolveBlock {
   import EthUserService._

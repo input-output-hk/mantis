@@ -12,7 +12,6 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.rlp.RLPImplicits._
 
-
 class ForkIdSpec extends AnyWordSpec with Matchers {
 
   val config = blockchains
@@ -48,7 +47,10 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(4369999) shouldBe ForkId(0x3edd5b10L, Some(4370000)) // Last Spurious block
       create(4370000) shouldBe ForkId(0xa00bc324L, Some(7280000)) // First Byzantium block
       create(7279999) shouldBe ForkId(0xa00bc324L, Some(7280000)) // Last Byzantium block
-      create(7280000) shouldBe ForkId(0x668db0afL, Some(9069000)) // First and last Constantinople, first Petersburg block
+      create(7280000) shouldBe ForkId(
+        0x668db0afL,
+        Some(9069000)
+      ) // First and last Constantinople, first Petersburg block
       create(9068999) shouldBe ForkId(0x668db0afL, Some(9069000)) // Last Petersburg block
       // TODO: Add Muir Glacier and Berlin
       create(9069000) shouldBe ForkId(0x879d6e30L, None) // First Istanbul block
@@ -65,19 +67,19 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(1150000) shouldBe ForkId(0x97c2c34cL, Some(2500000)) // First Homestead block
       create(1919999) shouldBe ForkId(0x97c2c34cL, Some(2500000)) // Last Homestead block
       create(2500000) shouldBe ForkId(0xdb06803fL, Some(3000000))
-      create(3000000-1) shouldBe ForkId(0xdb06803fL, Some(3000000))
+      create(3000000 - 1) shouldBe ForkId(0xdb06803fL, Some(3000000))
       create(3000000) shouldBe ForkId(0xaff4bed4L, Some(5000000))
-      create(5000000-1) shouldBe ForkId(0xaff4bed4L, Some(5000000))
+      create(5000000 - 1) shouldBe ForkId(0xaff4bed4L, Some(5000000))
       create(5000000) shouldBe ForkId(0xf79a63c0L, Some(5900000))
-      create(5900000-1) shouldBe ForkId(0xf79a63c0L, Some(5900000))
+      create(5900000 - 1) shouldBe ForkId(0xf79a63c0L, Some(5900000))
       create(5900000) shouldBe ForkId(0x744899d6L, Some(8772000))
-      create(8772000-1) shouldBe ForkId(0x744899d6L, Some(8772000))
+      create(8772000 - 1) shouldBe ForkId(0x744899d6L, Some(8772000))
       create(8772000) shouldBe ForkId(0x518b59c6L, Some(9573000))
-      create(9573000-1) shouldBe ForkId(0x518b59c6L, Some(9573000))
+      create(9573000 - 1) shouldBe ForkId(0x518b59c6L, Some(9573000))
       create(9573000) shouldBe ForkId(0x7ba22882L, Some(10500839))
-      create(10500839-1) shouldBe ForkId(0x7ba22882L, Some(10500839))
+      create(10500839 - 1) shouldBe ForkId(0x7ba22882L, Some(10500839))
       create(10500839) shouldBe ForkId(0x9007bfccL, Some(11700000))
-      create(11700000-1) shouldBe ForkId(0x9007bfccL, Some(11700000))
+      create(11700000 - 1) shouldBe ForkId(0x9007bfccL, Some(11700000))
       create(11700000) shouldBe ForkId(0xdb63a1caL, None)
     }
 
@@ -102,11 +104,11 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
     // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
     "be correctly encoded via rlp" in {
       roundTrip(ForkId(0, None), "c6840000000080")
-      roundTrip(ForkId(0xdeadbeefL, Some(0xBADDCAFEL)), "ca84deadbeef84baddcafe")
+      roundTrip(ForkId(0xdeadbeefL, Some(0xbaddcafeL)), "ca84deadbeef84baddcafe")
 
-      val maxUInt64 = (BigInt(0x7FFFFFFFFFFFFFFFL) << 1) + 1
+      val maxUInt64 = (BigInt(0x7fffffffffffffffL) << 1) + 1
       maxUInt64.toByteArray shouldBe Array(0, -1, -1, -1, -1, -1, -1, -1, -1)
-      val maxUInt32 = BigInt(0xFFFFFFFFL)
+      val maxUInt32 = BigInt(0xffffffffL)
       maxUInt32.toByteArray shouldBe Array(0, -1, -1, -1, -1)
 
       roundTrip(ForkId(maxUInt32, Some(maxUInt64)), "ce84ffffffff88ffffffffffffffff")

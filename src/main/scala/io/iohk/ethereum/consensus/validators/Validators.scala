@@ -11,7 +11,7 @@ trait Validators {
   def blockHeaderValidator: BlockHeaderValidator
   def signedTransactionValidator: SignedTransactionValidator
 
-  // Note Ledger uses this in importBlock
+  // Note BlockImport uses this in importBlock
   def validateBlockBeforeExecution(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
@@ -22,8 +22,6 @@ trait Validators {
     *   - Validating the resulting stateRootHash
     *   - Doing BlockValidator.validateBlockReceipts validations involving the receipts
     *   - Validating the resulting gas used
-    *
-    * @note This method was originally provided by the [[io.iohk.ethereum.ledger.Ledger]].
     *
     * @param block         to validate
     * @param stateRootHash from the resulting state trie after executing the txs from the block

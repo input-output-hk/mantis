@@ -46,7 +46,7 @@ class FastSyncBranchResolverActorSpec
     "fetch headers from the new master peer" - {
       "the chain is repaired from the first request to the new master pair and then the last two blocks are removed" in new TestSetup {
         override implicit lazy val system = self.system
-        override implicit val scheduler = Scheduler(system.dispatcher)
+        implicit val scheduler = Scheduler(system.dispatcher)
 
         val sender = TestProbe("sender")
 
@@ -93,7 +93,7 @@ class FastSyncBranchResolverActorSpec
       "The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" - {
         "highest common block is in the middle" in new TestSetup {
           override implicit lazy val system = self.system
-          override implicit val scheduler = Scheduler(system.dispatcher)
+          implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
 
@@ -130,7 +130,7 @@ class FastSyncBranchResolverActorSpec
         }
         "highest common block is in the first half" in new TestSetup {
           override implicit lazy val system = self.system
-          override implicit val scheduler = Scheduler(system.dispatcher)
+          implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
 
@@ -169,7 +169,7 @@ class FastSyncBranchResolverActorSpec
 
         "highest common block is in the second half" in new TestSetup {
           override implicit lazy val system = self.system
-          override implicit val scheduler = Scheduler(system.dispatcher)
+          implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
 
@@ -208,7 +208,7 @@ class FastSyncBranchResolverActorSpec
 
       "No common block is found" in new TestSetup {
         override implicit lazy val system = self.system
-        override implicit val scheduler = Scheduler(system.dispatcher)
+        implicit val scheduler = Scheduler(system.dispatcher)
 
         val sender = TestProbe("sender")
 

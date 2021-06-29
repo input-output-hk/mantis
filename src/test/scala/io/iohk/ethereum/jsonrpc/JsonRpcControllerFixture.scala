@@ -14,7 +14,7 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{BloomFilter, InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.{BloomFilter, InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.nodebuilder.ApisBuilder
@@ -45,9 +45,13 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val blockGenerator = mock[PoWBlockGenerator]
 
   val syncingController = TestProbe()
-  override lazy val ledger = mock[Ledger]
   override lazy val stxLedger = mock[StxLedger]
   override lazy val validators = mock[ValidatorsExecutor]
+  (() => validators.signedTransactionValidator)
+    .expects()
+    .returns(null)
+    .anyNumberOfTimes()
+
   override lazy val consensus: TestConsensus = buildTestConsensus()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)
@@ -78,7 +82,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchain,
     blockchainReader,
     blockchainConfig,
-    ledger,
+    consensus,
     stxLedger,
     keyStore,
     syncingController.ref,
@@ -89,7 +93,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethMiningService = new EthMiningService(
     blockchain,
     blockchainConfig,
-    ledger,
+    consensus,
     config,
     ommersPool.ref,
     syncingController.ref,
@@ -97,12 +101,12 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, ledger)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus)
 
   val ethTxService = new EthTxService(
     blockchain,
     blockchainReader,
-    ledger,
+    consensus,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage
@@ -111,8 +115,8 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethUserService = new EthUserService(
     blockchain,
     blockchainReader,
+    consensus,
     storagesInstance.storages.evmCodeStorage,
-    ledger,
     blockchainConfig
   )
 

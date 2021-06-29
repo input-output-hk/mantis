@@ -8,18 +8,20 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain.{Block, Blockchain}
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import akka.actor.typed.scaladsl.adapter._
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.ledger.BlockImport
 
 class RegularSync(
     peersClient: ActorRef,
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef,
-    ledger: Ledger,
+    blockImport: BlockImport,
     blockchain: Blockchain,
+    branchResolution: BranchResolution,
     blockValidator: BlockValidator,
     blacklist: Blacklist,
     syncConfig: SyncConfig,
@@ -46,8 +48,9 @@ class RegularSync(
     context.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
-        ledger,
+        blockImport,
         blockchain,
+        branchResolution,
         syncConfig,
         ommersPool,
         broadcaster,
@@ -116,8 +119,9 @@ object RegularSync {
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
-      ledger: Ledger,
+      blockImport: BlockImport,
       blockchain: Blockchain,
+      branchResolution: BranchResolution,
       blockValidator: BlockValidator,
       blacklist: Blacklist,
       syncConfig: SyncConfig,
@@ -130,8 +134,9 @@ object RegularSync {
         peersClient,
         etcPeerManager,
         peerEventBus,
-        ledger,
+        blockImport,
         blockchain,
+        branchResolution,
         blockValidator,
         blacklist,
         syncConfig,

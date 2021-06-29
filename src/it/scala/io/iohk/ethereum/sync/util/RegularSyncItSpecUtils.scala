@@ -81,16 +81,21 @@ object RegularSyncItSpecUtils {
         "peers-client"
       )
 
-    lazy val ledger: Ledger =
-      new LedgerImpl(
+    lazy val consensus = buildEthashConsensus()
+
+    lazy val blockQueue = BlockQueue(bl, syncConfig)
+    lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
+    lazy val blockExecution =
+      new BlockExecution(
         bl,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        syncConfig,
-        buildEthashConsensus(),
-        Scheduler.global
+        consensus.blockPreparator,
+        blockValidation
       )
+    lazy val blockImport: BlockImport =
+      new BlockImport(bl, blockchainReader, blockQueue, blockValidation, blockExecution, Scheduler.global)
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 
@@ -123,8 +128,9 @@ object RegularSyncItSpecUtils {
     lazy val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
-        ledger,
+        blockImport,
         bl,
+        new BranchResolution(bl, blockchainReader),
         syncConfig,
         ommersPool,
         broadcasterRef,
@@ -138,8 +144,9 @@ object RegularSyncItSpecUtils {
         peersClient,
         etcPeerManager,
         peerEventBus,
-        ledger,
+        blockImport,
         bl,
+        new BranchResolution(bl, blockchainReader),
         validators.blockValidator,
         blacklist,
         testSyncConfig,

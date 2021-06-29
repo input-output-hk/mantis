@@ -6,7 +6,6 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
-import io.iohk.ethereum.ledger.Ledger._
 import io.iohk.ethereum.ledger.BlockPreparator._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}
@@ -16,13 +15,6 @@ import scala.annotation.tailrec
 
 /**
   * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
-  *
-  * With its introduction, we:
-  *
-  *   1. Avoid a direct dependency of [[io.iohk.ethereum.consensus.Consensus Consensus]] on
-  *      [[io.iohk.ethereum.ledger.Ledger Ledger]].
-  *   2. Extract a substantial chunk of functionality outside [[io.iohk.ethereum.ledger.Ledger Ledger]],
-  *      in an attempt to modularize it.
   */
 class BlockPreparator(
     vm: VMImpl,

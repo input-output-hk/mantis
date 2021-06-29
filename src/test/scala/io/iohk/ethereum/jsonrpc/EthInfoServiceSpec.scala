@@ -12,8 +12,8 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.{Block, UInt256, _}
 import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.Ledger.TxResult
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger, StxLedger}
+import io.iohk.ethereum.ledger.TxResult
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import monix.execution.Scheduler.Implicits.global
@@ -91,7 +91,6 @@ class EthServiceSpec
   }
 
   it should "execute call and return a value" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -122,7 +121,6 @@ class EthServiceSpec
   }
 
   it should "execute estimateGas and return a value" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
     blockchain.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -147,7 +145,6 @@ class EthServiceSpec
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
     val keyStore = mock[KeyStore]
-    override lazy val ledger = mock[Ledger]
     override lazy val stxLedger = mock[StxLedger]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
@@ -161,7 +158,7 @@ class EthServiceSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      ledger,
+      consensus,
       stxLedger,
       keyStore,
       syncingController.ref,

@@ -7,7 +7,6 @@ import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils._
 import monix.execution.Scheduler.Implicits.global
@@ -136,12 +135,11 @@ class EthUserServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    override lazy val ledger = mock[Ledger]
     lazy val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
+      consensus,
       storagesInstance.storages.evmCodeStorage,
-      ledger,
       blockchainConfig
     )
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

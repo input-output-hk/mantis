@@ -9,7 +9,6 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthTxService._
-import io.iohk.ethereum.ledger.Ledger
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils._
@@ -114,7 +113,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
@@ -129,7 +127,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx is still pending" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
@@ -146,7 +143,6 @@ class EthTxServiceSpec
 
   it should "handle eth_getRawTransactionByHash if the tx was already executed" in new TestSetup {
     // given
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
@@ -249,7 +245,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is not on the blockchain and not in the tx pool" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethTxService.getTransactionByHash(request).runSyncUnsafe()
@@ -261,7 +256,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx is still pending" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethTxService.getTransactionByHash(request).runToFuture
@@ -275,7 +269,6 @@ class EthTxServiceSpec
   }
 
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     blockchain.storeBlock(blockWithTx).commit()
@@ -372,14 +365,13 @@ class EthTxServiceSpec
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
     val pendingTransactionsManager = TestProbe()
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     lazy val ethTxService = new EthTxService(
       blockchain,
       blockchainReader,
-      ledger,
+      consensus,
       pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout,
       storagesInstance.storages.transactionMappingStorage

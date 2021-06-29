@@ -20,21 +20,23 @@ class BranchResolutionSpec
   "BranchResolution" should {
 
     "check if headers are from chain" in new BlockchainSetup {
+      val branchResolution = new BranchResolution(blockchain, blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
-      ledger.branchResolution.doHeadersFormChain(NonEmptyList.of(parent, child)) shouldBe true
+      branchResolution.doHeadersFormChain(NonEmptyList.of(parent, child)) shouldBe true
     }
 
     "check if headers are not from chain" in new BlockchainSetup {
+      val branchResolution = new BranchResolution(blockchain, blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val otherParent: BlockHeader = defaultBlockHeader.copy(number = 3)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
-      ledger.branchResolution.doHeadersFormChain(NonEmptyList.of(otherParent, child)) shouldBe false
+      branchResolution.doHeadersFormChain(NonEmptyList.of(otherParent, child)) shouldBe false
     }
 
     "report an invalid branch when headers do not form a chain" in new BranchResolutionTestSetup {
       val headers = getChainHeadersNel(1, 10).reverse
-      ledger.resolveBranch(headers) shouldEqual InvalidBranch
+      branchResolution.resolveBranch(headers) shouldEqual InvalidBranch
     }
 
     "report an unknown branch in the parent of the first header is unknown" in new BranchResolutionTestSetup {
@@ -43,7 +45,7 @@ class BranchResolutionSpec
       setGenesisHeader(genesisHeader) // Check genesis block
       setHeaderInChain(headers.head.parentHash, result = false)
 
-      ledger.resolveBranch(headers) shouldEqual UnknownBranch
+      branchResolution.resolveBranch(headers) shouldEqual UnknownBranch
     }
 
     "report new better branch found when headers form a branch of higher chain weight than corresponding known headers" in
@@ -57,7 +59,7 @@ class BranchResolutionSpec
         val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty - 1)
         oldBlocks.map(b => setBlockByNumber(b.header.number, Some(b)))
 
-        ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+        branchResolution.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
       }
 
     "report no need for a chain switch the headers do not have chain weight greater than currently known branch" in
@@ -71,7 +73,7 @@ class BranchResolutionSpec
         val oldBlocks = getChain(1, 10, headers.head.parentHash, headers.head.difficulty)
         oldBlocks.map(b => setBlockByNumber(b.header.number, Some(b)))
 
-        ledger.resolveBranch(headers) shouldEqual NoChainSwitch
+        branchResolution.resolveBranch(headers) shouldEqual NoChainSwitch
       }
 
     "correctly handle a branch that goes up to the genesis block" in new BranchResolutionTestSetup {
@@ -86,7 +88,7 @@ class BranchResolutionSpec
       val oldBlocks: List[Block] = getChain(1, 10, genesisHeader.hash, headers.tail.head.difficulty - 1)
       oldBlocks.foreach(b => setBlockByNumber(b.header.number, Some(b)))
 
-      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+      branchResolution.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
     }
 
     "report an unknown branch if the included genesis header is different than ours" in new BranchResolutionTestSetup {
@@ -97,7 +99,7 @@ class BranchResolutionSpec
       setGenesisHeader(genesisHeader)
       setBestBlockNumber(10)
 
-      ledger.resolveBranch(headers) shouldEqual UnknownBranch
+      branchResolution.resolveBranch(headers) shouldEqual UnknownBranch
     }
 
     "not include common prefix as result when finding a new better branch" in new BranchResolutionTestSetup {
@@ -114,7 +116,7 @@ class BranchResolutionSpec
       setBlockByNumber(1, Some(Block(headers.head, BlockBody(Nil, Nil))))
       setBlockByNumber(2, Some(Block(headers.tail.head, BlockBody(Nil, Nil))))
 
-      ledger.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
+      branchResolution.resolveBranch(headers) shouldEqual NewBetterBranch(oldBlocks)
       assert(oldBlocks.map(_.header.number) == List[BigInt](3, 4, 5, 6, 7, 8))
     }
 
@@ -129,7 +131,7 @@ class BranchResolutionSpec
       setBestBlockNumber(longerBranchLowerWeight.last.number)
       longerBranchLowerWeight.foreach(b => setBlockByNumber(b.number, Some(b)))
 
-      ledger.resolveBranch(shorterBranchHigherWeight.map(_.header)) shouldEqual NewBetterBranch(
+      branchResolution.resolveBranch(shorterBranchHigherWeight.map(_.header)) shouldEqual NewBetterBranch(
         longerBranchLowerWeight
       )
     }
@@ -156,7 +158,7 @@ class BranchResolutionSpec
           setBestBlockNumber(noCheckpointBranch.last.number)
           noCheckpointBranch.foreach(b => setBlockByNumber(b.number, Some(b)))
 
-          ledger.resolveBranch(checkpointBranch.map(_.header)) shouldEqual NewBetterBranch(noCheckpointBranch)
+          branchResolution.resolveBranch(checkpointBranch.map(_.header)) shouldEqual NewBetterBranch(noCheckpointBranch)
         }
       }
 
@@ -182,11 +184,13 @@ class BranchResolutionSpec
           setBestBlockNumber(checkpointBranch.last.number)
           checkpointBranch.map(b => setBlockByNumber(b.number, Some(b)))
 
-          ledger.resolveBranch(noCheckpointBranch.map(_.header)) shouldEqual NoChainSwitch
+          branchResolution.resolveBranch(noCheckpointBranch.map(_.header)) shouldEqual NoChainSwitch
         }
       }
   }
 
-  trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain
+  trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain {
+    val branchResolution = new BranchResolution(blockchain, blockchainReader)
+  }
 
 }

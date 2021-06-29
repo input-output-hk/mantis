@@ -15,7 +15,7 @@ import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, Ledger}
+import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
@@ -40,7 +40,6 @@ class EthMiningServiceSpec
     with NormalPatience {
 
   "MiningServiceSpec" should "return if node is mining base on getWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
@@ -56,7 +55,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining base on submitWork" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
@@ -72,7 +70,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining base on submitHashRate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
     ethMiningService.submitHashRate(SubmitHashRateRequest(42, ByteString("id")))
@@ -83,7 +80,6 @@ class EthMiningServiceSpec
   }
 
   it should "return if node is mining after time out" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
@@ -99,7 +95,6 @@ class EthMiningServiceSpec
   }
 
   it should "return requested work" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     (blockGenerator.generateBlock _)
       .expects(parentBlock, Nil, *, *, *)
@@ -117,9 +112,18 @@ class EthMiningServiceSpec
   }
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    lazy val cons = buildTestConsensus().withBlockGenerator(restrictedGenerator)
-
-    (() => ledger.consensus).expects().returns(cons).anyNumberOfTimes()
+    val testConsensus = buildTestConsensus()
+    override lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
+      evmCodeStorage = storagesInstance.storages.evmCodeStorage,
+      validators = MockValidatorsAlwaysSucceed,
+      blockchainReader = blockchainReader,
+      blockchainConfig = blockchainConfig,
+      consensusConfig = consensusConfig,
+      blockPreparator = testConsensus.blockPreparator,
+      difficultyCalc,
+      minerKey
+    )
+    override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
 
     blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -140,7 +144,6 @@ class EthMiningServiceSpec
   }
 
   it should "accept submitted correct PoW" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -154,7 +157,6 @@ class EthMiningServiceSpec
   }
 
   it should "reject submitted correct PoW when header is no longer in cache" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val headerHash = ByteString(Hex.decode("01" * 32))
 
@@ -168,14 +170,12 @@ class EthMiningServiceSpec
   }
 
   it should "return correct coinbase" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus)
 
     val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
     response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
   }
 
   it should "accept and report hashrate" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id = ByteString("id")
@@ -192,7 +192,6 @@ class EthMiningServiceSpec
   }
 
   it should "combine hashrates from many miners and remove timed out rates" in new TestSetup {
-    (() => ledger.consensus).expects().returns(consensus).anyNumberOfTimes()
 
     val rate: BigInt = 42
     val id1 = ByteString("id1")
@@ -218,7 +217,6 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
-    override lazy val ledger = mock[Ledger]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
@@ -251,7 +249,7 @@ class EthMiningServiceSpec
     lazy val ethMiningService = new EthMiningService(
       blockchain,
       blockchainConfig,
-      ledger,
+      consensus,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,

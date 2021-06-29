@@ -79,7 +79,9 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be decoded properly" in {
-    val result = EthereumMessageDecoder.ethMessageDecoder(ProtocolVersions.ETH63).fromBytes(Codes.NodeDataCode, encode(encodedNodeData))
+    val result = EthereumMessageDecoder
+      .ethMessageDecoder(ProtocolVersions.ETH63)
+      .fromBytes(Codes.NodeDataCode, encode(encodedNodeData))
 
     result match {
       case m: NodeData =>
@@ -93,7 +95,9 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be decoded previously encoded value" in {
-    EthereumMessageDecoder.ethMessageDecoder(ProtocolVersions.ETH63).fromBytes(Codes.NodeDataCode, nodeData.toBytes) shouldBe nodeData
+    EthereumMessageDecoder
+      .ethMessageDecoder(ProtocolVersions.ETH63)
+      .fromBytes(Codes.NodeDataCode, nodeData.toBytes) shouldBe nodeData
   }
 
   it should "decode branch node with values in leafs that looks like RLP list" in {

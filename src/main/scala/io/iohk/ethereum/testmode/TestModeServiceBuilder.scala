@@ -10,7 +10,7 @@ import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, _}
 import monix.eval.Task
 import monix.execution.Scheduler
 
-trait TestModeServiceBuilder extends LedgerBuilder {
+trait TestModeServiceBuilder extends StxLedgerBuilder {
   self: BlockchainConfigBuilder
     with StorageBuilder
     with TestBlockchainBuilder
@@ -34,20 +34,6 @@ trait TestModeServiceBuilder extends LedgerBuilder {
       vm
     )
 
-  private def testLedger: Ledger = testModeComponentsProvider.ledger(blockchainConfig, SealEngineType.NoReward)
-
-  class TestLedgerProxy extends Ledger {
-    override def consensus: Consensus = testLedger.consensus
-    override def checkBlockStatus(blockHash: ByteString): BlockStatus = testLedger.checkBlockStatus(blockHash)
-    override def getBlockByHash(hash: ByteString): Option[Block] = testLedger.getBlockByHash(hash)
-    override def importBlock(block: Block)(implicit
-        blockExecutionScheduler: Scheduler
-    ): Task[BlockImportResult] = testLedger.importBlock(block)
-    override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
-      testLedger.resolveBranch(headers)
-  }
-
-  override lazy val ledger: Ledger = new TestLedgerProxy
   override lazy val stxLedger: StxLedger =
     testModeComponentsProvider.stxLedger(blockchainConfig, SealEngineType.NoReward)
 }

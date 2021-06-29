@@ -37,6 +37,7 @@ import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.math.BigInt
 import scala.reflect.ClassTag
+import cats.data.NonEmptyList
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
@@ -60,6 +61,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
+    lazy val branchResolution = new BranchResolution(blockchain, blockchainReader)
 
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
@@ -67,8 +69,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peersClient.ref,
           etcPeerManager.ref,
           peerEventBus.ref,
-          ledger,
+          blockImport,
           blockchain,
+          branchResolution,
           validators.blockValidator,
           blacklist,
           syncConfig,
@@ -84,7 +87,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val testBlocks: List[Block] = BlockHelpers.generateChain(20, BlockHelpers.genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
-    override lazy val ledger = new TestLedgerImpl
+    override lazy val blockImport: BlockImport = new TestBlockImport()
 
     blockchain.save(
       block = BlockHelpers.genesis,
@@ -157,42 +160,35 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       .firstL
       .timeout(remainingOrDefault)
 
-    class TestLedgerImpl
-        extends LedgerImpl(
-          blockchain,
-          blockchainReader,
-          storagesInstance.storages.evmCodeStorage,
-          blockchainConfig,
-          syncConfig,
-          consensus,
-          Scheduler(system.dispatcher)
+    protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
+    protected val importedBlocksSet = mutable.Set[Block]()
+    private val importedBlocksSubject = ReplaySubject[Block]()
+    val importedBlocks: Observable[Block] = importedBlocksSubject
+
+    def didTryToImportBlock(predicate: Block => Boolean): Boolean =
+      importedBlocksSet.exists(predicate)
+
+    def didTryToImportBlock(block: Block): Boolean =
+      didTryToImportBlock(_.hash == block.hash)
+
+    def bestBlock: Block = importedBlocksSet.maxBy(_.number)
+
+    def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
+      results(block.header.hash) = result
+
+    class TestBlockImport
+        extends BlockImport(
+          stub[BlockchainImpl],
+          stub[BlockchainReader],
+          stub[BlockQueue],
+          stub[BlockValidation],
+          stub[BlockExecution],
+          stub[Scheduler]
         ) {
-      protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
-      protected val importedBlocksSet = mutable.Set[Block]()
-      private val importedBlocksSubject = ReplaySubject[Block]()
-
-      val importedBlocks: Observable[Block] = importedBlocksSubject
-
-      override def importBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      override def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
         results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
-
-      override def getBlockByHash(hash: ByteString): Option[Block] =
-        importedBlocksSet.find(_.hash == hash)
-
-      def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
-        results(block.header.hash) = result
-
-      def didTryToImportBlock(predicate: Block => Boolean): Boolean =
-        importedBlocksSet.exists(predicate)
-
-      def didTryToImportBlock(block: Block): Boolean =
-        didTryToImportBlock(_.hash == block.hash)
-
-      def bestBlock: Block = importedBlocksSet.maxBy(_.number)
     }
 
     class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
@@ -292,20 +288,62 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     implicit def eqInstanceForPeersClientRequest[T <: Message]: Eq[PeersClient.Request[T]] =
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
+
+    class FakeImportBlock extends TestBlockImport {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+        val result: BlockImportResult = if (didTryToImportBlock(block)) {
+          DuplicateBlock
+        } else {
+          if (
+            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
+          ) {
+            importedBlocksSet.add(block)
+            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
+          } else if (block.number > bestBlock.number) {
+            importedBlocksSet.add(block)
+            BlockEnqueued
+          } else {
+            BlockImportFailed("foo")
+          }
+        }
+
+        Task.now(result)
+      }
+    }
+
+    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl], stub[BlockchainReader]) {
+      override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+        val importedHashes = importedBlocksSet.map(_.hash).toSet
+
+        if (
+          importedBlocksSet.isEmpty || (importedHashes.contains(
+            headers.head.parentHash
+          ) && headers.last.number > bestBlock.number)
+        )
+          NewBetterBranch(Nil)
+        else
+          UnknownBranch
+      }
+    }
   }
 
   class OnTopFixture(system: ActorSystem) extends RegularSyncFixture(system) {
 
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
-    override lazy val ledger: TestLedgerImpl = stub[TestLedgerImpl]
+    override lazy val blockImport: BlockImport = stub[BlockImport]
 
     var blockFetcher: ActorRef = _
 
     var importedNewBlock = false
     var importedLastTestBlock = false
-    (ledger.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
-    (ledger
+
+    override lazy val branchResolution: BranchResolution = stub[BranchResolution]
+    (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
+
+    (blockImport
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
       .onCall((block, _) => {

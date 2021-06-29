@@ -27,7 +27,6 @@ class FastSyncSpec
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
     override implicit lazy val system: ActorSystem = self.system
-    override implicit val scheduler: Scheduler = self.scheduler
 
     val blacklistMaxElems: Int = 100
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(blacklistMaxElems)

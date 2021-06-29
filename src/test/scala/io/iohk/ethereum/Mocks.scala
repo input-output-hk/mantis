@@ -19,21 +19,7 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 object Mocks {
-
-  class MockLedger(blockchain: BlockchainImpl, shouldExecuteCorrectly: (Block, BlockchainImpl) => Boolean)
-      extends Ledger {
-    def consensus: Consensus = ??? // FIXME Implement
-
-    override def checkBlockStatus(blockHash: ByteString): BlockStatus = ??? // FIXME Implement
-
-    override def getBlockByHash(hash: ByteString): Option[Block] = ???
-
-    override def importBlock(block: Block)(implicit blockExecutionContext: Scheduler): Task[BlockImportResult] = ???
-
-    override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = ???
-  }
-
-  private val defaultProgramResult: Ledger.PC => Ledger.PR = context =>
+  private val defaultProgramResult: PC => PR = context =>
     ProgramResult(
       returnData = ByteString.empty,
       gasRemaining = 1000000 - 25000,
@@ -45,8 +31,8 @@ object Mocks {
       error = None
     )
 
-  class MockVM(runFn: Ledger.PC => Ledger.PR = defaultProgramResult) extends Ledger.VMImpl {
-    override def run(context: Ledger.PC): Ledger.PR =
+  class MockVM(runFn: PC => PR = defaultProgramResult) extends VMImpl {
+    override def run(context: PC): PR =
       runFn(context)
   }
 
