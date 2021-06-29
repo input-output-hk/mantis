@@ -321,9 +321,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       override val peerConfiguration: PeerConfiguration = Config.Network.peer
       override val blockchain: Blockchain = TestSetup.this.blockchain
       override val appStateStorage: AppStateStorage = TestSetup.this.storagesInstance.storages.appStateStorage
-      override val capabilities: List[Capability] = pv
       override val blockchainReader: BlockchainReader = TestSetup.this.blockchainReader
-      override val blockchainConfig: BlockchainConfig = TestSetup.this.blockchainConfig
+      override val blockchainConfig: BlockchainConfig = TestSetup.this.blockchainConfig.copy(capabilities = pv)
     }
 
     val etcHandshakerConfigurationWithResolver: MockEtcHandshakerConfiguration = new MockEtcHandshakerConfiguration {
