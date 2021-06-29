@@ -26,6 +26,7 @@ import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ETH64
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -256,6 +257,15 @@ object EtcPeerManagerActor {
   }
 
   object RemoteStatus {
+    def apply(status: ETH64.Status): RemoteStatus =
+      RemoteStatus(
+        status.protocolVersion,
+        status.networkId,
+        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        status.bestHash,
+        status.genesisHash
+      )
+
     def apply(status: ETC64.Status): RemoteStatus =
       RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
 
