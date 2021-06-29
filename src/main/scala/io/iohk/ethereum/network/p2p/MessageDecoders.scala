@@ -59,24 +59,23 @@ object ETH64MessageDecoder extends MessageDecoder {
   import io.iohk.ethereum.network.p2p.messages.ETH64.Status._
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
 
-  def fromBytes(msgCode: Int, payload: Array[Byte]): Message = {
+  def fromBytes(msgCode: Int, payload: Array[Byte]): Message =
     msgCode match {
-      case Codes.GetNodeDataCode => payload.toGetNodeData
-      case Codes.NodeDataCode => payload.toNodeData
-      case Codes.GetReceiptsCode => payload.toGetReceipts
-      case Codes.ReceiptsCode => payload.toReceipts
-      case Codes.NewBlockHashesCode => payload.toNewBlockHashes
-      case Codes.GetBlockHeadersCode => payload.toGetBlockHeaders
-      case Codes.BlockHeadersCode => payload.toBlockHeaders
-      case Codes.GetBlockBodiesCode => payload.toGetBlockBodies
-      case Codes.BlockBodiesCode => payload.toBlockBodies
+      case Codes.GetNodeDataCode           => payload.toGetNodeData
+      case Codes.NodeDataCode              => payload.toNodeData
+      case Codes.GetReceiptsCode           => payload.toGetReceipts
+      case Codes.ReceiptsCode              => payload.toReceipts
+      case Codes.NewBlockHashesCode        => payload.toNewBlockHashes
+      case Codes.GetBlockHeadersCode       => payload.toGetBlockHeaders
+      case Codes.BlockHeadersCode          => payload.toBlockHeaders
+      case Codes.GetBlockBodiesCode        => payload.toGetBlockBodies
+      case Codes.BlockBodiesCode           => payload.toBlockBodies
       case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
-      case Codes.StatusCode => payload.toStatus
-      case Codes.NewBlockCode => payload.toNewBlock
-      case Codes.SignedTransactionsCode => payload.toSignedTransactions
-      case _ => throw new RuntimeException(s"Unknown message type: $msgCode")
+      case Codes.StatusCode                => payload.toStatus
+      case Codes.NewBlockCode              => payload.toNewBlock
+      case Codes.SignedTransactionsCode    => payload.toSignedTransactions
+      case _                               => throw new RuntimeException(s"Unknown message type: $msgCode")
     }
-  }
 }
 
 object ETH63MessageDecoder extends MessageDecoder {

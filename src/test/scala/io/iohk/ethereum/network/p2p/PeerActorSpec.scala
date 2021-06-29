@@ -58,6 +58,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.utils.ServerStatus
@@ -587,6 +588,7 @@ class PeerActorSpec
       override val blockchainReader: BlockchainReader = self.blockchainReader
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
       override val capabilities: List[Capability] = List(protocol)
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig
     }
 
     val handshaker: EtcHandshaker = EtcHandshaker(handshakerConfiguration)

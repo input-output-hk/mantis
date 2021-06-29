@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.BlockchainConfig
 
 case class EtcHandshaker private (
     handshakerState: HandshakerState[PeerInfo],
@@ -38,4 +39,5 @@ trait EtcHandshakerConfiguration {
   val peerConfiguration: PeerConfiguration
   val forkResolverOpt: Option[ForkResolver]
   val capabilities: List[Capability]
+  val blockchainConfig: BlockchainConfig
 }
