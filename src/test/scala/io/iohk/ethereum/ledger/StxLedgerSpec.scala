@@ -238,7 +238,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesisHeader)
   val lastBlockGasLimit: BigInt = genesisBlock.header.gasLimit
 
-  blockchain
+  blockchainWriter
     .storeBlock(genesisBlock)
     .and(blockchain.storeReceipts(genesisHash, Nil))
     .and(blockchain.storeChainWeight(genesisHash, genesisWeight))

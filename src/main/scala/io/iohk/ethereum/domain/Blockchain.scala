@@ -15,7 +15,6 @@ import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
-import io.iohk.ethereum.domain.BlockchainImpl.BestBlockLatestCheckpointNumbers
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
@@ -139,7 +138,8 @@ class BlockchainImpl(
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
     protected val stateStorage: StateStorage,
-    blockchainReader: BlockchainReader
+    blockchainReader: BlockchainReader,
+    blockchainMetadata: BlockchainMetadata
 ) extends Blockchain
     with Logger {
 
@@ -164,7 +164,7 @@ class BlockchainImpl(
 
   override def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
-    val bestKnownBlockNumber = bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
     log.debug(
       "Current best saved block number {}. Current best known block number {}",
       bestSavedBlockNumber,
@@ -177,7 +177,7 @@ class BlockchainImpl(
   }
 
   override def getLatestCheckpointBlockNumber(): BigInt =
-    bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
+    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
 
   //returns the best known block if it's available in the storage, otherwise the best stored block
   override def getBestBlock(): Option[Block] = {
@@ -311,10 +311,12 @@ class BlockchainImpl(
     }
 
   private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
-    bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
+    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
 
   private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit =
-    bestKnownBlockAndLatestCheckpoint.set(BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber))
+    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.set(
+      BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
+    )
 
   def storeChainWeight(blockhash: ByteString, weight: ChainWeight): DataSourceBatchUpdate =
     chainWeightStorage.put(blockhash, weight)
@@ -461,7 +463,11 @@ trait BlockchainStorages {
 }
 
 object BlockchainImpl {
-  def apply(storages: BlockchainStorages, blockchainReader: BlockchainReader): BlockchainImpl =
+  def apply(
+      storages: BlockchainStorages,
+      blockchainReader: BlockchainReader,
+      metadata: BlockchainMetadata
+  ): BlockchainImpl =
     new BlockchainImpl(
       blockHeadersStorage = storages.blockHeadersStorage,
       blockBodiesStorage = storages.blockBodiesStorage,
@@ -471,8 +477,7 @@ object BlockchainImpl {
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
       stateStorage = storages.stateStorage,
-      blockchainReader = blockchainReader
+      blockchainReader = blockchainReader,
+      blockchainMetadata = metadata
     )
-
-  private case class BestBlockLatestCheckpointNumbers(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt)
 }

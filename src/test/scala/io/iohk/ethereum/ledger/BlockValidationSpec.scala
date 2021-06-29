@@ -1,7 +1,6 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
@@ -42,7 +41,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
   // scalastyle:off magic.number
   object BlockValidationTestSetup {
-    private val setup = new io.iohk.ethereum.blockchain.sync.ScenarioSetup {
+    private val setup = new EphemBlockchainTestSetup {
       override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
       override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
 

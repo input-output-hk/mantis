@@ -81,10 +81,10 @@ class TransactionHistoryServiceSpec
 
     for {
       _ <- Task {
-        blockchain
+        blockchainWriter
           .storeBlock(blockWithTx1)
           .and(blockchain.storeReceipts(blockWithTx1.hash, blockTx1Receipts))
-          .and(blockchain.storeBlock(blockWithTxs2and3))
+          .and(blockchainWriter.storeBlock(blockWithTxs2and3))
           .and(blockchain.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
           .commit()
       }
@@ -107,7 +107,7 @@ class TransactionHistoryServiceSpec
         Seq(ExtendedTransactionData(signedTx.tx, isOutgoing = true, None))
 
       for {
-        _ <- Task(blockchain.storeBlock(blockWithTx).commit())
+        _ <- Task(blockchainWriter.storeBlock(blockWithTx).commit())
         _ <- Task(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(signedTx))
         response <- transactionHistoryService.getAccountTransactions(
           signedTx.senderAddress,

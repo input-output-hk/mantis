@@ -72,7 +72,11 @@ class ForksTest extends AnyFlatSpec with Matchers {
     (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchainReader = BlockchainReader(storages)
-      val blockchain = BlockchainImpl(storages, blockchainReader)
+      val blockchainMetadata = new BlockchainMetadata(
+        storages.appStateStorage.getBestBlockNumber(),
+        storages.appStateStorage.getLatestCheckpointBlockNumber()
+      )
+      val blockchain = BlockchainImpl(storages, blockchainReader, blockchainMetadata)
       val blockValidation =
         new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
       val blockExecution =

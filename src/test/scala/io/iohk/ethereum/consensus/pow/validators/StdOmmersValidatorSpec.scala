@@ -452,15 +452,15 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
     val ommersBlockParentHash: ByteString = block96.header.hash
 
-    blockchain
+    blockchainWriter
       .storeBlock(block89)
-      .and(blockchain.storeBlock(block90))
-      .and(blockchain.storeBlock(block91))
-      .and(blockchain.storeBlock(block92))
-      .and(blockchain.storeBlock(block93))
-      .and(blockchain.storeBlock(block94))
-      .and(blockchain.storeBlock(block95))
-      .and(blockchain.storeBlock(block96))
+      .and(blockchainWriter.storeBlock(block90))
+      .and(blockchainWriter.storeBlock(block91))
+      .and(blockchainWriter.storeBlock(block92))
+      .and(blockchainWriter.storeBlock(block93))
+      .and(blockchainWriter.storeBlock(block94))
+      .and(blockchainWriter.storeBlock(block95))
+      .and(blockchainWriter.storeBlock(block96))
       .commit()
 
   }

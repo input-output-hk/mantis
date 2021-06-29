@@ -197,9 +197,9 @@ trait BlockchainSetup extends TestSetup {
   )
   val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
-  blockchain
+  blockchainWriter
     .storeBlockHeader(validBlockParentHeader)
-    .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
+    .and(blockchainWriter.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
     .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
     .and(storagesInstance.storages.chainWeightStorage.put(validBlockParentHeader.hash, ChainWeight.zero))
     .commit()

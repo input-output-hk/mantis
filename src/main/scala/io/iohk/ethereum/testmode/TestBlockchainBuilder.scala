@@ -18,7 +18,8 @@ trait TestBlockchainBuilder extends BlockchainBuilder {
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
       stateStorage = storages.stateStorage,
-      blockchainReader = blockchainReader
+      blockchainReader = blockchainReader,
+      blockchainMetadata = blockchainMetadata
     )
   }
 

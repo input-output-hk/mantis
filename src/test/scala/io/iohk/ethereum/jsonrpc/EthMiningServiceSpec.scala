@@ -62,7 +62,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
+    blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
 
     val response = ethMiningService.getMining(GetMiningRequest())
@@ -100,7 +100,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
+    blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
 
     Thread.sleep(minerActiveTimeout.toMillis)

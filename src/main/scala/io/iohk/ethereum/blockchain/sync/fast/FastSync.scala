@@ -54,6 +54,7 @@ class FastSync(
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     val validators: Validators,
@@ -588,7 +589,7 @@ class FastSync(
     }
 
     private def updateSyncState(header: BlockHeader, parentWeight: ChainWeight): Unit = {
-      blockchain
+      blockchainWriter
         .storeBlockHeader(header)
         .and(blockchain.storeChainWeight(header.hash, parentWeight.increase(header)))
         .commit()
@@ -798,7 +799,7 @@ class FastSync(
       requestedHashes
         .zip(blockBodies)
         .map { case (hash, body) =>
-          blockchain.storeBlockBody(hash, body)
+          blockchainWriter.storeBlockBody(hash, body)
         }
         .reduce(_.and(_))
         .commit()
@@ -1147,6 +1148,7 @@ object FastSync {
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
+      blockchainWriter: BlockchainWriter,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       validators: Validators,
@@ -1162,6 +1164,7 @@ object FastSync {
         appStateStorage,
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         nodeStorage,
         validators,

@@ -80,6 +80,7 @@ class FastSyncSpec
         appStateStorage = storagesInstance.storages.appStateStorage,
         blockchain = blockchain,
         blockchainReader = blockchainReader,
+        blockchainWriter = blockchainWriter,
         evmCodeStorage = storagesInstance.storages.evmCodeStorage,
         nodeStorage = storagesInstance.storages.nodeStorage,
         validators = validators,

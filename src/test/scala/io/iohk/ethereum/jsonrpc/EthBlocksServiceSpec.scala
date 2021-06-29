@@ -58,14 +58,14 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockTransactionCountByHash with the block has no tx when the requested block is in the blockchain and has no tx" in new TestSetup {
-    blockchain.storeBlock(blockToRequest.copy(body = BlockBody(Nil, Nil))).commit()
+    blockchainWriter.storeBlock(blockToRequest.copy(body = BlockBody(Nil, Nil))).commit()
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = ethBlocksService.getBlockTransactionCountByHash(request).runSyncUnsafe(Duration.Inf).toOption.get
     response.txsQuantity shouldBe Some(0)
   }
 
   it should "answer eth_getBlockTransactionCountByHash correctly when the requested block is in the blockchain and has some tx" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     val request = TxCountByBlockHashRequest(blockToRequestHash)
     val response = ethBlocksService.getBlockTransactionCountByHash(request).runSyncUnsafe(Duration.Inf).toOption.get
     response.txsQuantity shouldBe Some(blockToRequest.body.transactionList.size)
@@ -78,7 +78,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
@@ -98,7 +98,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is not in blockchain" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
     val response = ethBlocksService.getByBlockHash(request).runSyncUnsafe(Duration.Inf).toOption.get
@@ -113,7 +113,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
@@ -149,7 +149,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
@@ -169,7 +169,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
@@ -189,7 +189,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is not in blockchain" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
     val response = ethBlocksService.getBlockByNumber(request).runSyncUnsafe(Duration.Inf).toOption.get
@@ -204,7 +204,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
       .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
@@ -221,7 +221,7 @@ class EthBlocksServiceSpec
   }
 
   it should "get transaction count by block number" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val response = ethBlocksService.getBlockTransactionCountByNumber(
       GetBlockTransactionCountByNumberRequest(BlockParam.WithNumber(blockToRequest.header.number))
@@ -233,7 +233,7 @@ class EthBlocksServiceSpec
   }
 
   it should "get transaction count by latest block number" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response =
@@ -252,7 +252,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
@@ -262,7 +262,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex with None when there's no uncle in the requested index" in new TestSetup {
-    blockchain.storeBlock(blockToRequestWithUncles).commit()
+    blockchainWriter.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
@@ -284,7 +284,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockHashAndIndex correctly when the requested index has one but there's no chain weight for it" in new TestSetup {
-    blockchain.storeBlock(blockToRequestWithUncles).commit()
+    blockchainWriter.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockHashAndIndexRequest(blockToRequestHash, uncleIndexToRequest)
@@ -297,7 +297,7 @@ class EthBlocksServiceSpec
   }
 
   it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequestWithUncles)
       .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
@@ -321,7 +321,7 @@ class EthBlocksServiceSpec
 
   it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle" in new TestSetup {
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
@@ -332,7 +332,7 @@ class EthBlocksServiceSpec
 
   it should "answer eth_getUncleByBlockNumberAndIndex with None when there's no uncle in the requested index" in new TestSetup {
 
-    blockchain.storeBlock(blockToRequestWithUncles).commit()
+    blockchainWriter.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
@@ -354,7 +354,7 @@ class EthBlocksServiceSpec
   }
 
   it should "answer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one but there's no chain weight for it" in new TestSetup {
-    blockchain.storeBlock(blockToRequestWithUncles).commit()
+    blockchainWriter.storeBlock(blockToRequestWithUncles).commit()
 
     val uncleIndexToRequest = 0
     val request = UncleByBlockNumberAndIndexRequest(BlockParam.WithNumber(blockToRequestNumber), uncleIndexToRequest)
@@ -367,7 +367,7 @@ class EthBlocksServiceSpec
   }
 
   it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequestWithUncles)
       .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
@@ -383,7 +383,7 @@ class EthBlocksServiceSpec
   }
 
   it should "get uncle count by block number" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val response = ethBlocksService.getUncleCountByBlockNumber(GetUncleCountByBlockNumberRequest(BlockParam.Latest))
@@ -394,7 +394,7 @@ class EthBlocksServiceSpec
   }
 
   it should "get uncle count by block hash" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val response =
       ethBlocksService.getUncleCountByBlockHash(GetUncleCountByBlockHashRequest(blockToRequest.header.hash))
