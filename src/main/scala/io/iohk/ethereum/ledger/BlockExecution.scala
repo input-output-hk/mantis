@@ -148,7 +148,8 @@ class BlockExecution(
     * @param blocks   blocks to be executed
     * @param parentChainWeight parent weight
     *
-    * @return a list of blocks in incremental order that were correctly executed and an optional [[BlockExecutionError]]
+    * @return a list of blocks in incremental order that were correctly executed and an optional
+    *         [[io.iohk.ethereum.ledger.BlockExecutionError]]
     */
   def executeAndValidateBlocks(
       blocks: List[Block],
