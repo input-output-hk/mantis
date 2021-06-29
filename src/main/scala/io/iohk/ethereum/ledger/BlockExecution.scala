@@ -63,15 +63,7 @@ class BlockExecution(
       parentHeader <- blockchainReader
         .getBlockHeaderByHash(block.header.parentHash)
         .toRight(MissingParentError) // Should not never occur because validated earlier
-      initialWorld = InMemoryWorldStateProxy(
-        evmCodeStorage = evmCodeStorage,
-        blockchain.getBackingMptStorage(block.header.number),
-        (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
-        accountStartNonce = blockchainConfig.accountStartNonce,
-        stateRootHash = parentHeader.stateRoot,
-        noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,
-        ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
-      )
+      initialWorld = buildInitialWorld(block, parentHeader)
       execResult <- executeBlockTransactions(block, initialWorld)
       worldToPersist <- Either
         .catchOnly[MPTException](blockPreparator.payBlockReward(block, execResult.worldState))
@@ -79,6 +71,18 @@ class BlockExecution(
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
+  }
+
+  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader): InMemoryWorldStateProxy = {
+    InMemoryWorldStateProxy(
+      evmCodeStorage = evmCodeStorage,
+      blockchain.getBackingMptStorage(block.header.number),
+      (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+      accountStartNonce = blockchainConfig.accountStartNonce,
+      stateRootHash = parentHeader.stateRoot,
+      noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,
+      ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
+    )
   }
 
   /** This function runs transactions

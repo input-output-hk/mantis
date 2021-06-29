@@ -117,8 +117,7 @@ class TestService(
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
     initialConfig: BlockchainConfig,
-    transactionMappingStorage: TransactionMappingStorage,
-    preimageCache: collection.concurrent.Map[ByteString, UInt256]
+    transactionMappingStorage: TransactionMappingStorage
 )(implicit
     scheduler: Scheduler
 ) extends Logger {
@@ -131,6 +130,8 @@ class TestService(
   private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0
   private var sealEngine: SealEngineType = SealEngineType.NoReward
+  private val preimageCache: collection.concurrent.Map[ByteString, UInt256] =
+    new collection.concurrent.TrieMap[ByteString, UInt256]()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     currentConfig = buildNewConfig(request.chainParams.blockchainParams)
@@ -235,7 +236,9 @@ class TestService(
     def mineBlock(): Task[Unit] = {
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
-          testModeComponentsProvider.blockImport(currentConfig, sealEngine).importBlock(blockForMining.block)
+          testModeComponentsProvider
+            .blockImport(currentConfig, preimageCache, sealEngine)
+            .importBlock(blockForMining.block)
         )
         .map { res =>
           log.info("Block mining result: " + res)
@@ -271,7 +274,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(currentConfig, sealEngine)
+          .blockImport(currentConfig, preimageCache, sealEngine)
           .importBlock(value)
           .flatMap(handleResult)
     }

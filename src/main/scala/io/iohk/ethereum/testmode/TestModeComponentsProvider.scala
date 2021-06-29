@@ -1,9 +1,11 @@
 package io.iohk.ethereum.testmode
 
+import akka.util.ByteString
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.{Consensus, ConsensusConfig}
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
+import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader, UInt256}
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -26,18 +28,23 @@ class TestModeComponentsProvider(
     vm: VMImpl
 ) {
 
-  def blockImport(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): BlockImport = {
+  def blockImport(
+      blockchainConfig: BlockchainConfig,
+      preimageCache: collection.concurrent.Map[ByteString, UInt256],
+      sealEngine: SealEngineType
+  ): BlockImport = {
     val blockQueue = BlockQueue(blockchain, syncConfig)
     val consensuz = consensus(blockchainConfig, sealEngine)
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     val blockExecution =
-      new BlockExecution(
+      new TestModeBlockExecution(
         blockchain,
         blockchainReader,
         evmCodeStorage,
         blockchainConfig,
         consensuz.blockPreparator,
-        blockValidation
+        blockValidation,
+        (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)
       )
 
     new BlockImport(

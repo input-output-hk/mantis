@@ -427,8 +427,7 @@ trait TestServiceBuilder {
       consensusConfig,
       testModeComponentsProvider,
       blockchainConfig,
-      storagesInstance.storages.transactionMappingStorage,
-      preimages
+      storagesInstance.storages.transactionMappingStorage
     )(scheduler)
 }
 
