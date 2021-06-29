@@ -30,7 +30,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
   override def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case hello: Hello =>
     log.debug("Protocol handshake finished with peer ({})", hello)
     // FIXME in principle this should be already negotiated
-    Capability.negotiate(hello.capabilities.toList, handshakerConfiguration.capabilities) match {
+    Capability.negotiate(hello.capabilities.toList, handshakerConfiguration.blockchainConfig.capabilities) match {
       case Some(ProtocolVersions.ETC64) => EtcNodeStatus64ExchangeState(handshakerConfiguration)
       case Some(ProtocolVersions.ETH63) => EtcNodeStatus63ExchangeState(handshakerConfiguration)
       case Some(ProtocolVersions.ETH64) => EthNodeStatus64ExchangeState(handshakerConfiguration)
@@ -59,7 +59,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = handshakerConfiguration.capabilities,
+      capabilities = handshakerConfiguration.blockchainConfig.capabilities,
       listenPort = listenPort,
       nodeId = ByteString(nodeStatus.nodeId)
     )

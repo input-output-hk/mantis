@@ -237,7 +237,6 @@ trait HandshakerBuilder {
       override val blockchain: Blockchain = self.blockchain
       override val blockchainReader: BlockchainReader = self.blockchainReader
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val capabilities: List[Capability] = self.blockchainConfig.capabilities
       override val blockchainConfig: BlockchainConfig = self.blockchainConfig
     }
 

@@ -123,7 +123,6 @@ object DumpChainApp
       override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
-      override val capabilities: List[Capability] = blockchainConfig.capabilities
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
