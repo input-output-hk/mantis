@@ -58,7 +58,6 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
@@ -185,6 +184,7 @@ trait BlockchainBuilder {
   lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
+
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
@@ -435,7 +435,7 @@ trait DebugServiceBuilder {
 }
 
 trait TestServiceBuilder {
-  self: TestBlockchainBuilder
+  self: BlockchainBuilder
     with PendingTransactionsManagerBuilder
     with ConsensusConfigBuilder
     with BlockchainConfigBuilder
@@ -460,7 +460,7 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
   override lazy val ethBlocksService =
     new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
 }

@@ -1,16 +1,13 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, ChainWeight}
-import io.iohk.ethereum.ledger.BlockQueue.{Leaf, QueuedBlock}
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.Logger
 
 import scala.annotation.tailrec
 import scala.jdk.CollectionConverters._
 
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.BlockQueue.QueuedBlock

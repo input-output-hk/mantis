@@ -12,7 +12,7 @@ import io.iohk.ethereum.nodebuilder._
 trait TestModeServiceBuilder extends StxLedgerBuilder {
   self: BlockchainConfigBuilder
     with StorageBuilder
-    with TestBlockchainBuilder
+    with BlockchainBuilder
     with SyncConfigBuilder
     with ConsensusBuilder
     with ActorSystemBuilder

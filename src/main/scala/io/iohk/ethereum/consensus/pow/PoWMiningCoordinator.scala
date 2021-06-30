@@ -12,8 +12,12 @@ import monix.execution.Scheduler
 import scala.concurrent.duration.DurationInt
 
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.miners.{EthashDAGManager, EthashMiner, KeccakMiner, Miner}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader}
+import io.iohk.ethereum.consensus.pow.miners.EthashDAGManager
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner
+import io.iohk.ethereum.consensus.pow.miners.KeccakMiner
+import io.iohk.ethereum.consensus.pow.miners.Miner
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.jsonrpc.EthMiningService
 
 object PoWMiningCoordinator {
