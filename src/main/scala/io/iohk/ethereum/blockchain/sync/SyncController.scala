@@ -6,6 +6,7 @@ import akka.actor.ActorRef
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.Scheduler
+
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
@@ -13,7 +14,9 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
-import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, BlockchainWriter}
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.utils.Config.SyncConfig

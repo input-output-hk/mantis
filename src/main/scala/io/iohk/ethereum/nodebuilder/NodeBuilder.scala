@@ -31,7 +31,8 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.{BlockchainMetadata, _}
+import io.iohk.ethereum.domain.BlockchainMetadata
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
@@ -181,7 +182,7 @@ trait BlockchainBuilder {
       storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
     )
   lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
-  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages)
+  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
 
@@ -204,11 +205,13 @@ trait BlockImportBuilder {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -446,6 +449,7 @@ trait TestServiceBuilder {
     new TestService(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.evmCodeStorage,
       pendingTransactionsManager,
@@ -866,7 +870,12 @@ trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
 
   lazy val genesisDataLoader =
-    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
+    new GenesisDataLoader(
+      blockchainReader,
+      blockchainWriter,
+      storagesInstance.storages.stateStorage,
+      blockchainConfig
+    )
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

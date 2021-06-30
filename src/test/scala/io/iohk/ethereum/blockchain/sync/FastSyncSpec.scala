@@ -93,7 +93,12 @@ class FastSyncSpec
     )
 
     val saveGenesis: Task[Unit] = Task {
-      blockchain.save(BlockHelpers.genesis, receipts = Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
+      blockchainWriter.save(
+        BlockHelpers.genesis,
+        receipts = Nil,
+        ChainWeight.totalDifficultyOnly(1),
+        saveAsBestBlock = true
+      )
     }
 
     val startSync: Task[Unit] = Task(fastSync ! SyncProtocol.Start)

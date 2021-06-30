@@ -16,6 +16,7 @@ import io.iohk.ethereum.vm.EvmConfig
 class BlockExecution(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
@@ -158,8 +159,7 @@ class BlockExecution(
     def go(
         executedBlocksDecOrder: List[BlockData],
         remainingBlocksIncOrder: List[Block],
-        parentWeight: ChainWeight,
-        error: Option[BlockExecutionError]
+        parentWeight: ChainWeight
     ): (List[BlockData], Option[BlockExecutionError]) =
       if (remainingBlocksIncOrder.isEmpty) {
         (executedBlocksDecOrder.reverse, None)
@@ -169,14 +169,19 @@ class BlockExecution(
           case Right(receipts) =>
             val newWeight = parentWeight.increase(blockToExecute.header)
             val newBlockData = BlockData(blockToExecute, receipts, newWeight)
-            blockchain.save(newBlockData.block, newBlockData.receipts, newBlockData.weight, saveAsBestBlock = true)
-            go(newBlockData :: executedBlocksDecOrder, remainingBlocksIncOrder.tail, newWeight, None)
+            blockchainWriter.save(
+              newBlockData.block,
+              newBlockData.receipts,
+              newBlockData.weight,
+              saveAsBestBlock = true
+            )
+            go(newBlockData :: executedBlocksDecOrder, remainingBlocksIncOrder.tail, newWeight)
           case Left(executionError) =>
             (executedBlocksDecOrder.reverse, Some(executionError))
         }
       }
 
-    go(List.empty[BlockData], blocks, parentChainWeight, None)
+    go(List.empty[BlockData], blocks, parentChainWeight)
   }
 
 }

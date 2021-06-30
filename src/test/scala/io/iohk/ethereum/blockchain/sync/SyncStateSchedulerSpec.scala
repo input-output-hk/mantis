@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
+
 import org.scalactic.anyvals.PosInt
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
@@ -22,7 +23,9 @@ import io.iohk.ethereum.db.components.EphemDataSourceComponent
 import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 
 class SyncStateSchedulerSpec
@@ -188,7 +191,7 @@ class SyncStateSchedulerSpec
     )
     val (syncStateScheduler, _, _, _) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
-    val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
+    val (_, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val result1 = syncStateScheduler.processResponse(state1, SyncResponse(ByteString(1), ByteString(2)))
     assert(result1.isLeft)
     assert(result1.left.value == NotRequestedItem)
@@ -305,8 +308,8 @@ class SyncStateSchedulerSpec
         freshStorage.storages.appStateStorage.getLatestCheckpointBlockNumber()
       )
       val freshBlockchainReader = BlockchainReader(freshStorage.storages)
-      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, blockchainMetadata)
-      val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, blockchainMetadata)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
+      val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, freshBlockchainMetadata)
       (
         SyncStateScheduler(
           freshBlockchain,

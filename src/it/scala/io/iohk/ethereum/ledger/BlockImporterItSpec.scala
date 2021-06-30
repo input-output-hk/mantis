@@ -63,7 +63,7 @@ class BlockImporterItSpec
   )
   val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesis.header)
 
-  blockchain.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
+  blockchainWriter.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
 
@@ -101,6 +101,7 @@ class BlockImporterItSpec
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -147,10 +148,10 @@ class BlockImporterItSpec
   val oldWeight4: ChainWeight = oldWeight3.increase(oldBlock4.header)
 
   //saving initial main chain
-  blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
-  blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-  blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-  blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+  blockchainWriter.save(block1, Nil, weight1, saveAsBestBlock = true)
+  blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+  blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+  blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
 
   val oldBranch: List[Block] = List(oldBlock2, oldBlock3, oldBlock4)
   val newBranch: List[Block] = List(newBlock2, newBlock3)
@@ -183,9 +184,9 @@ class BlockImporterItSpec
   it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
 
     //returning discarded initial chain
-    blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-    blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
@@ -206,12 +207,12 @@ class BlockImporterItSpec
         ommers = Seq(oldBlock4.header)
       )
 
-    blockchain.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-    blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-    blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(blockchain.getBestBlockNumber() - 1)
-    blockchain.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
+    blockchainWriter.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
 
     //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock5ParentOldBlock4)))
@@ -223,7 +224,7 @@ class BlockImporterItSpec
 
     val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
     val oldBlock5WithCheckpoint: Block = checkpointBlockGenerator.generate(oldBlock4, checkpoint)
-    blockchain.save(oldBlock5WithCheckpoint, Nil, oldWeight4, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock5WithCheckpoint, Nil, oldWeight4, saveAsBestBlock = true)
 
     val newBranch = List(newBlock2, newBlock3)
 
@@ -237,7 +238,7 @@ class BlockImporterItSpec
 
     val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
     val newBlock4WithCheckpoint: Block = checkpointBlockGenerator.generate(newBlock3, checkpoint)
-    blockchain.save(newBlock4WithCheckpoint, Nil, newWeight3, saveAsBestBlock = true)
+    blockchainWriter.save(newBlock4WithCheckpoint, Nil, newWeight3, saveAsBestBlock = true)
 
     val newBranch = List(newBlock4WithCheckpoint)
 
@@ -253,7 +254,7 @@ class BlockImporterItSpec
     val newBlock5: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
     val newWeight5 = newWeight3.increase(newBlock5.header)
 
-    blockchain.save(newBlock5, Nil, newWeight5, saveAsBestBlock = true)
+    blockchainWriter.save(newBlock5, Nil, newWeight5, saveAsBestBlock = true)
 
     val signatures = CheckpointingTestHelpers.createCheckpointSignatures(
       Seq(crypto.generateKeyPair(secureRandom)),

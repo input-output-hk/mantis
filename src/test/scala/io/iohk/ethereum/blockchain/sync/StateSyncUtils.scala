@@ -1,9 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl, BlockchainMetadata, BlockchainReader}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig

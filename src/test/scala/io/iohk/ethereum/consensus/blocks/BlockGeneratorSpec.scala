@@ -254,6 +254,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -337,6 +338,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -715,7 +717,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     override lazy val blockchainConfig = baseBlockchainConfig
 
     val genesisDataLoader =
-      new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
+      new GenesisDataLoader(
+        blockchainReader,
+        blockchainWriter,
+        storagesInstance.storages.stateStorage,
+        blockchainConfig
+      )
     genesisDataLoader.loadGenesisData()
 
     val bestBlock: Option[Block] = blockchain.getBestBlock()
@@ -739,6 +746,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,

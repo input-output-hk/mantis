@@ -58,9 +58,9 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
     val receipts: Seq[Seq[Receipt]] = Seq(Seq(), Seq())
 
-    blockchain
+    blockchainWriter
       .storeReceipts(receiptsHashes.head, receipts.head)
-      .and(blockchain.storeReceipts(receiptsHashes(1), receipts(1)))
+      .and(blockchainWriter.storeReceipts(receiptsHashes(1), receipts(1)))
       .commit()
 
     //when

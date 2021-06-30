@@ -535,7 +535,7 @@ class PeerActorSpec
     val genesisBlock = Fixtures.Blocks.Genesis.block
     val genesisWeight: ChainWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
-    blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
+    blockchainWriter.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 

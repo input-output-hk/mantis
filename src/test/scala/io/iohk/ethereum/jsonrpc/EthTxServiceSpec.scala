@@ -299,7 +299,7 @@ class EthTxServiceSpec
     blockchainWriter
       .storeBlock(blockWithTx)
       .and(
-        blockchain.storeReceipts(
+        blockchainWriter.storeReceipts(
           Fixtures.Blocks.Block3125369.header.hash,
           Seq(fakeReceipt, fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx))
         )

@@ -26,6 +26,7 @@ trait TestModeServiceBuilder extends StxLedgerBuilder {
     new TestModeComponentsProvider(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
       syncConfig,
       scheduler,

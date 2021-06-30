@@ -31,6 +31,7 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
 import io.iohk.ethereum.ledger._
@@ -133,6 +134,7 @@ object TestService {
 class TestService(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     stateStorage: StateStorage,
     evmCodeStorage: EvmCodeStorage,
     pendingTransactionsManager: ActorRef,
@@ -189,7 +191,8 @@ class TestService(
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, currentConfig)
+    val genesisDataLoader =
+      new GenesisDataLoader(blockchainReader, blockchainWriter, stateStorage, currentConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state

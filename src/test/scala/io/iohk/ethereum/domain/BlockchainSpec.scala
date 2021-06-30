@@ -51,7 +51,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
     blockchain.isInChain(validBlock.hash) === false
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
@@ -77,7 +77,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val validBlock = new CheckpointBlockGenerator().generate(parent, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     val retrievedBlock = blockchainReader.getBlockByHash(validBlock.header.hash)
     retrievedBlock.isDefined should ===(true)
@@ -105,9 +105,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val secondBlock = nextBlock(firstBlock)
     val thirdBlock = checkpointBlockGenerator.generate(secondBlock, checkpoint)
 
-    blockchain.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
-    blockchain.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
-    blockchain.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
@@ -121,7 +121,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val validBlock = checkpointBlockGenerator.generate(genesis, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(validBlock.hash, withState = true)
 
@@ -217,7 +217,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         }
 
       blocksToImport.foreach { block =>
-        blockchainWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
+        blockchainWriterWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
       }
 
       blockchainWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number

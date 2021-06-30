@@ -115,7 +115,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, Nil, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -141,7 +141,7 @@ class EthMiningServiceSpec
     )
     override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
 
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)

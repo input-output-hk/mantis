@@ -564,7 +564,7 @@ class SyncControllerSpec
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
+    blockchainWriter.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],

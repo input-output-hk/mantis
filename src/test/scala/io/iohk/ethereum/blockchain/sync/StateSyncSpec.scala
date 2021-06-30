@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 import java.util.concurrent.ThreadLocalRandom
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.testkit.TestActor.AutoPilot
@@ -11,11 +12,13 @@ import akka.util.ByteString
 
 import scala.concurrent.duration._
 import scala.util.Random
+
 import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.WithActorSystemShutDown
@@ -28,7 +31,11 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StartSyncin
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFinished
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncStats
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainMetadata, BlockchainReader, ChainWeight}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer

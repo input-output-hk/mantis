@@ -5,16 +5,20 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import akka.util.Timeout
+
 import monix.eval.Task
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
@@ -32,15 +36,13 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.Namespaces
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.{
-  Block,
-  Blockchain,
-  BlockchainImpl,
-  BlockchainMetadata,
-  BlockchainReader,
-  BlockchainWriter,
-  ChainWeight
-}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor
@@ -139,8 +141,8 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     storagesInstance.storages.appStateStorage.getBestBlockNumber(),
     storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
   )
-  val blockchainReader = BlockchainReader(storagesInstance.storages)
-  val blockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
+  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
@@ -150,7 +152,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
   val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesis.header)
 
-  bl.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
+  blockchainWriter.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val nh = nodeStatusHolder
 
@@ -351,7 +353,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       val newWeight = ChainWeight.totalDifficultyOnly(1)
 
       broadcastBlock(childBlock, newWeight)
-      bl.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
+      blockchainWriter.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
     }
 
   private def generateValidBlock(
@@ -362,7 +364,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       val currentWorld = getMptForBlock(currentBestBlock)
       val (newBlock, newWeight, _) =
         createChildBlock(currentBestBlock, currentWeight, currentWorld)(updateWorldForBlock)
-      bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
+      blockchainWriter.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
       broadcastBlock(newBlock, newWeight)
     }
 

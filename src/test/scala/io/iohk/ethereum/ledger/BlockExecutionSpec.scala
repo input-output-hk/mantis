@@ -25,7 +25,6 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.utils.Hex
@@ -68,6 +67,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             blockchainConfig,
             newConsensus.blockPreparator,
@@ -110,6 +110,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             blockchainConfig,
             newConsensus.blockPreparator,
@@ -145,6 +146,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             blockchainConfig,
             newConsensus.blockPreparator,
@@ -172,6 +174,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             blockchainConfig,
             newConsensus.blockPreparator,
@@ -231,6 +234,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             blockchainConfig,
             newConsensus.blockPreparator,
@@ -306,6 +310,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             new BlockExecution(
               blockchain,
               blockchainReader,
+              blockchainWriter,
               blockchainStorages.evmCodeStorage,
               blockchainConfig,
               newConsensus.blockPreparator,
@@ -670,6 +675,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         blockchainStorages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,

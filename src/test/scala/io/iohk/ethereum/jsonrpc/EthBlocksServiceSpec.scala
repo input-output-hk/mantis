@@ -80,7 +80,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByHash with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
@@ -115,7 +115,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByHash with the block response correctly when the txs should be hashed" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByBlockHashRequest(blockToRequestHash, fullTxs = true)
@@ -151,7 +151,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByNumber with the latest block pending block is requested and there are no pending ones" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
@@ -171,7 +171,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByNumber with the block response correctly when it's chain weight is in blockchain" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -206,7 +206,7 @@ class EthBlocksServiceSpec
   it should "answer eth_getBlockByNumber with the block response correctly when the txs should be hashed" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequestHash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequestHash, blockWeight))
       .commit()
 
     val request = BlockByNumberRequest(BlockParam.WithNumber(blockToRequestNumber), fullTxs = true)
@@ -299,7 +299,7 @@ class EthBlocksServiceSpec
   it should "anwer eth_getUncleByBlockHashAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequestWithUncles)
-      .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
+      .and(blockchainWriter.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
 
     val uncleIndexToRequest = 0
@@ -369,7 +369,7 @@ class EthBlocksServiceSpec
   it should "anwer eth_getUncleByBlockNumberAndIndex correctly when the requested index has one and there's chain weight for it" in new TestSetup {
     blockchainWriter
       .storeBlock(blockToRequestWithUncles)
-      .and(blockchain.storeChainWeight(uncle.hash, uncleWeight))
+      .and(blockchainWriter.storeChainWeight(uncle.hash, uncleWeight))
       .commit()
 
     val uncleIndexToRequest = 0

@@ -591,7 +591,7 @@ class FastSync(
     private def updateSyncState(header: BlockHeader, parentWeight: ChainWeight): Unit = {
       blockchainWriter
         .storeBlockHeader(header)
-        .and(blockchain.storeChainWeight(header.hash, parentWeight.increase(header)))
+        .and(blockchainWriter.storeChainWeight(header.hash, parentWeight.increase(header)))
         .commit()
 
       if (header.number > syncState.bestBlockHeaderNumber) {
@@ -710,7 +710,7 @@ class FastSync(
           case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
             blockHashesWithReceipts
               .map { case (hash, receiptsForBlock) =>
-                blockchain.storeReceipts(hash, receiptsForBlock)
+                blockchainWriter.storeReceipts(hash, receiptsForBlock)
               }
               .reduce(_.and(_))
               .commit()
@@ -944,7 +944,7 @@ class FastSync(
         requestBlockBodies(peer)
       } else if (blockHeadersQueue.nonEmpty) {
         requestBlockHeaders(peer)
-      } else if (shouldRequestNewSkeleton(peerInfo)) {
+      } else if (shouldRequestNewSkeleton()) {
         requestSkeletonHeaders(peer)
       } else {
         log.debug(
@@ -955,7 +955,7 @@ class FastSync(
       }
     }
 
-    private def shouldRequestNewSkeleton(peerInfo: PeerInfo): Boolean =
+    private def shouldRequestNewSkeleton(): Boolean =
       currentSkeletonState.isEmpty &&
         skeletonHandler.isEmpty &&
         syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
