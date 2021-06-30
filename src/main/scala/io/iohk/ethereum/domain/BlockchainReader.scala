@@ -8,6 +8,8 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.domain.branch.BestBlockchainBranch
+import io.iohk.ethereum.domain.branch.BlockchainBranch
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -85,6 +87,13 @@ class BlockchainReader(
     * @return Receipts if found
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
+
+  def getBestBranch(): BlockchainBranch =
+    new BestBlockchainBranch(
+      getBestBlock().map(_.header).getOrElse(genesisHeader),
+      blockNumberMappingStorage,
+      this
+    )
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
