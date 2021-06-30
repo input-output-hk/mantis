@@ -23,7 +23,6 @@ import io.iohk.ethereum.db.components.EphemDataSourceComponent
 import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
@@ -272,7 +271,7 @@ class SyncStateSchedulerSpec
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
       val freshBlockchainMetadata = getNewBlockchainMetadata
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
       val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
       new TrieProvider(freshBlockchain, freshBlockchainReader, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
@@ -301,7 +300,7 @@ class SyncStateSchedulerSpec
     ) = {
       val freshStorage = getNewStorages
       val freshBlockchainMetadata = getNewBlockchainMetadata
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
       val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
       val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, freshBlockchainMetadata)
       (

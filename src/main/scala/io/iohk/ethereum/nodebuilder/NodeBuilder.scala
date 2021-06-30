@@ -175,7 +175,7 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchainMetadata: BlockchainMetadata =
+  private lazy val blockchainMetadata: BlockchainMetadata =
     new BlockchainMetadata(
       storagesInstance.storages.appStateStorage.getBestBlockNumber(),
       storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()

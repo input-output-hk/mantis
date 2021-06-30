@@ -60,7 +60,7 @@ object FastSyncItSpecUtils {
     // Reads whole trie into memory, if the trie lacks nodes in storage it will be None
     def getBestBlockTrie(): Option[MptNode] =
       Try {
-        val bestBlock = bl.getBestBlock().get
+        val bestBlock = blockchainReader.getBestBlock().get
         val bestStateRoot = bestBlock.header.stateRoot
         MptTraversals.parseTrieIntoMemory(
           HashNode(bestStateRoot.toArray),
@@ -102,7 +102,7 @@ object FastSyncItSpecUtils {
 
     def startWithState(): Task[Unit] =
       Task {
-        val currentBest = bl.getBestBlock().get.header
+        val currentBest = blockchainReader.getBestBlock().get.header
         val safeTarget = currentBest.number + syncConfig.fastSyncBlockValidationX
         val nextToValidate = currentBest.number + 1
         val syncState =

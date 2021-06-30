@@ -141,7 +141,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     storagesInstance.storages.appStateStorage.getBestBlockNumber(),
     storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
   )
-  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
   val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
@@ -285,7 +285,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
 
   def getCurrentState(): BlockchainState = {
-    val bestBlock = bl.getBestBlock().get
+    val bestBlock = blockchainReader.getBestBlock().get
     val currentWorldState = getMptForBlock(bestBlock)
     val currentWeight = bl.getChainWeightByHash(bestBlock.hash).get
     BlockchainState(bestBlock, currentWorldState, currentWeight)
@@ -371,7 +371,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   def importBlocksUntil(
       n: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= n) {
         Task(())
       } else {
@@ -383,7 +383,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {
@@ -402,7 +402,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {

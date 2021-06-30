@@ -79,7 +79,7 @@ class QAServiceSpec
       .returning(Some(block))
       .noMoreThanOnce()
 
-    (blockchain.getBestBlock _)
+    (blockchainReader.getBestBlock _)
       .expects()
       .returning(Some(block))
       .once()

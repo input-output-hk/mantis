@@ -52,7 +52,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, None)
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
@@ -79,7 +79,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, Some(hash))
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = 0)))
@@ -107,7 +107,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, Some(hash))
       val expectedResponse = GetLatestBlockResponse(None)
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
@@ -137,7 +137,7 @@ class CheckpointingServiceSpec
       val request = GetLatestBlockRequest(k, Some(hash))
       val expectedResponse = GetLatestBlockResponse(None)
 
-      (blockchain.getBestBlockNumber _).expects().returning(bestBlockNum)
+      (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _).expects(hash).returning(None)
       (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
@@ -164,13 +164,13 @@ class CheckpointingServiceSpec
   it should "get latest block in case of blockchain re-org" in new TestSetup {
     val block = Fixtures.Blocks.ValidBlock.block
     val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
-    (blockchain.getBestBlockNumber _)
+    (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
     (blockchainReader.getBlockByNumber _)
       .expects(BigInt(4))
       .returning(None)
-    (blockchain.getBestBlockNumber _)
+    (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
     (blockchainReader.getBlockByNumber _)

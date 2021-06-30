@@ -101,7 +101,7 @@ class PoWMiningCoordinator private (
       blockchainReader
         .getBestBlock()
         .fold {
-          log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
+          log.error("Unable to get block for mining: blockchainReader.getBestBlock() returned None")
           context.self ! MineNext
         } { block =>
           getMiningAlgorithm(block.header.number) match {

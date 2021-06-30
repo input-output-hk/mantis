@@ -84,7 +84,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     validBlock should ===(retrievedBlock.get)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
-    blockchain.getBestBlockNumber() should ===(validBlock.number)
+    blockchainReader.getBestBlockNumber() should ===(validBlock.number)
   }
 
   it should "be able to rollback block with checkpoint and store the previous existed checkpoint" in new EphemBlockchainTestSetup {
@@ -112,7 +112,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
-    blockchain.getBestBlockNumber() should ===(secondBlock.number)
+    blockchainReader.getBestBlockNumber() should ===(secondBlock.number)
   }
 
   it should "be able to rollback block with last checkpoint in the chain" in new EphemBlockchainTestSetup {
@@ -126,7 +126,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchain.removeBlock(validBlock.hash, withState = true)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
-    blockchain.getBestBlockNumber() should ===(genesis.number)
+    blockchainReader.getBestBlockNumber() should ===(genesis.number)
   }
 
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {
@@ -220,7 +220,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockchainWriterWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
       }
 
-      blockchainWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
       blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe blockImportToPersist.fold(
         0: BigInt
       )(_.number)
@@ -249,7 +249,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockRollbackToPersist.map(_.number),
         blocksToRollback.map(_.number)
       )
-      blockchainWithStubPersisting.getBestBlockNumber() shouldBe expectedMemoryBestBlock
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe expectedMemoryBestBlock
       blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe expectedPersistedBestBlock
     }
   }
@@ -299,15 +299,17 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val appStateStorage = storagesInstance.storages.appStateStorage
           val stateStorage = stubStateStorage
         }
-        override lazy val blockchainMetadata = new BlockchainMetadata(
-          blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber(),
-          blockchainStoragesWithStubPersisting.appStateStorage.getLatestCheckpointBlockNumber()
-        )
-        override val blockchainReaderWithStubPersisting = BlockchainReader(blockchainStoragesWithStubPersisting)
+        val freshBlockchainMetadata = getNewBlockchainMetadata
+        override val blockchainReaderWithStubPersisting =
+          BlockchainReader(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
         override val blockchainWriterWithStubPersisting =
-          BlockchainWriter(blockchainStoragesWithStubPersisting, blockchainMetadata)
+          BlockchainWriter(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
         override val blockchainWithStubPersisting =
-          BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting, blockchainMetadata)
+          BlockchainImpl(
+            blockchainStoragesWithStubPersisting,
+            blockchainReaderWithStubPersisting,
+            freshBlockchainMetadata
+          )
 
         blockchainWriterWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }

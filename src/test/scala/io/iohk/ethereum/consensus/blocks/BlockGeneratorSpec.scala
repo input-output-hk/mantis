@@ -113,7 +113,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(
-      blockchain.getBestBlock().get,
+      blockchainReader.getBestBlock().get,
       Seq(signedTransaction.tx),
       Address(testAddress),
       blockGenerator.emptyX,
@@ -725,7 +725,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       )
     genesisDataLoader.loadGenesisData()
 
-    val bestBlock: Option[Block] = blockchain.getBestBlock()
+    val bestBlock: Option[Block] = blockchainReader.getBestBlock()
 
     lazy val blockTimestampProvider = new FakeBlockTimestampProvider
 
@@ -741,7 +741,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     lazy val blockExecution =
       new BlockExecution(
         blockchain,
