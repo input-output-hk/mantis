@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
 import monix.eval.Task
 import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.ledger.BlockQueue
 
 object EthBlocksService {
   case class BestBlockNumberRequest()
@@ -38,7 +39,8 @@ object EthBlocksService {
 class EthBlocksService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val consensus: Consensus
+    val consensus: Consensus,
+    val blockQueue: BlockQueue
 ) extends ResolveBlock {
   import EthBlocksService._
 
@@ -71,8 +73,8 @@ class EthBlocksService(
     */
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
-    val blockOpt = blockchainReader.getBlockByHash(blockHash)
-    val weight = blockchain.getChainWeightByHash(blockHash)
+    val blockOpt = blockchainReader.getBlockByHash(blockHash) orElse blockQueue.getBlockByHash(blockHash)
+    val weight = blockchain.getChainWeightByHash(blockHash) orElse blockQueue.getChainWeightByHash(blockHash)
 
     val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))

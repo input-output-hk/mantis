@@ -6,18 +6,22 @@ import io.iohk.ethereum.jsonrpc.{
   BaseBlockResponse,
   BaseTransactionResponse,
   EthBlocksService,
+  JsonRpcError,
   ServiceResponse,
   TransactionData
 }
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.ByteStringUtils._
 import akka.util.ByteString
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.ledger.BlockQueue
 
 class TestEthBlockServiceWrapper(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
-    consensus: Consensus
-) extends EthBlocksService(blockchain, blockchainReader, consensus)
+    consensus: Consensus,
+    blockQueue: BlockQueue
+) extends EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
     with Logger {
 
   /**
@@ -31,10 +35,29 @@ class TestEthBlockServiceWrapper(
   ): ServiceResponse[EthBlocksService.BlockByBlockHashResponse] = super
     .getByBlockHash(request)
     .map(
-      _.map(blockByBlockResponse => {
-        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
-        BlockByBlockHashResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
-      })
+      _.flatMap {
+
+        case BlockByBlockHashResponse(None) =>
+          Left(JsonRpcError.LogicError(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}"))
+
+        case BlockByBlockHashResponse(Some(baseBlockResponse)) if baseBlockResponse.hash.isEmpty =>
+          Left(JsonRpcError.LogicError(s"missing hash for block $baseBlockResponse"))
+
+        case BlockByBlockHashResponse(Some(baseBlockResponse)) =>
+          val ethResponseOpt = for {
+            hash <- baseBlockResponse.hash
+            fullBlock <- blockchainReader.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+          } yield toEthResponse(fullBlock, baseBlockResponse)
+
+          ethResponseOpt match {
+            case None =>
+              Left(
+                JsonRpcError.LogicError(s"Ledger: unable to find block for hash=${baseBlockResponse.hash.get.toHex}")
+              )
+            case Some(_) =>
+              Right(BlockByBlockHashResponse(ethResponseOpt))
+          }
+      }
     )
 
   /**
@@ -122,9 +145,9 @@ final case class EthTransactionResponse(
     gasPrice: BigInt,
     gas: BigInt,
     input: ByteString,
-    r: ByteString,
-    s: ByteString,
-    v: ByteString
+    r: BigInt,
+    s: BigInt,
+    v: BigInt
 ) extends BaseTransactionResponse
 
 object EthTransactionResponse {
@@ -149,8 +172,8 @@ object EthTransactionResponse {
       gasPrice = stx.tx.gasPrice,
       gas = stx.tx.gasLimit,
       input = stx.tx.payload,
-      r = UInt256(stx.signature.r).bytes,
-      s = UInt256(stx.signature.s).bytes,
-      v = ByteString(stx.signature.v)
+      r = stx.signature.r,
+      s = stx.signature.s,
+      v = stx.signature.v
     )
 }

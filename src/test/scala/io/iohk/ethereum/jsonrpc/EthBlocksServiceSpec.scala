@@ -397,13 +397,15 @@ class EthBlocksServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator = mock[PoWBlockGenerator]
     val appStateStorage = mock[AppStateStorage]
+
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
       blockchainReader,
-      consensus
+      consensus,
+      blockQueue
     )
 
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)

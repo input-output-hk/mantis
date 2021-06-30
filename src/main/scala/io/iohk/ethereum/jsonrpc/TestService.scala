@@ -136,6 +136,10 @@ class TestService(
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
     currentConfig = buildNewConfig(request.chainParams.blockchainParams)
 
+    // clear ledger's cache on test start
+    // setChainParams is expected to be the first remote call for each test
+    testModeComponentsProvider.clearState()
+
     val genesisData = GenesisData(
       nonce = request.chainParams.genesis.nonce,
       mixHash = Some(request.chainParams.genesis.mixHash),
@@ -158,6 +162,9 @@ class TestService(
 
     // remove current genesis (Try because it may not exist)
     Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
+    // TODO clear the storage ? When relaunching some tests on the same running test mantis client,
+    // we end up with duplicate blocks because they are still present in the storage layer
+    // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
     val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, currentConfig)
@@ -276,14 +283,19 @@ class TestService(
         testModeComponentsProvider
           .blockImport(currentConfig, preimageCache, sealEngine)
           .importBlock(value)
-          .flatMap(handleResult)
+          .flatMap(handleResult(value))
     }
   }
 
-  private def handleResult(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
+  private def handleResult(
+      block: Block
+  )(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
     blockImportResult match {
       case BlockImportedToTop(blockImportData) =>
         val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
+        ImportRawBlockResponse(blockHash).rightNow
+      case BlockEnqueued | ChainReorganised(_, _, _) =>
+        val blockHash = s"0x${ByteStringUtils.hash2string(block.hash)}"
         ImportRawBlockResponse(blockHash).rightNow
       case e =>
         log.warn("Block import failed with {}", e)

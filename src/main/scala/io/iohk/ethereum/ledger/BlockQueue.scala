@@ -83,6 +83,14 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     blocks.contains(hash)
 
   /**
+    * Returns the weight of the block corresponding to the hash, or None if not found
+    * @param hash the block's hash to get the weight from
+    * @return the weight of the block corresponding to the hash, or None if not found
+    */
+  def getChainWeightByHash(hash: ByteString): Option[ChainWeight] =
+    blocks.get(hash).flatMap(_.weight)
+
+  /**
     * Takes a branch going from descendant block upwards to the oldest ancestor
     * @param descendant the youngest block to be removed
     * @param dequeue should the branch be removed from the queue. Shared part of branch won't be removed
@@ -123,6 +131,14 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
       blocks -= block.header.hash
       parentToChildren -= block.header.hash
     }
+
+  /**
+    * Clear the BlockQueue
+    */
+  def clear(): Unit = {
+    blocks.clear()
+    parentToChildren.clear()
+  }
 
   /**
     * Removes stale blocks - too old or too young in relation the current best block number
@@ -193,4 +209,5 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
   private def isNumberOutOfRange(blockNumber: BigInt, bestBlockNumber: BigInt): Boolean =
     blockNumber - bestBlockNumber > maxQueuedBlockNumberAhead ||
       bestBlockNumber - blockNumber > maxQueuedBlockNumberBehind
+
 }

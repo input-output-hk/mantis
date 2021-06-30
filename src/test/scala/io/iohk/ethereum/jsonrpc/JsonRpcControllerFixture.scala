@@ -15,7 +15,6 @@ import io.iohk.ethereum.domain.{Block, BlockBody, SignedTransaction}
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.{BloomFilter, InMemoryWorldStateProxy, StxLedger}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.{Config, FilterConfig}
@@ -45,6 +44,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val blockGenerator = mock[PoWBlockGenerator]
 
   val syncingController = TestProbe()
+
   override lazy val stxLedger = mock[StxLedger]
   override lazy val validators = mock[ValidatorsExecutor]
   (() => validators.signedTransactionValidator)
@@ -101,7 +101,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
 
   val ethTxService = new EthTxService(
     blockchain,

@@ -432,8 +432,9 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder =>
-  override lazy val ethBlocksService = new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus)
+  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  override lazy val ethBlocksService =
+    new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
 }
 
 trait EthProofServiceBuilder {
@@ -509,9 +510,9 @@ trait EthTxServiceBuilder {
 }
 
 trait EthBlocksServiceBuilder {
-  self: BlockchainBuilder with ConsensusBuilder =>
+  self: BlockchainBuilder with ConsensusBuilder with BlockQueueBuilder =>
 
-  lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus)
+  lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
 }
 
 trait EthUserServiceBuilder {
