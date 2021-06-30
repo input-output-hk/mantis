@@ -32,7 +32,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
     // FIXME in principle this should be already negotiated
     Capability.negotiate(hello.capabilities.toList, handshakerConfiguration.blockchainConfig.capabilities) match {
       case Some(ProtocolVersions.ETC64) => EtcNodeStatus64ExchangeState(handshakerConfiguration)
-      case Some(ProtocolVersions.ETH63) => EtcNodeStatus63ExchangeState(handshakerConfiguration)
+      case Some(ProtocolVersions.ETH63) => EthNodeStatus63ExchangeState(handshakerConfiguration)
       case Some(ProtocolVersions.ETH64) => EthNodeStatus64ExchangeState(handshakerConfiguration)
       case _ =>
         log.debug(
