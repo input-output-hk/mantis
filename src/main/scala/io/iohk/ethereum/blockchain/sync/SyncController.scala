@@ -120,6 +120,7 @@ class SyncController(
         peerEventBus,
         blockImport,
         blockchain,
+        blockchainReader,
         new BranchResolution(blockchain, blockchainReader),
         validators.blockValidator,
         blacklist,

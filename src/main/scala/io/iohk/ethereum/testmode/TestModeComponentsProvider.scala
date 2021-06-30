@@ -34,7 +34,7 @@ class TestModeComponentsProvider(
 ) {
 
 //  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
-  private val internalBlockQueue = BlockQueue(blockchain, syncConfig)
+  private val internalBlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 
   def blockQueue(): BlockQueue = internalBlockQueue
 

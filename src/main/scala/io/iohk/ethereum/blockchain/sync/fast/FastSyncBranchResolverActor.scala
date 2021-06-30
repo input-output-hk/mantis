@@ -59,9 +59,9 @@ class FastSyncBranchResolverActor(
         log.debug(
           "Starting branch resolution now with peer {} and block number {}",
           peerWithInfo,
-          blockchain.getBestBlockNumber()
+          blockchainReader.getBestBlockNumber()
         )
-        requestRecentBlockHeaders(peer, blockchain.getBestBlockNumber())
+        requestRecentBlockHeaders(peer, blockchainReader.getBestBlockNumber())
       case None =>
         log.info("Waiting for peers, rescheduling StartBranchResolver")
         timers.startSingleTimer(RestartTimerKey, StartBranchResolver, 1.second)

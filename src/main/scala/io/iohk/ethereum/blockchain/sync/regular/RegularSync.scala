@@ -10,7 +10,6 @@ import akka.actor.Scheduler
 import akka.actor.SupervisorStrategy
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
-
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
@@ -20,10 +19,8 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
 import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
-import io.iohk.ethereum.ledger.BlockImport
-import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader}
+import io.iohk.ethereum.ledger.{BlockImport, BranchResolution}
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -33,6 +30,7 @@ class RegularSync(
     peerEventBus: ActorRef,
     blockImport: BlockImport,
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     branchResolution: BranchResolution,
     blockValidator: BlockValidator,
     blacklist: Blacklist,
@@ -62,6 +60,7 @@ class RegularSync(
         fetcher.toClassic,
         blockImport,
         blockchain,
+        blockchainReader,
         branchResolution,
         syncConfig,
         ommersPool,
@@ -133,6 +132,7 @@ object RegularSync {
       peerEventBus: ActorRef,
       blockImport: BlockImport,
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       branchResolution: BranchResolution,
       blockValidator: BlockValidator,
       blacklist: Blacklist,
@@ -148,6 +148,7 @@ object RegularSync {
         peerEventBus,
         blockImport,
         blockchain,
+        blockchainReader,
         branchResolution,
         blockValidator,
         blacklist,

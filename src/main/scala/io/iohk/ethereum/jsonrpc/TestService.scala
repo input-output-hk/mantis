@@ -266,7 +266,7 @@ class TestService(
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] =
-      getBlockForMining(blockchain.getBestBlock().get)
+      getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
             .blockImport(currentConfig, preimageCache, sealEngine)
@@ -293,7 +293,7 @@ class TestService(
 
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-    (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
+    (blockchainReader.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     RewindToBlockResponse().rightNow

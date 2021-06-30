@@ -181,14 +181,14 @@ trait BlockchainBuilder {
       storagesInstance.storages.appStateStorage.getBestBlockNumber(),
       storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
     )
-  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
   lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
-  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
+  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 }
 
 trait BlockImportBuilder {
@@ -510,7 +510,7 @@ trait EthMiningServiceBuilder {
     with TxPoolConfigBuilder =>
 
   lazy val ethMiningService = new EthMiningService(
-    blockchain,
+    blockchainReader,
     blockchainConfig,
     consensus,
     jsonRpcConfig,
@@ -575,8 +575,8 @@ trait PersonalServiceBuilder {
   lazy val personalService = new PersonalService(
     keyStore,
     blockchain,
+    blockchainReader,
     pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage,
     blockchainConfig,
     txPoolConfig
   )

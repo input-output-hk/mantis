@@ -40,7 +40,7 @@ class BlockImport(
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
   def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
-    blockchain.getBestBlock() match {
+    blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
           Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
@@ -214,7 +214,7 @@ class BlockImport(
   private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
-    val bestNumber = blockchain.getBestBlockNumber()
+    val bestNumber = blockchainReader.getBestBlockNumber()
 
     val reorgResult = for {
       parent <- newBranch.headOption

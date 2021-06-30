@@ -209,7 +209,7 @@ class EthProofService(
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
     def getLatestBlock(): Either[JsonRpcError, Block] =
-      blockchain
+      blockchainReader
         .getBestBlock()
         .toRight(JsonRpcError.InvalidParams("Latest block not found"))
 

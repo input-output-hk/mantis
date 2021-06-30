@@ -20,9 +20,7 @@ import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.{Address, BlockHeader, BlockchainReader}
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.ommers.OmmersPool
@@ -51,7 +49,7 @@ object EthMiningService {
 }
 
 class EthMiningService(
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
     consensus: Consensus,
     jsonRpcConfig: JsonRpcConfig,
@@ -83,7 +81,7 @@ class EthMiningService(
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
     consensus.ifEthash { ethash =>
       reportActive()
-      blockchain.getBestBlock() match {
+      blockchainReader.getBestBlock() match {
         case Some(block) =>
           Task.parZip2(getOmmersFromPool(block.hash), getTransactionsFromPool).map { case (ommers, pendingTxs) =>
             val blockGenerator = ethash.blockGenerator
@@ -114,7 +112,7 @@ class EthMiningService(
       reportActive()
       Task {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
-          case Some(pendingBlock) if blockchain.getBestBlockNumber() <= pendingBlock.block.header.number =>
+          case Some(pendingBlock) if blockchainReader.getBestBlockNumber() <= pendingBlock.block.header.number =>
             import pendingBlock._
             syncingController ! SyncProtocol.MinedBlock(
               block.copy(header = block.header.copy(nonce = req.nonce, mixHash = req.mixHash))

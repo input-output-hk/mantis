@@ -54,14 +54,14 @@ class QAService(
   def generateCheckpoint(
       req: GenerateCheckpointRequest
   ): ServiceResponse[GenerateCheckpointResponse] = {
-    val hash = req.blockHash.orElse(blockchain.getBestBlock().map(_.hash))
+    val hash = req.blockHash.orElse(blockchainReader.getBestBlock().map(_.hash))
     hash match {
       case Some(hashValue) =>
         Task {
           val parent =
             blockchainReader
               .getBlockByHash(hashValue)
-              .orElse(blockchain.getBestBlock())
+              .orElse(blockchainReader.getBestBlock())
               .getOrElse(blockchain.genesisBlock)
           val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
           val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, checkpoint)

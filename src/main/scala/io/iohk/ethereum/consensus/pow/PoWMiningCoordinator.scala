@@ -12,12 +12,8 @@ import monix.execution.Scheduler
 import scala.concurrent.duration.DurationInt
 
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.miners.EthashDAGManager
-import io.iohk.ethereum.consensus.pow.miners.EthashMiner
-import io.iohk.ethereum.consensus.pow.miners.KeccakMiner
-import io.iohk.ethereum.consensus.pow.miners.Miner
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.consensus.pow.miners.{EthashDAGManager, EthashMiner, KeccakMiner, Miner}
+import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader}
 import io.iohk.ethereum.jsonrpc.EthMiningService
 
 object PoWMiningCoordinator {
@@ -53,7 +49,7 @@ object PoWMiningCoordinator {
       syncController: ClassicActorRef,
       ethMiningService: EthMiningService,
       blockCreator: PoWBlockCreator,
-      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       ecip1049BlockNumber: Option[BigInt]
   ): Behavior[CoordinatorProtocol] =
     Behaviors
@@ -63,7 +59,7 @@ object PoWMiningCoordinator {
           syncController,
           ethMiningService,
           blockCreator,
-          blockchain,
+          blockchainReader,
           ecip1049BlockNumber
         )
       )
@@ -74,7 +70,7 @@ class PoWMiningCoordinator private (
     syncController: ClassicActorRef,
     ethMiningService: EthMiningService,
     blockCreator: PoWBlockCreator,
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     ecip1049BlockNumber: Option[BigInt]
 ) extends AbstractBehavior[CoordinatorProtocol](context) {
 
@@ -98,7 +94,7 @@ class PoWMiningCoordinator private (
 
     case MineNext =>
       log.debug("Received message MineNext")
-      blockchain
+      blockchainReader
         .getBestBlock()
         .fold {
           log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
