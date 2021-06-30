@@ -7,7 +7,7 @@ import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
-case class EtcNodeStatus63ExchangeState(
+case class EthNodeStatus63ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration
 ) extends EtcNodeStatusExchangeState[BaseETH6XMessages.Status] {
 
