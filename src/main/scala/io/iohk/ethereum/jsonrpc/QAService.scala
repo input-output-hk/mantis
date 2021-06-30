@@ -20,7 +20,6 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse.MinerResponseType
@@ -30,7 +29,6 @@ import io.iohk.ethereum.utils.Logger
 
 class QAService(
     consensus: Consensus,
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     blockchainConfig: BlockchainConfig,
@@ -62,7 +60,7 @@ class QAService(
             blockchainReader
               .getBlockByHash(hashValue)
               .orElse(blockchainReader.getBestBlock())
-              .getOrElse(blockchain.genesisBlock)
+              .getOrElse(blockchainReader.genesisBlock)
           val checkpoint = generateCheckpoint(hashValue, req.privateKeys)
           val checkpointBlock: Block = checkpointBlockGenerator.generate(parent, checkpoint)
           syncController ! NewCheckpoint(checkpointBlock)

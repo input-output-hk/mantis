@@ -185,7 +185,7 @@ class TestService(
     resetPreimages(genesisData)
 
     // remove current genesis (Try because it may not exist)
-    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
+    Try(blockchain.removeBlock(blockchainReader.genesisHeader.hash, withState = false))
     // TODO clear the storage ? When relaunching some tests on the same running test mantis client,
     // we end up with duplicate blocks because they are still present in the storage layer
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul

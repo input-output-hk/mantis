@@ -115,7 +115,6 @@ class QAServiceSpec
 
     lazy val qaService = new QAService(
       testConsensus,
-      blockchain,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,

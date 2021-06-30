@@ -458,7 +458,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchainReader.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
-    (() => blockchain.genesisHeader).expects().returning(header)
+    (() => blockchainReader.genesisHeader).expects().returning(header)
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {

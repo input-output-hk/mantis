@@ -592,7 +592,6 @@ trait QaServiceBuilder {
   lazy val qaService =
     new QAService(
       consensus,
-      blockchain,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,

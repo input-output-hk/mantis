@@ -110,6 +110,12 @@ class BlockchainReader(
       )
     )
   }
+
+  def genesisHeader: BlockHeader =
+    getBlockHeaderByNumber(0).get
+
+  def genesisBlock: Block =
+    getBlockByNumber(0).get
 }
 
 object BlockchainReader {

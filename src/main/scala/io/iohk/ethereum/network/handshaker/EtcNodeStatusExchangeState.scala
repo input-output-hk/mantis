@@ -31,7 +31,7 @@ trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo]
     log.debug("Peer returned status ({})", status)
 
     val validNetworkID = status.networkId == handshakerConfiguration.peerConfiguration.networkId
-    val validGenesisHash = status.genesisHash == blockchain.genesisHeader.hash
+    val validGenesisHash = status.genesisHash == blockchainReader.genesisHeader.hash
 
     if (validNetworkID && validGenesisHash) {
       forkResolverOpt match {
@@ -46,7 +46,7 @@ trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo]
 
   protected def getBestBlockHeader(): BlockHeader = {
     val bestBlockNumber = blockchainReader.getBestBlockNumber()
-    blockchainReader.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
+    blockchainReader.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchainReader.genesisHeader)
   }
 
   protected def createStatusMsg(): MessageSerializable

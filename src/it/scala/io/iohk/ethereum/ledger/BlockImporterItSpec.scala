@@ -132,7 +132,7 @@ class BlockImporterItSpec
     )
   )
 
-  val genesisBlock = blockchain.genesisBlock
+  val genesisBlock = blockchainReader.genesisBlock
   val block1: Block = getBlock(genesisBlock.number + 1, parent = genesisBlock.header.hash)
   // new chain is shorter but has a higher weight
   val newBlock2: Block = getBlock(genesisBlock.number + 2, difficulty = 108, parent = block1.header.hash)

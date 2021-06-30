@@ -82,10 +82,6 @@ trait Blockchain {
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
-  def genesisHeader: BlockHeader
-
-  def genesisBlock: Block
-
   /** Strict check if given block hash is in chain
     * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
     * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
@@ -209,10 +205,6 @@ class BlockchainImpl(
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
-
-  def genesisHeader: BlockHeader = blockchainReader.getBlockHeaderByNumber(0).get
-
-  def genesisBlock: Block = blockchainReader.getBlockByNumber(0).get
 
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)
