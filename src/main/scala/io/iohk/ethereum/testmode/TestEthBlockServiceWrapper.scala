@@ -35,20 +35,28 @@ class TestEthBlockServiceWrapper(
   ): ServiceResponse[EthBlocksService.BlockByBlockHashResponse] = super
     .getByBlockHash(request)
     .map(
-      _.flatMap { blockByBlockResponse =>
-        blockByBlockResponse.blockResponse
-          .toRight(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}")
-          .flatMap(baseBlockResponse => baseBlockResponse.hash.toRight(s"missing hash for block $baseBlockResponse"))
-          .flatMap(hash =>
-            blockchainReader.getBlockByHash(hash).toRight(s"unable to find block for hash=${hash.toHex}")
-          )
-          .map(fullBlock =>
-            BlockByBlockHashResponse(
-              blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response))
-            )
-          )
-          .left
-          .map(errorMessage => JsonRpcError.LogicError(errorMessage))
+      _.flatMap {
+
+        case BlockByBlockHashResponse(None) =>
+          Left(JsonRpcError.LogicError(s"EthBlockService: unable to find block for hash ${request.blockHash.toHex}"))
+
+        case BlockByBlockHashResponse(Some(baseBlockResponse)) if baseBlockResponse.hash.isEmpty =>
+          Left(JsonRpcError.LogicError(s"missing hash for block $baseBlockResponse"))
+
+        case BlockByBlockHashResponse(Some(baseBlockResponse)) =>
+          val ethResponseOpt = for {
+            hash <- baseBlockResponse.hash
+            fullBlock <- blockchainReader.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+          } yield toEthResponse(fullBlock, baseBlockResponse)
+
+          ethResponseOpt match {
+            case None =>
+              Left(
+                JsonRpcError.LogicError(s"Ledger: unable to find block for hash=${baseBlockResponse.hash.get.toHex}")
+              )
+            case Some(_) =>
+              Right(BlockByBlockHashResponse(ethResponseOpt))
+          }
       }
     )
 
