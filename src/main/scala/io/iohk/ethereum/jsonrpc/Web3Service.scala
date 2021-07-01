@@ -1,9 +1,11 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+
+import monix.eval.Task
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.utils.Config
-import monix.eval.Task
 
 object Web3Service {
   case class Sha3Request(data: ByteString)
@@ -16,11 +18,9 @@ object Web3Service {
 class Web3Service {
   import Web3Service._
 
-  def sha3(req: Sha3Request): ServiceResponse[Sha3Response] = {
+  def sha3(req: Sha3Request): ServiceResponse[Sha3Response] =
     Task(Right(Sha3Response(crypto.kec256(req.data))))
-  }
 
-  def clientVersion(req: ClientVersionRequest): ServiceResponse[ClientVersionResponse] = {
+  def clientVersion(req: ClientVersionRequest): ServiceResponse[ClientVersionResponse] =
     Task(Right(ClientVersionResponse(Config.clientVersion)))
-  }
 }

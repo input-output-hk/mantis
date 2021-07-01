@@ -1,18 +1,21 @@
 package io.iohk.ethereum.blockchain.sync
 
-import com.github.blemale.scaffeine.{Cache, Scaffeine}
-import io.iohk.ethereum.utils.Logger
-
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
 import scala.jdk.CollectionConverters._
-import scala.jdk.OptionConverters._
 import scala.jdk.DurationConverters._
-import Blacklist._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
+import scala.jdk.OptionConverters._
+
+import com.github.blemale.scaffeine.Cache
+import com.github.blemale.scaffeine.Scaffeine
+
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
 import io.iohk.ethereum.network.NetworkMetrics
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.Logger
+
+import Blacklist._
 
 trait Blacklist {
   def isBlacklisted(id: BlacklistId): Boolean
@@ -315,9 +318,8 @@ object Blacklist {
       OtherSubprotocolSpecificReason
     )
 
-    def getP2PBlacklistReasonByDescription(description: String): BlacklistReason = {
+    def getP2PBlacklistReasonByDescription(description: String): BlacklistReason =
       allP2PReasons.find(_.description == description).getOrElse(OtherSubprotocolSpecificReason)
-    }
   }
 }
 
@@ -330,9 +332,9 @@ final case class CacheBasedBlacklist(cache: Cache[BlacklistId, BlacklistReasonTy
   override def add(id: BlacklistId, duration: FiniteDuration, reason: BlacklistReason): Unit = {
     log.info("Blacklisting peer [{}] for {}. Reason: {}", id, duration, reason.description)
     reason.reasonType.group match {
-      case "FastSyncBlacklistGroup" => NetworkMetrics.BlacklistedReasonsFastSyncGroup.increment()
+      case "FastSyncBlacklistGroup"    => NetworkMetrics.BlacklistedReasonsFastSyncGroup.increment()
       case "RegularSyncBlacklistGroup" => NetworkMetrics.BlacklistedReasonsRegularSyncGroup.increment()
-      case "P2PBlacklistGroup" => NetworkMetrics.BlacklistedReasonsP2PGroup.increment()
+      case "P2PBlacklistGroup"         => NetworkMetrics.BlacklistedReasonsP2PGroup.increment()
     }
     cache.policy().expireVariably().toScala match {
       case Some(varExpiration) => varExpiration.put(id, reason.reasonType, duration.toJava)

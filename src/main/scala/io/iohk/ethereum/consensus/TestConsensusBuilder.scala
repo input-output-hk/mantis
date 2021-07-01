@@ -4,8 +4,7 @@ import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Logger
 
-/**
-  * A [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] that builds a
+/** A [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]] that builds a
   * [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
   */
 trait TestConsensusBuilder { self: StdConsensusBuilder =>

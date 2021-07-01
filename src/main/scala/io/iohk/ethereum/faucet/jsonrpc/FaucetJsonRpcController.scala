@@ -1,11 +1,14 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
+import monix.eval.Task
+
 import io.iohk.ethereum.faucet.jsonrpc.FaucetDomain._
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.jsonrpc.JsonRpcRequest
+import io.iohk.ethereum.jsonrpc.JsonRpcResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcError, JsonRpcRequest, JsonRpcResponse}
 import io.iohk.ethereum.utils.Logger
-import monix.eval.Task
 
 class FaucetJsonRpcController(
     faucetRpcService: FaucetRpcService,
@@ -26,7 +29,7 @@ class FaucetJsonRpcController(
     val notFoundFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = { case _ =>
       Task.now(errorResponse(req, JsonRpcError.MethodNotFound))
     }
-    (handleFaucetRequest orElse notFoundFn)(req)
+    (handleFaucetRequest.orElse(notFoundFn))(req)
   }
 
   private def handleFaucetRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {

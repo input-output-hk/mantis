@@ -1,21 +1,30 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, NullNode}
-import io.iohk.ethereum.mpt.HexPrefix.{bytesToNibbles, encode => hpEncode}
-import io.iohk.ethereum.network.p2p.messages.ETH63._
-import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{encode, _}
+
+import scala.collection.immutable.ArraySeq
+
 import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.collection.immutable.ArraySeq
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
+import io.iohk.ethereum.mpt.HexPrefix.{encode => hpEncode}
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.NullNode
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp._
+import io.iohk.ethereum.rlp.encode
 
 class NodeDataSpec extends AnyFlatSpec with Matchers {
 
@@ -31,17 +40,17 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   val accountNonce = 12
   val accountBalance = 2000
 
-  val exampleNibbles = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
-  val exampleHash = ByteString(kec256(Hex.decode("ab" * 32)))
-  val exampleHashAsArray = exampleHash.toArray[Byte]
-  val exampleValue = ByteString(Hex.decode("abcdee"))
-  val exampleKey = ByteString(Hex.decode("ffddee"))
+  val exampleNibbles: ByteString = ByteString(bytesToNibbles(Hex.decode("ffddaa")))
+  val exampleHash: ByteString = ByteString(kec256(Hex.decode("ab" * 32)))
+  val exampleHashAsArray: Array[Byte] = exampleHash.toArray[Byte]
+  val exampleValue: ByteString = ByteString(Hex.decode("abcdee"))
+  val exampleKey: ByteString = ByteString(Hex.decode("ffddee"))
 
-  val account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
-  val encodedAccount = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
+  val account: Account = Account(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
+  val encodedAccount: RLPList = RLPList(accountNonce, accountBalance, emptyStorageRoot, emptyEvmHash)
 
-  val encodedLeafNode = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
-  val leafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
+  val encodedLeafNode: RLPList = RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = true), encode(encodedAccount))
+  val leafNode: LeafNode = LeafNode(exampleNibbles, account.toBytes, parsedRlp = Some(encodedLeafNode))
 
   val branchNode = new BranchNode(
     (Array.fill[MptNode](3)(NullNode) :+ HashNode(exampleHashAsArray)) ++
@@ -50,7 +59,7 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
     None
   )
 
-  val encodedBranchNode = {
+  val encodedBranchNode: RLPList = {
     val encodeableList: Array[RLPEncodeable] =
       (Array.fill[RLPValue](3)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
         (Array.fill[RLPValue](6)(RLPValue(Array.emptyByteArray)) :+ (exampleHash: RLPEncodeable)) ++
@@ -58,15 +67,15 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
     RLPList(ArraySeq.unsafeWrapArray(encodeableList): _*)
   }
 
-  val extensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
-  val encodedExtensionNode =
+  val extensionNode: ExtensionNode = ExtensionNode(exampleNibbles, HashNode(exampleHashAsArray))
+  val encodedExtensionNode: RLPList =
     RLPList(hpEncode(exampleNibbles.toArray[Byte], isLeaf = false), RLPValue(exampleHashAsArray))
 
-  val nodeData = NodeData(
+  val nodeData: NodeData = NodeData(
     Seq(leafNode.toBytes, branchNode.toBytes, extensionNode.toBytes, emptyEvmHash, emptyStorageRoot)
   )
 
-  val encodedNodeData = RLPList(
+  val encodedNodeData: RLPList = RLPList(
     encode(encodedLeafNode),
     encode(encodedBranchNode),
     encode(encodedExtensionNode),

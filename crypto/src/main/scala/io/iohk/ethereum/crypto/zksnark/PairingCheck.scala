@@ -1,16 +1,17 @@
 package io.iohk.ethereum.crypto.zksnark
 
-import io.iohk.ethereum.crypto.zksnark.BN128.{BN128G1, BN128G2, Point}
-import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
-
 import scala.collection.mutable.ArrayBuffer
+
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G1
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G2
+import io.iohk.ethereum.crypto.zksnark.BN128.Point
+import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 
 object PairingCheck {
 
-  val loopCount = BigInt("29793968203157093288")
+  val loopCount: BigInt = BigInt("29793968203157093288")
 
-  /**
-    * Pairing function is defined as: `e: G_1 x G_2 -> G_T` where G1 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
+  /** Pairing function is defined as: `e: G_1 x G_2 -> G_T` where G1 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
     * and G2 is element of [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
     *
     * Description of algorithms in <a href="https://eprint.iacr.org/2010/354.pdf">optimal ate pairing</a>
@@ -33,7 +34,7 @@ object PairingCheck {
     Fp12.finalExp(product) == FiniteField[Fp12].one
   }
 
-  private def millerLoop(g1: BN128G1, g2: BN128G2): Fp12 = {
+  private def millerLoop(g1: BN128G1, g2: BN128G2): Fp12 =
     if (g1.p.isZero || g2.p.isZero) {
       FiniteField[Fp12].one
     } else {
@@ -71,7 +72,6 @@ object PairingCheck {
 
       f
     }
-  }
 
   private def calcEllCoeffs(base: Point[Fp2]): Seq[EllCoeffs] = {
     val coeffs = new ArrayBuffer[EllCoeffs]()

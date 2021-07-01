@@ -1,21 +1,29 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Scheduler}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Config.SyncConfig
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Scheduler
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 trait PeerListSupportNg { self: Actor with ActorLogging =>
   import PeerListSupportNg._
   import Blacklist._
 
-  private implicit val ec: ExecutionContext = context.dispatcher
+  implicit private val ec: ExecutionContext = context.dispatcher
 
   protected val bigIntReverseOrdering: Ordering[BigInt] = Ordering[BigInt].reverse
 
@@ -36,7 +44,7 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
 
   def handlePeerListMessages: Receive = {
     case EtcPeerManagerActor.HandshakedPeers(peers) => updatePeers(peers)
-    case PeerDisconnected(peerId) => removePeerById(peerId)
+    case PeerDisconnected(peerId)                   => removePeerById(peerId)
   }
 
   def peersToDownloadFrom: Map[PeerId, PeerWithInfo] =
@@ -62,13 +70,12 @@ trait PeerListSupportNg { self: Actor with ActorLogging =>
     handshakedPeers = updated
   }
 
-  private def removePeerById(peerId: PeerId): Unit = {
+  private def removePeerById(peerId: PeerId): Unit =
     if (handshakedPeers.keySet.contains(peerId)) {
       peerEventBus ! Unsubscribe(PeerDisconnectedClassifier(PeerSelector.WithId(peerId)))
       blacklist.remove(peerId)
       handshakedPeers = handshakedPeers - peerId
     }
-  }
 
 }
 

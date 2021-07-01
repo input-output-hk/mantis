@@ -2,19 +2,26 @@ package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Ping, Pong}
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
 
 class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
 
@@ -238,18 +245,18 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup {
-    implicit val system = ActorSystem("test-system")
+    implicit val system: ActorSystem = ActorSystem("test-system")
 
-    val peerEventBusActor = system.actorOf(PeerEventBusActor.props)
+    val peerEventBusActor: ActorRef = system.actorOf(PeerEventBusActor.props)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,

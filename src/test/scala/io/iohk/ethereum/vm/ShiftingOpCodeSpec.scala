@@ -2,37 +2,61 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.vm.Fixtures.blockchainConfig
-import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatest.prop.TableFor5
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableFor5
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.vm.Fixtures.blockchainConfig
+import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState.TestVM
 
 // scalastyle:off magic.number
 class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val array_0x01 = Array(1.toByte)
-  val array_0x00 = Array(0.toByte)
+  val array_0x01: Array[Byte] = Array(1.toByte)
+  val array_0x00: Array[Byte] = Array(0.toByte)
 
   val byteCode_0x80: Array[Byte] = array_0x01 ++ Array.fill(255)(0.toByte)
   val byteCode_0xff: Array[Byte] = Array.fill(256)(1.toByte)
   val byteCode_0xfe: Array[Byte] = Array.fill(255)(1.toByte) ++ array_0x00
   val byteCode_0x7f: Array[Byte] = Array.fill(255)(1.toByte)
 
-  val byteString_0x40 = ByteString(Hex.decode("4000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0x07f = ByteString(Hex.decode("000000000000000000000000000000000000000000000000000000000000007f"))
-  val byteString_0xfe = ByteString(Hex.decode("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe"))
-  val byteString_0x7f = ByteString(Hex.decode("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
-  val byteString_0x80 = ByteString(Hex.decode("8000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0xff = ByteString(Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"))
-  val byteString_0xc0 = ByteString(Hex.decode("c000000000000000000000000000000000000000000000000000000000000000"))
-  val byteString_0x01 = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000001"))
-  val byteString_0x00 = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000"))
+  val byteString_0x40: ByteString = ByteString(
+    Hex.decode("4000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0x07f: ByteString = ByteString(
+    Hex.decode("000000000000000000000000000000000000000000000000000000000000007f")
+  )
+  val byteString_0xfe: ByteString = ByteString(
+    Hex.decode("fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffe")
+  )
+  val byteString_0x7f: ByteString = ByteString(
+    Hex.decode("7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+  )
+  val byteString_0x80: ByteString = ByteString(
+    Hex.decode("8000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0xff: ByteString = ByteString(
+    Hex.decode("ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+  )
+  val byteString_0xc0: ByteString = ByteString(
+    Hex.decode("c000000000000000000000000000000000000000000000000000000000000000")
+  )
+  val byteString_0x01: ByteString = ByteString(
+    Hex.decode("0000000000000000000000000000000000000000000000000000000000000001")
+  )
+  val byteString_0x00: ByteString = ByteString(
+    Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")
+  )
 
   val array_0x80: Array[Byte] = byteString_0x80.toArray
   val array_0xff: Array[Byte] = byteString_0xff.toArray
@@ -130,17 +154,17 @@ class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckProper
   }
 
   trait TestSetup {
-    val config = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
+    val config: EvmConfig = EvmConfig.ConstantinopleConfigBuilder(blockchainConfig)
     val vm = new TestVM
 
-    val senderAddr = Address(0xcafebabeL)
-    val senderAcc = Account(nonce = 1, balance = 1000000)
+    val senderAddr: Address = Address(0xcafebabeL)
+    val senderAcc: Account = Account(nonce = 1, balance = 1000000)
 
     val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
     def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
-    val blockHeader = BlockFixtures.ValidBlock.header.copy(
+    val blockHeader: BlockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,

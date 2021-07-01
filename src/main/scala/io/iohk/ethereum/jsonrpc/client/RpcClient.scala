@@ -1,27 +1,33 @@
 package io.iohk.ethereum.jsonrpc.client
 
-import java.io.{PrintWriter, StringWriter}
 import java.util.UUID
+import javax.net.ssl.SSLContext
 
 import akka.actor.ActorSystem
+import akka.http.scaladsl.ConnectionContext
+import akka.http.scaladsl.Http
+import akka.http.scaladsl.HttpsConnectionContext
 import akka.http.scaladsl.model._
-import akka.http.scaladsl.settings.{ClientConnectionSettings, ConnectionPoolSettings}
+import akka.http.scaladsl.settings.ClientConnectionSettings
+import akka.http.scaladsl.settings.ConnectionPoolSettings
 import akka.http.scaladsl.unmarshalling.Unmarshal
-import akka.http.scaladsl.{ConnectionContext, Http, HttpsConnectionContext}
 import akka.stream.StreamTcpException
 import akka.stream.scaladsl.TcpIdleTimeoutException
-import io.circe.generic.auto._
-import io.circe.parser.parse
-import io.circe.syntax._
-import io.circe.{Decoder, Json}
-import io.iohk.ethereum.jsonrpc.JsonRpcError
-import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.utils.Logger
-import javax.net.ssl.SSLContext
+
 import monix.eval.Task
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
+
+import io.circe.Decoder
+import io.circe.Json
+import io.circe.generic.auto._
+import io.circe.parser.parse
+import io.circe.syntax._
+
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.security.SSLError
+import io.iohk.ethereum.utils.Logger
 
 abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,
@@ -42,9 +48,8 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
         .withIdleTimeout(timeout)
     )
 
-  protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] = {
+  protected def doRequest[T: Decoder](method: String, args: Seq[Json]): RpcResponse[T] =
     doJsonRequest(method, args).map(_.flatMap(getResult[T]))
-  }
 
   protected def doJsonRequest(
       method: String,
@@ -55,14 +60,13 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
     makeRpcCall(request.asJson)
   }
 
-  private def getResult[T: Decoder](jsonResponse: Json): Either[RpcError, T] = {
+  private def getResult[T: Decoder](jsonResponse: Json): Either[RpcError, T] =
     jsonResponse.hcursor.downField("error").as[JsonRpcError] match {
       case Right(error) =>
         Left(RpcClientError(s"Node returned an error: ${error.message} (${error.code})"))
       case Left(_) =>
         jsonResponse.hcursor.downField("result").as[T].left.map(f => RpcClientError(f.message))
     }
-  }
 
   private def makeRpcCall(jsonRequest: Json): Task[Either[RpcError, Json]] = {
     val entity = HttpEntity(ContentTypes.`application/json`, jsonRequest.noSpaces)
@@ -88,21 +92,13 @@ abstract class RpcClient(node: Uri, timeout: Duration, getSSLContext: () => Eith
       }
   }
 
-  private def prepareJsonRequest(method: String, args: Seq[Json]): Json = {
+  private def prepareJsonRequest(method: String, args: Seq[Json]): Json =
     Map(
       "jsonrpc" -> "2.0".asJson,
       "method" -> method.asJson,
       "params" -> args.asJson,
       "id" -> s"${UUID.randomUUID()}".asJson
     ).asJson
-  }
-
-  private def exceptionToString(ex: Throwable): String = {
-    val sw = new StringWriter()
-    sw.append(ex.getMessage + "\n")
-    ex.printStackTrace(new PrintWriter(sw))
-    sw.toString
-  }
 
 }
 

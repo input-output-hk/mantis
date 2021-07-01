@@ -1,11 +1,17 @@
 package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptStorage}
+
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
+import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Account.accountSerializer
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.ledger.{InMemorySimpleMapProxy, InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.ledger.InMemorySimpleMapProxy
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 
 /** This is a wrapper around InMemoryWorldStateProxy.
@@ -57,12 +63,11 @@ case class TestModeWorldStateProxy(
   override def clearTouchedAccounts: TestModeWorldStateProxy =
     copy(touchedAccounts = touchedAccounts.empty)
 
-  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): TestModeWorldStateProxy = {
+  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): TestModeWorldStateProxy =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copy(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
 
   override def saveCode(address: Address, code: ByteString): TestModeWorldStateProxy =
     copy(accountCodes = accountCodes + (address -> code))
@@ -83,7 +88,7 @@ object TestModeWorldStateProxy {
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean,
       saveStoragePreimage: (UInt256) => Unit
-  ): TestModeWorldStateProxy = {
+  ): TestModeWorldStateProxy =
     new TestModeWorldStateProxy(
       stateStorage = nodesKeyValueStorage,
       accountsStateTrie = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash),
@@ -97,17 +102,15 @@ object TestModeWorldStateProxy {
       ethCompatibleStorage = ethCompatibleStorage,
       saveStoragePreimage = saveStoragePreimage
     )
-  }
 
   private def createProxiedAccountsStateTrie(
       accountsStorage: MptStorage,
       stateRootHash: ByteString
-  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
+  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
         accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
-  }
 }

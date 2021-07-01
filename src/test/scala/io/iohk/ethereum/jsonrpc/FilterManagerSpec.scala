@@ -1,30 +1,39 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
-import akka.util.ByteString
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.keystore.KeyStore
-import org.scalamock.scalatest.MockFactory
-import org.bouncycastle.util.encoders.Hex
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.pattern.ask
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.consensus.blocks.{BlockGenerator, PendingBlock}
-import io.iohk.ethereum.{NormalPatience, Timeouts, WithActorSystemShutDown}
-import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
-import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalatest.concurrent.ScalaFutures
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import akka.util.ByteString
 
 import scala.concurrent.duration._
+
+import com.miguno.akka.testing.VirtualTime
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.consensus.blocks.BlockGenerator
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.FilterManager.LogFilterLogs
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
+import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 class FilterManagerSpec
     extends TestKit(ActorSystem("FilterManagerSpec_System"))
@@ -467,12 +476,12 @@ class FilterManagerSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with SecureRandomBuilder {
 
-    val config = new FilterConfig {
+    val config: FilterConfig = new FilterConfig {
       override val filterTimeout = Timeouts.longTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
     }
 
-    val txPoolConfig = new TxPoolConfig {
+    val txPoolConfig: TxPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.longTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -483,13 +492,13 @@ class FilterManagerSpec
 
     val time = new VirtualTime
 
-    val blockchainReader = mock[BlockchainReader]
-    val blockchain = mock[BlockchainImpl]
-    val keyStore = mock[KeyStore]
-    val blockGenerator = mock[BlockGenerator]
-    val pendingTransactionsManager = TestProbe()
+    val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    val keyStore: KeyStore = mock[KeyStore]
+    val blockGenerator: BlockGenerator = mock[BlockGenerator]
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
-    val blockHeader = BlockHeader(
+    val blockHeader: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -511,7 +520,7 @@ class FilterManagerSpec
       nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
 
-    val filterManager = TestActorRef[FilterManager](
+    val filterManager: TestActorRef[FilterManager] = TestActorRef[FilterManager](
       Props(
         new FilterManager(
           blockchain,

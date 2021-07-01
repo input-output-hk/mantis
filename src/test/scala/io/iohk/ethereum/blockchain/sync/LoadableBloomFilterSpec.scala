@@ -1,17 +1,20 @@
 package io.iohk.ethereum.blockchain.sync
 
-import com.google.common.hash.{Funnel, Funnels, PrimitiveSink}
-import io.iohk.ethereum.FlatSpecBase
-import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import monix.eval.Task
 import monix.reactive.Observable
 
+import com.google.common.hash.Funnel
+import com.google.common.hash.Funnels
+import com.google.common.hash.PrimitiveSink
+
+import io.iohk.ethereum.FlatSpecBase
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+
 class LoadableBloomFilterSpec extends FlatSpecBase {
   implicit object LongFun extends Funnel[Long] {
-    override def funnel(from: Long, into: PrimitiveSink): Unit = {
+    override def funnel(from: Long, into: PrimitiveSink): Unit =
       Funnels.longFunnel().funnel(from, into)
-    }
   }
 
   "LoadableBloomFilter" should "load all correct elements " in testCaseM {

@@ -1,15 +1,15 @@
 package io.iohk.ethereum.security
 
 import java.io.FileInputStream
-import java.security.{KeyStore, SecureRandom}
-
+import java.security.KeyStore
+import java.security.SecureRandom
 import javax.net.ssl.SSLContext
 
 import scala.util.Try
 
 case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
 
-  def createSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
+  def createSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] =
     for {
       _ <- validateCertificateFiles(
         sslConfig.keyStorePath,
@@ -17,20 +17,16 @@ case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
       )
       sslContext <- getSSLContext(sslConfig, secureRandom)
     } yield sslContext
-  }
 
   private def getSSLContext(sslConfig: SSLConfig, secureRandom: SecureRandom): Either[SSLError, SSLContext] = {
     val passwordReader = getReader(sslConfig.passwordFile)
     try {
       val password = passwordReader.getLines().mkString
       obtainSSLContext(secureRandom, sslConfig.keyStorePath, sslConfig.keyStoreType, password)
-    } finally {
-      passwordReader.close()
-    }
+    } finally passwordReader.close()
   }
 
-  /**
-    * Validates that the keystore certificate file and password file were configured and that the files exists
+  /** Validates that the keystore certificate file and password file were configured and that the files exists
     *
     * @param keystorePath with the path to the certificate keystore if it was configured
     * @param passwordFile with the path to the password file if it was configured
@@ -52,8 +48,7 @@ case class SSLContextFactory() extends FileUtils with KeyStoreUtils {
       Right(())
   }
 
-  /**
-    * Constructs the SSL context given a certificate
+  /** Constructs the SSL context given a certificate
     *
     * @param secureRandom
     * @param keyStorePath path to the keystore where the certificate is stored

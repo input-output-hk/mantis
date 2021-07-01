@@ -2,37 +2,47 @@ package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
 import java.util.concurrent.ThreadLocalRandom
-import akka.actor.{ActorRef, ActorSystem}
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider}
-import io.iohk.ethereum.blockchain.sync.fast.{SyncStateScheduler, SyncStateSchedulerActor}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  RestartRequested,
-  StartSyncingTo,
-  StateSyncFinished,
-  StateSyncStats,
-  WaitingForNewTargetBlock
-}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
-import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, ObjectGenerators, WithActorSystemShutDown}
-import monix.execution.Scheduler
+
+import scala.concurrent.duration._
+import scala.util.Random
+
 import org.scalactic.anyvals.PosInt
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.concurrent.duration._
-import scala.util.Random
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RestartRequested
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StartSyncingTo
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFinished
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncStats
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.utils.Config
 
 class StateSyncSpec
     extends TestKit(ActorSystem("StateSyncSpec"))
@@ -43,7 +53,8 @@ class StateSyncSpec
     with WithActorSystemShutDown {
 
   // those tests are somewhat long running 3 successful evaluation should be fine
-  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+    PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   "StateSync" should "sync state to different tries" in new TestSetup() {
     forAll(ObjectGenerators.genMultipleNodeData(1000)) { nodeData =>
@@ -90,17 +101,13 @@ class StateSyncSpec
       initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
       initiator.send(syncStateSchedulerActor, RestartRequested)
       initiator.fishForMessage(20.seconds) {
-        case _: StateSyncStats => false
+        case _: StateSyncStats        => false
         case WaitingForNewTargetBlock => true
       }
     }
   }
 
   it should "start state sync when receiving start signal while bloom filter is loading" in new TestSetup() {
-    @volatile
-    var loadingFinished = false
-    val externalScheduler = Scheduler(system.dispatcher)
-
     override def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
       val storages = getNewStorages.storages
 
@@ -115,26 +122,22 @@ class StateSyncSpec
     val target = trieProvider1.buildWorld(nodeData)
     setAutoPilotWithProvider(trieProvider1)
     initiator.send(syncStateSchedulerActor, StartSyncingTo(target, 1))
-    externalScheduler.scheduleOnce(2.second) {
-      loadingFinished = true
-    }
-
     initiator.expectMsg(20.seconds, StateSyncFinished)
   }
 
   class TestSetup extends EphemBlockchainTestSetup with TestSyncConfig {
-    override implicit lazy val system = StateSyncSpec.this.system
+    implicit override lazy val system: ActorSystem = StateSyncSpec.this.system
     type PeerConfig = Map[PeerId, PeerAction]
-    val syncInit = TestProbe()
+    val syncInit: TestProbe = TestProbe()
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -145,7 +148,7 @@ class StateSyncSpec
     val trieProvider =
       new TrieProvider(blockchain, blockchainReader, getNewStorages.storages.evmCodeStorage, blockchainConfig)
 
-    val peersMap = (1 to 8).map { i =>
+    val peersMap: Map[Peer, PeerInfo] = (1 to 8).map { i =>
       (
         Peer(
           PeerId(s"peer$i"),
@@ -184,13 +187,13 @@ class StateSyncSpec
       }
     }
 
-    val etcPeerManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
 
-    val peerEventBus = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
 
-    def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit = {
+    def setAutoPilotWithProvider(trieProvider: TrieProvider, peerConfig: PeerConfig = defaultPeerConfig): Unit =
       etcPeerManager.setAutoPilot(new AutoPilot {
-        override def run(sender: ActorRef, msg: Any): AutoPilot = {
+        override def run(sender: ActorRef, msg: Any): AutoPilot =
           msg match {
             case SendMessage(msg: GetNodeDataEnc, peer) =>
               peerConfig(peer) match {
@@ -214,9 +217,7 @@ class StateSyncSpec
               sender ! HandshakedPeers(peersMap)
               this
           }
-        }
       })
-    }
 
     override lazy val syncConfig: Config.SyncConfig = defaultSyncConfig.copy(
       peersScanInterval = 0.5.second,
@@ -243,11 +244,10 @@ class StateSyncSpec
       arr
     }
 
-    def genRandomByteString(): ByteString = {
+    def genRandomByteString(): ByteString =
       ByteString.fromArrayUnsafe(genRandomArray())
-    }
 
-    lazy val syncStateSchedulerActor = {
+    lazy val syncStateSchedulerActor: ActorRef = {
       val (blockchainReader, blockchain) = buildBlockChain()
       system.actorOf(
         SyncStateSchedulerActor.props(

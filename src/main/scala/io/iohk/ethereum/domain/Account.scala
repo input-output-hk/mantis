@@ -1,23 +1,25 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
+import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.ETH63.AccountImplicits
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import org.bouncycastle.util.encoders.Hex
-
-import scala.util.Try
 
 object Account {
-  val EmptyStorageRootHash = ByteString(kec256(rlp.encode(Array.empty[Byte])))
+  val EmptyStorageRootHash: ByteString = ByteString(kec256(rlp.encode(Array.empty[Byte])))
   val EmptyCodeHash: ByteString = kec256(ByteString())
 
   def empty(startNonce: UInt256 = UInt256.Zero): Account =
     Account(nonce = startNonce, storageRoot = EmptyStorageRootHash, codeHash = EmptyCodeHash)
 
-  implicit val accountSerializer = new ByteArraySerializable[Account] {
+  implicit val accountSerializer: ByteArraySerializable[Account] = new ByteArraySerializable[Account] {
 
     import AccountImplicits._
 
@@ -48,15 +50,13 @@ case class Account(
   def withStorage(storageRoot: ByteString): Account =
     copy(storageRoot = storageRoot)
 
-  /**
-    * According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
+  /** According to EIP161: An account is considered empty when it has no code and zero nonce and zero balance.
     * An account's storage is not relevant when determining emptiness.
     */
   def isEmpty(startNonce: UInt256 = UInt256.Zero): Boolean =
     nonce == startNonce && balance == UInt256.Zero && codeHash == Account.EmptyCodeHash
 
-  /**
-    * Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
+  /** Under EIP-684 if this evaluates to true then we have a conflict when creating a new account
     */
   def nonEmptyCodeOrNonce(startNonce: UInt256 = UInt256.Zero): Boolean =
     nonce != startNonce || codeHash != Account.EmptyCodeHash

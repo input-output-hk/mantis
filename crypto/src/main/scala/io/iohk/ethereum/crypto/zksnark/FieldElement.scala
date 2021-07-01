@@ -1,8 +1,9 @@
 package io.iohk.ethereum.crypto.zksnark
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteUtils
+
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
+import io.iohk.ethereum.utils.ByteUtils
 
 // Arithmetic in on all finite fields described in:
 // https://eprint.iacr.org/2010/354.pdf - 'High-Speed Software Implementation of the Optimal Ate Pairing over Barreto–Naehrig Curves'
@@ -12,26 +13,22 @@ case class Fp(inner: BigInt) extends FieldElement
 
 object Fp {
 
-  /**
-    * "p" field parameter of F_p, F_p2, F_p6 and F_p12
+  /** "p" field parameter of F_p, F_p2, F_p6 and F_p12
     */
   val P: BigInt = BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208583")
 
-  /**
-    * "b" curve parameter for BN128Fp
+  /** "b" curve parameter for BN128Fp
     */
   val B_Fp: Fp = Fp(BigInt(3))
 
-  val twoInv = Fp(BigInt(2).modInverse(P))
+  val twoInv: Fp = Fp(BigInt(2).modInverse(P))
 
-  val NON_RESIDUE = Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582"))
+  val NON_RESIDUE: Fp = Fp(BigInt("21888242871839275222246405745257275088696311157297823662689037894645226208582"))
 
-  def apply(inner: ByteString): Fp = {
+  def apply(inner: ByteString): Fp =
     new Fp(ByteUtils.toBigInt(inner))
-  }
 
-  /**
-    * Implementation of finite field "Fp" modular arithmetic
+  /** Implementation of finite field "Fp" modular arithmetic
     */
   implicit object FpImpl extends FiniteField[Fp] {
     override def zero: Fp = Fp(BigInt(0))
@@ -39,15 +36,15 @@ object Fp {
     override def one: Fp = Fp(BigInt(1))
 
     override def add(a: Fp, b: Fp): Fp = Fp {
-      (a.inner + b.inner) mod P
+      (a.inner + b.inner).mod(P)
     }
 
     override def mul(a: Fp, b: Fp): Fp = Fp {
-      (a.inner * b.inner) mod P
+      (a.inner * b.inner).mod(P)
     }
 
     override def sub(a: Fp, b: Fp): Fp = Fp {
-      (a.inner - b.inner) mod P
+      (a.inner - b.inner).mod(P)
     }
 
     override def inv(a: Fp): Fp = Fp {
@@ -55,12 +52,11 @@ object Fp {
     }
 
     override def neg(a: Fp): Fp = Fp {
-      (-a.inner) mod P
+      (-a.inner).mod(P)
     }
 
-    override def isValid(a: Fp): Boolean = {
+    override def isValid(a: Fp): Boolean =
       a.inner >= 0 && a.inner < P
-    }
 
     override def isZero(a: Fp): Boolean =
       a.inner == BigInt(0)
@@ -72,25 +68,23 @@ case class Fp2(a: Fp, b: Fp) extends FieldElement
 object Fp2 {
 
   // It is also Twist for Fp2
-  val NON_RESIDUE = Fp2(Fp(BigInt(9)), Fp(BigInt(1)))
+  val NON_RESIDUE: Fp2 = Fp2(Fp(BigInt(9)), Fp(BigInt(1)))
 
-  val TWIST_MUL_BY_P_X = Fp2(
+  val TWIST_MUL_BY_P_X: Fp2 = Fp2(
     Fp(BigInt("21575463638280843010398324269430826099269044274347216827212613867836435027261")),
     Fp(BigInt("10307601595873709700152284273816112264069230130616436755625194854815875713954"))
   )
 
-  val TWIST_MUL_BY_P_Y = Fp2(
+  val TWIST_MUL_BY_P_Y: Fp2 = Fp2(
     Fp(BigInt("2821565182194536844548159561693502659359617185244120367078079554186484126554")),
     Fp(BigInt("3505843767911556378687030309984248845540243509899259641013678093033130930403"))
   )
 
-  def apply(inner1: ByteString, inner2: ByteString): Fp2 = {
+  def apply(inner1: ByteString, inner2: ByteString): Fp2 =
     new Fp2(Fp(inner1), Fp(inner2))
-  }
 
-  def mulByConst(a: Fp2, c: Fp): Fp2 = {
+  def mulByConst(a: Fp2, c: Fp): Fp2 =
     Fp2(a.a * c, a.b * c)
-  }
 
   private val FROBENIUS_COEFFS_B: Array[Fp] = Array[Fp](
     FiniteField[Fp].one,
@@ -108,13 +102,11 @@ object Fp2 {
 
     override def zero: Fp2 = Fp2(FiniteField[Fp].zero, FiniteField[Fp].zero)
 
-    override def add(a: Fp2, b: Fp2): Fp2 = {
+    override def add(a: Fp2, b: Fp2): Fp2 =
       Fp2(a.a + b.a, a.b + b.b)
-    }
 
-    override def sub(a: Fp2, b: Fp2): Fp2 = {
+    override def sub(a: Fp2, b: Fp2): Fp2 =
       Fp2(a.a - b.a, a.b - b.b)
-    }
 
     override def mul(a: Fp2, b: Fp2): Fp2 = {
       val aa = a.a * b.a
@@ -126,9 +118,8 @@ object Fp2 {
       Fp2(ra, rb)
     }
 
-    override def neg(a: Fp2): Fp2 = {
+    override def neg(a: Fp2): Fp2 =
       Fp2(a.a.negated(), a.b.negated())
-    }
 
     override def inv(a: Fp2): Fp2 = {
       val t0 = a.a.squared()
@@ -142,15 +133,14 @@ object Fp2 {
       Fp2(ra, rb)
     }
 
-    override def isValid(a: Fp2): Boolean = {
+    override def isValid(a: Fp2): Boolean =
       a.a.isValid() && a.b.isValid()
-    }
 
     override def isZero(a: Fp2): Boolean = a == zero
 
   }
 
-  val B_Fp2 = mulByConst(NON_RESIDUE.inversed(), Fp.B_Fp)
+  val B_Fp2: Fp2 = mulByConst(NON_RESIDUE.inversed(), Fp.B_Fp)
 }
 
 case class Fp6(a: Fp2, b: Fp2, c: Fp2) extends FieldElement
@@ -434,9 +424,8 @@ object Fp12 {
   def negExp(a: Fp12, exp: BigInt): Fp12 =
     unitaryInverse(cyclotomicExp(a, exp))
 
-  def finalExp(el: Fp12): Fp12 = {
+  def finalExp(el: Fp12): Fp12 =
     finalExpLastChunk(finalExpFirstChunk(el))
-  }
 
   private def finalExpFirstChunk(el: Fp12): Fp12 = {
     val a = unitaryInverse(el)
@@ -477,7 +466,7 @@ object Fp12 {
     v
   }
 
-  val pairingFinalExp = BigInt("4965661367192848881")
+  val pairingFinalExp: BigInt = BigInt("4965661367192848881")
 
   private val FROBENIUS_COEFFS_B: Array[Fp2] = Array[Fp2](
     new Fp2(FiniteField[Fp].one, FiniteField[Fp].zero),

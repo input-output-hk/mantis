@@ -1,28 +1,36 @@
 package io.iohk.ethereum.consensus.pow.miners
 
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.actor.Status.Failure
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.ByteString
+
+import monix.execution.Scheduler
+
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.PoWConsensus
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MineBlock, MineBlocks, MockedMinerProtocol}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.{
-  MinerIsWorking,
-  MinerNotSupported,
-  MiningError,
-  MiningOrdered
-}
-import io.iohk.ethereum.consensus.pow.{PoWBlockCreator, PoWConsensus}
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlock
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerIsWorking
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotSupported
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningError
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
 import io.iohk.ethereum.consensus.wrongConsensusArgument
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import monix.execution.Scheduler
-
-import scala.concurrent.duration._
 
 class MockedMiner(
     blockchain: Blockchain,
@@ -36,12 +44,12 @@ class MockedMiner(
 
   override def receive: Receive = stopped
 
-  def stopped: Receive = notSupportedMockedMinerMessages orElse { case StartMining =>
-    context become waiting()
+  def stopped: Receive = notSupportedMockedMinerMessages.orElse { case StartMining =>
+    context.become(waiting())
   }
 
   def waiting(): Receive = {
-    case StopMining => context become stopped
+    case StopMining => context.become(stopped)
     case mineBlocks: MineBlocks =>
       mineBlocks.parentBlock match {
         case Some(parentHash) =>
@@ -76,7 +84,8 @@ class MockedMiner(
       if (numBlocks > 0) {
         blockCreator
           .getBlockForMining(parentBlock, withTransactions, initialWorldStateBeforeExecution)
-          .runToFuture pipeTo self
+          .runToFuture
+          .pipeTo(self)
       } else {
         log.info(s"Mining all mocked blocks successful")
         context.become(waiting())
@@ -124,7 +133,7 @@ object MockedMiner {
       )
     ).withDispatcher(BlockForgerDispatcherId)
 
-  def apply(node: Node): ActorRef = {
+  def apply(node: Node): ActorRef =
     node.consensus match {
       case consensus: PoWConsensus =>
         val blockCreator = new PoWBlockCreator(
@@ -143,7 +152,6 @@ object MockedMiner {
       case consensus =>
         wrongConsensusArgument[PoWConsensus](consensus)
     }
-  }
 
   // TODO to be removed in ETCM-773
   sealed trait MockedMinerProtocol extends MinerProtocol

@@ -1,27 +1,29 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+
 import com.google.common.util.concurrent.AtomicDouble
+
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.metrics.MetricsContainer
 
 case object BlockMetrics extends MetricsContainer {
 
-  private[this] final val BlockNumberGauge =
+  final private[this] val BlockNumberGauge =
     metrics.registry.gauge("sync.block.number.gauge", new AtomicDouble(0d))
-  private[this] final val CheckpointBlockNumberGauge =
+  final private[this] val CheckpointBlockNumberGauge =
     metrics.registry.gauge("sync.block.checkpoint.number.gauge", new AtomicDouble(0d))
-  private[this] final val BlockGasLimitGauge =
+  final private[this] val BlockGasLimitGauge =
     metrics.registry.gauge("sync.block.gasLimit.gauge", new AtomicDouble(0d))
-  private[this] final val BlockGasUsedGauge =
+  final private[this] val BlockGasUsedGauge =
     metrics.registry.gauge("sync.block.gasUsed.gauge", new AtomicDouble(0d))
-  private[this] final val BlockDifficultyGauge =
+  final private[this] val BlockDifficultyGauge =
     metrics.registry.gauge("sync.block.difficulty.gauge", new AtomicDouble(0d))
-  private[this] final val BlockTransactionsGauge =
+  final private[this] val BlockTransactionsGauge =
     metrics.registry.gauge("sync.block.transactions.gauge", new AtomicDouble(0d))
-  private[this] final val BlockUnclesGauge =
+  final private[this] val BlockUnclesGauge =
     metrics.registry.gauge("sync.block.uncles.gauge", new AtomicDouble(0d))
-  private[this] final val TimeBetweenParentGauge =
+  final private[this] val TimeBetweenParentGauge =
     metrics.registry.gauge("sync.block.timeBetweenParent.seconds.gauge", new AtomicDouble(0d))
 
   def measure(block: Block, getBlockByHashFn: ByteString => Option[Block]): Unit = {

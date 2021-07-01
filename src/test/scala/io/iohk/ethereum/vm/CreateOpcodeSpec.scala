@@ -1,32 +1,39 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import MockWorldState._
 import akka.util.ByteString
-import Fixtures.blockchainConfig
-import io.iohk.ethereum.crypto.kec256
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.UInt256
+
+import MockWorldState._
+import Fixtures.blockchainConfig
 
 // scalastyle:off method.length
 class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  val config: EvmConfig = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
   // scalastyle:off
   object fxt {
-    val fakeHeader = BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
-    val addresWithRevert = Address(10)
-    val creatorAddr = Address(0xcafe)
+    val fakeHeader: BlockHeader =
+      BlockFixtures.ValidBlock.header.copy(number = blockchainConfig.constantinopleBlockNumber - 1)
+    val addresWithRevert: Address = Address(10)
+    val creatorAddr: Address = Address(0xcafe)
     val salt = UInt256.Zero
 
     // doubles the value passed in the input data
-    val contractCode = Assembly(
+    val contractCode: Assembly = Assembly(
       PUSH1,
       0,
       CALLDATALOAD,
@@ -61,15 +68,15 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       RETURN
     )
 
-    val initWithSelfDestruct = Assembly(
+    val initWithSelfDestruct: Assembly = Assembly(
       PUSH1,
       creatorAddr.toUInt256.toInt,
       SELFDESTRUCT
     )
 
-    val gas1000 = ByteString(3, -24)
+    val gas1000: ByteString = ByteString(3, -24)
 
-    val initWithSelfDestructAndCall = Assembly(
+    val initWithSelfDestructAndCall: Assembly = Assembly(
       PUSH1,
       1,
       PUSH1,
@@ -90,7 +97,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       SELFDESTRUCT
     )
 
-    val initWithSstoreWithClear = Assembly(
+    val initWithSstoreWithClear: Assembly = Assembly(
       //Save a value to the storage
       PUSH1,
       10,
@@ -106,7 +113,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
     )
 
     val revertValue = 21
-    val initWithRevertProgram = Assembly(
+    val initWithRevertProgram: Assembly = Assembly(
       PUSH1,
       revertValue,
       PUSH1,
@@ -119,7 +126,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       REVERT
     )
 
-    val revertProgram = Assembly(
+    val revertProgram: Assembly = Assembly(
       PUSH1,
       revertValue,
       PUSH1,
@@ -135,22 +142,24 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
     val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
     val endowment: UInt256 = 123
-    val initWorld = MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
-    val newAddr = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
+    val initWorld: MockWorldState =
+      MockWorldState().saveAccount(creatorAddr, Account.empty().increaseBalance(endowment))
+    val newAddr: Address = initWorld.increaseNonce(creatorAddr).createAddress(creatorAddr)
 
-    val worldWithRevertProgram = initWorld
+    val worldWithRevertProgram: MockWorldState = initWorld
       .saveAccount(addresWithRevert, accountWithCode(revertProgram.code))
       .saveCode(addresWithRevert, revertProgram.code)
 
-    val createCode = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
+    val createCode: Assembly = Assembly(initPart(contractCode.code.size).byteCode ++ contractCode.byteCode: _*)
 
-    val copyCodeGas = G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
+    val copyCodeGas: BigInt =
+      G_copy * wordsForBytes(contractCode.code.size) + config.calcMemCost(0, 0, contractCode.code.size)
     val storeGas = G_sset
-    def gasRequiredForInit(withHashCost: Boolean) = initPart(contractCode.code.size).linearConstGas(
+    def gasRequiredForInit(withHashCost: Boolean): BigInt = initPart(contractCode.code.size).linearConstGas(
       config
     ) + copyCodeGas + storeGas + (if (withHashCost) G_sha3word * wordsForBytes(contractCode.code.size) else 0)
-    val depositGas = config.calcCodeDepositCost(contractCode.code)
-    def gasRequiredForCreation(withHashCost: Boolean) = gasRequiredForInit(withHashCost) + depositGas + G_create
+    val depositGas: BigInt = config.calcCodeDepositCost(contractCode.code)
+    def gasRequiredForCreation(withHashCost: Boolean): BigInt = gasRequiredForInit(withHashCost) + depositGas + G_create
 
     val context: PC = ProgramContext(
       callerAddr = Address(0),
@@ -180,11 +189,11 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       ownerAddress: Address = fxt.creatorAddr
   ) {
     val vm = new TestVM
-    val env = ExecEnv(context, ByteString.empty, ownerAddress)
+    val env: ExecEnv = ExecEnv(context, ByteString.empty, ownerAddress)
 
-    val mem = Memory.empty.store(0, createCode)
-    val stack = opcode match {
-      case CREATE => Stack.empty().push(Seq[UInt256](createCode.size, 0, value))
+    val mem: Memory = Memory.empty.store(0, createCode)
+    val stack: Stack = opcode match {
+      case CREATE  => Stack.empty().push(Seq[UInt256](createCode.size, 0, value))
       case CREATE2 => Stack.empty().push(Seq[UInt256](salt, createCode.size, 0, value))
     }
     val stateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
@@ -196,12 +205,12 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
 
   def commonBehaviour(opcode: CreateOp): Unit = {
     def newAccountAddress(code: ByteString = fxt.createCode.code) = opcode match {
-      case CREATE => fxt.initWorld.increaseNonce(fxt.creatorAddr).createAddress(fxt.creatorAddr)
+      case CREATE  => fxt.initWorld.increaseNonce(fxt.creatorAddr).createAddress(fxt.creatorAddr)
       case CREATE2 => fxt.initWorld.create2Address(fxt.creatorAddr, fxt.salt, code)
     }
 
     val withHashCost = opcode match {
-      case CREATE => false
+      case CREATE  => false
       case CREATE2 => true
     }
 
@@ -480,7 +489,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
   }
 
   "CREATE" should {
-    behave like commonBehaviour(CREATE)
+    behave.like(commonBehaviour(CREATE))
 
     "account with non-zero balance, but empty code and zero nonce, already exists" should {
 
@@ -503,7 +512,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
   }
 
   "CREATE2" should {
-    behave like commonBehaviour(CREATE2)
+    behave.like(commonBehaviour(CREATE2))
 
     "returns correct address and spends correct amount of gas (examples from https://eips.ethereum.org/EIPS/eip-1014)" in {
 

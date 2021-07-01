@@ -1,15 +1,17 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, TxLogEntry, UInt256}
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.domain.UInt256
 
 object ProgramState {
   def apply[W <: WorldStateProxy[W, S], S <: Storage[S]](
       vm: VM[W, S],
       context: ProgramContext[W, S],
       env: ExecEnv
-  ): ProgramState[W, S] = {
-
+  ): ProgramState[W, S] =
     ProgramState(
       vm = vm,
       env = env,
@@ -19,11 +21,9 @@ object ProgramState {
       addressesToDelete = context.initialAddressesToDelete,
       originalWorld = context.originalWorld
     )
-  }
 }
 
-/**
-  * Intermediate state updated with execution of each opcode in the program
+/** Intermediate state updated with execution of each opcode in the program
   *
   * @param vm                         the VM
   * @param env                        program constants

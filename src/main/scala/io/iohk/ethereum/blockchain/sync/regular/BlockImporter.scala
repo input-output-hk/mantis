@@ -1,9 +1,21 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
+import akka.actor.Actor
 import akka.actor.Actor.Receive
-import akka.actor.{Actor, ActorLogging, ActorRef, NotInfluenceReceiveTimeout, Props, ReceiveTimeout}
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.NotInfluenceReceiveTimeout
+import akka.actor.Props
+import akka.actor.ReceiveTimeout
+
 import cats.data.NonEmptyList
 import cats.implicits._
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
@@ -15,14 +27,11 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddUncheckedTransactions, RemoveTransactions}
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddUncheckedTransactions
+import io.iohk.ethereum.transactions.PendingTransactionsManager.RemoveTransactions
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import monix.eval.Task
-import monix.execution.Scheduler
-
-import scala.concurrent.duration._
 
 class BlockImporter(
     fetcher: ActorRef,
@@ -97,7 +106,7 @@ class BlockImporter(
       if (newBehavior == Running) {
         self ! PickBlocks
       }
-      context become behavior(newState)
+      context.become(behavior(newState))
 
     case PickBlocks if !state.importing => pickBlocks(state)
   }
@@ -117,7 +126,7 @@ class BlockImporter(
     log.debug("Starting Regular Sync, current best block is {}", bestKnownBlockNumber)
     fetcher ! BlockFetcher.Start(self, bestKnownBlockNumber)
     supervisor ! ProgressProtocol.StartingFrom(bestKnownBlockNumber)
-    context become running(ImporterState.initial)
+    context.become(running(ImporterState.initial))
   }
 
   private def pickBlocks(state: ImporterState): Unit = {
@@ -140,7 +149,7 @@ class BlockImporter(
       }
       .flatMap {
         case Right(blocksToImport) => handleBlocksImport(blocksToImport)
-        case Left(resolvingFrom) => Task.now(ResolvingBranch(resolvingFrom))
+        case Left(resolvingFrom)   => Task.now(ResolvingBranch(resolvingFrom))
       },
     blockImportType
   )
@@ -222,35 +231,31 @@ class BlockImporter(
   ): ImportFn = {
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
     importWith(
-      {
-        Task(doLog(importMessages.preImport()))
-          .flatMap(_ => blockImport.importBlock(block))
-          .tap(importMessages.messageForImportResult _ andThen doLog)
-          .tap {
-            case BlockImportedToTop(importedBlocksData) =>
-              val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
-              broadcastBlocks(blocks, weights)
-              updateTxPool(importedBlocksData.map(_.block), Seq.empty)
-              supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-            case ChainReorganised(oldBranch, newBranch, weights) =>
-              updateTxPool(newBranch, oldBranch)
-              broadcastBlocks(newBranch, weights)
-              newBranch.lastOption.foreach(block =>
-                supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
-              )
-            case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
-              // state node re-download will be handled when downloading headers
-              doLog(importMessages.missingStateNode(missingNodeException))
-              Running
-            case BlockImportFailedDueToMissingNode(missingNodeException) =>
-              Task.raiseError(missingNodeException)
-            case BlockImportFailed(error) if informFetcherOnFail =>
-              fetcher ! BlockFetcher.BlockImportFailed(block.number, BlacklistReason.BlockImportError(error))
-            case BlockEnqueued | DuplicateBlock | UnknownParent | BlockImportFailed(_) => ()
-            case result => log.error("Unknown block import result {}", result)
-          }
-          .map(_ => Running)
-      },
+      Task(doLog(importMessages.preImport()))
+        .flatMap(_ => blockImport.importBlock(block))
+        .tap((importMessages.messageForImportResult _).andThen(doLog))
+        .tap {
+          case BlockImportedToTop(importedBlocksData) =>
+            val (blocks, weights) = importedBlocksData.map(data => (data.block, data.weight)).unzip
+            broadcastBlocks(blocks, weights)
+            updateTxPool(importedBlocksData.map(_.block), Seq.empty)
+            supervisor ! ProgressProtocol.ImportedBlock(block.number, internally)
+          case ChainReorganised(oldBranch, newBranch, weights) =>
+            updateTxPool(newBranch, oldBranch)
+            broadcastBlocks(newBranch, weights)
+            newBranch.lastOption.foreach(block => supervisor ! ProgressProtocol.ImportedBlock(block.number, internally))
+          case BlockImportFailedDueToMissingNode(missingNodeException) if syncConfig.redownloadMissingStateNodes =>
+            // state node re-download will be handled when downloading headers
+            doLog(importMessages.missingStateNode(missingNodeException))
+            Running
+          case BlockImportFailedDueToMissingNode(missingNodeException) =>
+            Task.raiseError(missingNodeException)
+          case BlockImportFailed(error) if informFetcherOnFail =>
+            fetcher ! BlockFetcher.BlockImportFailed(block.number, BlacklistReason.BlockImportError(error))
+          case BlockEnqueued | DuplicateBlock | UnknownParent | BlockImportFailed(_) => ()
+          case result                                                                => log.error("Unknown block import result {}", result)
+        }
+        .map(_ => Running),
       blockImportType
     )
   }
@@ -268,7 +273,7 @@ class BlockImporter(
   private def importWith(importTask: Task[NewBehavior], blockImportType: BlockImportType)(
       state: ImporterState
   ): Unit = {
-    context become running(state.importingBlocks())
+    context.become(running(state.importingBlocks()))
 
     importTask
       .map(self ! ImportDone(_, blockImportType))
@@ -309,9 +314,9 @@ class BlockImporter(
   private def bestKnownBlockNumber: BigInt = blockchain.getBestBlockNumber()
 
   private def getBehavior(newBehavior: NewBehavior, blockImportType: BlockImportType): Behavior = newBehavior match {
-    case Running => running
+    case Running                             => running
     case ResolvingMissingNode(blocksToRetry) => resolvingMissingNode(blocksToRetry, blockImportType)
-    case ResolvingBranch(from) => resolvingBranch(from)
+    case ResolvingBranch(from)               => resolvingBranch(from)
   }
 }
 

@@ -2,11 +2,17 @@ package io.iohk.ethereum.mpt.MptVisitors
 
 import java.util
 
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, HexPrefix, LeafNode}
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPValue}
-
 import scala.collection.immutable.ArraySeq
+
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.HexPrefix
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
 
 class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor[RLPEncodeable] {
   val array: Array[RLPEncodeable] = new Array[RLPEncodeable](2)
@@ -15,9 +21,8 @@ class RlpExtensionVisitor(extensionNode: ExtensionNode) extends ExtensionVisitor
 
   override def visitNext(): MptVisitor[RLPEncodeable] = new RlpEncVisitor
 
-  override def visitNext(value: => RLPEncodeable): Unit = {
+  override def visitNext(value: => RLPEncodeable): Unit =
     array(1) = value
-  }
 
   override def done(): RLPEncodeable = {
     val copy = util.Arrays.copyOf[RLPEncodeable](array, 2)
@@ -31,34 +36,28 @@ class RlpBranchVisitor(branchNode: BranchNode) extends BranchVisitor[RLPEncodeab
 
   override def visitChild(): MptVisitor[RLPEncodeable] = new RlpEncVisitor
 
-  override def visitChild(child: => RLPEncodeable): Unit = {
+  override def visitChild(child: => RLPEncodeable): Unit =
     list = child :: list
-  }
 
-  override def visitTerminator(term: Option[NodeHash]): Unit = {
+  override def visitTerminator(term: Option[NodeHash]): Unit =
     list = RLPValue(term.map(_.toArray[Byte]).getOrElse(Array.emptyByteArray)) :: list
-  }
 
-  override def done(): RLPEncodeable = {
+  override def done(): RLPEncodeable =
     RLPList(list.reverse: _*)
-  }
 }
 
 class RlpEncVisitor extends MptVisitor[RLPEncodeable] {
 
-  def visitLeaf(leaf: LeafNode): RLPEncodeable = {
+  def visitLeaf(leaf: LeafNode): RLPEncodeable =
     RLPList(
       RLPValue(HexPrefix.encode(nibbles = leaf.key.toArray[Byte], isLeaf = true)),
       RLPValue(leaf.value.toArray[Byte])
     )
-  }
-  def visitHash(hashNode: HashNode): HashNodeResult[RLPEncodeable] = {
+  def visitHash(hashNode: HashNode): HashNodeResult[RLPEncodeable] =
     Result(RLPValue(hashNode.hashNode))
-  }
 
-  override def visitNull(): RLPEncodeable = {
+  override def visitNull(): RLPEncodeable =
     RLPValue(Array.emptyByteArray)
-  }
 
   override def visitExtension(extension: ExtensionNode): ExtensionVisitor[RLPEncodeable] = new RlpExtensionVisitor(
     extension

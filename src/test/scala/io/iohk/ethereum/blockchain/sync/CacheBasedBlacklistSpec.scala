@@ -1,16 +1,15 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.ActorSystem
-import akka.testkit.TestKit
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.network.PeerId
+import java.util.concurrent.TimeUnit
+
+import scala.concurrent.duration._
+
+import com.github.blemale.scaffeine.Scaffeine
+import com.google.common.testing.FakeTicker
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.concurrent.duration._
-import com.google.common.testing.FakeTicker
-import com.github.blemale.scaffeine.Scaffeine
-import java.util.concurrent.TimeUnit
+import io.iohk.ethereum.network.PeerId
 
 class CacheBasedBlacklistSpec extends AnyWordSpecLike with Matchers {
   import Blacklist._

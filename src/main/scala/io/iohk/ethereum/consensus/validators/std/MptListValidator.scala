@@ -3,19 +3,20 @@ package std
 
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{decode, encode}
+import io.iohk.ethereum.rlp.decode
+import io.iohk.ethereum.rlp.encode
 
 object MptListValidator {
 
-  lazy val intByteArraySerializable = new ByteArraySerializable[Int] {
+  lazy val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def fromBytes(bytes: Array[Byte]): Int = decode[Int](bytes)
     override def toBytes(input: Int): Array[Byte] = encode(input)
   }
 
-  /**
-    * This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT
+  /** This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT
     * (itemIndex, item) tuples and validates the resulting hash
     *
     * @param hash Hash to expect
@@ -29,7 +30,7 @@ object MptListValidator {
     val trie = MerklePatriciaTrie[Int, K](
       source = stateStorage
     )(intByteArraySerializable, vSerializable)
-    val trieRoot = toValidate.zipWithIndex.foldLeft(trie) { (trie, r) => trie.put(r._2, r._1) }.getRootHash
-    hash sameElements trieRoot
+    val trieRoot = toValidate.zipWithIndex.foldLeft(trie)((trie, r) => trie.put(r._2, r._1)).getRootHash
+    hash.sameElements(trieRoot)
   }
 }

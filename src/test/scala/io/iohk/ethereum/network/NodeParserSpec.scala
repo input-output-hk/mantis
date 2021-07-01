@@ -1,9 +1,10 @@
 package io.iohk.ethereum.network
 
-import io.iohk.ethereum.network.discovery.NodeParser
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.network.discovery.NodeParser
 
 class NodeParserSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 

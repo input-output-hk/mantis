@@ -4,8 +4,7 @@ import io.iohk.ethereum.domain.UInt256
 
 object Stack {
 
-  /**
-    * Stack max size as defined in the YP (9.1)
+  /** Stack max size as defined in the YP (9.1)
     */
   val DefaultMaxSize = 1024
 
@@ -14,8 +13,7 @@ object Stack {
 }
 
 //TODO: consider a List with head being top of the stack (DUP,SWAP go at most the depth of 16) [EC-251]
-/**
-  * Stack for the EVM. Instruction pop their arguments from it and push their results to it.
+/** Stack for the EVM. Instruction pop their arguments from it and push their results to it.
   * The Stack doesn't handle overflow and underflow errors. Any operations that trascend given stack bounds will
   * return the stack unchanged. Pop will always return zeroes in such case.
   */
@@ -30,8 +28,7 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) 
       (UInt256.Zero, this)
   }
 
-  /**
-    * Pop n elements from the stack. The first element in the resulting sequence will be the top-most element
+  /** Pop n elements from the stack. The first element in the resulting sequence will be the top-most element
     * in the current stack
     */
   def pop(n: Int): (Seq[UInt256], Stack) = {
@@ -50,8 +47,7 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) 
       this
   }
 
-  /**
-    * Push a sequence of elements to the stack. That last element of the sequence will be the top-most element
+  /** Push a sequence of elements to the stack. That last element of the sequence will be the top-most element
     * in the resulting stack
     */
   def push(words: Seq[UInt256]): Stack = {
@@ -62,8 +58,7 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) 
       copy(updated)
   }
 
-  /**
-    * Duplicate i-th element of the stack, pushing it to the top. i=0 is the top-most element.
+  /** Duplicate i-th element of the stack, pushing it to the top. i=0 is the top-most element.
     */
   def dup(i: Int): Stack = {
     val j = underlying.length - i - 1
@@ -74,8 +69,7 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) 
       copy(underlying :+ underlying(j))
   }
 
-  /**
-    * Swap i-th and the top-most elements of the stack. i=0 is the top-most element (and that would be a no-op)
+  /** Swap i-th and the top-most elements of the stack. i=0 is the top-most element (and that would be a no-op)
     */
   def swap(i: Int): Stack = {
     val j = underlying.length - i - 1
@@ -92,15 +86,14 @@ class Stack private (private val underlying: Vector[UInt256], val maxSize: Int) 
 
   def size: Int = underlying.size
 
-  /**
-    * @return the elements of the stack as a sequence, with the top-most element of the stack
+  /** @return the elements of the stack as a sequence, with the top-most element of the stack
     *         as the first element in the sequence
     */
   def toSeq: Seq[UInt256] = underlying.reverse
 
   override def equals(that: Any): Boolean = that match {
     case that: Stack => this.underlying == that.underlying
-    case _ => false
+    case _           => false
   }
 
   override def hashCode(): Int = underlying.hashCode

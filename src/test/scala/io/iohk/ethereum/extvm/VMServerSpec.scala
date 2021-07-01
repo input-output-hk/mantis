@@ -1,12 +1,18 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import scalapb.GeneratedMessageCompanion
-import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.extvm.msg.{CallContext, VMQuery}
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.extvm.msg.CallContext
+import io.iohk.ethereum.extvm.msg.EthereumConfig
+import io.iohk.ethereum.extvm.msg.Hello
+import io.iohk.ethereum.extvm.msg.VMQuery
 
 class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -101,7 +107,7 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
   trait TestSetup {
     val blockchainConfig = io.iohk.ethereum.utils.Config.blockchains.blockchainConfig
     val forkBlockNumbers = blockchainConfig.forkBlockNumbers
-    val ethereumConfig = msg.EthereumConfig(
+    val ethereumConfig: EthereumConfig = msg.EthereumConfig(
       frontierBlockNumber = forkBlockNumbers.frontierBlockNumber,
       homesteadBlockNumber = forkBlockNumbers.homesteadBlockNumber,
       eip150BlockNumber = forkBlockNumbers.eip150BlockNumber,
@@ -110,10 +116,10 @@ class VMServerSpec extends AnyFlatSpec with Matchers with MockFactory {
       maxCodeSize = ByteString(),
       accountStartNonce = blockchainConfig.accountStartNonce
     )
-    val ethereumConfigMsg = msg.Hello.Config.EthereumConfig(ethereumConfig)
-    val helloMsg = msg.Hello(version = "2.0", config = ethereumConfigMsg)
+    val ethereumConfigMsg: Hello.Config.EthereumConfig = msg.Hello.Config.EthereumConfig(ethereumConfig)
+    val helloMsg: Hello = msg.Hello(version = "2.0", config = ethereumConfigMsg)
 
-    val messageHandler = mock[MessageHandler]
+    val messageHandler: MessageHandler = mock[MessageHandler]
     val vmServer = new VMServer(messageHandler)
 
     def expectAccountQuery(address: Address, response: Account): Unit = {

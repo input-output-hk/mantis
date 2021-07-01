@@ -1,19 +1,28 @@
 package io.iohk.ethereum.blockchain.sync.regular
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.{ActorRef => ClassicActorRef}
-import io.iohk.ethereum.blockchain.sync.PeersClient.{BestPeer, Request}
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.util.Failure
+import scala.util.Success
+
+import org.slf4j.Logger
+
+import io.iohk.ethereum.blockchain.sync.PeersClient.BestPeer
+import io.iohk.ethereum.blockchain.sync.PeersClient.Request
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
 import io.iohk.ethereum.blockchain.sync.regular.HeadersFetcher.HeadersFetcherCommand
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.utils.Config.SyncConfig
-import monix.eval.Task
-import monix.execution.Scheduler
-import org.slf4j.Logger
-
-import scala.util.{Failure, Success}
 
 class HeadersFetcher(
     val peersClient: ClassicActorRef,
@@ -60,7 +69,7 @@ class HeadersFetcher(
 
     context.pipeToSelf(resp.runToFuture) {
       case Success(res) => res
-      case Failure(_) => HeadersFetcher.RetryHeadersRequest
+      case Failure(_)   => HeadersFetcher.RetryHeadersRequest
     }
   }
 }
@@ -77,5 +86,5 @@ object HeadersFetcher {
   sealed trait HeadersFetcherCommand
   final case class FetchHeaders(blockNumber: BigInt, amount: BigInt) extends HeadersFetcherCommand
   final case object RetryHeadersRequest extends HeadersFetcherCommand
-  private final case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends HeadersFetcherCommand
+  final private case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends HeadersFetcherCommand
 }

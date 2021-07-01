@@ -3,33 +3,45 @@ package io.iohk.ethereum.txExecTest.util
 import java.io.FileWriter
 import java.net.URI
 
-import akka.actor.{Actor, ActorRef, _}
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor._
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.domain.{BlockBody, BlockHeader, Receipt}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
-import io.iohk.ethereum.network.PeerActor.SendMessage
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, Peers}
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
-import io.iohk.ethereum.network.p2p.messages.ETH63.ReceiptImplicits._
-import io.iohk.ethereum.network.p2p.messages.ETH63._
-import io.iohk.ethereum.network.{Peer, PeerManagerActor}
-import io.iohk.ethereum.txExecTest.util.DumpChainActor._
-import org.bouncycastle.util.encoders.Hex
 
 import scala.collection.immutable.HashMap
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
-/**
-  * Actor used for obtaining all the blockchain data (blocks, receipts, nodes) from the blocks [startBlock, maxBlocks]
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerActor.SendMessage
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.PeerManagerActor.GetPeers
+import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH63.ReceiptImplicits._
+import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.txExecTest.util.DumpChainActor._
+
+/** Actor used for obtaining all the blockchain data (blocks, receipts, nodes) from the blocks [startBlock, maxBlocks]
   * from a peer bootstrapNode.
   * The bootstrapNode is assumed to respond to all the messages and properly, so no validation of the received data is done.
   */
@@ -127,10 +139,10 @@ class DumpChainActor(
       val nodes = NodeData(stateNodes).values.indices.map(i => NodeData(stateNodes).getMptNode(i))
 
       val children = nodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case n: BranchNode                          => n.children.collect { case HashNode(h) => ByteString(h) }
         case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
-        case _: LeafNode => Seq.empty
-        case _ => Seq.empty
+        case _: LeafNode                            => Seq.empty
+        case _                                      => Seq.empty
       }
 
       var contractChildren: Seq[ByteString] = Nil
@@ -158,9 +170,9 @@ class DumpChainActor(
 
       val cNodes = NodeData(contractNodes).values.indices.map(i => NodeData(contractNodes).getMptNode(i))
       contractChildren = contractChildren ++ cNodes.flatMap {
-        case n: BranchNode => n.children.collect { case HashNode(h) => ByteString(h) }
+        case n: BranchNode                          => n.children.collect { case HashNode(h) => ByteString(h) }
         case ExtensionNode(_, HashNode(h), _, _, _) => Seq(ByteString(h))
-        case _ => Seq.empty
+        case _                                      => Seq.empty
       }
 
       stateNodesHashes = stateNodesHashes ++ children.toSet
@@ -182,13 +194,13 @@ class DumpChainActor(
 
   }
 
-  private def assignWork(): Unit = {
+  private def assignWork(): Unit =
     if (!anyRequestsRemaining()) {
       dumpChainToFile()
       println("Finished download, dumped chain to file")
       assignWorkTimeout.cancel()
       connectToBootstrapTimeout.cancel()
-      context stop self
+      context.stop(self)
     } else {
       if (peers.nonEmpty) {
         val peerToRequest = peers.head
@@ -228,7 +240,6 @@ class DumpChainActor(
         }
       }
     }
-  }
 
   private def anyRequestsRemaining(): Boolean =
     nodesToRequest.nonEmpty || blockBodiesToRequest.nonEmpty || receiptsToRequest.nonEmpty || (blockHeaderToRequest < maxBlocks)
@@ -283,6 +294,8 @@ object DumpChainActor {
     Props(
       new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt, bootstrapNode)
     )
-  val emptyStorage = ByteString(Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"))
-  val emptyEvm = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
+  val emptyStorage: ByteString = ByteString(
+    Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")
+  )
+  val emptyEvm: ByteString = ByteString(Hex.decode("c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"))
 }

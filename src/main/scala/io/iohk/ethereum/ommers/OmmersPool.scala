@@ -1,12 +1,18 @@
 package io.iohk.ethereum.ommers
 
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
 import akka.util.ByteString
-import akka.actor.{Actor, ActorLogging, Props}
-import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
 
 import scala.annotation.tailrec
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
+import io.iohk.ethereum.ommers.OmmersPool.GetOmmers
 
 class OmmersPool(
     blockchainReader: BlockchainReader,
@@ -37,29 +43,27 @@ class OmmersPool(
 
   private def collectAncestors(parentHash: ByteString, generationLimit: Int): List[BlockHeader] = {
     @tailrec
-    def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] = {
+    def rec(hash: ByteString, limit: Int, acc: List[BlockHeader]): List[BlockHeader] =
       if (limit > 0) {
         blockchainReader.getBlockHeaderByHash(hash) match {
           case Some(bh) => rec(bh.parentHash, limit - 1, acc :+ bh)
-          case None => acc
+          case None     => acc
         }
       } else {
         acc
       }
-    }
     rec(parentHash, generationLimit, List.empty)
   }
 
   private def logStatus(event: String, ommers: Seq[BlockHeader]): Unit = {
-    lazy val ommersAsString: Seq[String] = ommers.map { bh => s"[number = ${bh.number}, hash = ${bh.hashAsHexString}]" }
+    lazy val ommersAsString: Seq[String] = ommers.map(bh => s"[number = ${bh.number}, hash = ${bh.hashAsHexString}]")
     log.debug(s"$event ${ommersAsString}")
   }
 }
 
 object OmmersPool {
 
-  /**
-    * As is stated on section 11.1, eq. (143) of the YP
+  /** As is stated on section 11.1, eq. (143) of the YP
     *
     * @param ommerGenerationLimit should be === 6
     * @param returnedOmmersSizeLimit should be === 2

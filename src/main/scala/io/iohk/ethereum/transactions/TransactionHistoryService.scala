@@ -2,21 +2,23 @@ package io.iohk.ethereum.transactions
 
 import akka.actor.ActorRef
 import akka.util.Timeout
+
 import cats.implicits._
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.transactions.TransactionHistoryService.{
-  ExtendedTransactionData,
-  MinedTxChecker,
-  PendingTxChecker
-}
-import io.iohk.ethereum.utils.Logger
+
 import monix.eval.Task
-import monix.reactive.{Observable, OverflowStrategy}
+import monix.reactive.Observable
+import monix.reactive.OverflowStrategy
 
 import scala.collection.immutable.NumericRange
 import scala.concurrent.duration.FiniteDuration
+
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTxChecker
+import io.iohk.ethereum.transactions.TransactionHistoryService.PendingTxChecker
+import io.iohk.ethereum.utils.Logger
 
 class TransactionHistoryService(
     blockchain: Blockchain,
@@ -28,10 +30,10 @@ class TransactionHistoryService(
       account: Address,
       fromBlocks: NumericRange[BigInt]
   ): Task[List[ExtendedTransactionData]] = {
-    val getLastCheckpoint = Task { blockchain.getLatestCheckpointBlockNumber() }.memoizeOnSuccess
+    val getLastCheckpoint = Task(blockchain.getLatestCheckpointBlockNumber()).memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
-      .mapParallelOrdered(10)(blockNr => Task { blockchainReader.getBlockByNumber(blockNr) })(
+      .mapParallelOrdered(10)(blockNr => Task(blockchainReader.getBlockByNumber(blockNr)))(
         OverflowStrategy.Unbounded
       )
       .collect { case Some(block) => block }
@@ -54,7 +56,7 @@ class TransactionHistoryService(
       }
       .toListL
 
-    val txnsFromMempool = getTransactionsFromPool map { pendingTransactions =>
+    val txnsFromMempool = getTransactionsFromPool.map { pendingTransactions =>
       pendingTransactions
         .collect(Function.unlift(PendingTxChecker.checkTx(_, account)))
     }
@@ -96,7 +98,7 @@ object TransactionHistoryService {
       tx.stx.tx.tx.receivingAddress.contains(maybeReceiver)
     def asSigned(tx: PendingTransaction): SignedTransaction = tx.stx.tx
 
-    def checkTx(tx: PendingTransaction, address: Address): Option[ExtendedTransactionData] = {
+    def checkTx(tx: PendingTransaction, address: Address): Option[ExtendedTransactionData] =
       if (isSender(tx, address)) {
         Some(ExtendedTransactionData(asSigned(tx), isOutgoing = true, None))
       } else if (isReceiver(tx, address)) {
@@ -104,7 +106,6 @@ object TransactionHistoryService {
       } else {
         None
       }
-    }
   }
 
   object MinedTxChecker {
@@ -115,7 +116,7 @@ object TransactionHistoryService {
     def checkTx(
         tx: SignedTransaction,
         address: Address
-    ): Option[(SignedTransaction, MinedTransactionData => ExtendedTransactionData)] = {
+    ): Option[(SignedTransaction, MinedTransactionData => ExtendedTransactionData)] =
       if (isSender(tx, address)) {
         Some((tx, data => ExtendedTransactionData(tx, isOutgoing = true, Some(data))))
       } else if (isReceiver(tx, address)) {
@@ -123,7 +124,6 @@ object TransactionHistoryService {
       } else {
         None
       }
-    }
 
     def getMinedTxData(
         tx: SignedTransaction,

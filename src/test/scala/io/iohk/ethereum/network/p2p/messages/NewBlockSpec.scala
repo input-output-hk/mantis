@@ -1,18 +1,24 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+
 import org.bouncycastle.util.encoders.Hex
-import NewBlock._
-import io.iohk.ethereum.security.SecureRandomBuilder
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.security.SecureRandomBuilder
+
+import NewBlock._
 
 class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators with SecureRandomBuilder {
 
-  val chainId = Hex.decode("3d").head
+  val chainId: Byte = Hex.decode("3d").head
 
   test("NewBlock v63 messages are encoded and decoded properly") {
     forAll(newBlockGen(secureRandom, Some(chainId))) { newBlock =>
@@ -43,7 +49,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     assert(obtainEncoded64 == expectedEncoded64)
   }
 
-  val newBlock = NewBlock(
+  val newBlock: NewBlock = NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("0000000000000000000000000000000000000000000000000000000000000000")),
@@ -67,7 +73,7 @@ class NewBlockSpec extends AnyFunSuite with ScalaCheckPropertyChecks with Object
     983040
   )
 
-  val newBlock64 = ETC64.NewBlock(
+  val newBlock64: ETC64.NewBlock = ETC64.NewBlock(
     Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("98352d9c1300bd82334cb3e5034c3ec622d437963f55cf5a00a49642806c2f32")),

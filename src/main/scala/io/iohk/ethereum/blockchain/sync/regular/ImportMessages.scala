@@ -2,6 +2,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.event.Logging._
 import akka.util.ByteString
+
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -24,12 +25,12 @@ sealed abstract class ImportMessages(block: Block) {
 
   def messageForImportResult(importResult: BlockImportResult): LogEntry =
     importResult match {
-      case BlockImportedToTop(_) => importedToTheTop()
-      case BlockEnqueued => enqueued()
-      case DuplicateBlock => duplicated()
-      case UnknownParent => orphaned()
-      case ChainReorganised(_, newBranch, _) => reorganisedChain(newBranch)
-      case BlockImportFailed(error) => importFailed(error)
+      case BlockImportedToTop(_)                     => importedToTheTop()
+      case BlockEnqueued                             => enqueued()
+      case DuplicateBlock                            => duplicated()
+      case UnknownParent                             => orphaned()
+      case ChainReorganised(_, newBranch, _)         => reorganisedChain(newBranch)
+      case BlockImportFailed(error)                  => importFailed(error)
       case BlockImportFailedDueToMissingNode(reason) => missingStateNode(reason)
     }
 }

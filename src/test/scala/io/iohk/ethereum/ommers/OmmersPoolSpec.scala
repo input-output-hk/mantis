@@ -1,15 +1,22 @@
 package io.iohk.ethereum.ommers
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
-import io.iohk.ethereum.Fixtures.Blocks.Block3125369
-import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
-import io.iohk.ethereum.ommers.OmmersPool.{AddOmmers, GetOmmers}
-import io.iohk.ethereum.WithActorSystemShutDown
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures.Blocks.Block3125369
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
+import io.iohk.ethereum.ommers.OmmersPool.GetOmmers
 
 class OmmersPoolSpec
     extends TestKit(ActorSystem("OmmersPoolSpec_System"))
@@ -23,8 +30,7 @@ class OmmersPoolSpec
 
     "should not return ommers if there is no any" in new TestSetup {
 
-      /**
-        *   00 --> 11 --> 21 --> [31]  (chain1)
+      /**   00 --> 11 --> 21 --> [31]  (chain1)
         *      \-> 14                  (chain4)
         *  [] new block, reference!
         *  () ommer given the new block
@@ -48,8 +54,7 @@ class OmmersPoolSpec
 
       "in case of a chain with less length than the generation limit" in new TestSetup {
 
-        /**
-          *   00 --> (11) --> 21 --> 31  (chain1)
+        /**   00 --> (11) --> 21 --> 31  (chain1)
           *    \        \        \-> 33  (chain3)
           *     \        \--> 22 --> 32  (chain2)
           *      \-> [14]                (chain4)
@@ -75,8 +80,7 @@ class OmmersPoolSpec
 
       "despite of start losing older ommers candidates" in new TestSetup {
 
-        /**
-          *   XX -->  (11) -->  21 --> 31  (chain1)
+        /**   XX -->  (11) -->  21 --> 31  (chain1)
           *    \         \         \-> 33  (chain3)
           *     \         \-->  22 --> 32  (chain2)
           *      \-->  14 ---> [24]        (chain4)
@@ -110,8 +114,7 @@ class OmmersPoolSpec
 
       "by respecting size and generation limits" in new TestSetup {
 
-        /**
-          *   00 --> 11 -->  21  --> [31]  (chain1)
+        /**   00 --> 11 -->  21  --> [31]  (chain1)
           *    \      \          \-> (33)  (chain3)
           *     \      \--> (22) -->  32   (chain2)
           *      \-> 14                    (chain4)
@@ -149,33 +152,38 @@ class OmmersPoolSpec
     val ommerGenerationLimit: Int = 2
     val returnedOmmerSizeLimit: Int = 2 // Max amount of ommers allowed per block
 
-    /**
-      *   00 ---> 11 --> 21 --> 31 (chain1)
+    /**   00 ---> 11 --> 21 --> 31 (chain1)
       *    \       \       \--> 33 (chain3)
       *     \       \--> 22 --> 32 (chain2)
       *      \--> 14 --> 24        (chain4)
       *       \-> 15               (chain5)
       */
-    val block0 = Block3125369.header.copy(number = 0, difficulty = 0)
+    val block0: BlockHeader = Block3125369.header.copy(number = 0, difficulty = 0)
 
-    val block1Chain1 = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 11)
-    val block2Chain1 = Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 21)
-    val block3Chain1 = Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 31)
+    val block1Chain1: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 11)
+    val block2Chain1: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 21)
+    val block3Chain1: BlockHeader =
+      Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 31)
 
-    val block2Chain2 = Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 22)
-    val block3Chain2 = Block3125369.header.copy(number = 2, parentHash = block2Chain2.hash, difficulty = 32)
+    val block2Chain2: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain1.hash, difficulty = 22)
+    val block3Chain2: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block2Chain2.hash, difficulty = 32)
 
-    val block3Chain3 = Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 33)
+    val block3Chain3: BlockHeader =
+      Block3125369.header.copy(number = 3, parentHash = block2Chain1.hash, difficulty = 33)
 
-    val block1Chain4 = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 14)
-    val block2Chain4 = Block3125369.header.copy(number = 2, parentHash = block1Chain4.hash, difficulty = 24)
+    val block1Chain4: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 14)
+    val block2Chain4: BlockHeader =
+      Block3125369.header.copy(number = 2, parentHash = block1Chain4.hash, difficulty = 24)
 
-    val block1Chain5 = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 15)
+    val block1Chain5: BlockHeader = Block3125369.header.copy(number = 1, parentHash = block0.hash, difficulty = 15)
 
-    val testProbe = TestProbe()
+    val testProbe: TestProbe = TestProbe()
 
-    val blockchainReader = mock[BlockchainReader]
-    val ommersPool =
+    val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    val ommersPool: ActorRef =
       system.actorOf(
         OmmersPool.props(blockchainReader, ommersPoolSize, ommerGenerationLimit, returnedOmmerSizeLimit)
       )

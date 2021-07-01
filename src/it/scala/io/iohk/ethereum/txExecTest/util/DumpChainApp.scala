@@ -2,36 +2,56 @@ package io.iohk.ethereum.txExecTest.util
 
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.util.ByteString
+
+import scala.concurrent.duration._
+
+import com.typesafe.config
 import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
-import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
-import io.iohk.ethereum.db.dataSource.{DataSourceBatchUpdate}
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.db.storage.{AppStateStorage, MptStorage, StateStorage}
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
-import io.iohk.ethereum.domain.{Blockchain, UInt256, _}
-import io.iohk.ethereum.jsonrpc.ProofService.{EmptyStorageValueProof, StorageProof, StorageProofKey}
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.PeerStatisticsActor
-import io.iohk.ethereum.network.discovery.DiscoveryConfig
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
-import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{ForkResolver, PeerEventBusActor, PeerManagerActor}
-import io.iohk.ethereum.nodebuilder.{AuthHandshakerBuilder, NodeKeyBuilder}
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
+import io.iohk.ethereum.db.components.RocksDbDataSourceComponent
+import io.iohk.ethereum.db.components.Storages
+import io.iohk.ethereum.db.components.Storages.PruningModeComponent
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.ProofService.EmptyStorageValueProof
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.ForkResolver
+import io.iohk.ethereum.network.PeerEventBusActor
+import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerStatisticsActor
+import io.iohk.ethereum.network.discovery.DiscoveryConfig
+import io.iohk.ethereum.network.handshaker.EtcHandshaker
+import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
+import io.iohk.ethereum.network.handshaker.Handshaker
+import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.nodebuilder.AuthHandshakerBuilder
+import io.iohk.ethereum.nodebuilder.NodeKeyBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
 
 object DumpChainApp
     extends App
@@ -39,17 +59,17 @@ object DumpChainApp
     with SecureRandomBuilder
     with AuthHandshakerBuilder
     with MockFactory {
-  val conf = ConfigFactory.load("txExecTest/chainDump.conf")
-  val node = conf.getString("node")
-  val genesisHash = ByteString(Hex.decode(conf.getString("genesisHash")))
-  val privateNetworkId = conf.getInt("networkId")
-  val startBlock = conf.getInt("startBlock")
-  val maxBlocks = conf.getInt("maxBlocks")
+  val conf: config.Config = ConfigFactory.load("txExecTest/chainDump.conf")
+  val node: String = conf.getString("node")
+  val genesisHash: ByteString = ByteString(Hex.decode(conf.getString("genesisHash")))
+  val privateNetworkId: Int = conf.getInt("networkId")
+  val startBlock: Int = conf.getInt("startBlock")
+  val maxBlocks: Int = conf.getInt("maxBlocks")
 
   val blockchainConfig = Config.blockchains.blockchainConfig
-  val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
+  val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
-  val peerConfig = new PeerConfiguration {
+  val peerConfig: PeerConfiguration = new PeerConfiguration {
     override val rlpxConfiguration: RLPxConfiguration = Config.Network.peer.rlpxConfiguration
     override val connectRetryDelay: FiniteDuration = Config.Network.peer.connectRetryDelay
     override val connectMaxRetries: Int = Config.Network.peer.connectMaxRetries
@@ -74,22 +94,24 @@ object DumpChainApp
     override val statSlotCount: Int = 30
   }
 
-  val actorSystem = ActorSystem("mantis_system")
+  val actorSystem: ActorSystem = ActorSystem("mantis_system")
   trait PruningConfig extends PruningModeComponent {
     override val pruningMode: PruningMode = ArchivePruning
   }
-  val storagesInstance = new RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages
+  val storagesInstance: RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages =
+    new RocksDbDataSourceComponent with PruningConfig with Storages.DefaultStorages
 
   val blockchain: Blockchain = new BlockchainMock(genesisHash)
-  val blockchainReader = mock[BlockchainReader]
+  val blockchainReader: BlockchainReader = mock[BlockchainReader]
   (blockchainReader.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
 
-  val nodeStatus =
+  val nodeStatus: NodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
 
   lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 
-  lazy val forkResolverOpt = blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
+  lazy val forkResolverOpt: Option[ForkResolver.EtcForkResolver] =
+    blockchainConfig.daoForkConfig.map(new ForkResolver.EtcForkResolver(_))
 
   private val handshakerConfiguration: EtcHandshakerConfiguration =
     new EtcHandshakerConfiguration {
@@ -104,13 +126,14 @@ object DumpChainApp
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
 
-  val peerMessageBus = actorSystem.actorOf(PeerEventBusActor.props)
+  val peerMessageBus: ActorRef = actorSystem.actorOf(PeerEventBusActor.props)
 
-  val peerStatistics = actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30)(Clock.systemUTC()))
+  val peerStatistics: ActorRef =
+    actorSystem.actorOf(PeerStatisticsActor.props(peerMessageBus, 1.minute, 30)(Clock.systemUTC()))
 
   val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
 
-  val peerManager = actorSystem.actorOf(
+  val peerManager: ActorRef = actorSystem.actorOf(
     PeerManagerActor.props(
       peerDiscoveryManager = actorSystem.deadLetters, // TODO: fixme
       peerConfiguration = peerConfig,

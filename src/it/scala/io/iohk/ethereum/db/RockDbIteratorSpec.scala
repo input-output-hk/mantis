@@ -3,16 +3,27 @@ package io.iohk.ethereum.db
 import java.nio.file.Files
 
 import akka.util.ByteString
+
 import cats.effect.Resource
-import cats.effect.concurrent.{Deferred, Ref}
-import io.iohk.ethereum.db.dataSource.{DataSourceUpdateOptimized, RocksDbConfig, RocksDbDataSource}
-import io.iohk.ethereum.db.storage.{EvmCodeStorage, Namespaces, NodeStorage}
-import io.iohk.ethereum.{FlatSpecBase, ResourceFixtures}
+import cats.effect.concurrent.Deferred
+import cats.effect.concurrent.Ref
+
 import monix.eval.Task
-import monix.reactive.{Consumer, Observable}
-import org.scalatest.matchers.should.Matchers
+import monix.reactive.Consumer
+import monix.reactive.Observable
 
 import scala.util.Random
+
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.FlatSpecBase
+import io.iohk.ethereum.ResourceFixtures
+import io.iohk.ethereum.db.dataSource.DataSourceUpdateOptimized
+import io.iohk.ethereum.db.dataSource.RocksDbConfig
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.db.storage.Namespaces
+import io.iohk.ethereum.db.storage.NodeStorage
 
 class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matchers {
   type Fixture = RocksDbDataSource
@@ -25,12 +36,11 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
     arr
   }
 
-  def genRandomByteString(): ByteString = {
+  def genRandomByteString(): ByteString =
     ByteString.fromArrayUnsafe(genRandomArray())
-  }
 
   def writeNValuesToDb(n: Int, db: RocksDbDataSource, namespace: IndexedSeq[Byte]): Task[Unit] = {
-    val iterable = (0 until n)
+    val iterable = 0 until n
     Observable.fromIterable(iterable).foreachL { _ =>
       db.update(Seq(DataSourceUpdateOptimized(namespace, Seq(), Seq((genRandomArray(), genRandomArray())))))
     }
@@ -59,9 +69,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
       // iterators needs to be closed before closing db.
       _ <- fib.cancel
       finalCounter <- counter.get
-    } yield {
-      assert(finalCounter < largeNum)
-    }
+    } yield assert(finalCounter < largeNum)
   }
 
   it should "read all key values in db" in testCaseT { db =>
@@ -76,9 +84,7 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
           counter.update(current => current + 1)
         })
       finalCounter <- counter.get
-    } yield {
-      assert(finalCounter == largeNum)
-    }
+    } yield assert(finalCounter == largeNum)
   }
 
   it should "iterate over keys and values from different namespaces" in testCaseT { db =>
@@ -123,14 +129,12 @@ class RockDbIteratorSpec extends FlatSpecBase with ResourceFixtures with Matcher
   it should "return empty list when iterating empty db" in testCaseT { db =>
     for {
       elems <- db.iterate().toListL
-    } yield {
-      assert(elems.isEmpty)
-    }
+    } yield assert(elems.isEmpty)
   }
 }
 
 object RockDbIteratorSpec {
-  def getRockDbTestConfig(dbPath: String) = {
+  def getRockDbTestConfig(dbPath: String): RocksDbConfig =
     new RocksDbConfig {
       override val createIfMissing: Boolean = true
       override val paranoidChecks: Boolean = false
@@ -142,14 +146,12 @@ object RockDbIteratorSpec {
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
     }
-  }
 
-  def buildRockDbResource(): Resource[Task, RocksDbDataSource] = {
+  def buildRockDbResource(): Resource[Task, RocksDbDataSource] =
     Resource.make {
       Task {
         val tempDir = Files.createTempDirectory("temp-iter-dir")
         RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
       }
     }(db => Task(db.destroy()))
-  }
 }

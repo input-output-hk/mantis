@@ -1,12 +1,18 @@
 package io.iohk.ethereum.faucet
 
-import akka.actor.{ActorRef, ActorSystem, OneForOneStrategy, SupervisorStrategy}
-import akka.pattern.{BackoffOpts, BackoffSupervisor}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.OneForOneStrategy
+import akka.actor.Props
+import akka.actor.SupervisorStrategy
+import akka.pattern.BackoffOpts
+import akka.pattern.BackoffSupervisor
+
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.faucet.FaucetHandler.WalletException
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.utils.Logger
-
-import scala.concurrent.duration._
 
 object FaucetSupervisor {
   val name = "FaucetSupervisor"
@@ -16,14 +22,14 @@ class FaucetSupervisor(walletService: WalletService, config: FaucetConfig, shutd
     system: ActorSystem
 ) extends Logger {
 
-  val childProps = FaucetHandler.props(walletService, config)
+  val childProps: Props = FaucetHandler.props(walletService, config)
 
   val minBackoff: FiniteDuration = config.supervisor.minBackoff
   val maxBackoff: FiniteDuration = config.supervisor.maxBackoff
   val randomFactor: Double = config.supervisor.randomFactor
   val autoReset: FiniteDuration = config.supervisor.autoReset
 
-  val supervisorProps = BackoffSupervisor.props(
+  val supervisorProps: Props = BackoffSupervisor.props(
     BackoffOpts
       .onFailure(
         childProps,

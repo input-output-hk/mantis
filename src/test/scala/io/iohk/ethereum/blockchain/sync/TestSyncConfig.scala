@@ -1,9 +1,9 @@
 package io.iohk.ethereum.blockchain.sync
 
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.nodebuilder.SyncConfigBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
-
-import scala.concurrent.duration._
 
 trait TestSyncConfig extends SyncConfigBuilder {
   def defaultSyncConfig: SyncConfig = SyncConfig(

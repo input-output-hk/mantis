@@ -1,15 +1,20 @@
 package io.iohk.ethereum.cli
 
+import java.security.SecureRandom
+
 import cats.implicits._
-import com.monovore.decline.{Command, Opts}
+
+import com.monovore.decline.Command
+import com.monovore.decline.Opts
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.{EncryptedKey, EncryptedKeyJsonCodec}
-import io.iohk.ethereum.utils.ByteStringUtils
-import java.security.SecureRandom
+import io.iohk.ethereum.keystore.EncryptedKey
+import io.iohk.ethereum.keystore.EncryptedKeyJsonCodec
 import io.iohk.ethereum.security.SecureRandomBuilder
-import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.utils.ByteStringUtils
 
 object CliCommands extends SecureRandomBuilder {
 
@@ -44,8 +49,7 @@ object CliCommands extends SecureRandomBuilder {
       keyNumberOpts.map { numOfKeys =>
         val keyPairs = for (_ <- 1 to numOfKeys) yield newRandomKeyPairAsStrings(secureRandom)
 
-        /**
-          * The key pairs will be printed in the format:
+        /** The key pairs will be printed in the format:
           *   priv-key-hex (32 bytes)
           *   pub-key-hex (64 bytes)
           */

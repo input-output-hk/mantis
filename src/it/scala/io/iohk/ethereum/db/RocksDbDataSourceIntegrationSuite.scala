@@ -1,8 +1,10 @@
 package io.iohk.ethereum.db
 
-import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
-import io.iohk.ethereum.db.storage.Namespaces
 import org.scalatest.flatspec.AnyFlatSpec
+
+import io.iohk.ethereum.db.dataSource.RocksDbConfig
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource
+import io.iohk.ethereum.db.storage.Namespaces
 
 class RocksDbDataSourceIntegrationSuite extends AnyFlatSpec with DataSourceIntegrationTestBehavior {
 
@@ -21,5 +23,5 @@ class RocksDbDataSourceIntegrationSuite extends AnyFlatSpec with DataSourceInteg
     Namespaces.nsSeq
   )
 
-  it should behave like dataSource(createDataSource)
+  (it should behave).like(dataSource(createDataSource))
 }

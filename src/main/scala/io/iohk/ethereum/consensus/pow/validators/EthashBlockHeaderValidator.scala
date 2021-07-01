@@ -2,15 +2,18 @@ package io.iohk.ethereum.consensus.pow
 package validators
 
 import akka.util.ByteString
+
+import monix.execution.atomic.Atomic
+import monix.execution.atomic.AtomicAny
+
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
-import monix.execution.atomic.{Atomic, AtomicAny}
 
-/**
-  * A block header validator for Ethash.
+/** A block header validator for Ethash.
   */
 class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
   import EthashBlockHeaderValidator._
@@ -19,8 +22,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
   // we need atomic since validators can be used from multiple places
   protected val powCaches: AtomicAny[List[PowCacheData]] = Atomic(List.empty[PowCacheData])
 
-  /**
-    * Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
+  /** Validates [[io.iohk.ethereum.domain.BlockHeader.nonce]] and [[io.iohk.ethereum.domain.BlockHeader.mixHash]] are correct
     * based on validations stated in section 4.4.4 of http://paper.gavwood.com/
     *
     * @param blockHeader BlockHeader to validate.
@@ -29,7 +31,7 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
   def validateHeader(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
 
-    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData = {
+    def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =
       powCaches.transformAndExtract { cache =>
         cache.find(_.epoch == epoch) match {
           case Some(pcd) => (pcd, cache)
@@ -39,7 +41,6 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
             (data, (data :: cache).take(MaxPowCaches))
         }
       }
-    }
 
     val epoch =
       EthashUtils.epoch(blockHeader.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)

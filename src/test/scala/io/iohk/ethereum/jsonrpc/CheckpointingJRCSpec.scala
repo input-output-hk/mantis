@@ -1,22 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{Fixtures, NormalPatience, crypto}
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config
 
 class CheckpointingJRCSpec
     extends AnyFlatSpec
@@ -185,24 +191,24 @@ class CheckpointingJRCSpec
   object Req {
     val block = Fixtures.Blocks.ValidBlock.block
 
-    val keys = Seq(
+    val keys: Seq[AsymmetricCipherKeyPair] = Seq(
       crypto.generateKeyPair(secureRandom),
       crypto.generateKeyPair(secureRandom)
     )
 
     val signatures: List[ECDSASignature] = CheckpointingTestHelpers.createCheckpointSignatures(keys, block.hash).toList
 
-    def getLatestBlockRequestBuilder(json: JArray) = JsonRpcRequest(
+    def getLatestBlockRequestBuilder(json: JArray): JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "checkpointing_getLatestBlock",
       Some(json),
       Some(1)
     )
 
-    val expectedPositiveIntegerError = InvalidParams("Expected positive integer")
-    val notSupportedTypeError = InvalidParams("Not supported type for parentCheckpoint")
+    val expectedPositiveIntegerError: JsonRpcError = InvalidParams("Expected positive integer")
+    val notSupportedTypeError: JsonRpcError = InvalidParams("Not supported type for parentCheckpoint")
 
-    def pushCheckpointRequestBuilder(json: JArray) = JsonRpcRequest(
+    def pushCheckpointRequestBuilder(json: JArray): JsonRpcRequest = JsonRpcRequest(
       "2.0",
       "checkpointing_pushCheckpoint",
       Some(json),
@@ -213,19 +219,19 @@ class CheckpointingJRCSpec
   trait TestSetup extends ApisBuilder {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val web3Service = mock[Web3Service]
-    val netService = mock[NetService]
-    val personalService = mock[PersonalService]
-    val debugService = mock[DebugService]
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
-    val ethBlocksService = mock[EthBlocksService]
-    val ethTxService = mock[EthTxService]
-    val ethUserService = mock[EthUserService]
-    val ethFilterService = mock[EthFilterService]
-    val qaService = mock[QAService]
-    val checkpointingService = mock[CheckpointingService]
-    val mantisService = mock[MantisService]
+    val web3Service: Web3Service = mock[Web3Service]
+    val netService: NetService = mock[NetService]
+    val personalService: PersonalService = mock[PersonalService]
+    val debugService: DebugService = mock[DebugService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
+    val ethBlocksService: EthBlocksService = mock[EthBlocksService]
+    val ethTxService: EthTxService = mock[EthTxService]
+    val ethUserService: EthUserService = mock[EthUserService]
+    val ethFilterService: EthFilterService = mock[EthFilterService]
+    val qaService: QAService = mock[QAService]
+    val checkpointingService: CheckpointingService = mock[CheckpointingService]
+    val mantisService: MantisService = mock[MantisService]
 
     val jsonRpcController =
       new JsonRpcController(

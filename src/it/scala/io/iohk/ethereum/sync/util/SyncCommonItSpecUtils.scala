@@ -1,16 +1,18 @@
 package io.iohk.ethereum.sync.util
 
-import java.util.concurrent.{ThreadLocalRandom, TimeoutException}
+import java.util.concurrent.ThreadLocalRandom
+import java.util.concurrent.TimeoutException
 
-import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
 import monix.eval.Task
 
 import scala.concurrent.duration.FiniteDuration
 
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+
 object SyncCommonItSpecUtils {
   def retryUntilWithDelay[A](source: Task[A], delay: FiniteDuration, maxRetries: Int)(
       predicate: A => Boolean
-  ): Task[A] = {
+  ): Task[A] =
     source.delayExecution(delay).flatMap { result =>
       if (predicate(result)) {
         Task.now(result)
@@ -22,7 +24,6 @@ object SyncCommonItSpecUtils {
         }
       }
     }
-  }
 
   case class HostConfig(
       maxBlocksHeadersPerMessage: Int,
@@ -46,6 +47,6 @@ object SyncCommonItSpecUtils {
   final case class FakePeerCustomConfig(hostConfig: HostConfig)
 
   object FakePeerCustomConfig {
-    val defaultConfig = FakePeerCustomConfig(HostConfig(200, 200, 200, 200))
+    val defaultConfig: FakePeerCustomConfig = FakePeerCustomConfig(HostConfig(200, 200, 200, 200))
   }
 }

@@ -1,8 +1,10 @@
 package io.iohk.ethereum.network.handshaker
 
 import java.util.concurrent.atomic.AtomicReference
+
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
@@ -14,9 +16,8 @@ case class EtcHandshaker private (
     handshakerConfiguration: EtcHandshakerConfiguration
 ) extends Handshaker[PeerInfo] {
 
-  protected def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] = {
+  protected def copy(handshakerState: HandshakerState[PeerInfo]): Handshaker[PeerInfo] =
     EtcHandshaker(handshakerState, handshakerConfiguration)
-  }
 
 }
 

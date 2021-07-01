@@ -1,15 +1,20 @@
 package io.iohk.ethereum.consensus.validators.std
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.domain.{Block, Receipt}
-import io.iohk.ethereum.ledger.BlockExecutionError.{ValidationAfterExecError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess}
+
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
+
+/** Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
   * interface.
   *
   * @see [[io.iohk.ethereum.consensus.pow.validators.StdValidatorsExecutor StdEthashValidators]]
@@ -25,23 +30,20 @@ final class StdValidators(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
-
+  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
       getBlockHeaderByHash = getBlockHeaderByHash,
       getNBlocksBack = getNBlocksBack
     )
-  }
 
   def validateBlockAfterExecution(
       block: Block,
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
-
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = this,
       block = block,
@@ -49,7 +51,6 @@ final class StdValidators(
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }
 
 object StdValidators {
@@ -90,7 +91,7 @@ object StdValidators {
     else {
       blockAndReceiptsValidation match {
         case Left(err) => Left(ValidationAfterExecError(err.toString))
-        case _ => Right(BlockExecutionSuccess)
+        case _         => Right(BlockExecutionSuccess)
       }
     }
   }

@@ -1,28 +1,32 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.{
-  OptionNoneToJNullSerializer,
-  QuantitiesSerializer,
-  UnformattedDataJsonSerializer
-}
-import io.iohk.ethereum.{LongPatience, WithActorSystemShutDown}
+
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.DefaultFormats
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, Formats}
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import java.time.Duration
+import io.iohk.ethereum.LongPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
 
 class JsonRpcControllerPersonalSpec
     extends TestKit(ActorSystem("JsonRpcControllerPersonalSpec_System"))
@@ -72,7 +76,6 @@ class JsonRpcControllerPersonalSpec
 
   it should "personal_listAccounts" in new JsonRpcControllerFixture {
     val addresses = List(34, 12391, 123).map(Address(_))
-    val pass = "aaa"
 
     (personalService.listAccounts _)
       .expects(ListAccountsRequest())

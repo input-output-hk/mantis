@@ -1,15 +1,20 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.faucet.{FaucetConfigBuilder, FaucetSupervisor}
+
+import scala.concurrent.Await
+import scala.concurrent.ExecutionContextExecutor
+
+import io.iohk.ethereum.faucet.FaucetConfigBuilder
+import io.iohk.ethereum.faucet.FaucetSupervisor
 import io.iohk.ethereum.jsonrpc.server.controllers.ApisBase
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.keystore.KeyStoreImpl
-import io.iohk.ethereum.security.{SSLContextBuilder, SecureRandomBuilder}
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
-
-import scala.concurrent.Await
+import io.iohk.ethereum.security.SSLContextBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.KeyStoreConfig
+import io.iohk.ethereum.utils.Logger
 
 trait ActorSystemBuilder {
   def systemName: String
@@ -19,7 +24,7 @@ trait ActorSystemBuilder {
 trait FaucetControllerBuilder {
   self: FaucetConfigBuilder with ActorSystemBuilder =>
 
-  implicit val ec = system.dispatcher
+  implicit val ec: ExecutionContextExecutor = system.dispatcher
 }
 
 trait FaucetRpcServiceBuilder {
@@ -83,7 +88,7 @@ trait FaucetJsonRpcHttpServerBuilder {
     with FaucetJsonRpcControllerBuilder
     with SSLContextBuilder =>
 
-  val faucetJsonRpcHttpServer = JsonRpcHttpServer(
+  val faucetJsonRpcHttpServer: Either[String, JsonRpcHttpServer] = JsonRpcHttpServer(
     faucetJsonRpcController,
     faucetJsonRpcHealthCheck,
     jsonRpcConfig.httpServerConfig,
@@ -95,7 +100,7 @@ trait FaucetJsonRpcHttpServerBuilder {
 trait ShutdownHookBuilder {
   self: ActorSystemBuilder with FaucetConfigBuilder with Logger =>
 
-  def shutdown(): Unit = {
+  def shutdown(): Unit =
     Await.ready(
       system
         .terminate()
@@ -105,7 +110,6 @@ trait ShutdownHookBuilder {
         )(system.dispatcher),
       faucetConfig.shutdownTimeout
     )
-  }
 }
 
 class FaucetServer
@@ -133,6 +137,6 @@ class FaucetServer
   private[this] def startJsonRpcHttpServer() =
     faucetJsonRpcHttpServer match {
       case Right(jsonRpcServer) => jsonRpcServer.run()
-      case Left(error) => throw new RuntimeException(s"$error")
+      case Left(error)          => throw new RuntimeException(s"$error")
     }
 }

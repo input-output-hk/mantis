@@ -1,27 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{ActorRef, ActorSystem, Props}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.testkit.ExplicitlyTriggeredScheduler
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{ExplicitlyTriggeredScheduler, TestActorRef, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import scala.concurrent.Await
+import scala.concurrent.duration._
+
 import com.typesafe.config.ConfigFactory
-import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderParentNotFoundError, HeaderPoWError}
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, TestConsensus}
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies.GetBlockBodiesEnc
-import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
-import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts.GetReceiptsEnc
-import io.iohk.ethereum.network.p2p.messages.ETH63.{NodeData, Receipts}
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience}
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfter
@@ -29,8 +20,32 @@ import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.Await
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies.GetBlockBodiesEnc
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts.GetReceiptsEnc
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec
@@ -121,9 +136,8 @@ class SyncControllerSpec
         override def validate(
             blockHeader: BlockHeader,
             getBlockHeaderByHash: GetBlockHeaderByHash
-        ): Either[BlockHeaderError, BlockHeaderValid] = {
+        ): Either[BlockHeaderError, BlockHeaderValid] =
           Left(HeaderPoWError)
-        }
 
         override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
           Left(HeaderPoWError)
@@ -170,13 +184,12 @@ class SyncControllerSpec
         override def validate(
             blockHeader: BlockHeader,
             getBlockHeaderByHash: GetBlockHeaderByHash
-        ): Either[BlockHeaderError, BlockHeaderValid] = {
+        ): Either[BlockHeaderError, BlockHeaderValid] =
           if (blockHeader.number == invalidBlockNNumber) {
             Left(HeaderParentNotFoundError)
           } else {
             Right(BlockHeaderValid)
           }
-        }
 
         override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
           Right(BlockHeaderValid)
@@ -252,13 +265,12 @@ class SyncControllerSpec
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = {
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
         } else {
           Left(HeaderParentNotFoundError)
         }
-      }
 
       override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
         Right(BlockHeaderValid)
@@ -490,7 +502,7 @@ class SyncControllerSpec
     var stateDownloadStarted = false
 
     //+ cake overrides
-    override implicit lazy val system: ActorSystem =
+    implicit override lazy val system: ActorSystem =
       ActorSystem("SyncControllerSpec_System", ConfigFactory.load("explicit-scheduler"))
 
     override lazy val vm: VMImpl = new VMImpl
@@ -501,11 +513,11 @@ class SyncControllerSpec
 
     //+ cake overrides
 
-    val etcPeerManager = TestProbe()
-    val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
 
-    val ommersPool = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
 
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
 
@@ -526,7 +538,7 @@ class SyncControllerSpec
       maxPivotBlockAge = 30
     )
 
-    lazy val syncController = TestActorRef(
+    lazy val syncController: TestActorRef[Nothing] = TestActorRef(
       Props(
         new SyncController(
           storagesInstance.storages.appStateStorage,
@@ -559,7 +571,7 @@ class SyncControllerSpec
         receipts: Map[ByteString, Seq[Receipt]]
     )
     object BlockchainData {
-      def apply(headers: Seq[BlockHeader]): BlockchainData = {
+      def apply(headers: Seq[BlockHeader]): BlockchainData =
         // assumes headers are correct chain
         headers.foldLeft(new BlockchainData(Map.empty, Map.empty, Map.empty)) { (state, header) =>
           state.copy(
@@ -568,7 +580,6 @@ class SyncControllerSpec
             receipts = state.receipts + (header.hash -> Seq.empty)
           )
         }
-      }
     }
     // scalastyle:off method.length
     case class SyncStateAutoPilot(
@@ -581,7 +592,7 @@ class SyncControllerSpec
         failedNodeRequest: Boolean,
         autoPilotProbeRef: ActorRef
     ) extends AutoPilot {
-      override def run(sender: ActorRef, msg: Any): AutoPilot = {
+      override def run(sender: ActorRef, msg: Any): AutoPilot =
         msg match {
           case EtcPeerManagerActor.GetHandshakedPeers =>
             sender ! handshakedPeers
@@ -600,7 +611,7 @@ class SyncControllerSpec
             this
 
           case SendMessage(msg: GetReceiptsEnc, peer) if !onlyPivot =>
-            val underlyingMessage = msg.underlyingMsg
+            msg.underlyingMsg
             if (failedReceiptsTries > 0) {
               sender ! MessageFromPeer(Receipts(Seq()), peer)
               this.copy(failedReceiptsTries = failedReceiptsTries - 1)
@@ -611,7 +622,7 @@ class SyncControllerSpec
             }
 
           case SendMessage(msg: GetBlockBodiesEnc, peer) if !onlyPivot =>
-            val underlyingMessage = msg.underlyingMsg
+            msg.underlyingMsg
             if (failedBodiesTries > 0) {
               sender ! MessageFromPeer(BlockBodies(Seq()), peer)
               this.copy(failedBodiesTries = failedBodiesTries - 1)
@@ -623,7 +634,7 @@ class SyncControllerSpec
 
           case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
             stateDownloadStarted = true
-            val underlyingMessage = msg.underlyingMsg
+            msg.underlyingMsg
             if (!failedNodeRequest) {
               sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
             }
@@ -633,7 +644,6 @@ class SyncControllerSpec
             sender ! DataUpdated
             this.copy(peers, pivot, data, failedReceipts, failedBodies, onlyPivot, failedNode)
         }
-      }
 
       def updateAutoPilot(
           handshakedPeers: HandshakedPeers,
@@ -714,29 +724,29 @@ class SyncControllerSpec
 
     val defaultSafeDownloadTarget = defaultExpectedPivotBlock
 
-    val defaultBestBlock = defaultExpectedPivotBlock - 1
+    val defaultBestBlock: Int = defaultExpectedPivotBlock - 1
 
     val defaultStateRoot = "deae1dfad5ec8dcef15915811e1f044d2543674fd648f94345231da9fc2646cc"
 
-    val defaultPivotBlockHeader =
+    val defaultPivotBlockHeader: BlockHeader =
       baseBlockHeader.copy(number = defaultExpectedPivotBlock, stateRoot = ByteString(Hex.decode(defaultStateRoot)))
 
-    val defaultState =
+    val defaultState: SyncState =
       SyncState(
         defaultPivotBlockHeader,
         safeDownloadTarget = defaultSafeDownloadTarget,
         bestBlockHeaderNumber = defaultBestBlock
       )
 
-    val defaultStateMptLeafWithAccount =
+    val defaultStateMptLeafWithAccount: ByteString =
       ByteString(
         Hex.decode(
           "f86d9e328415c225a782bb339b22acad1c739e42277bc7ef34de3623114997ce78b84cf84a0186cb7d8738d800a056e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421a0c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
         )
       )
 
-    val beforeRestartPivot = defaultPivotBlockHeader.copy(number = defaultExpectedPivotBlock - 1)
-    val defaultStateBeforeNodeRestart = defaultState.copy(
+    val beforeRestartPivot: BlockHeader = defaultPivotBlockHeader.copy(number = defaultExpectedPivotBlock - 1)
+    val defaultStateBeforeNodeRestart: SyncState = defaultState.copy(
       pivotBlock = beforeRestartPivot,
       bestBlockHeaderNumber = defaultExpectedPivotBlock,
       nextBlockToFullyValidate = beforeRestartPivot.number + syncConfig.fastSyncBlockValidationX
@@ -751,7 +761,7 @@ class SyncControllerSpec
           parenthash: ByteString,
           headers: Seq[BlockHeader],
           result: Seq[BlockHeader] = Seq.empty
-      ): Seq[BlockHeader] = {
+      ): Seq[BlockHeader] =
         if (headers.isEmpty)
           result
         else {
@@ -760,23 +770,21 @@ class SyncControllerSpec
           val newHash = newHeader.hash
           genChain(newHash, headers.tail, result :+ newHeader)
         }
-      }
 
       val first = headers.head
 
       first +: genChain(first.hash, headers.tail)
     }
 
-    def startWithState(state: SyncState): Unit = {
+    def startWithState(state: SyncState): Unit =
       storagesInstance.storages.fastSyncStateStorage.putSyncState(state)
-    }
 
     private def testScheduler = system.scheduler.asInstanceOf[ExplicitlyTriggeredScheduler]
 
-    def littleTimePasses() =
+    def littleTimePasses(): Unit =
       testScheduler.timePasses(300.millis)
 
-    def someTimePasses() =
+    def someTimePasses(): Unit =
       testScheduler.timePasses(3000.millis)
 
     def cleanup(): Unit =
@@ -785,10 +793,7 @@ class SyncControllerSpec
 
   def withTestSetup(validators: Validators = new Mocks.MockValidatorsAlwaysSucceed)(test: TestSetup => Any): Unit = {
     val testSetup = new TestSetup(validators)
-    try {
-      test(testSetup)
-    } finally {
-      testSetup.cleanup()
-    }
+    try test(testSetup)
+    finally testSetup.cleanup()
   }
 }

@@ -1,15 +1,19 @@
 package io.iohk.ethereum
 
-import java.io.{File, PrintWriter}
-import java.net.{Inet6Address, InetAddress}
+import java.io.File
+import java.io.PrintWriter
+import java.net.Inet6Address
+import java.net.InetAddress
 import java.security.SecureRandom
-import io.iohk.ethereum.crypto._
+
+import scala.io.Source
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.math.ec.ECPoint
 import org.bouncycastle.util.encoders.Hex
 
-import scala.io.Source
+import io.iohk.ethereum.crypto._
 
 package object network {
 
@@ -38,11 +42,8 @@ package object network {
       val (priv, pub) = keyPairToByteArrays(keysValuePair)
       require(file.getParentFile.exists() || file.getParentFile.mkdirs(), "Key's file parent directory creation failed")
       val writer = new PrintWriter(filePath)
-      try {
-        writer.write(Hex.toHexString(priv) + "\n" + Hex.toHexString(pub))
-      } finally {
-        writer.close()
-      }
+      try writer.write(Hex.toHexString(priv) + "\n" + Hex.toHexString(pub))
+      finally writer.close()
 
       keysValuePair
     } else {
@@ -50,14 +51,11 @@ package object network {
       try {
         val privHex = reader.getLines().next()
         keyPairFromPrvKey(Hex.decode(privHex))
-      } finally {
-        reader.close()
-      }
+      } finally reader.close()
     }
   }
 
-  /**
-    * Given an address, returns the corresponding host name for the URI.
+  /** Given an address, returns the corresponding host name for the URI.
     * All IPv6 addresses are enclosed in square brackets.
     *
     * @param address, whose host name will be obtained
@@ -67,7 +65,7 @@ package object network {
     val hostName = address.getHostAddress
     address match {
       case _: Inet6Address => s"[$hostName]"
-      case _ => hostName
+      case _               => hostName
     }
   }
 

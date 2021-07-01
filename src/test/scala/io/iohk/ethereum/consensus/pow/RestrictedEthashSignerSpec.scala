@@ -1,10 +1,12 @@
 package io.iohk.ethereum.consensus.pow
 
-import io.iohk.ethereum.{ObjectGenerators, crypto}
-import io.iohk.ethereum.security.SecureRandomBuilder
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.security.SecureRandomBuilder
 
 class RestrictedEthashSignerSpec
     extends AnyFlatSpec

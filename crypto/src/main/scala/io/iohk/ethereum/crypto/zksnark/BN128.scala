@@ -1,11 +1,11 @@
 package io.iohk.ethereum.crypto.zksnark
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.zksnark.BN128.Point
 import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
 
-/**
-  * Barreto–Naehrig curve over some finite field
+/** Barreto–Naehrig curve over some finite field
   * Curve equation:
   * Y^2^ = X^3^ + b, where "b" is a constant number belonging to corresponding specific field
   *
@@ -17,20 +17,19 @@ import io.iohk.ethereum.crypto.zksnark.FiniteField.Ops._
   * </a>
   */
 sealed abstract class BN128[T: FiniteField] {
-  val zero = Point(FiniteField[T].zero, FiniteField[T].zero, FiniteField[T].zero)
+  val zero: Point[T] = Point(FiniteField[T].zero, FiniteField[T].zero, FiniteField[T].zero)
 
   def Fp_B: T
 
-  protected def createPointOnCurve(x: T, y: T): Option[Point[T]] = {
+  protected def createPointOnCurve(x: T, y: T): Option[Point[T]] =
     if (x.isZero() && y.isZero())
       Some(zero)
     else {
       val point = Point(x, y, FiniteField[T].one)
       Some(point).filter(isValidPoint)
     }
-  }
 
-  def toAffineCoordinates(p1: Point[T]): Point[T] = {
+  def toAffineCoordinates(p1: Point[T]): Point[T] =
     if (p1.isZero)
       Point(zero.x, FiniteField[T].one, zero.z)
     else {
@@ -42,7 +41,6 @@ sealed abstract class BN128[T: FiniteField] {
       val ay = p1.y * zInvMul
       Point(ax, ay, FiniteField[T].one)
     }
-  }
 
   def toEthNotation(p1: Point[T]): Point[T] = {
     val affine = toAffineCoordinates(p1)
@@ -53,11 +51,10 @@ sealed abstract class BN128[T: FiniteField] {
       affine
   }
 
-  /**
-    * Point is on curve when its coordinates (x, y) satisfy curve equation which in jacobian coordinates becomes
+  /** Point is on curve when its coordinates (x, y) satisfy curve equation which in jacobian coordinates becomes
     * Y^2^ = X^3^ + b * Z^6^
     */
-  def isOnCurve(p1: Point[T]): Boolean = {
+  def isOnCurve(p1: Point[T]): Boolean =
     if (p1.isZero)
       true
     else {
@@ -66,9 +63,8 @@ sealed abstract class BN128[T: FiniteField] {
       val r = (p1.x.squared() * p1.x) + (Fp_B * z6)
       l == r
     }
-  }
 
-  def add(p1: Point[T], p2: Point[T]): Point[T] = {
+  def add(p1: Point[T], p2: Point[T]): Point[T] =
     if (p1.isZero)
       p2
     else if (p2.isZero)
@@ -103,9 +99,8 @@ sealed abstract class BN128[T: FiniteField] {
         Point(x3, y3, z3)
       }
     }
-  }
 
-  def dbl(p1: Point[T]): Point[T] = {
+  def dbl(p1: Point[T]): Point[T] =
     if (p1.isZero)
       p1
     else {
@@ -125,14 +120,11 @@ sealed abstract class BN128[T: FiniteField] {
       Point(x3, y3, z3)
     }
 
-  }
-
-  /**
-    * Multiplication by scalar n is just addition n times e.g n * P = P + P + .. n times.
+  /** Multiplication by scalar n is just addition n times e.g n * P = P + P + .. n times.
     * Faster algorithm is used here, which is known as:
     * <a href=https://en.wikipedia.org/wiki/Elliptic_curve_point_multiplication#Double-and-add>Double-and-add</a>
     */
-  def mul(p1: Point[T], s: BigInt): Point[T] = {
+  def mul(p1: Point[T], s: BigInt): Point[T] =
     if (s == 0 || p1.isZero)
       zero
     else {
@@ -147,7 +139,6 @@ sealed abstract class BN128[T: FiniteField] {
       }
       result
     }
-  }
 
   def isValidPoint(p1: Point[T]): Boolean =
     p1.isValid && isOnCurve(p1)
@@ -186,47 +177,41 @@ object BN128 {
   case class BN128G1(p: Point[Fp])
   object BN128G1 {
 
-    /**
-      * Constructs valid element of subgroup `G1`
+    /** Constructs valid element of subgroup `G1`
       * To be valid element of subgroup, elements needs to be valid point (have valid coordinates in Fp_2 and to be on curve
       * Bn128 in Fp
       * @return [[scala.None]] if element is invald group element, [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G1]]
       */
-    def apply(xx: ByteString, yy: ByteString): Option[BN128G1] = {
+    def apply(xx: ByteString, yy: ByteString): Option[BN128G1] =
       // Every element of our Fp is also element of subgroup G1
       BN128Fp.createPoint(xx, yy).map(new BN128G1(_))
-    }
   }
 
   case class BN128G2(p: Point[Fp2])
   object BN128G2 {
     import BN128Fp2._
 
-    /**
-      * "r" order of cyclic subgroup
+    /** "r" order of cyclic subgroup
       */
-    val R = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
+    val R: BigInt = BigInt("21888242871839275222246405745257275088548364400416034343698204186575808495617")
 
     private val negOneModR = (-BigInt(1)).mod(R)
 
-    private def isGroupElement(p: Point[Fp2]): Boolean = {
+    private def isGroupElement(p: Point[Fp2]): Boolean =
       add(mul(p, negOneModR), p).isZero // -1 * p + p == 0
-    }
 
-    /**
-      * Constructs valid element of subgroup `G2`
+    /** Constructs valid element of subgroup `G2`
       * To be valid element of subgroup, elements needs to be valid point (have valid coordinates in Fp_2 and to be on curve
       * Bn128 in Fp_2) and fullfill the equation `-1 * p + p == 0`
       * @return [[scala.None]] if element is invald group element, [[io.iohk.ethereum.crypto.zksnark.BN128.BN128G2]]
       */
-    def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] = {
+    def apply(a: ByteString, b: ByteString, c: ByteString, d: ByteString): Option[BN128G2] =
       createPoint(a, b, c, d).flatMap { point =>
         if (isGroupElement(point))
           Some(BN128G2(point))
         else
           None
       }
-    }
 
     def mulByP(p: Point[Fp2]): Point[Fp2] = {
       val rx = Fp2.TWIST_MUL_BY_P_X * Fp2.frobeniusMap(p.x, 1)

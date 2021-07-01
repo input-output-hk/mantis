@@ -1,21 +1,27 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.domain.{Block, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHash
-import io.iohk.ethereum.network.p2p.messages.{BaseETH6XMessages, ETH62, ETC64, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
 
 import scala.util.Random
 
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.ETC64
+import io.iohk.ethereum.network.p2p.messages.ETH62
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHash
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+
 class BlockBroadcast(val etcPeerManager: ActorRef) {
 
-  /**
-    * Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
+  /** Broadcasts various NewBlock's messages to handshaked peers, considering that a block should not be sent to a peer
     * that is thought to know it.
     * The hash of the block is sent to all of those peers while the block itself is only sent to
     * the square root of the total number of those peers, with the subset being obtained randomly.
@@ -53,8 +59,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
       etcPeerManager ! EtcPeerManagerActor.SendMessage(newBlockHashMsg, peer.id)
   }
 
-  /**
-    * Obtains a random subset of peers. The returned set will verify:
+  /** Obtains a random subset of peers. The returned set will verify:
     *   subsetPeers.size == sqrt(peers.size)
     *
     * @param peers
@@ -68,8 +73,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
 
 object BlockBroadcast {
 
-  /**
-    * BlockToBroadcast was created to decouple block information from protocol new block messages
+  /** BlockToBroadcast was created to decouple block information from protocol new block messages
     * (they are different versions of NewBlock msg)
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight) {

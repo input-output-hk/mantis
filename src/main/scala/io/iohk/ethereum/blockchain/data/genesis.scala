@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.data
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.domain.UInt256
 
 case class PrecompiledAccountConfig(name: String)

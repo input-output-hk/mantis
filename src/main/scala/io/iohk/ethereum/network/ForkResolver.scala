@@ -22,10 +22,9 @@ object ForkResolver {
 
     override def forkBlockNumber: BigInt = daoForkConfig.forkBlockNumber
 
-    override def recognizeFork(blockHeader: BlockHeader): Fork = {
+    override def recognizeFork(blockHeader: BlockHeader): Fork =
       if (blockHeader.hash == daoForkConfig.forkBlockHash) AcceptedFork
       else RejectedFork
-    }
 
     override def isAccepted(fork: Fork): Boolean = fork == AcceptedFork
   }

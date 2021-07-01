@@ -1,19 +1,27 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.{MiningResult, MiningSuccessful, MiningUnsuccessful}
-import io.iohk.ethereum.consensus.pow.{KeccakCalculation, PoWBlockCreator, PoWMiningCoordinator}
-import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.jsonrpc.EthMiningService
-import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
-import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
-import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils, Logger}
-import monix.execution.{CancelableFuture, Scheduler}
+
+import monix.execution.CancelableFuture
+import monix.execution.Scheduler
 
 import scala.util.Random
+
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.pow.KeccakCalculation
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.MiningResult
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.MiningSuccessful
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.MiningUnsuccessful
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.jsonrpc.EthMiningService
+import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.utils.Logger
 
 class KeccakMiner(
     blockCreator: PoWBlockCreator,

@@ -1,11 +1,16 @@
 package io.iohk.ethereum.ledger
 
+import scala.annotation.tailrec
+
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, BlockHeader, BlockchainImpl, BlockchainReader, SignedTransactionWithSender}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
-import scala.annotation.tailrec
 
 class StxLedger(
     blockchain: BlockchainImpl,
@@ -70,8 +75,7 @@ class StxLedger(
 
 object StxLedger {
 
-  /**
-    * Function finds minimal value in some interval for which provided function do not return error
+  /** Function finds minimal value in some interval for which provided function do not return error
     * If searched value is not in provided interval, function returns maximum value of searched interval
     * @param min minimum of searched interval
     * @param max maximum of searched interval

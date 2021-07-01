@@ -1,30 +1,32 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import akka.util.Timeout
+
 import cats.syntax.either._
+
+import monix.eval.Task
+
+import scala.reflect.ClassTag
+
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{BlockHeader, _}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
-import monix.eval.Task
-
-import java.util.Date
-import java.util.concurrent.atomic.AtomicReference
-import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
-import scala.language.existentials
-import scala.reflect.ClassTag
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.consensus.Consensus
 
 object EthInfoService {
   case class ChainIdRequest()
@@ -90,8 +92,7 @@ class EthInfoService(
   def chainId(req: ChainIdRequest): ServiceResponse[ChainIdResponse] =
     Task.now(Right(ChainIdResponse(blockchainConfig.chainId)))
 
-  /**
-    * Implements the eth_syncing method that returns syncing information if the node is syncing.
+  /** Implements the eth_syncing method that returns syncing information if the node is syncing.
     *
     * @return The syncing status if the node is syncing or None if not
     */
@@ -113,24 +114,23 @@ class EthInfoService(
             )
           )
         case Status.NotSyncing => SyncingResponse(None)
-        case Status.SyncDone => SyncingResponse(None)
+        case Status.SyncDone   => SyncingResponse(None)
       }
       .map(_.asRight)
 
-  def call(req: CallRequest): ServiceResponse[CallResponse] = {
+  def call(req: CallRequest): ServiceResponse[CallResponse] =
     Task {
       doCall(req)(stxLedger.simulateTransaction).map(r => CallResponse(r.vmReturnData))
     }
-  }
 
   def ieleCall(req: IeleCallRequest): ServiceResponse[IeleCallResponse] = {
     import req.tx
 
     val args = tx.arguments.getOrElse(Nil)
     val dataEither = (tx.function, tx.contractCode) match {
-      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (Some(function), None)     => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
-      case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+      case _                          => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
     dataEither match {
@@ -145,11 +145,10 @@ class EthInfoService(
     }
   }
 
-  def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] = {
+  def estimateGas(req: CallRequest): ServiceResponse[EstimateGasResponse] =
     Task {
       doCall(req)(stxLedger.binarySearchGasEstimation).map(gasUsed => EstimateGasResponse(gasUsed))
     }
-  }
 
   private def doCall[A](req: CallRequest)(
       f: (SignedTransactionWithSender, BlockHeader, Option[InMemoryWorldStateProxy]) => A
@@ -162,7 +161,7 @@ class EthInfoService(
     if (req.tx.gas.isDefined) Right[JsonRpcError, BigInt](req.tx.gas.get)
     else resolveBlock(BlockParam.Latest).map(r => r.block.header.gasLimit)
 
-  private def prepareTransaction(req: CallRequest): Either[JsonRpcError, SignedTransactionWithSender] = {
+  private def prepareTransaction(req: CallRequest): Either[JsonRpcError, SignedTransactionWithSender] =
     getGasLimit(req).map { gasLimit =>
       val fromAddress = req.tx.from
         .map(Address.apply) // `from` param, if specified
@@ -180,6 +179,5 @@ class EthInfoService(
       val fakeSignature = ECDSASignature(0, 0, 0.toByte)
       SignedTransactionWithSender(tx, fakeSignature, fromAddress)
     }
-  }
 
 }

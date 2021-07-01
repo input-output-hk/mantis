@@ -3,16 +3,19 @@ package io.iohk.ethereum.network.rlpx
 import java.io.IOException
 
 import akka.util.ByteString
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPImplicits._
+
+import scala.annotation.tailrec
+import scala.collection.mutable.ArrayBuffer
+
 import org.bouncycastle.crypto.StreamCipher
 import org.bouncycastle.crypto.digests.KeccakDigest
 import org.bouncycastle.crypto.engines.AESEngine
 import org.bouncycastle.crypto.modes.SICBlockCipher
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
 
-import scala.annotation.tailrec
-import scala.collection.mutable.ArrayBuffer
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicits._
 
 case class Frame(header: Header, `type`: Int, payload: ByteString)
 
@@ -43,8 +46,7 @@ class FrameCodec(private val secrets: Secrets) {
 
   private var headerOpt: Option[Header] = None
 
-  /**
-    * Note, this method is not reentrant.
+  /** Note, this method is not reentrant.
     *
     * @param data
     * @return
@@ -89,7 +91,7 @@ class FrameCodec(private val secrets: Secrets) {
     readRecursive()
   }
 
-  private def tryReadHeader(): Unit = {
+  private def tryReadHeader(): Unit =
     if (unprocessedData.size >= HeaderLength) {
       val headBuffer = unprocessedData.take(HeaderLength).toArray
 
@@ -109,10 +111,9 @@ class FrameCodec(private val secrets: Secrets) {
       unprocessedData = unprocessedData.drop(HeaderLength)
       headerOpt = Some(Header(bodySize, protocol, contextId, totalPacketSize))
     }
-  }
 
   def writeFrames(frames: Seq[Frame]): ByteString = {
-    val bytes = frames.zipWithIndex flatMap { case (frame, index) =>
+    val bytes = frames.zipWithIndex.flatMap { case (frame, index) =>
       val firstFrame = index == 0
       val lastFrame = index == frames.size - 1
 
@@ -131,8 +132,8 @@ class FrameCodec(private val secrets: Secrets) {
 
       var headerDataElems: Seq[Array[Byte]] = Nil
       headerDataElems :+= rlp.encode(frame.header.protocol)
-      frame.header.contextId.foreach { cid => headerDataElems :+= rlp.encode(cid) }
-      frame.header.totalPacketSize foreach { tfs => headerDataElems :+= rlp.encode(tfs) }
+      frame.header.contextId.foreach(cid => headerDataElems :+= rlp.encode(cid))
+      frame.header.totalPacketSize.foreach(tfs => headerDataElems :+= rlp.encode(tfs))
 
       val headerData = rlp.encode(headerDataElems)(seqEncDec[Array[Byte]]())
       System.arraycopy(headerData, 0, headBuffer, 3, headerData.length)
@@ -215,7 +216,7 @@ class FrameCodec(private val secrets: Secrets) {
 
     val length = 16
 
-    (0 until length) foreach { i =>
+    (0 until length).foreach { i =>
       aesBlock(i) = (aesBlock(i) ^ seed(i + offset)).toByte
     }
 
@@ -225,15 +226,14 @@ class FrameCodec(private val secrets: Secrets) {
 
     if (egress) System.arraycopy(result, 0, out, outOffset, length)
     else
-      (0 until length) foreach { i =>
+      (0 until length).foreach { i =>
         if (out(i + outOffset) != result(i)) throw new IOException("MAC mismatch")
       }
 
     result
   }
 
-  private def doSum(mac: KeccakDigest, out: Array[Byte]) = {
+  private def doSum(mac: KeccakDigest, out: Array[Byte]) =
     new KeccakDigest(mac).doFinal(out, 0)
-  }
 
 }

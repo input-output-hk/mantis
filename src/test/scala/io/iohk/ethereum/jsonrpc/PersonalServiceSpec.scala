@@ -1,31 +1,46 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{UInt256, _}
-import io.iohk.ethereum.jsonrpc.JsonRpcError._
-import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.keystore.KeyStore.{DecryptionFailed, IOError}
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig, TxPoolConfig}
-import io.iohk.ethereum.{Fixtures, NormalPatience, Timeouts, WithActorSystemShutDown}
+
 import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
+
+import com.miguno.akka.testing.VirtualTime
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.matchers.MatcherBase
 import org.scalamock.scalatest.MockFactory
-import org.scalatest.concurrent.{Eventually, ScalaFutures}
+import org.scalatest.concurrent.Eventually
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.concurrent.duration.FiniteDuration
-import scala.reflect.ClassTag
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.JsonRpcError._
+import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
+import io.iohk.ethereum.keystore.KeyStore.IOError
+import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.transactions.PendingTransactionsManager._
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ForkBlockNumbers
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 class PersonalServiceSpec
     extends TestKit(ActorSystem("JsonRpcControllerEthSpec_System"))
@@ -343,7 +358,7 @@ class PersonalServiceSpec
 
     (blockchain.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    val forkBlock = new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     (blockchain.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -388,14 +403,14 @@ class PersonalServiceSpec
   }
 
   trait TestSetup {
-    val prvKey = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
-    val address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
+    val prvKey: ByteString = ByteString(Hex.decode("7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"))
+    val address: Address = Address(Hex.decode("aa6826f00d01fe4085f0c3dd12778e206ce4e2ac"))
     val passphrase = "aaa"
 
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig = BlockchainConfig(
+    val blockchainConfig: BlockchainConfig = BlockchainConfig(
       chainId = 0x03.toByte,
       //unused
       networkId = 1,
@@ -434,13 +449,13 @@ class PersonalServiceSpec
       treasuryAddress = Address(0)
     )
 
-    val wallet = Wallet(address, prvKey)
-    val tx = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
-    val stxWithSender = wallet.signTx(tx.toTransaction(nonce), None)
+    val wallet: Wallet = Wallet(address, prvKey)
+    val tx: TransactionRequest = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
+    val stxWithSender: SignedTransactionWithSender = wallet.signTx(tx.toTransaction(nonce), None)
     val stx = stxWithSender.tx
-    val chainSpecificStx = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
+    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
 
-    val txPoolConfig = new TxPoolConfig {
+    val txPoolConfig: TxPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
       override val pendingTxManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
       override val transactionTimeout: FiniteDuration = Timeouts.normalTimeout
@@ -449,15 +464,15 @@ class PersonalServiceSpec
 
     val time = new VirtualTime
 
-    val keyStore = mock[KeyStore]
+    val keyStore: KeyStore = mock[KeyStore]
 
-    val txPool = TestProbe()
-    val appStateStorage = mock[AppStateStorage]
-    val blockchain = mock[BlockchainImpl]
+    val txPool: TestProbe = TestProbe()
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val personal =
       new PersonalService(keyStore, blockchain, txPool.ref, appStateStorage, blockchainConfig, txPoolConfig)
 
     def array[T](arr: Array[T])(implicit ev: ClassTag[Array[T]]): MatcherBase =
-      argThat((_: Array[T]) sameElements arr)
+      argThat((_: Array[T]).sameElements(arr))
   }
 }

@@ -1,11 +1,13 @@
 package io.iohk.ethereum.consensus.pow
 
 import akka.util.ByteString
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 object RestrictedPoWSigner {
 

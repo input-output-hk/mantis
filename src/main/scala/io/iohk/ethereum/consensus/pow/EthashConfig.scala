@@ -2,9 +2,10 @@ package io.iohk.ethereum
 package consensus
 package pow
 
-import com.typesafe.config.{Config => TypesafeConfig}
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import com.typesafe.config.{Config => TypesafeConfig}
 
 final case class EthashConfig(
     ommersPoolSize: Int,

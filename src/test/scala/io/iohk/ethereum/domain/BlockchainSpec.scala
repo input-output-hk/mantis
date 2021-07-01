@@ -1,25 +1,30 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.mpt.{HashNode, MerklePatriciaTrie}
-import io.iohk.ethereum.{BlockHelpers, Fixtures, ObjectGenerators}
-import io.iohk.ethereum.ObjectGenerators._
-import io.iohk.ethereum.proof.MptProofVerifier
-import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
+
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.ObjectGenerators._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
+
 class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
+  val checkpoint: Checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
   val checkpointBlockGenerator = new CheckpointBlockGenerator
 
   "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {
@@ -47,7 +52,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchain.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
-    blockchain.isInChain(validBlock.hash) === (false)
+    blockchain.isInChain(validBlock.hash) === false
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
     blockchain.isInChain(validBlock.hash) should ===(false)
@@ -130,7 +135,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val validHeader = Fixtures.Blocks.ValidBlock.header
 
-    val stateStorage = StateStorage.createTestStateStorage(EphemDataSource())._1
+    StateStorage.createTestStateStorage(EphemDataSource())._1
     val emptyMpt = MerklePatriciaTrie[Address, Account](
       storagesInstance.storages.stateStorage.getBackingStorage(0)
     )
@@ -189,7 +194,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
     (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
       case _ @HashNode(_) :: Nil => true
-      case _ => false
+      case _                     => false
     }) shouldBe true
     mptWithAcc.get(wrongAddress) shouldBe None
   }
@@ -207,9 +212,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       (stubStateStorage
         .onBlockSave(_: BigInt, _: BigInt)(_: () => Unit))
         .when(*, *, *)
-        .onCall((bn, _, persistFn) => {
+        .onCall { (bn, _, persistFn) =>
           if (blockImportToPersist.exists(_.number == bn)) persistFn()
-        })
+        }
 
       blocksToImport.foreach { block =>
         blockchainWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
@@ -230,9 +235,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       (stubStateStorage
         .onBlockRollback(_: BigInt, _: BigInt)(_: () => Unit))
         .when(*, *, *)
-        .onCall((bn, _, persistFn) => {
+        .onCall { (bn, _, persistFn) =>
           if (blockRollbackToPersist.exists(_.number == bn)) persistFn()
-        })
+        }
 
       blocksToRollback.reverse.foreach { block =>
         blockchainWithStubPersisting.removeBlock(block.hash, true)
@@ -256,14 +261,14 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockImportPersisted: Option[BigInt],
         blockRollbackPersisted: Option[BigInt],
         blocksRollbacked: Seq[BigInt]
-    ): BigInt = {
+    ): BigInt =
       (blocksRollbacked, blockImportPersisted) match {
         case (Nil, Some(bi)) =>
           // No blocks rollbacked, last persist was the persist during import
           bi
         case (nonEmptyRollbackedBlocks, Some(bi)) =>
           // Last forced persist during apply/rollback
-          val maxForcedPersist = blockRollbackPersisted.fold(bi) { br => (br - 1).max(bi) }
+          val maxForcedPersist = blockRollbackPersisted.fold(bi)(br => (br - 1).max(bi))
 
           // The above number would have been decreased by any rollbacked blocks
           (nonEmptyRollbackedBlocks.head - 1).min(maxForcedPersist)
@@ -271,7 +276,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           // If persisted rollback, then it  was decreased by the future rollbacks, if not no persistance was ever done
           blockRollbackPersisted.fold(0: BigInt)(_ => blocksRollbacked.head - 1)
       }
-    }
 
     trait StubPersistingBlockchainSetup {
       def stubStateStorage: StateStorage
@@ -280,7 +284,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       def blockchainWithStubPersisting: BlockchainImpl
     }
 
-    def newSetup(): StubPersistingBlockchainSetup = {
+    def newSetup(): StubPersistingBlockchainSetup =
       new StubPersistingBlockchainSetup with EphemBlockchainTestSetup {
         override val stubStateStorage = stub[StateStorage]
         override val blockchainStoragesWithStubPersisting = new BlockchainStorages {
@@ -291,8 +295,8 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val evmCodeStorage = storagesInstance.storages.evmCodeStorage
           val chainWeightStorage = storagesInstance.storages.chainWeightStorage
           val transactionMappingStorage = storagesInstance.storages.transactionMappingStorage
-          val nodeStorage = storagesInstance.storages.nodeStorage
-          val pruningMode = storagesInstance.storages.pruningMode
+          storagesInstance.storages.nodeStorage
+          storagesInstance.storages.pruningMode
           val appStateStorage = storagesInstance.storages.appStateStorage
           val cachedNodeStorage = storagesInstance.storages.cachedNodeStorage
           val stateStorage = stubStateStorage
@@ -303,7 +307,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
         blockchainWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }
-    }
 
   }
 }

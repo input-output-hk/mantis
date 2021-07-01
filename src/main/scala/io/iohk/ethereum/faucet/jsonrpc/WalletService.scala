@@ -1,24 +1,30 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
 import akka.util.ByteString
+
 import cats.data.EitherT
-import io.iohk.ethereum.domain.{Address, Transaction}
+
+import monix.eval.Task
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Transaction
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
+import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
+import io.iohk.ethereum.keystore.Wallet
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
-import monix.eval.Task
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 
 class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config: FaucetConfig) extends Logger {
 
-  def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[RpcError, ByteString]] = {
+  def sendFunds(wallet: Wallet, addressTo: Address): Task[Either[RpcError, ByteString]] =
     (for {
       nonce <- EitherT(walletRpcClient.getNonce(wallet.address))
       txId <- EitherT(walletRpcClient.sendTransaction(prepareTx(wallet, addressTo, nonce)))
-    } yield txId).value map {
+    } yield txId).value.map {
       case Right(txId) =>
         val txIdHex = s"0x${ByteStringUtils.hash2string(txId)}"
         log.info(s"Sending ${config.txValue} ETC to $addressTo in tx: $txIdHex.")
@@ -27,7 +33,6 @@ class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config
         log.error(s"An error occurred while using faucet", error)
         Left(error)
     }
-  }
 
   private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: BigInt): ByteString = {
     val transaction =

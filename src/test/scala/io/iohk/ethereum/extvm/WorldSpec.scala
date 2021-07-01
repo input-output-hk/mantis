@@ -1,12 +1,16 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import scalapb.GeneratedMessageCompanion
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import org.scalamock.scalatest.MockFactory
+
 import org.bouncycastle.util.encoders.Hex
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import scalapb.GeneratedMessageCompanion
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 
 class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
 
@@ -72,9 +76,9 @@ class WorldSpec extends AnyFlatSpec with Matchers with MockFactory {
   }
 
   trait TestSetup {
-    val addr = Address("0xFF")
-    val messageHandler = mock[MessageHandler]
-    val world = World(accountStartNonce = 0, noEmptyAccountsCond = true, messageHandler = messageHandler)
+    val addr: Address = Address("0xFF")
+    val messageHandler: MessageHandler = mock[MessageHandler]
+    val world: World = World(accountStartNonce = 0, noEmptyAccountsCond = true, messageHandler = messageHandler)
   }
 
 }

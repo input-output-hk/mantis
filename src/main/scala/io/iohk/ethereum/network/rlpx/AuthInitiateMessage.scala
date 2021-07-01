@@ -1,8 +1,10 @@
 package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
+
 import org.bouncycastle.math.ec.ECPoint
+
+import io.iohk.ethereum.crypto._
 
 object AuthInitiateMessage extends AuthInitiateEcdsaCodec {
   val NonceLength = 32

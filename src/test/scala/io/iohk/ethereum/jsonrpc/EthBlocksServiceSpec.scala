@@ -3,16 +3,11 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
-import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, BlockBody, ChainWeight, UInt256}
-import io.iohk.ethereum.jsonrpc.EthBlocksService._
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
+
 import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration.Duration
+
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
@@ -20,7 +15,22 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.Duration
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.EthBlocksService._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 class EthBlocksServiceSpec
     extends TestKit(ActorSystem("EthBlocksServiceSpec_ActorSystem"))
@@ -395,8 +405,8 @@ class EthBlocksServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[PoWBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
+    val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
@@ -408,16 +418,16 @@ class EthBlocksServiceSpec
       blockQueue
     )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockToRequestNumber = blockToRequest.header.number
     val blockToRequestHash = blockToRequest.header.hash
-    val blockWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty)
+    val blockWeight: ChainWeight = ChainWeight.totalDifficultyOnly(blockToRequest.header.difficulty)
 
     val uncle = Fixtures.Blocks.DaoForkBlock.header
-    val uncleWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
-    val blockToRequestWithUncles = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
+    val uncleWeight: ChainWeight = ChainWeight.totalDifficultyOnly(uncle.difficulty)
+    val blockToRequestWithUncles: Block = blockToRequest.copy(body = BlockBody(Nil, Seq(uncle)))
 
-    val fakeWorld = InMemoryWorldStateProxy(
+    val fakeWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),

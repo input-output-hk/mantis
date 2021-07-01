@@ -1,17 +1,22 @@
 package io.iohk.ethereum.extvm
 
-import io.iohk.ethereum.vm
-import io.iohk.ethereum.vm.{WorldStateProxy, _}
-import Implicits._
 import akka.util.ByteString
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
-import scalapb.UnknownFieldSet
 
 import scala.annotation.tailrec
 
-/**
-  * @param testMode - if enabled the client will send blockchain configuration with each configuration.
+import scalapb.UnknownFieldSet
+
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.VmConfig
+import io.iohk.ethereum.vm
+import io.iohk.ethereum.vm.WorldStateProxy
+import io.iohk.ethereum.vm._
+
+import Implicits._
+
+/** @param testMode - if enabled the client will send blockchain configuration with each configuration.
   *                 This is useful to override configuration for each test, rather than to recreate the VM.
   */
 class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: MessageHandler, testMode: Boolean)
@@ -21,7 +26,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
     val config = BlockchainConfigForEvm(blockchainConfig)
     val configMsg = externalVmConfig.vmType match {
       case VmConfig.ExternalConfig.VmTypeIele => msg.Hello.Config.IeleConfig(buildIeleConfigMsg())
-      case _ => msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(config))
+      case _                                  => msg.Hello.Config.EthereumConfig(buildEthereumConfigMsg(config))
     }
     val helloMsg = msg.Hello(version, configMsg)
     messageHandler.sendMessage(helloMsg)
@@ -80,7 +85,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
         log.debug("Client received msg: GetBlockhash")
         val blockhashMsg = world.getBlockHash(offset) match {
           case Some(value) => msg.Blockhash(hash = value)
-          case None => msg.Blockhash()
+          case None        => msg.Blockhash()
         }
         messageHandler.sendMessage(blockhashMsg)
         messageLoop[W, S](world)
@@ -144,7 +149,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       case VmConfig.ExternalConfig.VmTypeKevm =>
         Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig)) // always pass config for KEVM
       case _ if testMode => Config.EthereumConfig(buildEthereumConfigMsg(ctx.evmConfig.blockchainConfig))
-      case _ => Config.Empty
+      case _             => Config.Empty
     }
 
     msg.CallContext(
@@ -182,8 +187,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       unixTimestamp = header.unixTimestamp
     )
 
-  def close(): Unit = {
+  def close(): Unit =
     messageHandler.close()
-  }
 
 }

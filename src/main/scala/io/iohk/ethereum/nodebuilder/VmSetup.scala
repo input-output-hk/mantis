@@ -3,9 +3,13 @@ package io.iohk.ethereum.nodebuilder
 import java.lang.ProcessBuilder.Redirect
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.extvm.{ExtVMInterface, VmServerApp}
+
+import io.iohk.ethereum.extvm.ExtVMInterface
+import io.iohk.ethereum.extvm.VmServerApp
 import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, VmConfig}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.VmConfig
 import io.iohk.ethereum.utils.VmConfig.ExternalConfig
 
 object VmSetup extends Logger {
@@ -28,7 +32,7 @@ object VmSetup extends Logger {
         throw new RuntimeException("Missing vm.external config for external VM")
     }
 
-  private def startExternalVm(externalConfig: ExternalConfig): Unit = {
+  private def startExternalVm(externalConfig: ExternalConfig): Unit =
     externalConfig.vmType match {
       case "iele" | "kevm" =>
         log.info(s"Starting external ${externalConfig.vmType} VM process using executable path")
@@ -42,10 +46,8 @@ object VmSetup extends Logger {
         log.info("Using external VM process not managed by Mantis")
       // expect the vm to be started by external means
     }
-  }
 
-  /**
-    * Runs a standard VM binary that takes $port and $host as input arguments
+  /** Runs a standard VM binary that takes $port and $host as input arguments
     */
   private def startStandardVmProcess(externalConfig: ExternalConfig): Unit = {
     import externalConfig._
@@ -57,15 +59,13 @@ object VmSetup extends Logger {
       .start()
   }
 
-  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit = {
+  private def startMantisVmProcess(externalConfig: ExternalConfig): Unit =
     if (externalConfig.executablePath.isDefined)
       startStandardVmProcess(externalConfig)
     else
       startMantisVmInThisProcess()
-  }
 
-  private def startMantisVmInThisProcess(): Unit = {
+  private def startMantisVmInThisProcess(): Unit =
     VmServerApp.main(Array())
-  }
 
 }

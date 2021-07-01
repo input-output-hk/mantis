@@ -1,16 +1,24 @@
 package io.iohk.ethereum.consensus.pow
 
 import akka.actor.typed.Behavior
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.{ActorRef => ClassicActorRef}
-import akka.util.Timeout
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.miners.{EthashDAGManager, EthashMiner, KeccakMiner, Miner}
-import io.iohk.ethereum.domain.{Block, Blockchain}
-import io.iohk.ethereum.jsonrpc.EthMiningService
-import monix.execution.{CancelableFuture, Scheduler}
+
+import monix.execution.CancelableFuture
+import monix.execution.Scheduler
 
 import scala.concurrent.duration.DurationInt
+
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.miners.EthashDAGManager
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner
+import io.iohk.ethereum.consensus.pow.miners.KeccakMiner
+import io.iohk.ethereum.consensus.pow.miners.Miner
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.jsonrpc.EthMiningService
 
 object PoWMiningCoordinator {
   // TODO in ETCM-773 make trait sealed
@@ -72,8 +80,8 @@ class PoWMiningCoordinator private (
 
   import PoWMiningCoordinator._
 
-  private implicit val scheduler: Scheduler = Scheduler(context.executionContext)
-  private implicit val timeout: Timeout = 5.seconds
+  implicit private val scheduler: Scheduler = Scheduler(context.executionContext)
+  5.seconds
   private val log = context.log
   private val dagManager = new EthashDAGManager(blockCreator)
 
@@ -122,12 +130,11 @@ class PoWMiningCoordinator private (
     case OnDemandMining => handleMiningOnDemand()
   }
 
-  private def getMiningAlgorithm(currentBlockNumber: BigInt): MiningAlgorithm = {
+  private def getMiningAlgorithm(currentBlockNumber: BigInt): MiningAlgorithm =
     ecip1049BlockNumber match {
-      case None => EthashAlgorithm
+      case None              => EthashAlgorithm
       case Some(blockNumber) => if (currentBlockNumber + 1 >= blockNumber) KeccakAlgorithm else EthashAlgorithm
     }
-  }
 
   private def mineWithEthash(bestBlock: Block): Unit = {
     log.debug("Mining with Ethash")

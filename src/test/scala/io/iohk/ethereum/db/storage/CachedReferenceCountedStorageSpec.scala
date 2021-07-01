@@ -1,17 +1,21 @@
 package io.iohk.ethereum.db.storage
 
 import java.util.concurrent.TimeUnit
+
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.cache.LruCache
-import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.duration.FiniteDuration
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.cache.LruCache
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 // scalastyle:off magic.number
 class CachedReferenceCountedStorageSpec
@@ -96,7 +100,7 @@ class CachedReferenceCountedStorageSpec
   }
 
   "CachedReferenceCountedStorage" should "prune not referenced nodes " in new TestSetup {
-    val storage = updateStorage(1) { stor =>
+    updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
     val storage1 = updateStorage(2) { stor =>
@@ -118,12 +122,12 @@ class CachedReferenceCountedStorageSpec
   }
 
   it should "not prune nodes which became referenced" in new TestSetup {
-    val storage = updateStorage(1) { stor =>
+    updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
 
     val reAllocatedKey = generateKeys(1).head._1
-    val storage1 = updateStorage(2) { stor =>
+    updateStorage(2) { stor =>
       // One of potentialy deltable keys is allocated from other block
       stor.update(Nil, generateKeys(1))
       stor.update(Nil, generateKeys(to = 20, from = 11))
@@ -146,13 +150,13 @@ class CachedReferenceCountedStorageSpec
   }
 
   it should "enable roll-backing changes made by block" in new TestSetup {
-    val storage = updateStorage(1) { stor =>
+    updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
     val cacheStateBeforeChanges = testLruCache.getValues
     assert(cacheStateBeforeChanges.size == 10)
 
-    val storage1 = updateStorage(2) { stor =>
+    updateStorage(2) { stor =>
       // 5 new nodes which need to be deleted during rollback
       stor.update(generateKeys(to = 10, from = 8).map(_._1), generateKeys(3) ++ generateKeys(15, 11))
       stor.update(Nil, generateKeys(15, 11))
@@ -175,7 +179,7 @@ class CachedReferenceCountedStorageSpec
   }
 
   it should "flush exising nodes to disk" in new TestSetup {
-    val storage = updateStorage(1) { stor =>
+    updateStorage(1) { stor =>
       stor.update(generateKeys(5).map(_._1), generateKeys(10))
     }
     val storage1 = updateStorage(2) { stor =>
@@ -193,7 +197,7 @@ class CachedReferenceCountedStorageSpec
   }
 
   trait TestSetup {
-    val dataSource = EphemDataSource()
+    val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
     val changeLog = new ChangeLog(nodeStorage)
 
@@ -207,9 +211,8 @@ class CachedReferenceCountedStorageSpec
       Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
     )
 
-    def generateKeys(to: Int, from: Int = 1): List[(ByteString, Array[Byte])] = {
+    def generateKeys(to: Int, from: Int = 1): List[(ByteString, Array[Byte])] =
       (from to to).map(i => kec256(ByteString(s"key$i")) -> ByteString(s"value$i").toArray[Byte]).toList
-    }
 
     def insertRangeKeys(n: Int, storage: NodesKeyValueStorage): Seq[(ByteString, Array[Byte])] = {
       val toInsert = generateKeys(n)
@@ -218,10 +221,10 @@ class CachedReferenceCountedStorageSpec
     }
 
     def scatterUpdates(updates: List[Update]): (List[ByteString], List[ByteString]) =
-      updates.foldLeft(List.empty[ByteString], List.empty[ByteString]) { (acc, up) =>
+      updates.foldLeft((List.empty[ByteString], List.empty[ByteString])) { (acc, up) =>
         up match {
           case Increase(hash) => acc.copy(_2 = hash :: acc._2)
-          case New(hash) => acc.copy(_2 = hash :: acc._2)
+          case New(hash)      => acc.copy(_2 = hash :: acc._2)
           case Decrease(hash) => acc.copy(_1 = hash :: acc._1)
         }
       }
@@ -233,10 +236,9 @@ class CachedReferenceCountedStorageSpec
       storage
     }
 
-    def assertKeysExists(storage: NodesKeyValueStorage, keys: List[(ByteString, Array[Byte])]): Unit = {
+    def assertKeysExists(storage: NodesKeyValueStorage, keys: List[(ByteString, Array[Byte])]): Unit =
       keys.foreach { case (key, value) =>
-        assert(storage.get(key).exists(enc => enc sameElements value))
+        assert(storage.get(key).exists(enc => enc.sameElements(value)))
       }
-    }
   }
 }

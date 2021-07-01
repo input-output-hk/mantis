@@ -1,31 +1,39 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Timers}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Timers
 import akka.pattern.pipe
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.InvalidStateResponse
-import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
-import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
-  CriticalError,
-  ProcessingStatistics,
-  SchedulerState,
-  SyncResponse
-}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
-import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg, PeerRequestHandler}
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
-import io.iohk.ethereum.utils.ByteStringUtils
-import io.iohk.ethereum.utils.Config.SyncConfig
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
+
+import io.iohk.ethereum.blockchain.sync.Blacklist
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.InvalidStateResponse
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.CriticalError
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.ProcessingStatistics
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncStateSchedulerActor(
     sync: SyncStateScheduler,
@@ -40,7 +48,7 @@ class SyncStateSchedulerActor(
     with ActorLogging
     with Timers {
 
-  private implicit val monixScheduler: Scheduler = Scheduler(context.dispatcher)
+  implicit private val monixScheduler: Scheduler = Scheduler(context.dispatcher)
 
   private def getFreePeers(state: DownloaderState): List[Peer] =
     peersToDownloadFrom.collect {
@@ -93,7 +101,7 @@ class SyncStateSchedulerActor(
   }
 
   def waitingForBloomFilterToLoad(lastReceivedCommand: Option[(SyncStateSchedulerActorCommand, ActorRef)]): Receive =
-    handlePeerListMessages orElse {
+    handlePeerListMessages.orElse {
       case BloomFilterResult(result) =>
         log.debug(
           "Loaded {} already known elements from storage to bloom filter the error while loading was {}",
@@ -126,13 +134,15 @@ class SyncStateSchedulerActor(
     log.info("Starting state sync to root {} on block {}", ByteStringUtils.hash2string(root), bn)
     //TODO handle case when we already have root i.e state is synced up to this point
     val initState = sync.initState(root).get
-    context become syncing(
-      SyncSchedulerActorState.initial(initState, initialStats, bn, initiator)
+    context.become(
+      syncing(
+        SyncSchedulerActorState.initial(initState, initialStats, bn, initiator)
+      )
     )
     self ! Sync
   }
 
-  def idle(processingStatistics: ProcessingStatistics): Receive = handlePeerListMessages orElse {
+  def idle(processingStatistics: ProcessingStatistics): Receive = handlePeerListMessages.orElse {
     case StartSyncingTo(root, bn) =>
       startSyncing(root, bn, processingStatistics, sender())
     case PrintInfo =>
@@ -141,7 +151,7 @@ class SyncStateSchedulerActor(
 
   private def finalizeSync(
       state: SyncSchedulerActorState
-  ): Unit = {
+  ): Unit =
     if (state.memBatch.nonEmpty) {
       log.debug("Persisting {} elements to blockchain and finalizing the state sync", state.memBatch.size)
       val finalState = sync.persistBatch(state.currentSchedulerState, state.targetBlock)
@@ -153,12 +163,11 @@ class SyncStateSchedulerActor(
       state.syncInitiator ! StateSyncFinished
       context.become(idle(ProcessingStatistics()))
     }
-  }
 
   private def processNodes(
       currentState: SyncSchedulerActorState,
       requestResult: RequestResult
-  ): ProcessingResult = {
+  ): ProcessingResult =
     requestResult match {
       case RequestData(nodeData, from) =>
         val (resp, newDownloaderState) = currentState.currentDownloaderState.handleRequestSuccess(from, nodeData)
@@ -188,7 +197,6 @@ class SyncStateSchedulerActor(
           Left(DownloaderError(newDownloaderState, from, Some(BlacklistReason.FastSyncRequestFailed(reason))))
         )
     }
-  }
 
   private def handleRestart(
       currentState: SchedulerState,
@@ -204,7 +212,7 @@ class SyncStateSchedulerActor(
 
   // scalastyle:off cyclomatic.complexity method.length
   def syncing(currentState: SyncSchedulerActorState): Receive =
-    handlePeerListMessages orElse handleRequestResults orElse {
+    handlePeerListMessages.orElse(handleRequestResults).orElse {
       case Sync if currentState.hasRemainingPendingRequests && !currentState.restartHasBeenRequested =>
         val freePeers = getFreePeers(currentState.currentDownloaderState)
         (currentState.getRequestToProcess, NonEmptyList.fromList(freePeers)) match {
@@ -341,12 +349,11 @@ object SyncStateSchedulerActor {
       to: ActorRef,
       currentStats: ProcessingStatistics,
       currentState: SyncStateScheduler.SchedulerState
-  ): Unit = {
+  ): Unit =
     to ! StateSyncStats(
       currentStats.saved + currentState.memBatch.size,
       currentState.numberOfPendingRequests
     )
-  }
 
   final case class StateSyncStats(saved: Long, missing: Long)
 
@@ -359,9 +366,8 @@ object SyncStateSchedulerActor {
       peerEventBus: ActorRef,
       blacklist: Blacklist,
       scheduler: akka.actor.Scheduler
-  ): Props = {
+  ): Props =
     Props(new SyncStateSchedulerActor(sync, syncConfig, etcPeerManager, peerEventBus, blacklist, scheduler)(scheduler))
-  }
 
   final case object PrintInfo
   final case object PrintInfoKey

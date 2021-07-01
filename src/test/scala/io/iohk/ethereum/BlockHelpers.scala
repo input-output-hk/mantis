@@ -1,19 +1,21 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+
+import scala.util.Random
+
+import mouse.all._
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.security.SecureRandomBuilder
-import mouse.all._
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
-import scala.util.Random
 
 object BlockHelpers extends SecureRandomBuilder {
 
   // scalastyle:off magic.number
-  val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
     number = 1,
     gasLimit = 1000000,
@@ -21,7 +23,7 @@ object BlockHelpers extends SecureRandomBuilder {
     unixTimestamp = 0
   )
 
-  val defaultTx = Transaction(
+  val defaultTx: Transaction = Transaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,
@@ -44,7 +46,7 @@ object BlockHelpers extends SecureRandomBuilder {
     }
 
   def resetHeaderExtraFields(hef: BlockHeader.HeaderExtraFields): BlockHeader.HeaderExtraFields = hef match {
-    case HeaderExtraFields.HefEmpty => HeaderExtraFields.HefEmpty
+    case HeaderExtraFields.HefEmpty           => HeaderExtraFields.HefEmpty
     case HeaderExtraFields.HefPostEcip1097(_) => HeaderExtraFields.HefPostEcip1097(None)
   }
 
@@ -63,12 +65,10 @@ object BlockHelpers extends SecureRandomBuilder {
     Block(header, BlockBody(List(stx.tx), List(ommer)))
   }
 
-  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block = {
+  def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block =
     block.copy(header = updater(block.header))
-  }
 
-  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block = {
+  def withTransactions(block: Block, transactions: List[SignedTransaction]): Block =
     block.copy(body = block.body.copy(transactionList = transactions))
-  }
 
 }

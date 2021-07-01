@@ -2,17 +2,21 @@ package io.iohk.ethereum.keystore
 
 import java.io.File
 import java.nio.charset.StandardCharsets
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
+import java.nio.file.Paths
 import java.security.SecureRandom
+import java.time.ZoneOffset
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.{ZoneOffset, ZonedDateTime}
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.utils.{KeyStoreConfig, Logger}
 
 import scala.util.Try
+
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.utils.KeyStoreConfig
+import io.iohk.ethereum.utils.Logger
 
 object KeyStore {
   sealed trait KeyStoreError
@@ -99,10 +103,6 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       _ <- overwrite(keyFileName, newEncKey)
     } yield ()
 
-  private def deleteFile(fileName: String): Either[KeyStoreError, Boolean] = {
-    Try(Files.deleteIfExists(Paths.get(keyStoreConfig.keyStoreDir, fileName))).toEither.left.map(ioError)
-  }
-
   private def init(): Unit = {
     val dir = new File(keyStoreConfig.keyStoreDir)
     val res = Try(dir.isDirectory || dir.mkdirs()).filter(identity)
@@ -135,12 +135,11 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
     }.toEither.left.map(ioError)
   }
 
-  private def load(address: Address): Either[KeyStoreError, EncryptedKey] = {
+  private def load(address: Address): Either[KeyStoreError, EncryptedKey] =
     for {
       filename <- findKeyFileName(address)
       key <- load(filename)
     } yield key
-  }
 
   private def load(path: String): Either[KeyStoreError, EncryptedKey] =
     for {
@@ -175,9 +174,9 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
   }
 
   private def containsAccount(encKey: EncryptedKey): Either[KeyStoreError, Boolean] = load(encKey.address) match {
-    case Right(_) => Right(true)
+    case Right(_)          => Right(true)
     case Left(KeyNotFound) => Right(false)
-    case Left(err) => Left(err)
+    case Left(err)         => Left(err)
   }
 
   private def findKeyFileName(address: Address): Either[KeyStoreError, String] = for {
@@ -188,8 +187,7 @@ class KeyStoreImpl(keyStoreConfig: KeyStoreConfig, secureRandom: SecureRandom) e
       .getOrElse(Left(KeyNotFound))
   } yield matching
 
-  private def sortKeyFilesByDate(files: List[String]): List[String] = {
+  private def sortKeyFilesByDate(files: List[String]): List[String] =
     // given the date and filename formats sorting by date is equivalent to sorting by name
     files.sorted
-  }
 }

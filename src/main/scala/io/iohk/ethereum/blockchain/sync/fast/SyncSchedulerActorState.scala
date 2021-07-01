@@ -2,12 +2,17 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{ProcessingStatistics, SchedulerState}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{PeerRequest, RequestResult}
-import io.iohk.ethereum.network.{Peer, PeerId}
 
 import scala.collection.immutable.Queue
+
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.ProcessingStatistics
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.PeerRequest
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.RequestResult
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
 
 case class SyncSchedulerActorState(
     currentSchedulerState: SchedulerState,
@@ -29,29 +34,24 @@ case class SyncSchedulerActorState(
       newSchedulerState: SchedulerState,
       newDownloaderState: DownloaderState,
       newStats: ProcessingStatistics
-  ): SyncSchedulerActorState = {
+  ): SyncSchedulerActorState =
     copy(
       currentSchedulerState = newSchedulerState,
       currentDownloaderState = newDownloaderState,
       currentStats = newStats
     )
-  }
 
-  def withNewDownloaderState(newDownloaderState: DownloaderState): SyncSchedulerActorState = {
+  def withNewDownloaderState(newDownloaderState: DownloaderState): SyncSchedulerActorState =
     copy(currentDownloaderState = newDownloaderState)
-  }
 
-  def withRestartRequested(restartRequester: ActorRef): SyncSchedulerActorState = {
+  def withRestartRequested(restartRequester: ActorRef): SyncSchedulerActorState =
     copy(restartRequested = Some(restartRequester))
-  }
 
-  def initProcessing: SyncSchedulerActorState = {
+  def initProcessing: SyncSchedulerActorState =
     copy(processing = true)
-  }
 
-  def finishProcessing: SyncSchedulerActorState = {
+  def finishProcessing: SyncSchedulerActorState =
     copy(processing = false)
-  }
 
   def assignTasksToPeers(
       freePeers: NonEmptyList[Peer],
@@ -69,11 +69,10 @@ case class SyncSchedulerActorState(
     (requests, copy(currentSchedulerState = newState, currentDownloaderState = newDownloaderState))
   }
 
-  def getRequestToProcess: Option[(RequestResult, SyncSchedulerActorState)] = {
+  def getRequestToProcess: Option[(RequestResult, SyncSchedulerActorState)] =
     nodesToProcess.dequeueOption.map { case (result, restOfResults) =>
       (result, copy(nodesToProcess = restOfResults))
     }
-  }
 
   def numberOfRemainingRequests: Int = nodesToProcess.size
 
@@ -81,7 +80,7 @@ case class SyncSchedulerActorState(
 
   def activePeerRequests: Map[PeerId, NonEmptyList[ByteString]] = currentDownloaderState.activeRequests
 
-  override def toString: String = {
+  override def toString: String =
     s""" Status of mpt state sync:
        | Number of Pending requests: ${currentSchedulerState.numberOfPendingRequests},
        | Number of Missing hashes waiting to be retrieved: ${currentSchedulerState.queue.size()},
@@ -91,7 +90,6 @@ case class SyncSchedulerActorState(
        | Number of not requested hashes: ${currentStats.notRequestedHashes},
        | Number of active peer requests: ${currentDownloaderState.activeRequests.size}
                         """.stripMargin
-  }
 }
 
 object SyncSchedulerActorState {
@@ -100,7 +98,7 @@ object SyncSchedulerActorState {
       initialStats: ProcessingStatistics,
       targetBlock: BigInt,
       syncInitiator: ActorRef
-  ): SyncSchedulerActorState = {
+  ): SyncSchedulerActorState =
     SyncSchedulerActorState(
       initialSchedulerState,
       DownloaderState(),
@@ -112,5 +110,4 @@ object SyncSchedulerActorState {
       restartRequested = None
     )
 
-  }
 }

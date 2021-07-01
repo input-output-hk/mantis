@@ -1,27 +1,35 @@
 package io.iohk.ethereum.network.rlpx
 
-import java.net.{InetSocketAddress, URI}
-import akka.actor.{ActorRef, ActorSystem, Props}
+import java.net.InetSocketAddress
+import java.net.URI
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.io.Tcp
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
-import io.iohk.ethereum.{Timeouts, WithActorSystemShutDown}
-import io.iohk.ethereum.network.p2p.{MessageDecoder, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Hello, Ping}
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.{
-  HelloCodec,
-  InitialHelloReceived,
-  MessageReceived,
-  RLPxConfiguration
-}
-import io.iohk.ethereum.security.SecureRandomBuilder
-import org.scalamock.scalatest.MockFactory
 
 import scala.concurrent.duration.FiniteDuration
+
+import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.network.p2p.MessageDecoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.HelloCodec
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.InitialHelloReceived
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.security.SecureRandomBuilder
 
 class RLPxConnectionHandlerSpec
     extends TestKit(ActorSystem("RLPxConnectionHandlerSpec_System"))
@@ -180,14 +188,14 @@ class RLPxConnectionHandlerSpec
   trait TestSetup extends MockFactory with SecureRandomBuilder {
 
     //Mock parameters for RLPxConnectionHandler
-    val mockMessageDecoder = new MessageDecoder {
+    val mockMessageDecoder: MessageDecoder = new MessageDecoder {
       override def fromBytes(`type`: Int, payload: Array[Byte]) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
     val protocolVersion = ProtocolVersions.ETH63
-    val mockHandshaker = mock[AuthHandshaker]
-    val connection = TestProbe()
-    val mockMessageCodec = mock[MessageCodec]
+    val mockHandshaker: AuthHandshaker = mock[AuthHandshaker]
+    val connection: TestProbe = TestProbe()
+    val mockMessageCodec: MessageCodec = mock[MessageCodec]
     val mockHelloExtractor: HelloCodec = mock[HelloCodec]
 
     val uri = new URI(
@@ -195,16 +203,16 @@ class RLPxConnectionHandlerSpec
     )
     val inetAddress = new InetSocketAddress(uri.getHost, uri.getPort)
 
-    val rlpxConfiguration = new RLPxConfiguration {
+    val rlpxConfiguration: RLPxConfiguration = new RLPxConfiguration {
       override val waitForTcpAckTimeout: FiniteDuration = Timeouts.normalTimeout
 
       //unused
       override val waitForHandshakeTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
-    val tcpActorProbe = TestProbe()
-    val rlpxConnectionParent = TestProbe()
-    val rlpxConnection = TestActorRef(
+    val tcpActorProbe: TestProbe = TestProbe()
+    val rlpxConnectionParent: TestProbe = TestProbe()
+    val rlpxConnection: TestActorRef[Nothing] = TestActorRef(
       Props(
         new RLPxConnectionHandler(
           protocolVersion :: Nil,
@@ -218,7 +226,7 @@ class RLPxConnectionHandlerSpec
       ),
       rlpxConnectionParent.ref
     )
-    rlpxConnectionParent watch rlpxConnection
+    rlpxConnectionParent.watch(rlpxConnection)
 
     //Setup for RLPxConnection, after it the RLPxConnectionHandler is in a handshaked state
     def setupIncomingRLPxConnection(): Unit = {
@@ -235,7 +243,7 @@ class RLPxConnectionHandlerSpec
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockHelloExtractor.readHello _)
         .expects(ByteString.empty)
-        .returning(Some(Hello(5, "", Capabilities.Eth63Capability :: Nil, 30303, ByteString("abc")), Seq.empty))
+        .returning(Some((Hello(5, "", Capabilities.Eth63Capability :: Nil, 30303, ByteString("abc")), Seq.empty)))
       (mockMessageCodec.readMessages _)
         .expects(hello)
         .returning(Nil) //For processing of messages after handshaking finishes

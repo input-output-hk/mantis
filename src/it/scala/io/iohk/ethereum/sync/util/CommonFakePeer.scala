@@ -1,51 +1,74 @@
 package io.iohk.ethereum.sync.util
 
+import java.net.InetSocketAddress
 import java.nio.file.Files
+import java.nio.file.Path
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-import akka.actor.{ActorRef, ActorSystem}
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import akka.util.Timeout
+
+import monix.eval.Task
+
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
+import io.iohk.ethereum.blockchain.sync.TestSyncConfig
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.blockchain.sync.regular.{BlockBroadcast, BlockBroadcasterActor}
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
-import io.iohk.ethereum.blockchain.sync.{BlockchainHostActor, CacheBasedBlacklist, TestSyncConfig}
-import io.iohk.ethereum.db.components.{RocksDbDataSourceComponent, Storages}
-import io.iohk.ethereum.db.dataSource.{RocksDbConfig, RocksDbDataSource}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.db.storage.{AppStateStorage, Namespaces}
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainImpl, BlockchainReader, ChainWeight, UInt256}
-import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.db.components.RocksDbDataSourceComponent
+import io.iohk.ethereum.db.components.Storages
+import io.iohk.ethereum.db.dataSource.RocksDbConfig
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.Namespaces
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.ForkResolver
+import io.iohk.ethereum.network.KnownNodesManager
+import io.iohk.ethereum.network.PeerEventBusActor
+import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerStatisticsActor
+import io.iohk.ethereum.network.ServerActor
+import io.iohk.ethereum.network.discovery.DiscoveryConfig
+import io.iohk.ethereum.network.discovery.Node
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager.DiscoveredNodesInfo
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration, Handshaker}
-import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.handshaker.EtcHandshaker
+import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
+import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{
-  EtcPeerManagerActor,
-  ForkResolver,
-  KnownNodesManager,
-  PeerEventBusActor,
-  PeerManagerActor,
-  PeerStatisticsActor,
-  ServerActor
-}
 import io.iohk.ethereum.nodebuilder.PruningConfigBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.utils.ServerStatus.Listening
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
-import io.iohk.ethereum.{Fixtures, Timeouts}
-import monix.eval.Task
-
-import scala.concurrent.duration.{FiniteDuration, _}
 
 abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
     extends SecureRandomBuilder
@@ -56,13 +79,13 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   import scala.language.postfixOps
 
-  implicit val clock = Clock.systemUTC()
+  implicit val clock: Clock = Clock.systemUTC()
 
-  implicit val system = ActorSystem(peerName)
+  implicit val system: ActorSystem = ActorSystem(peerName)
 
-  val peerDiscoveryManager = TestProbe().ref
+  val peerDiscoveryManager: ActorRef = TestProbe().ref
 
-  val nodeKey = io.iohk.ethereum.crypto.generateKeyPair(secureRandom)
+  val nodeKey: AsymmetricCipherKeyPair = io.iohk.ethereum.crypto.generateKeyPair(secureRandom)
 
   private val nodeStatus =
     NodeStatus(
@@ -71,9 +94,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       discoveryStatus = ServerStatus.NotListening
     )
 
-  lazy val tempDir = Files.createTempDirectory("temp-fast-sync")
+  lazy val tempDir: Path = Files.createTempDirectory("temp-fast-sync")
 
-  def getRockDbTestConfig(dbPath: String) = {
+  def getRockDbTestConfig(dbPath: String): RocksDbConfig =
     new RocksDbConfig {
       override val createIfMissing: Boolean = true
       override val paranoidChecks: Boolean = false
@@ -85,51 +108,48 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override val blockSize: Long = 16384
       override val blockCacheSize: Long = 33554432
     }
-  }
 
   sealed trait LocalPruningConfigBuilder extends PruningConfigBuilder {
     override lazy val pruningMode: PruningMode = ArchivePruning
   }
 
   lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
-  lazy val storagesInstance = new RocksDbDataSourceComponent
-    with LocalPruningConfigBuilder
-    with Storages.DefaultStorages {
-    override lazy val dataSource: RocksDbDataSource =
-      RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
-  }
+  lazy val storagesInstance: RocksDbDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages =
+    new RocksDbDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages {
+      override lazy val dataSource: RocksDbDataSource =
+        RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
+    }
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
-  lazy val discoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
+  lazy val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
-  /**
-    * Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
+  /** Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when
     * it is persisted in storage.
     */
-  lazy val knownNodesManagerConfig =
+  lazy val knownNodesManagerConfig: KnownNodesManager.KnownNodesManagerConfig =
     KnownNodesManager.KnownNodesManagerConfig(config).copy(persistInterval = 1.seconds)
 
-  lazy val knownNodesManager = system.actorOf(
+  lazy val knownNodesManager: ActorRef = system.actorOf(
     KnownNodesManager.props(
       knownNodesManagerConfig,
       storagesInstance.storages.knownNodesStorage
     )
   )
 
-  val blockchainReader = BlockchainReader(storagesInstance.storages)
-  val bl = BlockchainImpl(storagesInstance.storages, blockchainReader)
+  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
-  val genesis = Block(
+  val genesis: Block = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
     Fixtures.Blocks.Genesis.body
   )
-  val genesisWeight = ChainWeight.zero.increase(genesis.header)
+  val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesis.header)
 
   bl.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val nh = nodeStatusHolder
 
-  val peerConf = new PeerConfiguration {
+  val peerConf: PeerConfiguration = new PeerConfiguration {
     override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
       val maxBlocksHeadersPerMessage: Int = fakePeerCustomConfig.hostConfig.maxBlocksHeadersPerMessage
       val maxBlocksBodiesPerMessage: Int = fakePeerCustomConfig.hostConfig.maxBlocksBodiesPerMessage
@@ -162,7 +182,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     override val statSlotCount: Int = 30
   }
 
-  lazy val peerEventBus = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
+  lazy val peerEventBus: ActorRef = system.actorOf(PeerEventBusActor.props, "peer-event-bus")
 
   private val handshakerConfiguration: EtcHandshakerConfiguration =
     new EtcHandshakerConfiguration {
@@ -179,7 +199,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   lazy val authHandshaker: AuthHandshaker = AuthHandshaker(nodeKey, secureRandom)
 
-  lazy val peerStatistics =
+  lazy val peerStatistics: ActorRef =
     system.actorOf(PeerStatisticsActor.props(peerEventBus, slotDuration = 1.minute, slotCount = 30))
 
   lazy val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(1000)
@@ -214,14 +234,14 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   lazy val server: ActorRef = system.actorOf(ServerActor.props(nodeStatusHolder, peerManager), "server")
 
-  val listenAddress = randomAddress()
+  val listenAddress: InetSocketAddress = randomAddress()
 
-  lazy val node =
+  lazy val node: Node =
     Node(ByteString(nodeStatus.nodeId), listenAddress.getAddress, listenAddress.getPort, listenAddress.getPort)
 
-  lazy val vmConfig = VmConfig(Config.config)
+  lazy val vmConfig: VmConfig = VmConfig(Config.config)
 
-  val testSyncConfig = syncConfig.copy(
+  val testSyncConfig: Config.SyncConfig = syncConfig.copy(
     minPeersToChoosePivotBlock = 1,
     peersScanInterval = 5.milliseconds,
     blockHeadersPerRequest = 200,
@@ -239,11 +259,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   lazy val broadcaster = new BlockBroadcast(etcPeerManager)
 
-  lazy val broadcasterActor = system.actorOf(
+  lazy val broadcasterActor: ActorRef = system.actorOf(
     BlockBroadcasterActor.props(broadcaster, peerEventBus, etcPeerManager, blacklist, testSyncConfig, system.scheduler)
   )
 
-  private def getMptForBlock(block: Block) = {
+  private def getMptForBlock(block: Block) =
     InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       bl.getBackingMptStorage(block.number),
@@ -253,11 +273,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       noEmptyAccounts = EvmConfig.forBlock(block.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
-  }
 
-  private def broadcastBlock(block: Block, weight: ChainWeight) = {
+  private def broadcastBlock(block: Block, weight: ChainWeight) =
     broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
-  }
 
   def getCurrentState(): BlockchainState = {
     val bestBlock = bl.getBestBlock().get
@@ -266,7 +284,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     BlockchainState(bestBlock, currentWorldState, currentWeight)
   }
 
-  def startPeer(): Task[Unit] = {
+  def startPeer(): Task[Unit] =
     for {
       _ <- Task {
         peerManager ! PeerManagerActor.StartConnecting
@@ -276,16 +294,14 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
         status.serverStatus == Listening(listenAddress)
       }
     } yield ()
-  }
 
-  def shutdown(): Task[Unit] = {
+  def shutdown(): Task[Unit] =
     for {
       _ <- Task.deferFuture(system.terminate())
       _ <- Task(storagesInstance.dataSource.destroy())
     } yield ()
-  }
 
-  def connectToPeers(nodes: Set[Node]): Task[Unit] = {
+  def connectToPeers(nodes: Set[Node]): Task[Unit] =
     for {
       _ <- Task {
         peerManager ! DiscoveredNodesInfo(nodes)
@@ -297,7 +313,6 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
           requestedNodes.subsetOf(currentNodes)
       }
     } yield ()
-  }
 
   private def createChildBlock(parent: Block, parentWeight: ChainWeight, parentWorld: InMemoryWorldStateProxy)(
       updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
@@ -313,7 +328,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
 
   private def generateInvalidBlock(
       currentBestBlock: Block
-  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task {
       val currentWorld = getMptForBlock(currentBestBlock)
 
@@ -333,11 +348,10 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       broadcastBlock(childBlock, newWeight)
       bl.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
     }
-  }
 
   private def generateValidBlock(
       currentBestBlock: Block
-  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task {
       val currentWeight = bl.getChainWeightByHash(currentBestBlock.hash).get
       val currentWorld = getMptForBlock(currentBestBlock)
@@ -346,11 +360,10 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
       broadcastBlock(newBlock, newWeight)
     }
-  }
 
   def importBlocksUntil(
       n: BigInt
-  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task(bl.getBestBlock()).flatMap { block =>
       if (block.get.number >= n) {
         Task(())
@@ -358,12 +371,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
         generateValidBlock(block.get)(updateWorldForBlock).flatMap(_ => importBlocksUntil(n)(updateWorldForBlock))
       }
     }
-  }
 
   def importInvalidBlocks(
       from: BigInt,
       to: BigInt
-  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task(bl.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
@@ -378,12 +390,11 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       }
 
     }
-  }
 
   def importInvalidBlockNumbers(
       from: BigInt,
       to: BigInt
-  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+  )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task(bl.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
@@ -396,6 +407,5 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       }
 
     }
-  }
 
 }

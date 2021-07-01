@@ -1,6 +1,7 @@
 package io.iohk.ethereum.db.components
 
-import io.iohk.ethereum.db.cache.{AppCaches, LruCache}
+import io.iohk.ethereum.db.cache.AppCaches
+import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.PruningMode

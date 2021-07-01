@@ -2,28 +2,39 @@ package io.iohk.ethereum.transactions
 
 import java.net.InetSocketAddress
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, SignedTransaction, SignedTransactionWithSender, Transaction}
-import io.iohk.ethereum.security.SecureRandomBuilder
+
+import scala.concurrent.duration._
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SignedTransactionWithSender
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId, PeerManagerActor}
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
-import io.iohk.ethereum.{NormalPatience, Timeouts, crypto}
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 import io.iohk.ethereum.utils.TxPoolConfig
-import org.scalatest.concurrent.ScalaFutures
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
-import scala.concurrent.duration._
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
@@ -200,12 +211,12 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
   }
 
   trait TestSetup extends SecureRandomBuilder {
-    implicit val system = ActorSystem("test-system")
+    implicit val system: ActorSystem = ActorSystem("test-system")
 
-    val keyPair1 = crypto.generateKeyPair(secureRandom)
-    val keyPair2 = crypto.generateKeyPair(secureRandom)
+    val keyPair1: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
+    val keyPair2: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
 
-    val tx = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
+    val tx: Transaction = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
 
     def newStx(
         nonce: BigInt = 0,
@@ -214,14 +225,14 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     ): SignedTransactionWithSender =
       SignedTransaction.sign(tx, keyPair, Some(0x3d))
 
-    val peer1TestProbe = TestProbe()
-    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)
-    val peer2TestProbe = TestProbe()
-    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, false)
-    val peer3TestProbe = TestProbe()
-    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, false)
+    val peer1TestProbe: TestProbe = TestProbe()
+    val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)
+    val peer2TestProbe: TestProbe = TestProbe()
+    val peer2: Peer = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 9000), peer2TestProbe.ref, false)
+    val peer3TestProbe: TestProbe = TestProbe()
+    val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.3", 9000), peer3TestProbe.ref, false)
 
-    val txPoolConfig = new TxPoolConfig {
+    val txPoolConfig: TxPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 300
 
       //unused
@@ -230,10 +241,10 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
       override val getTransactionFromPoolTimeout: FiniteDuration = Timeouts.veryLongTimeout
     }
 
-    val peerManager = TestProbe()
-    val etcPeerManager = TestProbe()
-    val peerMessageBus = TestProbe()
-    val pendingTransactionsManager = system.actorOf(
+    val peerManager: TestProbe = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
+    val pendingTransactionsManager: ActorRef = system.actorOf(
       PendingTransactionsManager.props(txPoolConfig, peerManager.ref, etcPeerManager.ref, peerMessageBus.ref)
     )
   }

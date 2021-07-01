@@ -1,16 +1,19 @@
 package io.iohk.ethereum
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.URL
 import java.nio.file._
-import java.security.{DigestInputStream, MessageDigest}
+import java.security.DigestInputStream
+import java.security.MessageDigest
 import java.util.zip.ZipInputStream
 
-import io.iohk.ethereum.utils.Logger
 import org.bouncycastle.util.encoders.Hex
 
-/**
-  * A facility to
+import io.iohk.ethereum.utils.Logger
+
+/** A facility to
   * - check the download location for a minimum amount of free space
   * - download a zip from a URL and generate SHA-512 checksum
   * - check the checksum
@@ -19,7 +22,7 @@ import org.bouncycastle.util.encoders.Hex
   */
 object BootstrapDownload extends Logger {
 
-  val bufferSize = 4 * 1024
+  val bufferSize: Int = 4 * 1024
   val leveldbFolderName = "leveldb"
 
   private def assertAndLog(cond: Boolean, msg: String): Unit = {
@@ -51,9 +54,7 @@ object BootstrapDownload extends Logger {
       } finally (out.close())
       Hex.toHexString(sha512.digest)
 
-    } finally {
-      dis.close()
-    }
+    } finally dis.close()
   }
 
   def unzip(zipFile: File, destination: Path): Unit = {
@@ -61,31 +62,28 @@ object BootstrapDownload extends Logger {
     val in = new FileInputStream(zipFile)
     try {
       val zis = new ZipInputStream(in)
-      try {
-        Iterator.continually(zis.getNextEntry).takeWhile(_ != null).foreach { file =>
-          if (!file.isDirectory) {
-            val outPath = destination.resolve(file.getName)
-            val outPathParent = outPath.getParent
-            if (!outPathParent.toFile.exists()) {
-              outPathParent.toFile.mkdirs()
-            }
-
-            val outFile = outPath.toFile
-            val out = new FileOutputStream(outFile)
-            try {
-              val buffer = new Array[Byte](bufferSize)
-              Iterator.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
-            } finally (out.close())
+      try Iterator.continually(zis.getNextEntry).takeWhile(_ != null).foreach { file =>
+        if (!file.isDirectory) {
+          val outPath = destination.resolve(file.getName)
+          val outPathParent = outPath.getParent
+          if (!outPathParent.toFile.exists()) {
+            outPathParent.toFile.mkdirs()
           }
+
+          val outFile = outPath.toFile
+          val out = new FileOutputStream(outFile)
+          try {
+            val buffer = new Array[Byte](bufferSize)
+            Iterator.continually(zis.read(buffer)).takeWhile(_ != -1).foreach(out.write(buffer, 0, _))
+          } finally (out.close())
         }
       } finally (zis.close())
     } finally (in.close())
   }
 
-  def deleteDownloadedFile(downloadedFile: File): Unit = {
+  def deleteDownloadedFile(downloadedFile: File): Unit =
     if (downloadedFile.delete()) log.info(s"Downloaded file $downloadedFile successfully deleted")
     else log.info(s"Failed to delete downloaded file $downloadedFile")
-  }
 
   // scalastyle:off method.length
   def main(args: Array[String]): Unit = {

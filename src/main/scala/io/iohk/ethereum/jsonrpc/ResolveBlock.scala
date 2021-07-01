@@ -1,8 +1,8 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 sealed trait BlockParam
 
@@ -20,24 +20,22 @@ trait ResolveBlock {
   def blockchainReader: BlockchainReader
   def consensus: Consensus
 
-  def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
+  def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] =
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => getBlock(blockNumber).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Earliest => getBlock(0).map(ResolvedBlock(_, pendingState = None))
-      case BlockParam.Latest => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Earliest                => getBlock(0).map(ResolvedBlock(_, pendingState = None))
+      case BlockParam.Latest                  => getLatestBlock().map(ResolvedBlock(_, pendingState = None))
       case BlockParam.Pending =>
         consensus.blockGenerator.getPendingBlockAndState
           .map(pb => ResolvedBlock(pb.pendingBlock.block, pendingState = Some(pb.worldState)))
           .map(Right.apply)
           .getOrElse(resolveBlock(BlockParam.Latest)) //Default behavior in other clients
     }
-  }
 
-  private def getBlock(number: BigInt): Either[JsonRpcError, Block] = {
+  private def getBlock(number: BigInt): Either[JsonRpcError, Block] =
     blockchainReader
       .getBlockByNumber(number)
       .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
-  }
 
   private def getLatestBlock(): Either[JsonRpcError, Block] =
     blockchain

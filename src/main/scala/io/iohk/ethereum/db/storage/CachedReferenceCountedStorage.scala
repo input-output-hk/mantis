@@ -3,16 +3,19 @@ package io.iohk.ethereum.db.storage
 import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import boopickle.Default._
-import com.google.common.cache.RemovalNotification
-import io.iohk.ethereum.db.cache.Cache
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.mpt.{ByteArraySerializable, NodesKeyValueStorage}
 
 import scala.collection.mutable
 
-/**
-  * In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
+import boopickle.Default._
+import com.google.common.cache.RemovalNotification
+
+import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
+
+/** In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
   * There are two occasions where node is saved to disk:
   *   1 - When cache becomes full, least recently used nodes are flushed to disk. In normal operation, these nodes
   *       have already survived several pruning cycles, and still have references pointing at them, which makes them
@@ -36,7 +39,7 @@ class CachedReferenceCountedStorage(
     bn: BigInt
 ) extends NodesKeyValueStorage {
 
-  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
+  def get(nodeHash: NodeHash): Option[NodeEncoded] =
     cache
       .get(nodeHash)
       .fold {
@@ -45,7 +48,6 @@ class CachedReferenceCountedStorage(
           entry.nodeEncoded
         }
       }(entry => Some(entry.nodeEncoded))
-  }
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     changeLog.withChangeLog(bn) { blockChangeLog =>
@@ -96,7 +98,7 @@ object CachedReferenceCountedStorage {
 
   def persistCache[V](cache: Cache[ByteString, V], storage: NodeStorage, forced: Boolean = false)(implicit
       ser: ByteArraySerializable[V]
-  ): Boolean = {
+  ): Boolean =
     if (cache.shouldPersist || forced) {
       val values = cache.getValues
       val serialized = values.map { case (key, value) => key -> ser.toBytes(value) }
@@ -106,7 +108,6 @@ object CachedReferenceCountedStorage {
     } else {
       false
     }
-  }
 
   def prune(deathRow: List[NodeHash], cache: Cache[NodeHash, HeapEntry], blockToPrune: BigInt): Unit = {
     val toDelFromCache = getNodesToPruneInCache(cache, deathRow, blockToPrune)
@@ -125,15 +126,16 @@ object CachedReferenceCountedStorage {
       val nodeHash = update.hash
 
       val currentState =
-        newState.get(nodeHash) orElse
-          cache.get(nodeHash).map((_, false)) orElse
-          nodeStorage.get(nodeHash).map(HeapEntry.fromBytes).map((_, false))
+        newState
+          .get(nodeHash)
+          .orElse(cache.get(nodeHash).map((_, false)))
+          .orElse(nodeStorage.get(nodeHash).map(HeapEntry.fromBytes).map((_, false)))
 
       currentState.foreach { case (current, deletable) =>
         val reversedState = update match {
           case Increase(_) => (current.decrementParents(newBestAfterRollback), deletable)
           case Decrease(_) => (current.incrementParents(newBestAfterRollback), deletable)
-          case New(_) => (current.decrementParents(newBestAfterRollback), true)
+          case New(_)      => (current.decrementParents(newBestAfterRollback), true)
         }
         newState += nodeHash -> reversedState
       }
@@ -144,15 +146,14 @@ object CachedReferenceCountedStorage {
 
   private def gatherCacheUpdates(
       previousState: Map[NodeHash, (HeapEntry, Boolean)]
-  ): (List[NodeHash], List[(NodeHash, HeapEntry)]) = {
-    previousState.foldLeft(List.empty[NodeHash], List.empty[(NodeHash, HeapEntry)]) {
+  ): (List[NodeHash], List[(NodeHash, HeapEntry)]) =
+    previousState.foldLeft((List.empty[NodeHash], List.empty[(NodeHash, HeapEntry)])) {
       case ((toDel, toUpdate), (entryKey, (entryValue, deletable))) =>
         if (entryValue.numOfParents == 0 && deletable)
           (entryKey :: toDel, toUpdate)
         else
           (toDel, (entryKey, entryValue) :: toUpdate)
     }
-  }
 
   def rollback(
       cache: Cache[NodeHash, HeapEntry],
@@ -178,11 +179,15 @@ object CachedReferenceCountedStorage {
 class NoHistoryCachedReferenceCountedStorage(nodeStorage: NodeStorage, cache: Cache[ByteString, HeapEntry], bn: BigInt)
     extends NodesKeyValueStorage {
 
-  def get(nodeHash: NodeHash): Option[NodeEncoded] = {
-    cache.get(nodeHash).map(_.nodeEncoded) orElse nodeStorage
+  def get(nodeHash: NodeHash): Option[NodeEncoded] =
+    cache
       .get(nodeHash)
-      .map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
-  }
+      .map(_.nodeEncoded)
+      .orElse(
+        nodeStorage
+          .get(nodeHash)
+          .map(enc => HeapEntry.fromBytes(enc).nodeEncoded)
+      )
 
   def update(toRemove: Seq[ByteString], toUpsert: Seq[(ByteString, NodeEncoded)]): NodesKeyValueStorage = {
     toUpsert.foreach { case (key, value) =>
@@ -203,13 +208,11 @@ import io.iohk.ethereum.utils.ByteUtils._
 
 final case class HeapEntry(nodeEncoded: NodeEncoded, numOfParents: Int, bn: BigInt) {
 
-  def incrementParents(incrementationBlock: BigInt): HeapEntry = {
+  def incrementParents(incrementationBlock: BigInt): HeapEntry =
     copy(numOfParents = numOfParents + 1, bn = incrementationBlock)
-  }
 
-  def decrementParents(decrementationBlock: BigInt): HeapEntry = {
+  def decrementParents(decrementationBlock: BigInt): HeapEntry =
     copy(numOfParents = numOfParents - 1, bn = decrementationBlock)
-  }
 }
 
 object HeapEntry {
@@ -217,15 +220,13 @@ object HeapEntry {
 
   implicit val HeapEntryPickler: Pickler[HeapEntry] = generatePickler[HeapEntry]
 
-  def toBytes(entry: HeapEntry): Array[Byte] = {
+  def toBytes(entry: HeapEntry): Array[Byte] =
     compactPickledBytes(Pickle.intoBytes(entry)).toArray[Byte]
-  }
 
-  def fromBytes(asbytes: Array[Byte]): HeapEntry = {
+  def fromBytes(asbytes: Array[Byte]): HeapEntry =
     Unpickle[HeapEntry].fromBytes(ByteBuffer.wrap(asbytes))
-  }
 
-  implicit val heapEntrySerializer = new ByteArraySerializable[HeapEntry] {
+  implicit val heapEntrySerializer: ByteArraySerializable[HeapEntry] = new ByteArraySerializable[HeapEntry] {
     override def toBytes(input: HeapEntry): Array[Byte] = HeapEntry.toBytes(input)
     override def fromBytes(bytes: Array[Byte]): HeapEntry = HeapEntry.fromBytes(bytes)
   }
@@ -249,7 +250,7 @@ object Update {
 class ChangeLog(nodeStorage: NodeStorage) {
   private val logs = mutable.Map.empty[BigInt, BlockChangeLog]
 
-  def persistChangeLog(forBlock: BigInt): Unit = {
+  def persistChangeLog(forBlock: BigInt): Unit =
     logs.get(forBlock).foreach { changeLog =>
       nodeStorage.update(
         Nil,
@@ -260,7 +261,6 @@ class ChangeLog(nodeStorage: NodeStorage) {
       )
       logs.remove(forBlock)
     }
-  }
 
   def withChangeLog(bn: BigInt)(updates: BlockChangeLog => Unit): Unit = {
     val changeLog = getChangeLogForBlock(bn)
@@ -268,7 +268,7 @@ class ChangeLog(nodeStorage: NodeStorage) {
     logs.update(bn, changeLog)
   }
 
-  def getChangeLogForBlock(bn: BigInt): BlockChangeLog = {
+  def getChangeLogForBlock(bn: BigInt): BlockChangeLog =
     logs.getOrElse(
       bn, {
         val newChangeLog = new BlockChangeLog(List.empty, Set.empty)
@@ -276,19 +276,15 @@ class ChangeLog(nodeStorage: NodeStorage) {
         newChangeLog
       }
     )
-  }
 
-  def removeBlockMetaData(bn: BigInt): Unit = {
+  def removeBlockMetaData(bn: BigInt): Unit =
     nodeStorage.update(Seq(ChangeLog.getLogKey(bn), ChangeLog.getDrwKey(bn)), Nil)
-  }
 
-  def getChangeLogFromStorage(bn: BigInt): Option[List[Update]] = {
+  def getChangeLogFromStorage(bn: BigInt): Option[List[Update]] =
     nodeStorage.get(ChangeLog.getLogKey(bn)).map(ChangeLog.deserializeChangeLog)
-  }
 
-  def getDeathRowFromStorage(bn: BigInt): Option[List[NodeHash]] = {
+  def getDeathRowFromStorage(bn: BigInt): Option[List[NodeHash]] =
     nodeStorage.get(ChangeLog.getDrwKey(bn)).map(ChangeLog.deserializeDeathRow)
-  }
 }
 
 object ChangeLog {

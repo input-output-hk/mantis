@@ -2,12 +2,14 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.vm.MockWorldState._
 
 class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
@@ -137,7 +139,7 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
   trait TestSetup {
     val vm = new TestVM
 
-    val blockHeader = BlockFixtures.ValidBlock.header.copy(
+    val blockHeader: BlockHeader = BlockFixtures.ValidBlock.header.copy(
       difficulty = 1000000,
       number = 1,
       gasLimit = 10000000,
@@ -145,7 +147,7 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
       unixTimestamp = 0
     )
 
-    val evmBlockchainConfig = BlockchainConfigForEvm(
+    val evmBlockchainConfig: BlockchainConfigForEvm = BlockchainConfigForEvm(
       frontierBlockNumber = Long.MaxValue,
       homesteadBlockNumber = Long.MaxValue,
       eip150BlockNumber = Long.MaxValue,
@@ -163,12 +165,12 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
       chainId = 0x3d.toByte
     )
 
-    val homesteadConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(homesteadBlockNumber = 0))
-    val eip161Config = EvmConfig.forBlock(0, evmBlockchainConfig.copy(eip161BlockNumber = 0))
+    val homesteadConfig: EvmConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(homesteadBlockNumber = 0))
+    val eip161Config: EvmConfig = EvmConfig.forBlock(0, evmBlockchainConfig.copy(eip161BlockNumber = 0))
 
-    val senderAddr = Address(0xcafebabeL)
-    val senderAcc = Account(nonce = 1, balance = 1000000)
-    def defaultWorld = MockWorldState().saveAccount(senderAddr, senderAcc)
+    val senderAddr: Address = Address(0xcafebabeL)
+    val senderAcc: Account = Account(nonce = 1, balance = 1000000)
+    def defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
     def getContext(
         recipientAddr: Option[Address],
@@ -198,10 +200,10 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
   }
 
   trait MessageCall extends TestSetup {
-    val recipientAddr = Some(Address(0xdeadbeefL))
-    val recipientAcc = Account(nonce = 1)
+    val recipientAddr: Some[Address] = Some(Address(0xdeadbeefL))
+    val recipientAcc: Account = Account(nonce = 1)
 
-    override val defaultWorld = super.defaultWorld.saveAccount(recipientAddr.get, recipientAcc)
+    override val defaultWorld: MockWorldState = super.defaultWorld.saveAccount(recipientAddr.get, recipientAcc)
 
     def getContext(world: MockWorldState = defaultWorld, inputData: ByteString = bEmpty): PC =
       getContext(recipientAddr, world, inputData, homesteadConfig)
@@ -210,7 +212,7 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
   trait ContractCreation extends TestSetup {
     val recipientAddr = None
 
-    val expectedNewAddress = defaultWorld.createAddress(senderAddr)
+    val expectedNewAddress: Address = defaultWorld.createAddress(senderAddr)
 
     val storedValue = 42
     val secondStoredValue = 13

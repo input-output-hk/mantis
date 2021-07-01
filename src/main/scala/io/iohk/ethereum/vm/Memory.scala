@@ -1,8 +1,10 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.UInt256
+
 import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.domain.UInt256
 
 object Memory {
 
@@ -11,8 +13,7 @@ object Memory {
   private def zeros(size: Int): ByteString = ByteString(Array.fill[Byte](size)(0))
 }
 
-/**
-  * Volatile memory with 256 bit address space.
+/** Volatile memory with 256 bit address space.
   * Every mutating operation on a Memory returns a new updated copy of it.
   *
   * Related reading:
@@ -70,11 +71,10 @@ class Memory private (private val underlying: ByteString) {
     new Memory(newUnderlying)
   }
 
-  def load(offset: UInt256): (UInt256, Memory) = {
+  def load(offset: UInt256): (UInt256, Memory) =
     doLoad(offset, UInt256.Size) match {
       case (bs, memory) => (UInt256(bs), memory)
     }
-  }
 
   def load(offset: UInt256, size: UInt256): (ByteString, Memory) = doLoad(offset, size.toInt)
 
@@ -113,17 +113,15 @@ class Memory private (private val underlying: ByteString) {
     }
   }
 
-  /**
-    * @return memory size in bytes
+  /** @return memory size in bytes
     */
   def size: Int = underlying.size
 
-  override def equals(that: Any): Boolean = {
+  override def equals(that: Any): Boolean =
     that match {
       case that: Memory => this.underlying.equals(that.underlying)
-      case other => false
+      case _            => false
     }
-  }
 
   override def hashCode: Int = underlying.hashCode()
 

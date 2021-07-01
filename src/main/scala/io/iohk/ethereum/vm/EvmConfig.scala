@@ -1,11 +1,14 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
+import io.iohk.ethereum
+
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
-import EvmConfig._
-import io.iohk.ethereum
 import io.iohk.ethereum.vm
+
+import EvmConfig._
 
 // scalastyle:off magic.number
 object EvmConfig {
@@ -18,14 +21,12 @@ object EvmConfig {
     Int.MaxValue
   ) /* used to artificially limit memory usage by incurring maximum gas cost */
 
-  /**
-    * returns the evm config that should be used for given block
+  /** returns the evm config that should be used for given block
     */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfig): EvmConfig =
     forBlock(blockNumber, BlockchainConfigForEvm(blockchainConfig))
 
-  /**
-    * returns the evm config that should be used for given block
+  /** returns the evm config that should be used for given block
     */
   def forBlock(blockNumber: BigInt, blockchainConfig: BlockchainConfigForEvm): EvmConfig = {
     // FIXME manage etc/eth forks in a more sophisticated way [ETCM-249]
@@ -53,13 +54,13 @@ object EvmConfig {
     evmConfigBuilder(blockchainConfig)
   }
 
-  val FrontierOpCodes = OpCodeList(OpCodes.FrontierOpCodes)
-  val HomesteadOpCodes = OpCodeList(OpCodes.HomesteadOpCodes)
-  val ByzantiumOpCodes = OpCodeList(OpCodes.ByzantiumOpCodes)
+  val FrontierOpCodes: OpCodeList = OpCodeList(OpCodes.FrontierOpCodes)
+  val HomesteadOpCodes: OpCodeList = OpCodeList(OpCodes.HomesteadOpCodes)
+  val ByzantiumOpCodes: OpCodeList = OpCodeList(OpCodes.ByzantiumOpCodes)
   val AtlantisOpCodes = ByzantiumOpCodes
-  val ConstantinopleOpCodes = OpCodeList(OpCodes.ConstantinopleOpCodes)
+  val ConstantinopleOpCodes: OpCodeList = OpCodeList(OpCodes.ConstantinopleOpCodes)
   val AghartaOpCodes = ConstantinopleOpCodes
-  val PhoenixOpCodes = OpCodeList(OpCodes.PhoenixOpCodes)
+  val PhoenixOpCodes: OpCodeList = OpCodeList(OpCodes.PhoenixOpCodes)
 
   val FrontierConfigBuilder: EvmConfigBuilder = config =>
     EvmConfig(
@@ -158,8 +159,7 @@ case class EvmConfig(
   def byteToOpCode: Map[Byte, OpCode] =
     opCodeList.byteToOpCode
 
-  /**
-    * Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
+  /** Calculate gas cost of memory usage. Incur a blocking gas cost if memory usage exceeds reasonable limits.
     *
     * @param memSize  current memory size in bytes
     * @param offset   memory offset to be written/read
@@ -183,8 +183,7 @@ case class EvmConfig(
       c(memNeeded) - c(memSize)
   }
 
-  /**
-    * Calculates transaction intrinsic gas. See YP section 6.2
+  /** Calculates transaction intrinsic gas. See YP section 6.2
     */
   def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): BigInt = {
     val txDataZero = txData.count(_ == 0)
@@ -196,8 +195,7 @@ case class EvmConfig(
       G_transaction
   }
 
-  /**
-    * If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
+  /** If the initialization code completes successfully, a final contract-creation cost is paid, the code-deposit cost,
     * proportional to the size of the created contract’s code. See YP equation (96)
     *
     * @param executionResultData Transaction code initialization result
@@ -206,8 +204,7 @@ case class EvmConfig(
   def calcCodeDepositCost(executionResultData: ByteString): BigInt =
     G_codedeposit * executionResultData.size
 
-  /**
-    * a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
+  /** a helper method used for gas adjustment in CALL and CREATE opcode, see YP eq. (224)
     */
   def gasCap(g: BigInt): BigInt =
     subGasCapDivisor.map(d => g - g / d).getOrElse(g)

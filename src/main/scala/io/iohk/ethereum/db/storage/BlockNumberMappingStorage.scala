@@ -3,10 +3,11 @@ package io.iohk.ethereum.db.storage
 import java.math.BigInteger
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 
 import scala.collection.immutable.ArraySeq
+
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
 
 class BlockNumberMappingStorage(val dataSource: DataSource)
     extends TransactionalKeyValueStorage[BigInt, BlockHeaderHash] {

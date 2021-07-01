@@ -1,10 +1,15 @@
 package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
+
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError._
-import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.{OmmersError, OmmersValid}
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.BlockHeader
 
 class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends OmmersValidator {
@@ -37,8 +42,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
       ommers: Seq[BlockHeader],
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[OmmersError, OmmersValid] = {
-
+  ): Either[OmmersError, OmmersValid] =
     if (ommers.isEmpty)
       Right(OmmersValid)
     else
@@ -49,7 +53,6 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
         _ <- validateOmmersAncestors(parentHash, blockNumber, ommers, getNBlocksBack)
         _ <- validateOmmersNotUsed(parentHash, blockNumber, ommers, getNBlocksBack)
       } yield OmmersValid
-  }
 
   /** Validates ommers length based on validations stated in section 11.1 of the YP
     *
@@ -57,10 +60,9 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
     *
     * @return [[OmmersValidator.OmmersValid]] if valid, an [[OmmersValidator.OmmersError.OmmersLengthError]] otherwise
     */
-  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+  private def validateOmmersLength(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] =
     if (ommers.length <= OmmerSizeLimit) Right(OmmersValid)
     else Left(OmmersLengthError)
-  }
 
   /** Validates that each ommer's header is valid based on validations stated in section 11.1 of the YP
     *
@@ -142,10 +144,9 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
     * @param ommers the list of ommers to validate
     * @return [[OmmersValidator.OmmersValid]] if valid, an [[OmmersValidator.OmmersError.OmmersDuplicatedError]] otherwise
     */
-  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] = {
+  private def validateDuplicatedOmmers(ommers: Seq[BlockHeader]): Either[OmmersError, OmmersValid] =
     if (ommers.distinct.length == ommers.length) Right(OmmersValid)
     else Left(OmmersDuplicatedError)
-  }
 
   private def collectAncestors(
       parentHash: ByteString,

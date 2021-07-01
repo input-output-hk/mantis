@@ -2,12 +2,16 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
-import akka.actor.{Actor, ActorLogging, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
+import akka.actor.Scheduler
+
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
-
-import scala.concurrent.duration._
-import scala.concurrent.ExecutionContext.Implicits.global
 
 class KnownNodesManager(
     config: KnownNodesManagerConfig,
@@ -18,7 +22,7 @@ class KnownNodesManager(
 
   import KnownNodesManager._
 
-  private def scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  private def scheduler = externalSchedulerOpt.getOrElse(context.system.scheduler)
 
   var knownNodes: Set[URI] = knownNodesStorage.getKnownNodes()
 

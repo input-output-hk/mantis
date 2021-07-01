@@ -2,8 +2,7 @@ package io.iohk.ethereum.vm
 
 import io.iohk.ethereum.domain.UInt256
 
-/**
-  * Marker trait for errors that may occur during program execution
+/** Marker trait for errors that may occur during program execution
   */
 sealed trait ProgramError {
   val useWholeGas = true

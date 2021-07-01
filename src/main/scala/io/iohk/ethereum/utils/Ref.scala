@@ -2,11 +2,10 @@ package io.iohk.ethereum.utils
 
 import java.util.concurrent.atomic.AtomicReference
 
-/**
-  * An [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicReference.html AtomicReference]] that can be set once.
+/** An [[https://docs.oracle.com/javase/8/docs/api/java/util/concurrent/atomic/AtomicReference.html AtomicReference]] that can be set once.
   */
 class Ref[T <: AnyRef] {
-  private[this] final val ref = new AtomicReference[Option[T]](None)
+  final private[this] val ref = new AtomicReference[Option[T]](None)
 
   // set once (but not necessarily compute once)
   final def setOnce(t: => T): Boolean = ref.get().isEmpty && ref.compareAndSet(None, Some(t))

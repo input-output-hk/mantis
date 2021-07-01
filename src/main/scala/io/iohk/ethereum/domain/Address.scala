@@ -1,17 +1,19 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.mpt.ByteArrayEncoder
 import io.iohk.ethereum.utils.ByteUtils.padLeft
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.util.encoders.Hex
 
 object Address {
 
   val Length = 20
 
-  implicit val hashedAddressEncoder = new ByteArrayEncoder[Address] {
+  implicit val hashedAddressEncoder: ByteArrayEncoder[Address] = new ByteArrayEncoder[Address] {
     override def toBytes(addr: Address): Array[Byte] = crypto.kec256(addr.toArray)
   }
 
@@ -49,7 +51,7 @@ class Address private (val bytes: ByteString) {
 
   override def equals(that: Any): Boolean = that match {
     case addr: Address => addr.bytes == bytes
-    case _ => false
+    case _             => false
   }
 
   override def hashCode: Int =

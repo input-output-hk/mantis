@@ -1,11 +1,12 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.encoding._
 
-/**
-  * This class is specialization of ReferenceCountNodeStorage.
+/** This class is specialization of ReferenceCountNodeStorage.
   * It Uses the same serialization format as ReferenceCountNodeStorage, but omits all logic regarding reference counting.
   * It is possible to do that as during FastSyncing we are saving every mpt node under one block (one mpt trie), so every
   * node saved will have its reference count equal to 1.

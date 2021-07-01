@@ -1,17 +1,20 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.Generators._
-import io.iohk.ethereum.domain.UInt256._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import org.scalatest.funsuite.AnyFunSuite
+import org.scalatest.prop.TableFor2
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.vm.Generators._
 
 class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   val Modulus: BigInt = UInt256.MaxValue.toBigInt + 1
   val MaxSignedValue: BigInt = Modulus / 2 - 1
 
-  val specialNumbers =
+  val specialNumbers: Seq[BigInt] =
     Seq(BigInt(-1), BigInt(0), BigInt(1), MaxValue.toBigInt, -MaxValue.toBigInt, -MaxValue.toBigInt + 1)
 
   val pairs: Seq[(BigInt, BigInt)] = specialNumbers
@@ -19,7 +22,7 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
     .map { case Seq(n1, n2) => n1 -> n2 }
     .toSeq
 
-  val specialCases = Table(("n1", "n2"), pairs: _*)
+  val specialCases: TableFor2[BigInt, BigInt] = Table(("n1", "n2"), pairs: _*)
 
   def toSignedBigInt(n: BigInt): BigInt = if (n > MaxSignedValue) n - Modulus else n
 
@@ -116,48 +119,48 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
   test("div") {
     forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert((UInt256(n1) div UInt256(n2)) == UInt256(n1 / n2))
+        assert((UInt256(n1).div(UInt256(n2))) == UInt256(n1 / n2))
       }
     }
     forAll(specialCases) { (n1: BigInt, n2: BigInt) =>
       whenever(n1 > 0 && n2 > 0) {
-        assert((UInt256(n1) div UInt256(n2)) == UInt256(n1 / n2))
+        assert((UInt256(n1).div(UInt256(n2))) == UInt256(n1 / n2))
       }
     }
-    assert((UInt256(1) div Zero) == Zero)
+    assert((UInt256(1).div(Zero)) == Zero)
   }
 
   test("sdiv") {
     forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
         val expected: BigInt = toUnsignedBigInt(toSignedBigInt(n1) / toSignedBigInt(n2))
-        assert((UInt256(n1) sdiv UInt256(n2)) == UInt256(expected))
+        assert((UInt256(n1).sdiv(UInt256(n2))) == UInt256(expected))
       }
     }
-    assert((UInt256(-1) sdiv UInt256(-MaxValue.toBigInt)) == UInt256(-1))
-    assert((UInt256(-1) sdiv Zero) == Zero)
+    assert((UInt256(-1).sdiv(UInt256(-MaxValue.toBigInt))) == UInt256(-1))
+    assert((UInt256(-1).sdiv(Zero)) == Zero)
   }
 
   test("mod") {
     forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
       whenever(n2 != 0) {
-        assert((UInt256(n1) mod UInt256(n2)) == UInt256(n1 mod n2))
+        assert((UInt256(n1).mod(UInt256(n2))) == UInt256(n1.mod(n2)))
       }
     }
-    assert((UInt256(-1) mod UInt256(MaxValue.toBigInt)) == Zero)
-    assert((UInt256(1) mod Zero) == Zero)
+    assert((UInt256(-1).mod(UInt256(MaxValue.toBigInt))) == Zero)
+    assert((UInt256(1).mod(Zero)) == Zero)
   }
 
   test("smod") {
-    assert((UInt256(Modulus - 1) smod UInt256(3)) == UInt256(Modulus - 1))
-    assert((UInt256(-1) smod UInt256(MaxValue.toBigInt)) == Zero)
-    assert((UInt256(1) smod Zero) == Zero)
+    assert((UInt256(Modulus - 1).smod(UInt256(3))) == UInt256(Modulus - 1))
+    assert((UInt256(-1).smod(UInt256(MaxValue.toBigInt))) == Zero)
+    assert((UInt256(1).smod(Zero)) == Zero)
   }
 
   test("addmod") {
     forAll(bigIntGen, bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt, n3: BigInt) =>
       whenever(n3 != 0) {
-        assert(UInt256(n1).addmod(UInt256(n2), UInt256(n3)) == UInt256((n1 + n2) mod n3))
+        assert(UInt256(n1).addmod(UInt256(n2), UInt256(n3)) == UInt256((n1 + n2).mod(n3)))
       }
     }
     assert(UInt256(42).addmod(UInt256(42), Zero) == Zero)
@@ -166,7 +169,7 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
   test("mulmod") {
     forAll(bigIntGen, bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt, n3: BigInt) =>
       whenever(n3 != 0) {
-        assert(UInt256(n1).mulmod(UInt256(n2), UInt256(n3)) == UInt256((n1 * n2) mod n3))
+        assert(UInt256(n1).mulmod(UInt256(n2), UInt256(n3)) == UInt256((n1 * n2).mod(n3)))
       }
     }
     assert(UInt256(42).mulmod(UInt256(42), Zero) == Zero)
@@ -223,26 +226,26 @@ class UInt256Spec extends AnyFunSuite with ScalaCheckPropertyChecks {
 
   test("slt") {
     forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
-      assert((UInt256(n1) slt UInt256(n2)) == (toSignedBigInt(n1) < toSignedBigInt(n2)))
+      assert((UInt256(n1).slt(UInt256(n2))) == (toSignedBigInt(n1) < toSignedBigInt(n2)))
     }
 
     val testData = Table[UInt256, UInt256, Boolean](("a", "b", "result"), (-1, 1, true), (1, -1, false), (1, 0, false))
 
     forAll(testData) { (a, b, result) =>
-      assert((a slt b) == result)
+      assert((a.slt(b)) == result)
     }
   }
 
   test("sgt") {
     forAll(bigIntGen, bigIntGen) { (n1: BigInt, n2: BigInt) =>
-      assert((UInt256(n1) sgt UInt256(n2)) == (toSignedBigInt(n1) > toSignedBigInt(n2)))
+      assert((UInt256(n1).sgt(UInt256(n2))) == (toSignedBigInt(n1) > toSignedBigInt(n2)))
     }
 
     val testData =
       Table[UInt256, UInt256, Boolean](("a", "b", "result"), (-1, 1, false), (1, -1, true), (0, 1, false), (1, 0, true))
 
     forAll(testData) { (a, b, result) =>
-      assert((a sgt b) == result)
+      assert((a.sgt(b)) == result)
     }
   }
 

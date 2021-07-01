@@ -1,14 +1,17 @@
 package io.iohk.ethereum.network.handshaker
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.{Capability, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.{Disconnect, Hello}
-import io.iohk.ethereum.utils.{Config, Logger, ServerStatus}
+import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.ServerStatus
 
 case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfiguration)
     extends InProgressState[PeerInfo]
@@ -49,7 +52,7 @@ case class EtcHelloExchangeState(handshakerConfiguration: EtcHandshakerConfigura
     val nodeStatus = nodeStatusHolder.get()
     val listenPort = nodeStatus.serverStatus match {
       case ServerStatus.Listening(address) => address.getPort
-      case ServerStatus.NotListening => 0
+      case ServerStatus.NotListening       => 0
     }
     Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,

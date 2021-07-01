@@ -9,7 +9,7 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   protected val cache: Cache[K, V]
   def apply(cache: Cache[K, V], storage: I): T
 
-  def get(key: K): Option[V] = cache.get(key) orElse storage.get(key)
+  def get(key: K): Option[V] = cache.get(key).orElse(storage.get(key))
 
   def update(toRemove: Seq[K], toUpsert: Seq[(K, V)]): T = {
     cache.update(toRemove, toUpsert)
@@ -31,12 +31,11 @@ trait CachedKeyValueStorage[K, V, T <: CachedKeyValueStorage[K, V, T]] extends S
   }
 
   // TODO EC-491 Consider other persist strategy like sliding window (save and clear only old stuff which survived long enough)
-  def persist(): Boolean = {
+  def persist(): Boolean =
     if (cache.shouldPersist) {
       forcePersist()
       true
     } else {
       false
     }
-  }
 }

@@ -1,16 +1,18 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.bouncycastle.util.encoders.Hex
 
-/**
-  * This is temporary ETC64 version, the real one will be implemented by ETCM-355
+/** This is temporary ETC64 version, the real one will be implemented by ETCM-355
   * This one will be probably ETC67 in the future
   */
 object ETC64 {

@@ -1,12 +1,23 @@
 package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
-import akka.io.Tcp.{Bind, Bound, CommandFailed, Connected}
-import akka.io.{IO, Tcp}
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
 import java.util.concurrent.atomic.AtomicReference
+
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.io.IO
+import akka.io.Tcp
+import akka.io.Tcp.Bind
+import akka.io.Tcp.Bound
+import akka.io.Tcp.CommandFailed
+import akka.io.Tcp.Connected
+
 import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
 
 class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: ActorRef)
     extends Actor
@@ -17,7 +28,7 @@ class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Ac
 
   override def receive: Receive = { case StartServer(address) =>
     IO(Tcp) ! Bind(self, address)
-    context become waitingForBindingResult
+    context.become(waitingForBindingResult)
   }
 
   def waitingForBindingResult: Receive = {
@@ -31,11 +42,11 @@ class ServerActor(nodeStatusHolder: AtomicReference[NodeStatus], peerManager: Ac
         localAddress.getPort
       )
       nodeStatusHolder.getAndUpdate(_.copy(serverStatus = ServerStatus.Listening(localAddress)))
-      context become listening
+      context.become(listening)
 
     case CommandFailed(b: Bind) =>
       log.warning("Binding to {} failed", b.localAddress)
-      context stop self
+      context.stop(self)
   }
 
   def listening: Receive = { case Connected(remoteAddress, _) =>

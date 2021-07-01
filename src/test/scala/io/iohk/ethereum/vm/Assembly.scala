@@ -32,6 +32,6 @@ case class Assembly(byteCode: ByteCode*) {
 
   def linearConstGas(config: EvmConfig): BigInt = byteCode.foldLeft(BigInt(0)) {
     case (g, b: OpCodeAsByteCode) => g + b.op.constGasFn(config.feeSchedule)
-    case (g, _) => g
+    case (g, _)                   => g
   }
 }

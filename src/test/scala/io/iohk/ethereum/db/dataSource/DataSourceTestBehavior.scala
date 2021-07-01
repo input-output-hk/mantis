@@ -2,11 +2,15 @@ package io.iohk.ethereum.db.dataSource
 
 import java.io.File
 import java.nio.file.Files
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource.RocksDbDataSourceClosedException
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.dataSource.DataSource.Key
+import io.iohk.ethereum.db.dataSource.DataSource.Namespace
+import io.iohk.ethereum.db.dataSource.DataSource.Value
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.RocksDbDataSourceClosedException
 
 trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
   this: AnyFlatSpec =>
@@ -23,9 +27,8 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val dir = new File(path)
       assert(!dir.exists() || dir.delete(), "File deletion failed")
     }
@@ -41,7 +44,7 @@ trait DataSourceTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerat
 
         dataSource.get(OtherNamespace, someByteString) match {
           case Some(b) if b == someByteString => succeed
-          case _ => fail()
+          case _                              => fail()
         }
 
         dataSource.destroy()

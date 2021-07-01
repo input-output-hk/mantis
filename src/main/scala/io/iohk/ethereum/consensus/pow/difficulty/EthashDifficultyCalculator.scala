@@ -5,7 +5,6 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
-  import blockchainConfig._
   import blockchainConfig.forkBlockNumbers._
   import DifficultyCalculator._
 
@@ -48,7 +47,7 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
     difficultyWithoutBomb + extraDifficulty
   }
 
-  private def calculateBombExponent(blockNumber: BigInt): Int = {
+  private def calculateBombExponent(blockNumber: BigInt): Int =
     if (blockNumber < difficultyBombPauseBlockNumber)
       (blockNumber / ExpDifficultyPeriod - 2).toInt
     else if (blockNumber < difficultyBombContinueBlockNumber)
@@ -57,5 +56,4 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / ExpDifficultyPeriod
       ((blockNumber / ExpDifficultyPeriod) - delay - 2).toInt
     }
-  }
 }

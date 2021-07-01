@@ -1,8 +1,10 @@
 package io.iohk.ethereum.sync.util
 
-import java.net.{InetSocketAddress, ServerSocket}
+import java.net.InetSocketAddress
+import java.net.ServerSocket
 
-import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 object SyncCommonItSpec {
@@ -10,11 +12,8 @@ object SyncCommonItSpec {
 
   def randomAddress(): InetSocketAddress = {
     val s = new ServerSocket(0)
-    try {
-      new InetSocketAddress("localhost", s.getLocalPort)
-    } finally {
-      s.close()
-    }
+    try new InetSocketAddress("localhost", s.getLocalPort)
+    finally s.close()
   }
 
   final case class BlockchainState(

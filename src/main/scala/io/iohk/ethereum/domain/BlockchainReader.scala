@@ -1,13 +1,12 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{
-  BlockBodiesStorage,
-  BlockHeadersStorage,
-  BlockNumberMappingStorage,
-  ReceiptStorage,
-  StateStorage
-}
+
+import io.iohk.ethereum.db.storage.BlockBodiesStorage
+import io.iohk.ethereum.db.storage.BlockHeadersStorage
+import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
+import io.iohk.ethereum.db.storage.ReceiptStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.mpt.MptNode
 
 class BlockchainReader(
@@ -18,8 +17,7 @@ class BlockchainReader(
     receiptStorage: ReceiptStorage
 ) {
 
-  /**
-    * Allows to query a blockHeader by block hash
+  /** Allows to query a blockHeader by block hash
     *
     * @param hash of the block that's being searched
     * @return [[BlockHeader]] if found
@@ -27,8 +25,7 @@ class BlockchainReader(
   def getBlockHeaderByHash(hash: ByteString): Option[BlockHeader] =
     blockHeadersStorage.get(hash)
 
-  /**
-    * Allows to query a blockBody by block hash
+  /** Allows to query a blockBody by block hash
     *
     * @param hash of the block that's being searched
     * @return [[io.iohk.ethereum.domain.BlockBody]] if found
@@ -36,8 +33,7 @@ class BlockchainReader(
   def getBlockBodyByHash(hash: ByteString): Option[BlockBody] =
     blockBodiesStorage.get(hash)
 
-  /**
-    * Allows to query for a block based on it's hash
+  /** Allows to query for a block based on it's hash
     *
     * @param hash of the block that's being searched
     * @return Block if found
@@ -48,8 +44,7 @@ class BlockchainReader(
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  /**
-    * Returns a block hash given a block number
+  /** Returns a block hash given a block number
     *
     * @param number Number of the searchead block
     * @return Block hash if found
@@ -57,15 +52,13 @@ class BlockchainReader(
   def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
 
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] = {
+  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
     for {
       hash <- getHashByBlockNumber(number)
       header <- getBlockHeaderByHash(hash)
     } yield header
-  }
 
-  /**
-    * Allows to query for a block based on it's number
+  /** Allows to query for a block based on it's number
     *
     * @param number Block number
     * @return Block if it exists
@@ -76,16 +69,14 @@ class BlockchainReader(
       block <- getBlockByHash(hash)
     } yield block
 
-  /**
-    * Returns MPT node searched by it's hash
+  /** Returns MPT node searched by it's hash
     * @param hash Node Hash
     * @return MPT node
     */
   def getMptNodeByHash(hash: ByteString): Option[MptNode] =
     stateStorage.getNode(hash)
 
-  /**
-    * Returns the receipts based on a block hash
+  /** Returns the receipts based on a block hash
     * @param blockhash
     * @return Receipts if found
     */

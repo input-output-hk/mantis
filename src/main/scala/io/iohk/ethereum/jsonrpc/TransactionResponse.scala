@@ -1,7 +1,9 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, SignedTransaction, UInt256}
+
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.SignedTransaction
 
 trait BaseTransactionResponse {
   def hash: ByteString

@@ -1,22 +1,29 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
-import cats.data.NonEmptyList
+
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError.OmmersHeaderError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
-import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, ValidatorsExecutor}
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderNumberError}
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderNumberError
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.{BlockError, BlockTransactionsHashError, BlockValid}
-import io.iohk.ethereum.consensus.{Consensus, GetBlockHeaderByHash, GetNBlocksBack}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockTransactionsHashError
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockValid
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.handshaker.{ConnectedState, DisconnectedState, Handshaker, HandshakerState}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.handshaker.ConnectedState
+import io.iohk.ethereum.network.handshaker.DisconnectedState
+import io.iohk.ethereum.network.handshaker.Handshaker
+import io.iohk.ethereum.network.handshaker.HandshakerState
 import io.iohk.ethereum.vm._
-import monix.eval.Task
-import monix.execution.Scheduler
 
 object Mocks {
   private val defaultProgramResult: PC => PR = context =>
@@ -106,15 +113,13 @@ object Mocks {
       override def validateHeaderAndBody(
           blockHeader: BlockHeader,
           blockBody: BlockBody
-      ): Either[BlockError, BlockValid] = {
+      ): Either[BlockError, BlockValid] =
         if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
-      }
       override def validateBlockAndReceipts(
           blockHeader: BlockHeader,
           receipts: Seq[Receipt]
-      ): Either[BlockError, BlockValid] = {
+      ): Either[BlockError, BlockValid] =
         if (blockHeader.number == number) Left(BlockTransactionsHashError) else Right(BlockValid)
-      }
     }
 
     override def validateBlockAfterExecution(
@@ -122,9 +127,8 @@ object Mocks {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+    ): Either[BlockExecutionError, BlockExecutionSuccess] =
       if (block.header.number == number) Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
-    }
   }
 
   case class MockHandshakerAlwaysSucceeds(

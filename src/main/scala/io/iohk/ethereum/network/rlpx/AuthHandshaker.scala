@@ -5,18 +5,22 @@ import java.nio.ByteBuffer
 import java.security.SecureRandom
 
 import akka.util.ByteString
+
+import scala.util.Random
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.agreement.ECDHBasicAgreement
+import org.bouncycastle.crypto.digests.KeccakDigest
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.math.ec.ECPoint
+
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.network._
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.utils.ByteUtils._
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.agreement.ECDHBasicAgreement
-import org.bouncycastle.crypto.digests.KeccakDigest
-import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
-import AuthInitiateMessageV4._
-import org.bouncycastle.math.ec.ECPoint
 
-import scala.util.Random
+import AuthInitiateMessageV4._
 
 sealed trait AuthHandshakeResult
 case object AuthHandshakeError extends AuthHandshakeResult
@@ -31,8 +35,8 @@ class Secrets(
 )
 
 object AuthHandshaker {
-  val InitiatePacketLength = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
-  val ResponsePacketLength = AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize
+  val InitiatePacketLength: Int = AuthInitiateMessage.EncodedLength + ECIESCoder.OverheadSize
+  val ResponsePacketLength: Int = AuthResponseMessage.EncodedLength + ECIESCoder.OverheadSize
 
   val NonceSize = 32
   val MacSize = 256
@@ -215,7 +219,7 @@ case class AuthHandshaker(
       )
     }
 
-    successOpt getOrElse AuthHandshakeError
+    successOpt.getOrElse(AuthHandshakeError)
   }
 
   private def macSecretSetup(

@@ -1,25 +1,31 @@
 package io.iohk.ethereum.consensus.blocks
 
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.blocks.Ommers
+import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{EvmCodeStorage, StateStorage}
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
-import io.iohk.ethereum.ledger.{BlockResult, PreparedBlock}
-import io.iohk.ethereum.ledger.{BlockPreparator, BloomFilter, InMemoryWorldStateProxy}
-import io.iohk.ethereum.mpt.{ByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.BlockResult
+import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.PreparedBlock
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils.or
 
-/**
-  * This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+/** This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 abstract class BlockGeneratorSkeleton(
     blockchainConfig: BlockchainConfig,
@@ -151,7 +157,7 @@ abstract class BlockGeneratorSkeleton(
       .flatMap { case (_, txs) => txs }
 
     val transactionsForBlock: Seq[SignedTransaction] = sortedTransactions
-      .scanLeft(BigInt(0), None: Option[SignedTransaction]) { case ((accumulatedGas, _), stx) =>
+      .scanLeft((BigInt(0), None: Option[SignedTransaction])) { case ((accumulatedGas, _), stx) =>
         (accumulatedGas + stx.tx.gasLimit, Some(stx))
       }
       .collect { case (gas, Some(stx)) => (gas, stx) }
@@ -180,8 +186,7 @@ abstract class BlockGeneratorSkeleton(
 
   def blockTimestampProvider: BlockTimestampProvider = _blockTimestampProvider
 
-  /**
-    * This function returns the block currently being mined block with highest timestamp
+  /** This function returns the block currently being mined block with highest timestamp
     */
   def getPendingBlock: Option[PendingBlock] =
     getPendingBlockAndState.map(_.pendingBlock)

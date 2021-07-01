@@ -1,14 +1,19 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Account, Address, BlockchainImpl, BlockchainReader, UInt256}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.vm.{EvmConfig, Generators}
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.vm.Generators
 
 class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
 
@@ -73,7 +78,9 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
           .store(UInt256.One, UInt256.One)
       )
     )
-    persistedWorldStateWithAnAccount.stateRootHash equals persistedWithContractStorageValue.stateRootHash shouldBe false
+    persistedWorldStateWithAnAccount.stateRootHash.equals(
+      persistedWithContractStorageValue.stateRootHash
+    ) shouldBe false
 
     val persistedWithZero = InMemoryWorldStateProxy.persistState(
       persistedWorldStateWithAnAccount.saveStorage(
@@ -236,7 +243,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
     val startValue = 100
 
     val account = Account(UInt256.One, startValue)
-    val code = ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
+    ByteString(Hex.decode("deadbeefdeadbeefdeadbeef"))
 
     val initialWorld = InMemoryWorldStateProxy.persistState(worldState.saveAccount(address1, account))
 
@@ -330,9 +337,9 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    val postEip161Config = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
+    val postEip161Config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(io.iohk.ethereum.vm.Fixtures.blockchainConfig)
 
-    val worldState = InMemoryWorldStateProxy(
+    val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
@@ -342,7 +349,7 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
       ethCompatibleStorage = true
     )
 
-    val postEIP161WorldState = InMemoryWorldStateProxy(
+    val postEIP161WorldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
@@ -352,8 +359,8 @@ class InMemoryWorldStateProxySpec extends AnyFlatSpec with Matchers {
       ethCompatibleStorage = false
     )
 
-    val address1 = Address(0x123456)
-    val address2 = Address(0xabcdef)
-    val address3 = Address(0xfedcba)
+    val address1: Address = Address(0x123456)
+    val address2: Address = Address(0xabcdef)
+    val address3: Address = Address(0xfedcba)
   }
 }

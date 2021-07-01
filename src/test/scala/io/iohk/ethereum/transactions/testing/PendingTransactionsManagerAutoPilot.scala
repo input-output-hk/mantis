@@ -2,13 +2,15 @@ package io.iohk.ethereum.transactions.testing
 import akka.actor.ActorRef
 import akka.testkit.TestActor.AutoPilot
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{SignedTransaction, SignedTransactionWithSender}
+
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
 
 case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingTransaction] = Set.empty)
     extends AutoPilot {
-  def run(sender: ActorRef, msg: Any) = {
+  def run(sender: ActorRef, msg: Any): AutoPilot =
     msg match {
       case AddUncheckedTransactions(transactions) =>
         val validTxs = SignedTransactionWithSender.getSignedTransactions(transactions)
@@ -33,15 +35,14 @@ case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingT
       case RemoveTransactions(signedTransactions) =>
         this.removeTransactions(signedTransactions.map(_.hash).toSet)
 
-      case ProperSignedTransactions(transactions, peerId) =>
+      case ProperSignedTransactions(transactions, _) =>
         this.addTransactions(transactions)
 
       case ClearPendingTransactions =>
         copy(pendingTransactions = Set.empty)
     }
-  }
 
-  def addTransactions(signedTransactions: Set[SignedTransactionWithSender]) = {
+  def addTransactions(signedTransactions: Set[SignedTransactionWithSender]): PendingTransactionsManagerAutoPilot = {
     val timestamp = System.currentTimeMillis()
     val stxs = pendingTransactions.map(_.stx)
     val transactionsToAdd = signedTransactions.diff(stxs).map(tx => PendingTransaction(tx, timestamp))
@@ -49,7 +50,6 @@ case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingT
     copy(pendingTransactions ++ transactionsToAdd)
   }
 
-  def removeTransactions(hashes: Set[ByteString]) = {
+  def removeTransactions(hashes: Set[ByteString]): PendingTransactionsManagerAutoPilot =
     copy(pendingTransactions.filterNot(ptx => hashes.contains(ptx.stx.tx.hash)))
-  }
 }

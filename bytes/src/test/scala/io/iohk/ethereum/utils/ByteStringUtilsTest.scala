@@ -1,11 +1,16 @@
 package io.iohk.ethereum.utils
 
 import akka.util.ByteString
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should.Matchers
-import ByteStringUtils._
+
 import scala.collection.immutable.ArraySeq
-import scala.util.{Try, Success, Failure}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+
+import ByteStringUtils._
 
 class ByteStringUtilsTest extends AnyWordSpec with Matchers {
 
@@ -39,7 +44,7 @@ class ByteStringUtilsTest extends AnyWordSpec with Matchers {
       val bs3: Byte = 2
       val bs4 = Array[Byte](3, 3)
       val bs5 = Array[Byte](4, 4)
-      val summarized: ByteString = bs1 ++ bs2
+      bs1 ++ bs2
       val concatenated: ByteString = ByteStringUtils.concatByteStrings(bs1, bs2, bs3, bs4, bs5)
       concatenated shouldEqual string2hash("0000FFFF0203030404")
     }

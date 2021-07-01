@@ -1,17 +1,21 @@
 package io.iohk.ethereum.forkid
 
+import java.util.zip.CRC32
+
 import akka.util.ByteString
+
 import cats.Monad
 import cats.data.EitherT._
 import cats.implicits._
-import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.ByteUtils._
+
 import monix.eval.Task
+
 import org.typelevel.log4cats.Logger
+import org.typelevel.log4cats.SelfAwareStructuredLogger
 import org.typelevel.log4cats.slf4j.Slf4jLogger
 
-import java.util.zip.CRC32
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteUtils._
 
 sealed trait ForkIdValidationResult
 case object Connect extends ForkIdValidationResult
@@ -20,9 +24,9 @@ case object ErrLocalIncompatibleOrStale extends ForkIdValidationResult
 
 object ForkIdValidator {
 
-  implicit val unsafeLogger = Slf4jLogger.getLogger[Task]
+  implicit val unsafeLogger: SelfAwareStructuredLogger[Task] = Slf4jLogger.getLogger[Task]
 
-  val maxUInt64 = (BigInt(0x7fffffffffffffffL) << 1) + 1 // scalastyle:ignore magic.number
+  val maxUInt64: BigInt = (BigInt(0x7fffffffffffffffL) << 1) + 1 // scalastyle:ignore magic.number
 
   /** Tells whether it makes sense to connect to a peer or gives a reason why it isn't a good idea.
     *
@@ -87,14 +91,13 @@ object ForkIdValidator {
     crc.update(genesisHash.asByteBuffer)
     val genesisChecksum = BigInt(crc.getValue())
 
-    genesisChecksum +: (forks.map { fork =>
+    genesisChecksum +: forks.map { fork =>
       crc.update(bigIntToBytes(fork, 8))
       BigInt(crc.getValue())
-    }).toVector
+    }.toVector
   }
 
-  /**
-    * 1) If local and remote FORK_HASH matches, compare local head to FORK_NEXT.
+  /** 1) If local and remote FORK_HASH matches, compare local head to FORK_NEXT.
     * The two nodes are in the same fork state currently.
     * They might know of differing future forks, but that’s not relevant until the fork triggers (might be postponed, nodes might be updated to match).
     * 1a) A remotely announced but remotely not passed block is already passed locally, disconnect, since the chains are incompatible.
@@ -106,13 +109,12 @@ object ForkIdValidator {
       currentHeight: BigInt
   ): Option[ForkIdValidationResult] =
     remoteId match {
-      case ForkId(hash, _) if checksum != hash => None
+      case ForkId(hash, _) if checksum != hash            => None
       case ForkId(_, Some(next)) if currentHeight >= next => Some(ErrLocalIncompatibleOrStale)
-      case _ => Some(Connect)
+      case _                                              => Some(Connect)
     }
 
-  /**
-    * 2) If the remote FORK_HASH is a subset of the local past forks and the remote FORK_NEXT matches with the locally following fork block number, connect.
+  /** 2) If the remote FORK_HASH is a subset of the local past forks and the remote FORK_NEXT matches with the locally following fork block number, connect.
     * Remote node is currently syncing. It might eventually diverge from us, but at this current point in time we don’t have enough information.
     */
   def checkSubset(
@@ -128,12 +130,10 @@ object ForkIdValidator {
         case (sum, fork) if sum == remoteId.hash => if (fork == remoteId.next.getOrElse(0)) Connect else ErrRemoteStale
       }
 
-  /**
-    * 3) If the remote FORK_HASH is a superset of the local past forks and can be completed with locally known future forks, connect.
+  /** 3) If the remote FORK_HASH is a superset of the local past forks and can be completed with locally known future forks, connect.
     * Local node is currently syncing. It might eventually diverge from the remote, but at this current point in time we don’t have enough information.
     */
-  def checkSuperset(checksums: Vector[BigInt], remoteId: ForkId, i: Int): Option[ForkIdValidationResult] = {
+  def checkSuperset(checksums: Vector[BigInt], remoteId: ForkId, i: Int): Option[ForkIdValidationResult] =
     checksums.drop(i).collectFirst { case sum if sum == remoteId.hash => Connect }
-  }
 
 }

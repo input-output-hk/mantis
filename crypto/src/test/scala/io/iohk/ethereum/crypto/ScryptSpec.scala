@@ -1,11 +1,13 @@
 package io.iohk.ethereum.crypto
 
 import java.nio.charset.StandardCharsets
+
 import akka.util.ByteString
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class ScryptSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 

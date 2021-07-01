@@ -3,23 +3,32 @@ package io.iohk.ethereum.txExecTest.util
 import java.io.Closeable
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.domain.BlockBody._
-import io.iohk.ethereum.network.p2p.messages.ETH63._
-import MptNodeEncoders._
-import ReceiptImplicits._
-import io.iohk.ethereum.db.cache.{AppCaches, LruCache}
-import io.iohk.ethereum.db.components.EphemDataSourceComponent
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, PruningMode}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
-import io.iohk.ethereum.utils.Config
-import org.bouncycastle.util.encoders.Hex
 
 import scala.io.Source
 import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.db.cache.AppCaches
+import io.iohk.ethereum.db.cache.LruCache
+import io.iohk.ethereum.db.components.EphemDataSourceComponent
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.BlockBody._
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.utils.Config
+
+import MptNodeEncoders._
+import ReceiptImplicits._
 
 object FixtureProvider {
 
@@ -89,7 +98,7 @@ object FixtureProvider {
             storages.stateStorage.saveNode(ByteString(m.hash), m.toBytes, block.header.number)
             m.next match {
               case HashNode(hash) if hash.nonEmpty => traverse(ByteString(hash))
-              case _ =>
+              case _                               =>
             }
 
           case Some(m: LeafNode) =>
@@ -205,8 +214,7 @@ object FixtureProvider {
     )
   }
 
-  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A = {
-    try { f(closeable) }
-    finally { closeable.close() }
-  }
+  private def withClose[A, B <: Closeable](closeable: B)(f: B => A): A =
+    try f(closeable)
+    finally closeable.close()
 }

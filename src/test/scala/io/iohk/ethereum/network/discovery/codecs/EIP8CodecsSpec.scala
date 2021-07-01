@@ -1,14 +1,18 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.flatspec.AnyFlatSpec
-import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
-import io.iohk.scalanet.discovery.crypto.{SigAlg, PrivateKey}
-import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
-import scodec.bits.BitVector
-import scodec.Codec
 import java.net.InetAddress
+
+import io.iohk.scalanet.discovery.crypto.PrivateKey
+import io.iohk.scalanet.discovery.crypto.SigAlg
+import io.iohk.scalanet.discovery.ethereum.v4.Packet
+import io.iohk.scalanet.discovery.ethereum.v4.Payload
 import org.scalatest.compatible.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import scodec.Codec
+import scodec.bits.BitVector
+
+import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
 
 class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
@@ -19,9 +23,9 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
   implicit val sigalg: SigAlg = new Secp256k1SigAlg
 
-  val localhost = InetAddress.getByName("127.0.0.1")
+  val localhost: InetAddress = InetAddress.getByName("127.0.0.1")
 
-  behavior of "RLPCodecs with the EIP8 test vectors"
+  behavior.of("RLPCodecs with the EIP8 test vectors")
 
   // Test vectors from https://github.com/ethereum/EIPs/blob/b883968936d83aa1c458d48fdc81bc59e8095da5/EIPS/eip-8.md#rlpx-discovery-protocol
   case class EIP8TestVector(
@@ -29,7 +33,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
       data: String,
       test: Payload => Assertion
   )
-  val EIP8TestVectors = Vector(
+  val EIP8TestVectors: Vector[EIP8TestVector] = Vector(
     EIP8TestVector(
       "ping packet with version 4, additional list elements",
       """
@@ -140,7 +144,7 @@ class EIP8CodecsSpec extends AnyFlatSpec with Matchers {
 
       // See if it survives a roundtrip.
       val bits2 = Codec[Packet].encode(Packet.pack(payload, privateKey).require).require
-      val packet2 = Codec[Packet].decodeValue(bits2).require
+      Codec[Packet].decodeValue(bits2).require
       val (payload2, publicKey2) = Packet.unpack(packet).require
 
       payload2 shouldBe payload
