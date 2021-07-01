@@ -20,17 +20,17 @@ in
       ];
     };
 
-    scalafmt = commonAttrs // {
-      label = "scalafmtCheck";
+    scalafixAndFmt = commonAttrs // {
+      label = "scalafix & scalafmt";
       command = ''
-        nix-shell --run '$SBT scalafmtCheck'
+        nix-shell --run '$SBT formatCheck'
       '';
       retry.automatic = false;
     };
 
     compile = commonAttrs // {
       label = "compile everything";
-      dependsOn = [ scalafmt ];
+      dependsOn = [ scalafixAndFmt ];
       command = ''
         nix-shell --run '$SBT compile-all'
       '';
