@@ -185,7 +185,6 @@ trait BlockchainBuilder {
   lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
-
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 

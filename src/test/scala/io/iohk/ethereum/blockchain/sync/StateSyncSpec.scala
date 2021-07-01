@@ -111,11 +111,7 @@ class StateSyncSpec
   it should "start state sync when receiving start signal while bloom filter is loading" in new TestSetup() {
     override def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
       val storages = getNewStorages.storages
-
-      val blockchainMetadata = new BlockchainMetadata(
-        storages.appStateStorage.getBestBlockNumber(),
-        storages.appStateStorage.getLatestCheckpointBlockNumber()
-      )
+      val blockchainMetadata = getNewBlockchainMetadata
       val blockchainReader = BlockchainReader(storages)
       (blockchainReader, BlockchainImpl(storages, blockchainReader, blockchainMetadata))
     }
@@ -234,15 +230,13 @@ class StateSyncSpec
 
     def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
       val storages = getNewStorages.storages
+      val blockchainMetadata = getNewBlockchainMetadata
       (
         BlockchainReader(storages),
         BlockchainImpl(
           storages,
           BlockchainReader(storages),
-          new BlockchainMetadata(
-            storages.appStateStorage.getBestBlockNumber(),
-            storages.appStateStorage.getLatestCheckpointBlockNumber()
-          )
+          blockchainMetadata
         )
       )
     }
