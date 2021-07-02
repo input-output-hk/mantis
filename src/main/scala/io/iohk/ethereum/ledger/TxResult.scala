@@ -1,8 +1,9 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.ProgramError
+
 import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.vm.ProgramError
 
 case class TxResult(
     worldState: InMemoryWorldStateProxy,

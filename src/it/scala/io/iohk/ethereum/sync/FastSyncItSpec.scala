@@ -1,6 +1,15 @@
 package io.iohk.ethereum.sync
 
 import akka.util.ByteString
+
+import monix.execution.Scheduler
+import monix.execution.schedulers.SchedulerService
+
+import scala.concurrent.duration._
+
+import org.scalatest.BeforeAndAfterAll
+import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.FlatSpecBase
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.BlacklistReasonType
 import io.iohk.ethereum.domain._
@@ -10,14 +19,9 @@ import io.iohk.ethereum.sync.FastSyncItSpec._
 import io.iohk.ethereum.sync.util.FastSyncItSpecUtils.FakePeer
 import io.iohk.ethereum.sync.util.SyncCommonItSpec._
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
-import monix.execution.Scheduler
-import org.scalatest.BeforeAndAfterAll
-import org.scalatest.matchers.should.Matchers
-
-import scala.concurrent.duration._
 
 class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
-  implicit val testScheduler = Scheduler.fixedPool("test", 16)
+  implicit val testScheduler: SchedulerService = Scheduler.fixedPool("test", 16)
 
   override def afterAll(): Unit = {
     testScheduler.shutdown()
@@ -120,9 +124,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer2.importBlocksUntil(2000)(IdentityUpdate).startAndForget
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "update pivot block and sync this new pivot block state" in customTestCaseResourceM(
@@ -134,9 +138,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer2.importBlocksUntil(2000)(updateStateAtBlock(1500)).startAndForget
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "sync state to peer from partially synced state" in customTestCaseResourceM(
@@ -150,9 +154,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer1.connectToPeers(Set(peer2.node))
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer2.bl.getBestBlockNumber() - peer2.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "follow the longest chains" in customTestCaseResourceM(
@@ -191,9 +195,9 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
       _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
       _ <- peer1.startFastSync().delayExecution(50.milliseconds)
       _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      assert(peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset)
-    }
+    } yield assert(
+      peer1.bl.getBestBlockNumber() == peer3.bl.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset
+    )
   }
 
   it should "blacklist peer on Invalid batch last header number" in customTestCaseResourceM(

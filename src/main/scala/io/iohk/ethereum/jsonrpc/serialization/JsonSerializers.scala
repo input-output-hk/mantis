@@ -1,10 +1,16 @@
 package io.iohk.ethereum.jsonrpc.serialization
 
 import akka.util.ByteString
+
+import org.bouncycastle.util.encoders.Hex
+import org.json4s.CustomSerializer
+import org.json4s.DefaultFormats
+import org.json4s.Formats
+import org.json4s.JNull
+import org.json4s.JString
+
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcError
-import org.bouncycastle.util.encoders.Hex
-import org.json4s.{CustomSerializer, DefaultFormats, Formats, JNull, JString}
 
 object JsonSerializers {
   implicit val formats: Formats =
@@ -13,7 +19,7 @@ object JsonSerializers {
   object UnformattedDataJsonSerializer
       extends CustomSerializer[ByteString](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case bs: ByteString => JString(s"0x${Hex.toHexString(bs.toArray)}") }
         )
       )
@@ -21,7 +27,7 @@ object JsonSerializers {
   object QuantitiesSerializer
       extends CustomSerializer[BigInt](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case n: BigInt =>
             if (n == 0)
               JString("0x0")
@@ -34,7 +40,7 @@ object JsonSerializers {
   object OptionNoneToJNullSerializer
       extends CustomSerializer[Option[_]](formats =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case None => JNull }
         )
       )
@@ -42,7 +48,7 @@ object JsonSerializers {
   object AddressJsonSerializer
       extends CustomSerializer[Address](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case addr: Address => JString(s"0x${Hex.toHexString(addr.bytes.toArray)}") }
         )
       )
@@ -50,7 +56,7 @@ object JsonSerializers {
   object RpcErrorJsonSerializer
       extends CustomSerializer[JsonRpcError](_ =>
         (
-          { PartialFunction.empty },
+          PartialFunction.empty,
           { case err: JsonRpcError => JsonEncoder.encode(err) }
         )
       )

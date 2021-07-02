@@ -1,10 +1,11 @@
 package io.iohk.ethereum.network
 
+import java.net.InetSocketAddress
+
 import akka.actor.ActorRef
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 
-import java.net.InetSocketAddress
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
 
 final case class PeerId(value: String) extends BlacklistId
 

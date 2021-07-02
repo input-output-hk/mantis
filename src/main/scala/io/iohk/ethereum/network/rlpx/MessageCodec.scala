@@ -1,14 +1,20 @@
 package io.iohk.ethereum.network.rlpx
 
 import java.util.concurrent.atomic.AtomicInteger
+
 import akka.util.ByteString
-import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
-import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
-import io.iohk.ethereum.network.p2p.{Message, MessageDecoder, MessageSerializable}
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import org.xerial.snappy.Snappy
 
-import scala.util.{Failure, Success, Try}
+import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageDecoder
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 
 object MessageCodec {
   val MaxFramePayloadSize: Int = Int.MaxValue // no framing
@@ -31,8 +37,8 @@ class MessageCodec(
     readFrames(frames)
   }
 
-  def readFrames(frames: Seq[Frame]): Seq[Try[Message]] = {
-    frames map { frame =>
+  def readFrames(frames: Seq[Frame]): Seq[Try[Message]] =
+    frames.map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
         if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && frame.`type` != Hello.code) {
@@ -45,22 +51,20 @@ class MessageCodec(
         messageDecoder.fromBytes(frame.`type`, payload)
       }
     }
-  }
 
-  private def decompressData(data: Array[Byte]): Try[Array[Byte]] = {
+  private def decompressData(data: Array[Byte]): Try[Array[Byte]] =
     Try(Snappy.uncompressedLength(data)).flatMap { decompressedSize =>
       if (decompressedSize > MaxDecompressedLength)
         Failure(new RuntimeException("Message size larger than 16mb"))
       else
         Try(Snappy.uncompress(data))
     }
-  }
 
   def encodeMessage(serializable: MessageSerializable): ByteString = {
     val encoded: Array[Byte] = serializable.toBytes
     val numFrames = Math.ceil(encoded.length / MaxFramePayloadSize.toDouble).toInt
     val contextId = contextIdCounter.incrementAndGet()
-    val frames = (0 until numFrames) map { frameNo =>
+    val frames = (0 until numFrames).map { frameNo =>
       val framedPayload = encoded.drop(frameNo * MaxFramePayloadSize).take(MaxFramePayloadSize)
       val payload =
         if (remotePeer2PeerVersion >= EtcHelloExchangeState.P2pVersion && serializable.code != Hello.code) {

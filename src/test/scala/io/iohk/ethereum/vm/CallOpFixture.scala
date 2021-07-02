@@ -1,24 +1,28 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.vm.MockWorldState._
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.vm.MockWorldState._
 
 class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   import config.feeSchedule._
 
-  val ownerAddr = Address(0xcafebabe)
-  val extAddr = Address(0xfacefeed)
-  val callerAddr = Address(0xdeadbeef)
+  val ownerAddr: Address = Address(0xcafebabe)
+  val extAddr: Address = Address(0xfacefeed)
+  val callerAddr: Address = Address(0xdeadbeef)
 
-  val ownerOffset = UInt256(0)
-  val callerOffset = UInt256(1)
-  val valueOffset = UInt256(2)
+  val ownerOffset: UInt256 = UInt256(0)
+  val callerOffset: UInt256 = UInt256(1)
+  val valueOffset: UInt256 = UInt256(2)
 
-  val extCode = Assembly(
+  val extCode: Assembly = Assembly(
     //store owner address
     ADDRESS,
     PUSH1,
@@ -48,19 +52,19 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     RETURN
   )
 
-  val selfDestructCode = Assembly(
+  val selfDestructCode: Assembly = Assembly(
     PUSH20,
     callerAddr.bytes,
     SELFDESTRUCT
   )
 
-  val selfDestructTransferringToSelfCode = Assembly(
+  val selfDestructTransferringToSelfCode: Assembly = Assembly(
     PUSH20,
     extAddr.bytes,
     SELFDESTRUCT
   )
 
-  val sstoreWithClearCode = Assembly(
+  val sstoreWithClearCode: Assembly = Assembly(
     //Save a value to the storage
     PUSH1,
     10,
@@ -76,7 +80,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
   )
 
   val valueToReturn = 23
-  val returnSingleByteProgram = Assembly(
+  val returnSingleByteProgram: Assembly = Assembly(
     PUSH1,
     valueToReturn,
     PUSH1,
@@ -89,7 +93,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     RETURN
   )
 
-  val revertProgram = Assembly(
+  val revertProgram: Assembly = Assembly(
     PUSH1,
     valueToReturn,
     PUSH1,
@@ -102,12 +106,12 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     REVERT
   )
 
-  val inputData = Generators.getUInt256Gen().sample.get.bytes
-  val expectedMemCost = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
+  val inputData: ByteString = Generators.getUInt256Gen().sample.get.bytes
+  val expectedMemCost: BigInt = config.calcMemCost(inputData.size, inputData.size, inputData.size / 2)
 
-  val initialBalance = UInt256(1000)
+  val initialBalance: UInt256 = UInt256(1000)
 
-  val requiredGas = {
+  val requiredGas: BigInt = {
     val storageCost = 3 * G_sset
     val memCost = config.calcMemCost(0, 0, 32)
     val copyCost = G_copy * wordsForBytes(32)
@@ -117,47 +121,47 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
 
   val gasMargin = 13
 
-  val initialOwnerAccount = Account(balance = initialBalance)
+  val initialOwnerAccount: Account = Account(balance = initialBalance)
 
   val extProgram = extCode.program
-  val invalidProgram = Program(concatByteStrings(extProgram.code.init, INVALID.code))
+  val invalidProgram: Program = Program(concatByteStrings(extProgram.code.init, INVALID.code))
   val selfDestructProgram = selfDestructCode.program
   val sstoreWithClearProgram = sstoreWithClearCode.program
   val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 
-  val worldWithoutExtAccount = startState.saveAccount(ownerAddr, initialOwnerAccount)
+  val worldWithoutExtAccount: MockWorldState = startState.saveAccount(ownerAddr, initialOwnerAccount)
 
-  val worldWithExtAccount = worldWithoutExtAccount
+  val worldWithExtAccount: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(extProgram.code))
     .saveCode(extAddr, extProgram.code)
 
-  val worldWithExtEmptyAccount = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
+  val worldWithExtEmptyAccount: MockWorldState = worldWithoutExtAccount.saveAccount(extAddr, Account.empty())
 
-  val worldWithInvalidProgram = worldWithoutExtAccount
+  val worldWithInvalidProgram: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(invalidProgram.code))
     .saveCode(extAddr, invalidProgram.code)
 
-  val worldWithSelfDestructProgram = worldWithoutExtAccount
+  val worldWithSelfDestructProgram: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(selfDestructProgram.code))
     .saveCode(extAddr, selfDestructCode.code)
 
-  val worldWithRevertProgram = worldWithoutExtAccount
+  val worldWithRevertProgram: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(revertProgram.code))
     .saveCode(extAddr, revertProgram.code)
 
-  val worldWithSelfDestructSelfProgram = worldWithoutExtAccount
+  val worldWithSelfDestructSelfProgram: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, Account.empty())
     .saveCode(extAddr, selfDestructTransferringToSelfCode.code)
 
-  val worldWithSstoreWithClearProgram = worldWithoutExtAccount
+  val worldWithSstoreWithClearProgram: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(sstoreWithClearProgram.code))
     .saveCode(extAddr, sstoreWithClearCode.code)
 
-  val worldWithReturnSingleByteCode = worldWithoutExtAccount
+  val worldWithReturnSingleByteCode: MockWorldState = worldWithoutExtAccount
     .saveAccount(extAddr, accountWithCode(returnSingleByteProgram.code))
     .saveCode(extAddr, returnSingleByteProgram.code)
 
-  val fakeHeader = BlockFixtures.ValidBlock.header.copy(number = 0, unixTimestamp = 0)
+  val fakeHeader: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = 0, unixTimestamp = 0)
 
   val context: PC = ProgramContext(
     callerAddr = callerAddr,
@@ -192,7 +196,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
 
     val vm = new TestVM
 
-    val env = ExecEnv(context, ByteString.empty, ownerAddr)
+    val env: ExecEnv = ExecEnv(context, ByteString.empty, ownerAddr)
 
     private val params = Seq(UInt256(gas), to.toUInt256, value, inOffset, inSize, outOffset, outSize).reverse
 

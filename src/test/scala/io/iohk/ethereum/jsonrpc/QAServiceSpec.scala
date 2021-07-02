@@ -1,8 +1,14 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import monix.eval.Task
+
+import org.scalamock.scalatest.AsyncMockFactory
+
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.Consensus
@@ -14,8 +20,6 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.QAService._
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import monix.eval.Task
-import org.scalamock.scalatest.AsyncMockFactory
 
 class QAServiceSpec
     extends TestKit(ActorSystem("QAServiceSpec_ActorSystem"))
@@ -104,9 +108,9 @@ class QAServiceSpec
     }
 
     lazy val testConsensus: TestConsensus = mock[TestConsensus]
-    lazy val blockchainReader = mock[BlockchainReader]
-    lazy val blockchain = mock[BlockchainImpl]
-    lazy val syncController = TestProbe()
+    lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    lazy val syncController: TestProbe = TestProbe()
     lazy val checkpointBlockGenerator = new CheckpointBlockGenerator()
 
     lazy val qaService = new QAService(
@@ -118,18 +122,18 @@ class QAServiceSpec
       syncController.ref
     )
 
-    lazy val mineBlocksReq = MineBlocksRequest(1, true, None)
-    lazy val mineBlocksMsg =
+    lazy val mineBlocksReq: MineBlocksRequest = MineBlocksRequest(1, true, None)
+    lazy val mineBlocksMsg: MineBlocks =
       MineBlocks(mineBlocksReq.numBlocks, mineBlocksReq.withTransactions, mineBlocksReq.parentBlock)
     val fakeChainId: Byte = 42.toByte
   }
 
   trait CheckpointsGenerationFixture {
     val block = Fixtures.Blocks.ValidBlock.block
-    val privateKeys = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get
-    val signatures = privateKeys.map(ECDSASignature.sign(block.hash, _))
-    val checkpoint = Checkpoint(signatures)
-    val req = GenerateCheckpointRequest(privateKeys, Some(block.hash))
+    val privateKeys: Seq[ByteString] = seqByteStringOfNItemsOfLengthMGen(3, 32).sample.get
+    val signatures: Seq[ECDSASignature] = privateKeys.map(ECDSASignature.sign(block.hash, _))
+    val checkpoint: Checkpoint = Checkpoint(signatures)
+    val req: GenerateCheckpointRequest = GenerateCheckpointRequest(privateKeys, Some(block.hash))
   }
 
   def createFixture(): Fixture = new Fixture

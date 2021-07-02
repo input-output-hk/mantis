@@ -1,12 +1,19 @@
 package io.iohk.ethereum.utils
 
 import akka.util.ByteString
+
 import boopickle.DefaultBasic._
 import boopickle.Pickler
+
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.domain.{Address, BlockBody, BlockHeader, Checkpoint, SignedTransaction, Transaction}
+import io.iohk.ethereum.domain.Checkpoint
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.Transaction
 
 object Picklers {
   implicit val byteStringPickler: Pickler[ByteString] =
@@ -27,11 +34,11 @@ object Picklers {
   implicit val signedTransactionPickler: Pickler[SignedTransaction] =
     transformPickler[SignedTransaction, (Transaction, ECDSASignature)] { case (tx, signature) =>
       new SignedTransaction(tx, signature)
-    } { stx => (stx.tx, stx.signature) }
+    }(stx => (stx.tx, stx.signature))
 
   implicit val blockHeaderPickler: Pickler[BlockHeader] = generatePickler[BlockHeader]
   implicit val blockBodyPickler: Pickler[BlockBody] =
     transformPickler[BlockBody, (Seq[SignedTransaction], Seq[BlockHeader])] { case (stx, nodes) =>
       BlockBody(stx, nodes)
-    } { blockBody => (blockBody.transactionList, blockBody.uncleNodesList) }
+    }(blockBody => (blockBody.transactionList, blockBody.uncleNodesList))
 }

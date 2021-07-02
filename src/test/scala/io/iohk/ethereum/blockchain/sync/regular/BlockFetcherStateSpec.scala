@@ -1,16 +1,19 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
-import io.iohk.ethereum.{BlockHelpers, WithActorSystemShutDown}
-import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.utils.ByteStringUtils
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
+import scala.collection.immutable.Queue
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.collection.immutable.Queue
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
+import io.iohk.ethereum.network.PeerId
 
 class BlockFetcherStateSpec
     extends TestKit(ActorSystem("BlockFetcherStateSpec_System"))

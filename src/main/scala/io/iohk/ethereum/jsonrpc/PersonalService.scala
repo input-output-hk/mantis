@@ -1,27 +1,37 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain}
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.JsonRpcError._
-import io.iohk.ethereum.keystore.{KeyStore, Wallet}
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.{AddOrOverrideTransaction, PendingTransactionsResponse}
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger, TxPoolConfig}
-import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import akka.util.ByteString
+import akka.util.Timeout
+
 import monix.eval.Task
 
 import scala.util.Try
+
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+import io.iohk.ethereum.jsonrpc.JsonRpcError._
+import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.AddOrOverrideTransaction
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.TxPoolConfig
 
 object PersonalService {
 
@@ -54,10 +64,10 @@ object PersonalService {
   case class EcRecoverRequest(message: ByteString, signature: ECDSASignature)
   case class EcRecoverResponse(address: Address)
 
-  val InvalidKey = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
-  val InvalidAddress = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
-  val InvalidPassphrase = LogicError("Could not decrypt key with given passphrase")
-  val KeyNotFound = LogicError("No key found for the given address")
+  val InvalidKey: JsonRpcError = InvalidParams("Invalid key provided, expected 32 bytes (64 hex digits)")
+  val InvalidAddress: JsonRpcError = InvalidParams("Invalid address, expected 20 bytes (40 hex digits)")
+  val InvalidPassphrase: JsonRpcError = LogicError("Could not decrypt key with given passphrase")
+  val KeyNotFound: JsonRpcError = LogicError("No key found for the given address")
   val PassPhraseTooShort: Int => JsonRpcError = minLength =>
     LogicError(s"Provided passphrase must have at least $minLength characters")
 
@@ -160,7 +170,7 @@ class PersonalService(
     }
   }
 
-  def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] = {
+  def sendTransaction(request: SendTransactionRequest): ServiceResponse[SendTransactionResponse] =
     Task(unlockedWallets.get(request.tx.from)).flatMap {
       case Some(wallet) =>
         val futureTxHash = sendTransaction(request.tx, wallet)
@@ -168,16 +178,15 @@ class PersonalService(
 
       case None => Task.now(Left(AccountLocked))
     }
-  }
 
   def sendIeleTransaction(request: SendIeleTransactionRequest): ServiceResponse[SendTransactionResponse] = {
     import request.tx
 
     val args = tx.arguments.getOrElse(Nil)
     val dataEither = (tx.function, tx.contractCode) match {
-      case (Some(function), None) => Right(rlp.encode(RLPList(function, args)))
+      case (Some(function), None)     => Right(rlp.encode(RLPList(function, args)))
       case (None, Some(contractCode)) => Right(rlp.encode(RLPList(contractCode, args)))
-      case _ => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
+      case _                          => Left(JsonRpcError.InvalidParams("Iele transaction should contain either functionName or contractCode"))
     }
 
     dataEither match {
@@ -204,7 +213,7 @@ class PersonalService(
     }
     latestPendingTxNonceFuture.map { maybeLatestPendingTxNonce =>
       val maybeCurrentNonce = getCurrentAccount(request.from).map(_.nonce.toBigInt)
-      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1) orElse maybeCurrentNonce
+      val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1).orElse(maybeCurrentNonce)
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
       val stx = if (blockchain.getBestBlockNumber() >= blockchainConfig.forkBlockNumbers.eip155BlockNumber) {
@@ -233,10 +242,10 @@ class PersonalService(
   }
 
   private val handleError: PartialFunction[KeyStore.KeyStoreError, JsonRpcError] = {
-    case KeyStore.DecryptionFailed => InvalidPassphrase
-    case KeyStore.KeyNotFound => KeyNotFound
+    case KeyStore.DecryptionFailed              => InvalidPassphrase
+    case KeyStore.KeyNotFound                   => KeyNotFound
     case KeyStore.PassPhraseTooShort(minLength) => PassPhraseTooShort(minLength)
-    case KeyStore.IOError(msg) => LogicError(msg)
-    case KeyStore.DuplicateKeySaved => LogicError("account already exists")
+    case KeyStore.IOError(msg)                  => LogicError(msg)
+    case KeyStore.DuplicateKeySaved             => LogicError("account already exists")
   }
 }

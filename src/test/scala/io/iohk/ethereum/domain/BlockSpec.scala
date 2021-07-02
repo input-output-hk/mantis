@@ -1,8 +1,9 @@
 package io.iohk.ethereum.domain
 
-import io.iohk.ethereum.Fixtures.Blocks._
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures.Blocks._
 
 class BlockSpec extends AnyFlatSpec with Matchers {
   "Block size" should "be correct" in {

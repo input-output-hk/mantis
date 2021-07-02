@@ -1,13 +1,16 @@
 package io.iohk.ethereum.jsonrpc
+import cats.implicits._
+
+import monix.eval.Task
+
+import scala.collection.immutable.NumericRange
+
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import monix.eval.Task
-import cats.implicits._
-
-import scala.collection.immutable.NumericRange
 
 object MantisService {
   case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])
@@ -16,7 +19,7 @@ object MantisService {
 class MantisService(transactionHistoryService: TransactionHistoryService, jsonRpcConfig: JsonRpcConfig) {
   def getAccountTransactions(
       request: GetAccountTransactionsRequest
-  ): ServiceResponse[GetAccountTransactionsResponse] = {
+  ): ServiceResponse[GetAccountTransactionsResponse] =
     if (request.blocksRange.length > jsonRpcConfig.accountTransactionsMaxBlocks) {
       Task.now(
         Left(
@@ -31,5 +34,4 @@ class MantisService(transactionHistoryService: TransactionHistoryService, jsonRp
         .getAccountTransactions(request.address, request.blocksRange)
         .map(GetAccountTransactionsResponse(_).asRight)
     }
-  }
 }

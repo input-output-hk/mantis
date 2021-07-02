@@ -1,11 +1,13 @@
 package io.iohk.ethereum.network.rlpx
 
 import akka.util.ByteString
+
+import org.bouncycastle.math.ec.ECPoint
+
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.bouncycastle.math.ec.ECPoint
 
 object AuthInitiateMessageV4 extends AuthInitiateEcdsaCodec {
 

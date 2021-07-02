@@ -1,11 +1,13 @@
 package io.iohk.ethereum.consensus.pow
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.KeccakCalculation.KeccakMixHash
-import io.iohk.ethereum.domain.BlockHeader
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.consensus.pow.KeccakCalculation.KeccakMixHash
+import io.iohk.ethereum.domain.BlockHeader
 
 class KeccakCalculationSpec extends AnyFlatSpecLike with Matchers {
   import KeccakDataUtils._

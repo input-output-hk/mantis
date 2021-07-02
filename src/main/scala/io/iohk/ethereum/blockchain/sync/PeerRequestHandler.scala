@@ -1,15 +1,22 @@
 package io.iohk.ethereum.blockchain.sync
 
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.reflect.ClassTag
 import akka.actor._
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+import scala.reflect.ClassTag
+
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
 
 class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag](
     peer: Peer,
@@ -41,8 +48,8 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag
   }
 
   override def receive: Receive = {
-    case MessageFromPeer(responseMsg: ResponseMsg, _) => handleResponseMsg(responseMsg)
-    case Timeout => handleTimeout()
+    case MessageFromPeer(responseMsg: ResponseMsg, _)  => handleResponseMsg(responseMsg)
+    case Timeout                                       => handleTimeout()
     case PeerDisconnected(peerId) if peerId == peer.id => handleTerminated()
   }
 
@@ -64,7 +71,7 @@ class PeerRequestHandler[RequestMsg <: Message, ResponseMsg <: Message: ClassTag
   def cleanupAndStop(): Unit = {
     timeout.cancel()
     peerEventBus ! Unsubscribe()
-    context stop self
+    context.stop(self)
   }
 }
 

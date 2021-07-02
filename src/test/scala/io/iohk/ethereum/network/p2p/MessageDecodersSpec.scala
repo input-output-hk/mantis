@@ -1,21 +1,26 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.{Fixtures, ObjectGenerators}
-import io.iohk.ethereum.domain.ChainWeight
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
-import io.iohk.ethereum.network.p2p.messages._
-import io.iohk.ethereum.security.SecureRandomBuilder
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
+import io.iohk.ethereum.network.p2p.messages._
+import io.iohk.ethereum.security.SecureRandomBuilder
 
 class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   def decode: Capability => MessageDecoder = EthereumMessageDecoder.ethMessageDecoder _
 
-  val exampleHash = ByteString(Hex.decode("fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef6"))
+  val exampleHash: ByteString = ByteString(
+    Hex.decode("fccdbfe911f9df0a6cc0107d1240f76dfdd1d301b65fdc3cd2ae62752affbef6")
+  )
 
   val blockHashesFromNumberBytes: Array[Byte] = Hex.decode("c20c28")
 

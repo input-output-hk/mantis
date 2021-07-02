@@ -2,13 +2,16 @@ package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
 
+import scala.util.Try
+
 import org.bouncycastle.crypto.BufferedBlockCipher
 import org.bouncycastle.crypto.engines.AESEngine
-import org.bouncycastle.crypto.modes.{CBCBlockCipher, SICBlockCipher}
-import org.bouncycastle.crypto.paddings.{PKCS7Padding, PaddedBufferedBlockCipher}
-import org.bouncycastle.crypto.params.{KeyParameter, ParametersWithIV}
-
-import scala.util.Try
+import org.bouncycastle.crypto.modes.CBCBlockCipher
+import org.bouncycastle.crypto.modes.SICBlockCipher
+import org.bouncycastle.crypto.paddings.PKCS7Padding
+import org.bouncycastle.crypto.paddings.PaddedBufferedBlockCipher
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
 
 trait SymmetricCipher {
   def encrypt(secret: ByteString, iv: ByteString, message: ByteString): ByteString =

@@ -1,17 +1,18 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.consensus.Protocol.{NoAdditionalPoWData, RestrictedPoWMinerData}
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.Protocol.RestrictedPoWMinerData
 import io.iohk.ethereum.consensus.pow.PoWConsensus
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.utils.{Config, Logger}
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Logger
 
 trait ConsensusBuilder {
   def consensus: Consensus
 }
 
-/**
-  * A consensus builder is responsible to instantiate the consensus protocol.
+/** A consensus builder is responsible to instantiate the consensus protocol.
   * This is done dynamically when Mantis boots, based on its configuration.
   *
   * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
@@ -42,7 +43,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val additionalPoWData = consensusConfig.protocol match {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
-      case Protocol.RestrictedPoW => RestrictedPoWMinerData(nodeKey)
+      case Protocol.RestrictedPoW            => RestrictedPoWMinerData(nodeKey)
     }
     val consensus =
       PoWConsensus(

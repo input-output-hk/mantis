@@ -1,14 +1,25 @@
 package io.iohk.ethereum.jsonrpc
 
+import monix.eval.Task
+
+import org.json4s.Extraction
+import org.json4s.JArray
+import org.json4s.JBool
+import org.json4s.JInt
+import org.json4s.JLong
+import org.json4s.JObject
+import org.json4s.JString
+import org.scalamock.scalatest.AsyncMockFactory
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.FreeSpecBase
+import io.iohk.ethereum.SpecFixtures
 import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, FreeSpecBase, SpecFixtures}
-import monix.eval.Task
-import org.json4s.{Extraction, JArray, JBool, JInt, JLong, JObject, JString}
-import org.scalamock.scalatest.AsyncMockFactory
 
 class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory with JRCMatchers {
   import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.formats
@@ -16,19 +27,19 @@ class MantisJRCSpec extends FreeSpecBase with SpecFixtures with AsyncMockFactory
   class Fixture extends ApisBuilder {
     def config: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
-    val web3Service = mock[Web3Service]
-    val netService = mock[NetService]
-    val personalService = mock[PersonalService]
-    val debugService = mock[DebugService]
-    val ethService = mock[EthInfoService]
-    val ethMiningService = mock[EthMiningService]
-    val ethBlocksService = mock[EthBlocksService]
-    val ethTxService = mock[EthTxService]
-    val ethUserService = mock[EthUserService]
-    val ethFilterService = mock[EthFilterService]
-    val qaService = mock[QAService]
-    val checkpointingService = mock[CheckpointingService]
-    val mantisService = mock[MantisService]
+    val web3Service: Web3Service = mock[Web3Service]
+    val netService: NetService = mock[NetService]
+    val personalService: PersonalService = mock[PersonalService]
+    val debugService: DebugService = mock[DebugService]
+    val ethService: EthInfoService = mock[EthInfoService]
+    val ethMiningService: EthMiningService = mock[EthMiningService]
+    val ethBlocksService: EthBlocksService = mock[EthBlocksService]
+    val ethTxService: EthTxService = mock[EthTxService]
+    val ethUserService: EthUserService = mock[EthUserService]
+    val ethFilterService: EthFilterService = mock[EthFilterService]
+    val qaService: QAService = mock[QAService]
+    val checkpointingService: CheckpointingService = mock[CheckpointingService]
+    val mantisService: MantisService = mock[MantisService]
 
     val jsonRpcController =
       new JsonRpcController(

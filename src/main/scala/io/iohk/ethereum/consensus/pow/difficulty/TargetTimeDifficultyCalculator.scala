@@ -7,8 +7,7 @@ class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalc
 
   import DifficultyCalculator._
 
-  /**
-    * The lowerBoundExpectedRatio (l for abbreviation below) divides the timestamp diff into ranges:
+  /** The lowerBoundExpectedRatio (l for abbreviation below) divides the timestamp diff into ranges:
     *   [0, l)   => c = 1, difficulty increases
     *   [l, 2*l) => c = 0. difficulty stays the same
     *   ...

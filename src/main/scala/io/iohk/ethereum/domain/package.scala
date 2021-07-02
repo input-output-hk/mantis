@@ -1,22 +1,27 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+
+import org.bouncycastle.util.BigIntegers
+
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.mpt.{ByteArrayEncoder, ByteArraySerializable, HashByteArraySerializable, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.ByteArrayEncoder
+import io.iohk.ethereum.mpt.ByteArraySerializable
+import io.iohk.ethereum.mpt.HashByteArraySerializable
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.utils.ByteUtils
-import org.bouncycastle.util.BigIntegers
 
 package object domain {
   type HeadersSeq = Seq[BlockHeader]
 
   object EthereumUInt256Mpt {
-    val byteArrayBigIntSerializer = new ByteArrayEncoder[BigInt] {
+    val byteArrayBigIntSerializer: ByteArrayEncoder[BigInt] = new ByteArrayEncoder[BigInt] {
       override def toBytes(input: BigInt): Array[Byte] =
         ByteUtils.padLeft(ByteString(BigIntegers.asUnsignedByteArray(input.bigInteger)), 32).toArray[Byte]
     }
 
-    val rlpBigIntSerializer = new ByteArraySerializable[BigInt] {
+    val rlpBigIntSerializer: ByteArraySerializable[BigInt] = new ByteArraySerializable[BigInt] {
       override def fromBytes(bytes: Array[Byte]): BigInt = rlp.decode[BigInt](bytes)
 
       override def toBytes(input: BigInt): Array[Byte] = rlp.encode[BigInt](input)
@@ -30,7 +35,7 @@ package object domain {
   }
 
   object ArbitraryIntegerMpt {
-    val bigIntSerializer = new ByteArraySerializable[BigInt] {
+    val bigIntSerializer: ByteArraySerializable[BigInt] = new ByteArraySerializable[BigInt] {
       override def fromBytes(bytes: Array[Byte]): BigInt = BigInt(bytes)
       override def toBytes(input: BigInt): Array[Byte] = input.toByteArray
     }

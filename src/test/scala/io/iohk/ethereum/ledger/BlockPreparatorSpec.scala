@@ -2,30 +2,34 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableFor2
+import org.scalatest.prop.TableFor4
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed}
+import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
-import io.iohk.ethereum.consensus.validators.{SignedTransactionValid, SignedTransactionValidator}
-import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
+import io.iohk.ethereum.consensus.validators.SignedTransactionValid
+import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.vm.{
-  InvalidJump,
-  InvalidOpCode,
-  OutOfGas,
-  ProgramError,
-  RevertOccurs,
-  StackOverflow,
-  StackUnderflow
-}
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.scalatest.prop.{TableFor2, TableFor4}
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
+import io.iohk.ethereum.vm.InvalidJump
+import io.iohk.ethereum.vm.InvalidOpCode
+import io.iohk.ethereum.vm.OutOfGas
+import io.iohk.ethereum.vm.ProgramError
+import io.iohk.ethereum.vm.RevertOccurs
+import io.iohk.ethereum.vm.StackOverflow
+import io.iohk.ethereum.vm.StackUnderflow
 
 // scalastyle:off magic.number
 class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
@@ -239,9 +243,9 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val newAccountAddress =
       Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
+    override lazy val vm: VMImpl = new MockVM((pc: PC) =>
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
-    })
+    )
 
     val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
@@ -259,12 +263,10 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
   "remember executed transaction in case of many failures in the middle" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress =
-      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm: VMImpl = new MockVM((pc: PC) => {
-      createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
-    })
+    override lazy val vm: VMImpl =
+      new MockVM((pc: PC) => createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty))
 
     override lazy val validators: MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
@@ -301,12 +303,10 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
   "produce empty block if all txs fail" in new TestSetup {
     val newAccountKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
-    val newAccountAddress =
-      Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
+    Address(kec256(newAccountKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail))
 
-    override lazy val vm = new MockVM((pc: PC) => {
-      createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty)
-    })
+    override lazy val vm =
+      new MockVM((pc: PC) => createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString.empty))
 
     override lazy val validators: Mocks.MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =

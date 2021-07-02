@@ -1,19 +1,23 @@
 package io.iohk.ethereum.faucet.jsonrpc
 
+import javax.net.ssl.SSLContext
+
 import akka.actor.ActorSystem
 import akka.http.scaladsl.model.Uri
-import io.circe.syntax._
 import akka.util.ByteString
+
+import monix.eval.Task
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.duration.Duration
+
+import io.circe.syntax._
+
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.client.RpcClient
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
 import io.iohk.ethereum.security.SSLError
 import io.iohk.ethereum.utils.Logger
-import javax.net.ssl.SSLContext
-import monix.eval.Task
-
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration.Duration
 
 class WalletRpcClient(node: Uri, timeout: Duration, getSSLContext: () => Either[SSLError, SSLContext])(implicit
     system: ActorSystem,

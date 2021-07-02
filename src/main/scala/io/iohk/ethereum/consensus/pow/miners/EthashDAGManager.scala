@@ -1,20 +1,29 @@
 package io.iohk.ethereum.consensus.pow.miners
 
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
-import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator}
-import io.iohk.ethereum.utils.{ByteUtils, Logger}
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import org.bouncycastle.util.encoders.Hex
 
-import java.io.{File, FileInputStream, FileOutputStream}
-import scala.util.{Failure, Success, Try}
+import io.iohk.ethereum.consensus.pow.EthashUtils
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.utils.Logger
 
 class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
-  def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) = {
+  def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) =
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
@@ -36,14 +45,12 @@ class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
         currentEpochDagSize = Some(dagSize)
         (dag, dagSize)
     }
-  }
 
-  private def dagFile(seed: ByteString): File = {
+  private def dagFile(seed: ByteString): File =
     new File(
       s"${blockCreator.miningConfig.ethashDir}/full-R${EthashUtils.Revision}-${Hex
         .toHexString(seed.take(8).toArray[Byte])}"
     )
-  }
 
   private def generateDagAndSaveToFile(epoch: Long, dagNumHashes: Int, seed: ByteString): Array[Array[Int]] = {
     val file = dagFile(seed)

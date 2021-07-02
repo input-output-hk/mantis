@@ -3,19 +3,31 @@ package io.iohk.ethereum.blockchain.sync
 import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
+import org.scalatest.flatspec.AnyFlatSpecLike
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
-import io.iohk.ethereum.network.p2p.messages.{BaseETH6XMessages, ETH62, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
-import org.scalatest.flatspec.AnyFlatSpecLike
-import org.scalatest.matchers.should.Matchers
+import io.iohk.ethereum.network.p2p.messages.ETH62
+import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class BlockBroadcastSpec
     extends TestKit(ActorSystem("BlockBroadcastSpec_System"))
@@ -157,20 +169,20 @@ class BlockBroadcastSpec
   }
 
   class TestSetup(implicit system: ActorSystem) {
-    val etcPeerManagerProbe = TestProbe()
+    val etcPeerManagerProbe: TestProbe = TestProbe()
 
     val blockBroadcast = new BlockBroadcast(etcPeerManagerProbe.ref)
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.ETC64.version,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -178,7 +190,7 @@ class BlockBroadcastSpec
       bestBlockHash = peerStatus.bestHash
     )
 
-    val peerProbe = TestProbe()
-    val peer = Peer(PeerId("peer"), new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
+    val peerProbe: TestProbe = TestProbe()
+    val peer: Peer = Peer(PeerId("peer"), new InetSocketAddress("127.0.0.1", 0), peerProbe.ref, false)
   }
 }

@@ -1,38 +1,40 @@
 package io.iohk.ethereum.blockchain.sync
 
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.consensus.{Consensus, Protocol, StdTestConsensusBuilder, TestConsensus}
-import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.nodebuilder._
-import io.iohk.ethereum.utils.BlockchainConfig
-
 import java.util.concurrent.Executors
+
 import monix.execution.Scheduler
 
 import scala.concurrent.ExecutionContext
+import scala.concurrent.ExecutionContextExecutor
+
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.StdTestConsensusBuilder
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.nodebuilder._
 
-/**
-  * Provides a standard setup for the test suites.
+/** Provides a standard setup for the test suites.
   * The reference to "cake" is about the "Cake Pattern" used in Mantis.
   * Specifically it relates to the creation and wiring of the several components of a
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
   */
 trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
-  protected lazy val executionContextExecutor = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
-  protected lazy val monixScheduler = Scheduler(executionContextExecutor)
+  protected lazy val executionContextExecutor: ExecutionContextExecutor =
+    ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
+  protected lazy val monixScheduler: Scheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
   protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.PoW)
 
-  /**
-    * The default validators for the test cases.
+  /** The default validators for the test cases.
     * Override this if you want to alter the behaviour of consensus
     * or if you specifically want other validators than the consensus provides.
     *
@@ -41,13 +43,11 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
   lazy val validators: Validators = successValidators
 
   //+ cake overrides
-  /**
-    * The default VM for the test cases.
+  /** The default VM for the test cases.
     */
   override lazy val vm: VMImpl = new MockVM()
 
-  /**
-    * The default consensus for the test cases.
+  /** The default consensus for the test cases.
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
@@ -58,8 +58,7 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     */
   override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
 
-  /**
-    * Reuses the existing consensus instance and creates a new one
+  /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.
     *
     * @note The existing consensus instance is provided lazily via the cake, so that at the moment

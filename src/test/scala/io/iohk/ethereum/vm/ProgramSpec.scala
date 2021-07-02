@@ -1,11 +1,13 @@
 package io.iohk.ethereum.vm
 
-import Generators._
 import akka.util.ByteString
+
 import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import Generators._
 
 class ProgramSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
@@ -40,7 +42,10 @@ class ProgramSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCheck
 
       //Removing the PUSH1 that would be used as a parameter of another PUSH1
       //  Example: In "PUSH1 PUSH1 JUMPDEST", the JUMPDEST is a valid jump destination
-      val pushOpLocationsNotParameters = (pushOpLocations diff jumpDestLocations).toList.sorted
+      val pushOpLocationsNotParameters = pushOpLocations
+        .diff(jumpDestLocations)
+        .toList
+        .sorted
         .foldLeft(List.empty[Int]) { case (recPushOpLocations, i) =>
           if (recPushOpLocations.lastOption.contains(i - 1)) recPushOpLocations else recPushOpLocations :+ i
         }

@@ -1,19 +1,25 @@
 package io.iohk.ethereum.transactions
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import com.softwaremill.diffx.scalatest.DiffMatcher
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.crypto.{ECDSASignature, generateKeyPair}
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.transactions.TransactionHistoryService.{ExtendedTransactionData, MinedTransactionData}
-import io.iohk.ethereum.transactions.testing.PendingTransactionsManagerAutoPilot
-import io.iohk.ethereum.{blockchain => _, _}
+
 import monix.eval.Task
+
+import com.softwaremill.diffx.scalatest.DiffMatcher
 import mouse.all._
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
+import io.iohk.ethereum.transactions.testing.PendingTransactionsManagerAutoPilot
+import io.iohk.ethereum.{blockchain => _, _}
 
 class TransactionHistoryServiceSpec
     extends TestKit(ActorSystem("TransactionHistoryServiceSpec-system"))
@@ -23,7 +29,7 @@ class TransactionHistoryServiceSpec
     with Matchers
     with DiffMatcher {
   class Fixture extends EphemBlockchainTestSetup {
-    val pendingTransactionManager = TestProbe()
+    val pendingTransactionManager: TestProbe = TestProbe()
     pendingTransactionManager.setAutoPilot(PendingTransactionsManagerAutoPilot())
     val transactionHistoryService =
       new TransactionHistoryService(blockchain, blockchainReader, pendingTransactionManager.ref, Timeouts.normalTimeout)
@@ -101,8 +107,8 @@ class TransactionHistoryServiceSpec
         Seq(ExtendedTransactionData(signedTx.tx, isOutgoing = true, None))
 
       for {
-        _ <- Task { blockchain.storeBlock(blockWithTx).commit() }
-        _ <- Task { pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(signedTx) }
+        _ <- Task(blockchain.storeBlock(blockWithTx).commit())
+        _ <- Task(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(signedTx))
         response <- transactionHistoryService.getAccountTransactions(
           signedTx.senderAddress,
           BigInt(3125371) to BigInt(3125381)
@@ -155,10 +161,10 @@ class TransactionHistoryServiceSpec
         block.body.transactionList.map(tx => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
 
       for {
-        _ <- Task { blockchain.save(block1, makeReceipts(block1), ChainWeight(0, block1.header.difficulty), true) }
-        _ <- Task { blockchain.save(block2, Nil, ChainWeight(2, block1.header.difficulty), true) }
-        _ <- Task { blockchain.save(block3, makeReceipts(block3), ChainWeight(2, block1.header.difficulty * 2), true) }
-        lastCheckpoint <- Task { blockchain.getLatestCheckpointBlockNumber() }
+        _ <- Task(blockchain.save(block1, makeReceipts(block1), ChainWeight(0, block1.header.difficulty), true))
+        _ <- Task(blockchain.save(block2, Nil, ChainWeight(2, block1.header.difficulty), true))
+        _ <- Task(blockchain.save(block3, makeReceipts(block3), ChainWeight(2, block1.header.difficulty * 2), true))
+        lastCheckpoint <- Task(blockchain.getLatestCheckpointBlockNumber())
         response <- transactionHistoryService.getAccountTransactions(
           senderAddress,
           BigInt.apply(0) to BigInt(10)

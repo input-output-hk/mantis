@@ -2,13 +2,13 @@ package io.iohk.ethereum.metrics
 
 import java.util.concurrent.atomic.AtomicReference
 
+import scala.util.Try
+
 import io.micrometer.core.instrument._
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry
 import io.prometheus.client.exporter.HTTPServer
 import io.prometheus.client.hotspot.DefaultExports
 import kamon.Kamon
-
-import scala.util.Try
 
 case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: Int = 0) {
 
@@ -30,8 +30,7 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
   def deltaSpike(name: String): DeltaSpikeGauge =
     new DeltaSpikeGauge(mkName(name), this)
 
-  /**
-    * Returns a [[io.micrometer.core.instrument.Gauge Gauge]].
+  /** Returns a [[io.micrometer.core.instrument.Gauge Gauge]].
     * @param computeValue A function that computes the current gauge value.
     */
   def gauge(name: String, computeValue: () => Double): Gauge =
@@ -43,16 +42,14 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
       .builder(mkName(name), this, (_: Any) => computeValue())
       .register(registry)
 
-  /**
-    * Returns a [[io.micrometer.core.instrument.Counter Counter]].
+  /** Returns a [[io.micrometer.core.instrument.Counter Counter]].
     */
   def counter(name: String): Counter =
     Counter
       .builder(mkName(name))
       .register(registry)
 
-  /**
-    * Returns a [[io.micrometer.core.instrument.Timer Timer]].
+  /** Returns a [[io.micrometer.core.instrument.Timer Timer]].
     */
   def timer(name: String, tags: String*): Timer =
     Timer
@@ -60,8 +57,7 @@ case class Metrics(metricsPrefix: String, registry: MeterRegistry, serverPort: I
       .tags(tags: _*)
       .register(registry)
 
-  /**
-    * Returns a [[io.micrometer.core.instrument.DistributionSummary DistributionSummary]].
+  /** Returns a [[io.micrometer.core.instrument.DistributionSummary DistributionSummary]].
     */
   def distribution(name: String): DistributionSummary =
     DistributionSummary
@@ -73,20 +69,19 @@ object Metrics {
   final val MetricsPrefix = "app"
 
   //+ Metrics singleton support
-  private[this] final val metricsSentinel = Metrics(MetricsPrefix, new SimpleMeterRegistry())
+  final private[this] val metricsSentinel = Metrics(MetricsPrefix, new SimpleMeterRegistry())
 
-  private[this] final val metricsRef = new AtomicReference[Metrics](metricsSentinel)
+  final private[this] val metricsRef = new AtomicReference[Metrics](metricsSentinel)
 
   private[this] def setOnce(metrics: Metrics): Boolean = metricsRef.compareAndSet(metricsSentinel, metrics)
 
   def get(): Metrics = metricsRef.get()
   //- Metrics singleton support
 
-  /**
-    * Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.
+  /** Instantiates and configures the metrics "service". This should happen once in the lifetime of the application.
     * After this call completes successfully, you can obtain the metrics service by using `Metrics.get()`.
     */
-  def configure(config: MetricsConfig): Try[Unit] = {
+  def configure(config: MetricsConfig): Try[Unit] =
     Try {
       if (config.enabled) {
         val registry = MeterRegistryBuilder.build(MetricsPrefix)
@@ -99,5 +94,4 @@ object Metrics {
         }
       }
     }
-  }
 }

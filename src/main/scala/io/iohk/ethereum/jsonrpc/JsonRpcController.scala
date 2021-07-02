@@ -1,31 +1,34 @@
 package io.iohk.ethereum.jsonrpc
 
+import monix.eval.Task
+
+import org.json4s.JsonDSL._
+
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.jsonrpc.DebugService.{ListPeersInfoRequest, ListPeersInfoResponse}
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoRequest
+import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
 import io.iohk.ethereum.jsonrpc.EthBlocksService._
+import io.iohk.ethereum.jsonrpc.EthFilterService._
 import io.iohk.ethereum.jsonrpc.EthInfoService._
+import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.EthTxService._
 import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.jsonrpc.EthFilterService._
-import io.iohk.ethereum.jsonrpc.MantisService.{GetAccountTransactionsRequest, GetAccountTransactionsResponse}
-import io.iohk.ethereum.jsonrpc.EthMiningService._
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
+import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.NetService._
 import io.iohk.ethereum.jsonrpc.PersonalService._
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse}
-import io.iohk.ethereum.jsonrpc.QAService.{
-  GenerateCheckpointRequest,
-  GenerateCheckpointResponse,
-  GetFederationMembersInfoRequest,
-  GetFederationMembersInfoResponse
-}
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
+import io.iohk.ethereum.jsonrpc.QAService.GenerateCheckpointRequest
+import io.iohk.ethereum.jsonrpc.QAService.GenerateCheckpointResponse
+import io.iohk.ethereum.jsonrpc.QAService.GetFederationMembersInfoRequest
+import io.iohk.ethereum.jsonrpc.QAService.GetFederationMembersInfoResponse
 import io.iohk.ethereum.jsonrpc.TestService._
 import io.iohk.ethereum.jsonrpc.Web3Service._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.utils.Logger
-import monix.eval.Task
-import org.json4s.JsonDSL._
 
 case class JsonRpcController(
     web3Service: Web3Service,
@@ -229,12 +232,11 @@ case class JsonRpcController(
       handle[ListPeersInfoRequest, ListPeersInfoResponse](debugService.listPeersInfo, req)
   }
 
-  private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
+  private def handleTestRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
     testServiceOpt match {
       case Some(testService) => handleTestRequest(testService)
-      case None => PartialFunction.empty
+      case None              => PartialFunction.empty
     }
-  }
 
   private def handleTestRequest(testService: TestService): PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "test_setChainParams", _, _) =>
@@ -320,7 +322,7 @@ case class JsonRpcController(
 
   private def handleRpcRequest: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] = {
     case req @ JsonRpcRequest(_, "rpc_modules", _, _) =>
-      val result = enabledApis.map { _ -> "1.0" }.toMap
+      val result = enabledApis.map(_ -> "1.0").toMap
       Task(JsonRpcResponse("2.0", Some(result), None, req.id))
   }
 }

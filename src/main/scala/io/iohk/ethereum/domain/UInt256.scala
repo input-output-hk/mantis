@@ -1,9 +1,10 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteUtils
 
 import scala.language.implicitConversions
+
+import io.iohk.ethereum.utils.ByteUtils
 
 // scalastyle:off number.of.methods
 object UInt256 {
@@ -128,20 +129,20 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   private def zeroCheck(x: UInt256)(result: => BigInt): UInt256 =
     if (x.isZero) Zero else UInt256(result)
 
-  def div(that: UInt256): UInt256 = zeroCheck(that) { new UInt256(this.n / that.n) }
+  def div(that: UInt256): UInt256 = zeroCheck(that)(new UInt256(this.n / that.n))
 
-  def sdiv(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.signedN / that.signedN) }
+  def sdiv(that: UInt256): UInt256 = zeroCheck(that)(UInt256(this.signedN / that.signedN))
 
-  def mod(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.n mod that.n) }
+  def mod(that: UInt256): UInt256 = zeroCheck(that)(UInt256(this.n.mod(that.n)))
 
-  def smod(that: UInt256): UInt256 = zeroCheck(that) { UInt256(this.signedN % that.signedN.abs) }
+  def smod(that: UInt256): UInt256 = zeroCheck(that)(UInt256(this.signedN % that.signedN.abs))
 
   def addmod(that: UInt256, modulus: UInt256): UInt256 = zeroCheck(modulus) {
     new UInt256((this.n + that.n) % modulus.n)
   }
 
   def mulmod(that: UInt256, modulus: UInt256): UInt256 = zeroCheck(modulus) {
-    new UInt256((this.n * that.n) mod modulus.n)
+    new UInt256((this.n * that.n).mod(modulus.n))
   }
 
   def slt(that: UInt256): Boolean = this.signedN < that.signedN
@@ -150,7 +151,7 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
 
   def sshift(that: UInt256): UInt256 = UInt256(this.signedN >> that.signedN.toInt)
 
-  def signExtend(that: UInt256): UInt256 = {
+  def signExtend(that: UInt256): UInt256 =
     if (that.n < 0 || that.n > 31) {
       this
     } else {
@@ -160,7 +161,6 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
       val newN = if (negative) n | (MaxValue ^ mask) else n & mask
       new UInt256(newN)
     }
-  }
 
   def fillingAdd(that: UInt256): UInt256 = {
     val result = this.n + that.n
@@ -171,12 +171,11 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   }
 
   //standard methods
-  override def equals(that: Any): Boolean = {
+  override def equals(that: Any): Boolean =
     that match {
       case that: UInt256 => this.n.equals(that.n)
-      case other => other == n
+      case other         => other == n
     }
-  }
 
   override def hashCode: Int = n.hashCode()
 
@@ -200,13 +199,11 @@ class UInt256 private (private val n: BigInt) extends Ordered[UInt256] {
   // conversions
   def toBigInt: BigInt = n
 
-  /**
-    * @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
+  /** @return an Int with MSB=0, thus a value in range [0, Int.MaxValue]
     */
   def toInt: Int = n.intValue & Int.MaxValue
 
-  /**
-    * @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
+  /** @return a Long with MSB=0, thus a value in range [0, Long.MaxValue]
     */
   def toLong: Long = n.longValue & Long.MaxValue
 }

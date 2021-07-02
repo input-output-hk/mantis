@@ -2,23 +2,32 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
-import akka.util.{ByteString, Timeout}
-import com.typesafe.config.{ConfigFactory, Config => TypesafeConfig}
+import akka.util.ByteString
+import akka.util.Timeout
+
+import scala.concurrent.duration._
+import scala.jdk.CollectionConverters._
+import scala.util.Try
+
+import com.typesafe.config.ConfigFactory
+import com.typesafe.config.{Config => TypesafeConfig}
+
 import io.iohk.ethereum.db.dataSource.RocksDbConfig
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning, PruningMode}
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.BasicPruning
+import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
+import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.utils.VmConfig.VmMode
-import ConfigUtils._
 
-import scala.jdk.CollectionConverters._
-import scala.concurrent.duration._
-import scala.util.Try
+import ConfigUtils._
 
 object Config {
 
-  val config = ConfigFactory.load().getConfig("mantis")
+  val config: TypesafeConfig = ConfigFactory.load().getConfig("mantis")
 
   val testmode: Boolean = config.getBoolean("testmode")
 
@@ -40,7 +49,7 @@ object Config {
   object Network {
     private val networkConfig = config.getConfig("network")
 
-    val automaticPortForwarding = networkConfig.getBoolean("automatic-port-forwarding")
+    val automaticPortForwarding: Boolean = networkConfig.getBoolean("automatic-port-forwarding")
 
     object Server {
       private val serverConfig = networkConfig.getConfig("server-address")
@@ -50,7 +59,7 @@ object Config {
       val listenAddress = new InetSocketAddress(interface, port)
     }
 
-    val peer = new PeerConfiguration {
+    val peer: PeerConfiguration = new PeerConfiguration {
       private val peerConfig = networkConfig.getConfig("peer")
       private val blockchainConfig: BlockchainConfig = blockchains.blockchainConfig
 
@@ -248,13 +257,12 @@ object KeyStoreConfig {
     }
   }
 
-  def customKeyStoreConfig(path: String): KeyStoreConfig = {
+  def customKeyStoreConfig(path: String): KeyStoreConfig =
     new KeyStoreConfig {
       val keyStoreDir: String = path
       val minimalPassphraseLength: Int = 7
       val allowNoPassphrase: Boolean = true
     }
-  }
 }
 
 trait FilterConfig {
@@ -369,7 +377,7 @@ case class MonetaryPolicyConfig(
 }
 
 object MonetaryPolicyConfig {
-  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig = {
+  def apply(mpConfig: TypesafeConfig): MonetaryPolicyConfig =
     MonetaryPolicyConfig(
       mpConfig.getInt("era-duration"),
       mpConfig.getDouble("reward-reduction-rate"),
@@ -377,7 +385,6 @@ object MonetaryPolicyConfig {
       BigInt(mpConfig.getString("first-era-reduced-block-reward")),
       BigInt(mpConfig.getString("first-era-constantinople-reduced-block-reward"))
     )
-  }
 }
 
 trait PruningConfig {
@@ -389,8 +396,8 @@ object PruningConfig {
     val pruningConfig = etcClientConfig.getConfig("pruning")
 
     val pruningMode: PruningMode = pruningConfig.getString("mode") match {
-      case "basic" => BasicPruning(pruningConfig.getInt("history"))
-      case "archive" => ArchivePruning
+      case "basic"    => BasicPruning(pruningConfig.getInt("history"))
+      case "archive"  => ArchivePruning
       case "inmemory" => InMemoryPruning(pruningConfig.getInt("history"))
     }
 
@@ -416,7 +423,7 @@ object VmConfig {
     val VmTypeMantis = "mantis"
     val VmTypeNone = "none"
 
-    val supportedVmTypes = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
+    val supportedVmTypes: Set[String] = Set(VmTypeIele, VmTypeKevm, VmTypeMantis, VmTypeNone)
   }
 
   case class ExternalConfig(vmType: String, executablePath: Option[String], host: String, port: Int)
@@ -443,7 +450,7 @@ object VmConfig {
     mpConfig.getString("vm.mode") match {
       case "internal" => VmConfig(VmMode.Internal, None)
       case "external" => VmConfig(VmMode.External, Some(parseExternalConfig()))
-      case other => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
+      case other      => throw new RuntimeException(s"Unknown VM mode: $other. Expected one of: local, external")
     }
   }
 }

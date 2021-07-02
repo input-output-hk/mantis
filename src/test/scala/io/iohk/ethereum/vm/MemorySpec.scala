@@ -1,28 +1,29 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.vm.Generators._
-import org.scalacheck.{Arbitrary, Gen}
-import io.iohk.ethereum.domain.UInt256
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.vm.Generators._
 
 class MemorySpec extends AnyFunSuite with ScalaCheckPropertyChecks with Matchers {
 
-  def zeros(size: Int): ByteString = {
+  def zeros(size: Int): ByteString =
     if (size <= 0)
       ByteString()
     else
       ByteString(Array.fill[Byte](size)(0))
-  }
 
-  def consecutiveBytes(size: Int, start: Int = 0): ByteString = {
+  def consecutiveBytes(size: Int, start: Int = 0): ByteString =
     if (size <= 0)
       ByteString()
     else
       ByteString((start until (start + size)).map(_.toByte): _*)
-  }
 
   import Arbitrary._
   import Gen._

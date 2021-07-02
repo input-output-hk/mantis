@@ -1,20 +1,25 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.{ActorSystem => ClassicSystem}
-import akka.testkit.{TestActorRef, TestKit}
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.consensus.pow.MinerSpecSetup
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
-import io.iohk.ethereum.domain.{Block, SignedTransaction}
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.utils.ByteStringUtils
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+
 import monix.eval.Task
+
+import scala.concurrent.duration._
+
 import org.scalatest._
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpecLike
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.consensus.pow.MinerSpecSetup
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.utils.ByteStringUtils
 
 class MockedMinerSpec
     extends TestKit(ClassicSystem("MockedPowMinerSpec_System"))
@@ -22,7 +27,7 @@ class MockedMinerSpec
     with Matchers
     with WithActorSystemShutDown {
 
-  private implicit val timeout: Duration = 1.minute
+  implicit private val timeout: Duration = 1.minute
 
   "MockedPowMiner actor" should {
     "not mine blocks" when {
@@ -212,9 +217,9 @@ class MockedMinerSpec
   }
 
   class TestSetup(implicit system: ClassicSystem) extends MinerSpecSetup {
-    val noMessageTimeOut = 3.seconds
+    val noMessageTimeOut: FiniteDuration = 3.seconds
 
-    val miner = TestActorRef(
+    val miner: TestActorRef[Nothing] = TestActorRef(
       MockedMiner.props(
         blockchain,
         blockchainReader,
@@ -231,14 +236,13 @@ class MockedMinerSpec
       block.header.parentHash shouldBe parent.hash
     }
 
-    protected def withStartedMiner(behaviour: => Unit) = {
+    protected def withStartedMiner(behaviour: => Unit): Unit = {
       miner ! MinerProtocol.StartMining
       behaviour
       miner ! MinerProtocol.StopMining
     }
 
-    protected def sendToMiner(msg: MinerProtocol) = {
+    protected def sendToMiner(msg: MinerProtocol): Unit =
       miner.tell(msg, parentActor.ref)
-    }
   }
 }

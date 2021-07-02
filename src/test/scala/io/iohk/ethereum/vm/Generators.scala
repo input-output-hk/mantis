@@ -1,11 +1,17 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.vm.MockWorldState._
-import org.scalacheck.{Arbitrary, Gen}
+
 import Fixtures.blockchainConfig
 
 // scalastyle:off magic.number
@@ -61,8 +67,8 @@ object Generators extends ObjectGenerators {
   def getStorageGen(maxSize: Int = 0, uint256Gen: Gen[UInt256] = getUInt256Gen()): Gen[MockStorage] =
     getListGen(0, maxSize, uint256Gen).map(MockStorage.fromSeq)
 
-  val ownerAddr = Address(0x123456)
-  val callerAddr = Address(0xabcdef)
+  val ownerAddr: Address = Address(0x123456)
+  val callerAddr: Address = Address(0xabcdef)
 
   val exampleBlockHeader = BlockFixtures.ValidBlock.header
 

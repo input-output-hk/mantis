@@ -7,7 +7,7 @@ object Fixtures {
   val PhoenixBlockNumber = 600
   val IstanbulBlockNumber = 600
 
-  val blockchainConfig = BlockchainConfigForEvm(
+  val blockchainConfig: BlockchainConfigForEvm = BlockchainConfigForEvm(
     // block numbers are irrelevant
     frontierBlockNumber = 0,
     homesteadBlockNumber = 0,

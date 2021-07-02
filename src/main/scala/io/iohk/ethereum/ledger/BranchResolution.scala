@@ -1,12 +1,17 @@
 package io.iohk.ethereum.ledger
 
 import cats.data.NonEmptyList
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader, ChainWeight}
+
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.Logger
 
 class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReader) extends Logger {
 
-  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
+  def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
@@ -18,7 +23,6 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
       else
         compareBranch(headers)
     }
-  }
 
   private[ledger] def doHeadersFormChain(headers: NonEmptyList[BlockHeader]): Boolean =
     headers.toList.zip(headers.tail).forall { case (parent, child) =>

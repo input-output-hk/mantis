@@ -2,23 +2,28 @@ package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
-import io.iohk.ethereum.consensus.pow.{EthashUtils, PoWBlockCreator, PoWMiningCoordinator}
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.jsonrpc.EthMiningService
-import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
-import io.iohk.ethereum.utils.BigIntExtensionMethods._
-import io.iohk.ethereum.utils.{ByteStringUtils, ByteUtils, Logger}
-import monix.execution.{CancelableFuture, Scheduler}
+
+import monix.execution.CancelableFuture
+import monix.execution.Scheduler
 
 import scala.util.Random
 
-/**
-  * Implementation of Ethash CPU mining worker.
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.pow.EthashUtils
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.jsonrpc.EthMiningService
+import io.iohk.ethereum.utils.BigIntExtensionMethods._
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.utils.Logger
+
+/** Implementation of Ethash CPU mining worker.
   * Could be started by switching configuration flag "consensus.mining-enabled" to true
   * Implementation explanation at https://eth.wiki/concepts/ethash/ethash
   */

@@ -1,21 +1,26 @@
 package io.iohk.ethereum.consensus.pow.miners
 
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{MiningSuccessful, MiningUnsuccessful}
-import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValid
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.{Fixtures, MiningPatience}
+import scala.concurrent.duration._
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.Tag
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.MiningPatience
+import io.iohk.ethereum.consensus.pow.EthashUtils
+import io.iohk.ethereum.consensus.pow.MinerSpecSetup
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.MiningSuccessful
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.MiningUnsuccessful
+import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.domain._
 
 class EthashMinerSpec extends AnyFlatSpec with Matchers {
-  final val PoWMinerSpecTag = Tag("EthashMinerSpec")
+  final val PoWMinerSpecTag: Tag = Tag("EthashMinerSpec")
 
   "EthashMiner actor" should "mine valid blocks" taggedAs PoWMinerSpecTag in new TestSetup {
     val parentBlock: Block = origin
@@ -82,16 +87,15 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers {
       checkAssertions(minedBlock, parentBlock)
     }
 
-    def startMining(parentBlock: Block): Block = {
+    def startMining(parentBlock: Block): Block =
       eventually {
         miner.processMining(parentBlock).map {
-          case MiningSuccessful => true
+          case MiningSuccessful   => true
           case MiningUnsuccessful => startMining(parentBlock)
         }
         val minedBlock = waitForMinedBlock
         minedBlock
       }
-    }
 
     private def checkAssertions(minedBlock: Block, parentBlock: Block): Unit = {
       minedBlock.body.transactionList shouldBe Seq(txToMine)

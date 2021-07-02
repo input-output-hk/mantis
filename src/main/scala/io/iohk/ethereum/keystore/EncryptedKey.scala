@@ -4,6 +4,7 @@ import java.security.SecureRandom
 import java.util.UUID
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.SymmetricCipher
 import io.iohk.ethereum.domain.Address
@@ -50,7 +51,7 @@ object EncryptedKey {
       case ScryptParams(salt, n, r, p, dklen) =>
         crypto.scrypt(passphrase, salt, n, r, p, dklen)
 
-      case Pbkdf2Params(salt, prf, c, dklen) =>
+      case Pbkdf2Params(salt, _, c, dklen) =>
         // prf is currently ignored, only hmac sha256 is used
         crypto.pbkdf2HMacSha256(passphrase, salt, c, dklen)
     }
@@ -59,8 +60,7 @@ object EncryptedKey {
     crypto.kec256(dk.slice(16, 32) ++ ciphertext)
 }
 
-/**
-  * Represents an encrypted private key stored in the keystore
+/** Represents an encrypted private key stored in the keystore
   * See: https://github.com/ethereum/wiki/wiki/Web3-Secret-Storage-Definition
   */
 case class EncryptedKey(

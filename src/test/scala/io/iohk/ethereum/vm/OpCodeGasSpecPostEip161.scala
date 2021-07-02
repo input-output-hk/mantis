@@ -1,16 +1,19 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.domain.UInt256._
-import io.iohk.ethereum.domain.{Account, Address}
-import io.iohk.ethereum.vm.Generators._
-import Fixtures.blockchainConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.vm.Generators._
+
+import Fixtures.blockchainConfig
 
 class OpCodeGasSpecPostEip161 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
-  override val config = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
+  override val config: EvmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig)
 
   import config.feeSchedule._
 
@@ -31,7 +34,7 @@ class OpCodeGasSpecPostEip161 extends AnyFunSuite with OpCodeTesting with Matche
     }
 
     // Sending refund to an already existing account not dead account
-    forAll(stateGen) { (stateIn) =>
+    forAll(stateGen) { stateIn =>
       val (refund, _) = stateIn.stack.pop
       val world = stateIn.world.saveAccount(Address(refund), Account.empty().increaseNonce())
       val updatedStateIn = stateIn.withWorld(world)

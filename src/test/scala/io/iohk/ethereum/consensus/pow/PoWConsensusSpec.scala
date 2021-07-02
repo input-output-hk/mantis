@@ -2,20 +2,27 @@ package io.iohk.ethereum.consensus.pow
 
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, ScenarioSetup}
-import io.iohk.ethereum.consensus.ConsensusConfigs.ethashConfig
-import io.iohk.ethereum.consensus.Protocol.{NoAdditionalPoWData, RestrictedPoWMinerData}
-import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGeneratorImpl, RestrictedPoWBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.{ConsensusConfigs, FullConsensusConfig, Protocol}
-import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader}
-import io.iohk.ethereum.nodebuilder.StdNode
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.ConsensusConfigs.ethashConfig
+import io.iohk.ethereum.consensus.FullConsensusConfig
+import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.Protocol.RestrictedPoWMinerData
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
+import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.nodebuilder.StdNode
 
 class PoWConsensusSpec
     extends TestKit(ActorSystem("PoWConsensusSpec_System"))

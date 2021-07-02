@@ -1,17 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.QAService.{MineBlocksRequest, MineBlocksResponse, _}
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodCodec}
-import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
+
 import org.json4s.Extraction
 import org.json4s.JsonAST._
+
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
+import io.iohk.ethereum.jsonrpc.QAService.MineBlocksRequest
+import io.iohk.ethereum.jsonrpc.QAService.MineBlocksResponse
+import io.iohk.ethereum.jsonrpc.QAService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodCodec
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder.NoParamsMethodDecoder
 
 object QAJsonMethodsImplicits extends JsonMethodsImplicits {
   implicit val qa_mineBlocks: JsonMethodCodec[MineBlocksRequest, MineBlocksResponse] =
     new JsonMethodCodec[MineBlocksRequest, MineBlocksResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] = {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, MineBlocksRequest] =
         params match {
           case Some(JArray(JInt(numBlocks) :: JBool(withTransactions) :: Nil)) =>
             Right(MineBlocksRequest(numBlocks.toInt, withTransactions))
@@ -25,7 +30,6 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ =>
             Left(InvalidParams())
         }
-      }
 
       def encodeJson(t: MineBlocksResponse): JValue = JObject(
         "responseType" -> JString(t.responseType.entryName),
@@ -35,7 +39,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
 
   implicit val qa_generateCheckpoint: JsonMethodCodec[GenerateCheckpointRequest, GenerateCheckpointResponse] =
     new JsonMethodCodec[GenerateCheckpointRequest, GenerateCheckpointResponse] {
-      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] = {
+      def decodeJson(params: Option[JArray]): Either[JsonRpcError, GenerateCheckpointRequest] =
         params match {
           case Some(JArray((keys: JArray) :: JString(hash) :: Nil)) =>
             for {
@@ -47,7 +51,6 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
           case _ =>
             Left(InvalidParams())
         }
-      }
 
       def encodeJson(t: GenerateCheckpointResponse): JValue = Extraction.decompose(t.checkpoint)
     }
@@ -56,7 +59,7 @@ object QAJsonMethodsImplicits extends JsonMethodsImplicits {
     import cats.implicits._
     arr.arr.traverse {
       case JString(key) => extractBytes(key)
-      case other => Left(InvalidParams(msg = s"Unable to parse private key, expected byte data but got: $other"))
+      case other        => Left(InvalidParams(msg = s"Unable to parse private key, expected byte data but got: $other"))
     }
   }
 

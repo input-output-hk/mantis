@@ -1,13 +1,15 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage.Code
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.vm.{Storage, WorldStateProxy}
+import io.iohk.ethereum.vm.Storage
+import io.iohk.ethereum.vm.WorldStateProxy
 
 object InMemoryWorldStateProxy {
 
@@ -55,8 +57,7 @@ object InMemoryWorldStateProxy {
     )
   }
 
-  /**
-    * Updates state trie with current changes but does not persist them into the storages. To do so it:
+  /** Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
     *   - Commits constract storages (to get account's contract storage root)
     *   - Updates state tree
@@ -65,7 +66,7 @@ object InMemoryWorldStateProxy {
     * @return Updated world
     */
   def persistState(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+    def persistCode(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.accountCodes.foldLeft(worldState) { case (updatedWorldState, (address, code)) =>
         val codeHash = kec256(code)
         updatedWorldState.evmCodeStorage.put(codeHash, code).commit()
@@ -75,7 +76,6 @@ object InMemoryWorldStateProxy {
           accountCodes = Map.empty
         )
       }
-    }
 
     def persistContractStorage(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.contractStorages.foldLeft(worldState) { case (updatedWorldState, (address, storageTrie)) =>
@@ -94,11 +94,10 @@ object InMemoryWorldStateProxy {
     def persistAccountsStateTrie(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.copyWith(accountsStateTrie = worldState.accountsStateTrie.persist())
 
-    (persistCode _ andThen persistContractStorage andThen persistAccountsStateTrie)(worldState)
+    ((persistCode _).andThen(persistContractStorage).andThen(persistAccountsStateTrie))(worldState)
   }
 
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
+  /** Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
     * between Keccak 256-bit hashes of the addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
     * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
     * modified Merkle Patricia tree [...])."
@@ -112,14 +111,13 @@ object InMemoryWorldStateProxy {
   private def createProxiedAccountsStateTrie(
       accountsStorage: MptStorage,
       stateRootHash: ByteString
-  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] = {
+  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
     InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
       MerklePatriciaTrie[Address, Account](
         stateRootHash.toArray[Byte],
         accountsStorage
       )(Address.hashedAddressEncoder, accountSerializer)
     )
-  }
 }
 
 class InMemoryWorldStateProxyStorage(
@@ -163,9 +161,8 @@ class InMemoryWorldStateProxy(
 
   override def getGuaranteedAccount(address: Address): Account = super.getGuaranteedAccount(address)
 
-  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy = {
+  override def saveAccount(address: Address, account: Account): InMemoryWorldStateProxy =
     copyWith(accountsStateTrie = accountsStateTrie.put(address, account))
-  }
 
   override def deleteAccount(address: Address): InMemoryWorldStateProxy =
     copyWith(
@@ -200,15 +197,13 @@ class InMemoryWorldStateProxy(
 
   override def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  override def keepPrecompileTouched(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copyWith(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
 
-  /**
-    * Returns world state root hash. This value is only updated after persist.
+  /** Returns world state root hash. This value is only updated after persist.
     */
   def stateRootHash: ByteString = ByteString(accountsStateTrie.inner.getRootHash)
 
@@ -244,8 +239,7 @@ class InMemoryWorldStateProxy(
 
   override def getBlockHash(number: UInt256): Option[UInt256] = getBlockByNumber(number).map(UInt256(_))
 
-  /**
-    * Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
+  /** Returns an [[InMemorySimpleMapProxy]] of the contract storage, for `ethCompatibleStorage` defined as "trie as a map-ping from the Keccak
     * 256-bit hash of the 256-bit integer keys to the RLP-encoded256-bit integer values."
     * See [[http://paper.gavwood.com YP 4.1]]
     *

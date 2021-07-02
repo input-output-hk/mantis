@@ -2,29 +2,48 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator, Validators}
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack, TestConsensus}
-import io.iohk.ethereum.crypto.{generateKeyPair, kec256}
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.{PC, PR, VMImpl}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, DaoForkConfig}
-import io.iohk.ethereum.vm.{ProgramError, ProgramResult}
-import io.iohk.ethereum.{Fixtures, Mocks, ObjectGenerators}
+
 import monix.execution.Scheduler
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.handlers.{CallHandler0, CallHandler1, CallHandler4}
+import org.scalamock.handlers.CallHandler0
+import org.scalamock.handlers.CallHandler1
+import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
+import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
+import io.iohk.ethereum.ledger.PC
+import io.iohk.ethereum.ledger.PR
+import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.DaoForkConfig
+import io.iohk.ethereum.vm.ProgramError
+import io.iohk.ethereum.vm.ProgramResult
 
 // scalastyle:off magic.number
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
@@ -36,15 +55,15 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   val receiverKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
   //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-  val originAddress = Address(
+  val originAddress: Address = Address(
     kec256(originKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
   )
-  val receiverAddress = Address(
+  val receiverAddress: Address = Address(
     kec256(receiverKeyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
   )
-  val minerAddress = Address(666)
+  val minerAddress: Address = Address(666)
 
-  val defaultBlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultBlockHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 1000000,
     number = blockchainConfig.forkBlockNumbers.homesteadBlockNumber + 1,
     gasLimit = 1000000,
@@ -52,7 +71,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     unixTimestamp = 1486752441
   )
 
-  val defaultTx = Transaction(
+  val defaultTx: Transaction = Transaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,
@@ -61,21 +80,22 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     payload = ByteString.empty
   )
 
-  val defaultLog = TxLogEntry(
+  val defaultLog: TxLogEntry = TxLogEntry(
     loggerAddress = originAddress,
     logTopics = Seq(ByteString(Hex.decode("962cd36cf694aa154c5d3a551f19c98f356d906e96828eeb616e16fae6415738"))),
     data = ByteString(Hex.decode("1" * 128))
   )
 
-  val defaultChainWeight = ChainWeight.zero.increase(defaultBlockHeader)
+  val defaultChainWeight: ChainWeight = ChainWeight.zero.increase(defaultBlockHeader)
 
   val initialOriginBalance: UInt256 = 100000000
   val initialMinerBalance: UInt256 = 2000000
 
   val initialOriginNonce: BigInt = defaultTx.nonce
 
-  val defaultAddressesToDelete = Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
-  val defaultLogs = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
+  val defaultAddressesToDelete: Set[Address] =
+    Set(Address(Hex.decode("01")), Address(Hex.decode("02")), Address(Hex.decode("03")))
+  val defaultLogs: Seq[TxLogEntry] = Seq(defaultLog.copy(loggerAddress = defaultAddressesToDelete.head))
   val defaultGasPrice: UInt256 = 10
   val defaultGasLimit: UInt256 = 1000000
   val defaultValue: BigInt = 1000
@@ -272,7 +292,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
 
-  val defaultHeader = Fixtures.Blocks.ValidBlock.header.copy(
+  val defaultHeader: BlockHeader = Fixtures.Blocks.ValidBlock.header.copy(
     difficulty = 100,
     number = 1,
     gasLimit = 1000000,
@@ -316,15 +336,15 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def getChainHeadersNel(from: BigInt, to: BigInt, parent: ByteString = randomHash()): NonEmptyList[BlockHeader] =
     NonEmptyList.fromListUnsafe(getChainHeaders(from, to, parent))
 
-  val receipts = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
+  val receipts: Seq[Receipt] = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
-  val currentWeight = ChainWeight.totalDifficultyOnly(99999)
+  val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(99999)
 
-  val bestNum = BigInt(5)
+  val bestNum: BigInt = BigInt(5)
 
   val bestBlock: Block = getBlock(bestNum, currentWeight.totalDifficulty / 2)
 
-  val execError = ValidationAfterExecError("error")
+  val execError: ValidationAfterExecError = ValidationAfterExecError("error")
 
   object FailHeaderValidation extends Mocks.MockValidatorsAlwaysSucceed {
     override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
@@ -347,9 +367,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
   }
 
-  lazy val failBlockImport = mkBlockImport(validators = FailHeaderValidation)
+  lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
 
-  lazy val blockImportNotFailingAfterExecValidation = {
+  lazy val blockImportNotFailingAfterExecValidation: BlockImport = {
     val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
@@ -422,12 +442,11 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       receipts: Seq[Receipt],
       weight: ChainWeight,
       saveAsBestBlock: Boolean
-  ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] = {
+  ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] =
     (blockchain
       .save(_: Block, _: Seq[Receipt], _: ChainWeight, _: Boolean))
       .expects(block, receipts, weight, saveAsBestBlock)
       .once()
-  }
 
   def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] =
     (blockchain.isInChain _).expects(hash).returning(result)
@@ -440,7 +459,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
   lazy val blockImportWithMockedBlockExecution: BlockImport =
     mkBlockImport(blockExecutionOpt = Some(mock[BlockExecution]))

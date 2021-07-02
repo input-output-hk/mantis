@@ -3,7 +3,7 @@ package io.iohk.ethereum.vm
 import io.iohk.ethereum.domain.UInt256
 
 object MockStorage {
-  val Empty = MockStorage()
+  val Empty: MockStorage = MockStorage()
 
   def fromSeq(words: Seq[UInt256]): MockStorage = {
     val map = words.zipWithIndex.map { case (w, i) => BigInt(i) -> w.toBigInt }.toMap

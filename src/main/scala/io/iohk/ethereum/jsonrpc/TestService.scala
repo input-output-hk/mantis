@@ -1,28 +1,48 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
-import io.iohk.ethereum.blockchain.data.{GenesisAccount, GenesisData, GenesisDataLoader}
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.blocks._
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.storage.{StateStorage, TransactionMappingStorage}
-import io.iohk.ethereum.{crypto, domain, rlp}
-import io.iohk.ethereum.domain.Block._
-import io.iohk.ethereum.domain.{Account, Address, Block, BlockchainImpl, BlockchainReader, UInt256}
-import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.testmode.{SealEngineType, TestModeComponentsProvider}
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, ForkBlockNumbers, Logger}
+import akka.util.ByteString
+import akka.util.Timeout
+
 import monix.eval.Task
 import monix.execution.Scheduler
-import org.bouncycastle.util.encoders.Hex
-import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
-import io.iohk.ethereum.rlp.RLPList
 
 import scala.concurrent.duration._
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.blockchain.data.GenesisAccount
+import io.iohk.ethereum.blockchain.data.GenesisData
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.db.storage.TransactionMappingStorage
+import io.iohk.ethereum.domain
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Block._
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
+import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.testmode.SealEngineType
+import io.iohk.ethereum.testmode.TestModeComponentsProvider
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.ForkBlockNumbers
+import io.iohk.ethereum.utils.Logger
 
 object TestService {
   case class GenesisParams(
@@ -175,10 +195,10 @@ class TestService(
     storeGenesisAccountStorageData(genesisData.alloc)
 
     accountHashWithAdresses = (etherbase.toUnprefixedString :: genesisData.alloc.keys.toList)
-      .map(hexAddress => {
+      .map { hexAddress =>
         val address = Address(hexAddress)
         crypto.kec256(address.bytes) -> address
-      })
+      }
       .sortBy(v => UInt256(v._1))
 
     SetChainParamsResponse().rightNow
@@ -223,7 +243,7 @@ class TestService(
   private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
     accounts
       .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
-      .foreach { code => blockchain.storeEvmCode(kec256(code), code).commit() }
+      .foreach(code => blockchain.storeEvmCode(kec256(code), code).commit())
 
   private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
     val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
@@ -240,7 +260,7 @@ class TestService(
   }
 
   def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
-    def mineBlock(): Task[Unit] = {
+    def mineBlock(): Task[Unit] =
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
@@ -252,7 +272,6 @@ class TestService(
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
           blockTimestamp += 1
         }
-    }
 
     def doNTimesF(n: Int)(fn: Task[Unit]): Task[Unit] = fn.flatMap { _ =>
       if (n <= 1) Task.unit
@@ -275,7 +294,7 @@ class TestService(
     RewindToBlockResponse().rightNow
   }
 
-  def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] = {
+  def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] =
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) =>
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
@@ -285,11 +304,10 @@ class TestService(
           .importBlock(value)
           .flatMap(handleResult(value))
     }
-  }
 
   private def handleResult(
       block: Block
-  )(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] = {
+  )(blockImportResult: BlockImportResult): ServiceResponse[ImportRawBlockResponse] =
     blockImportResult match {
       case BlockImportedToTop(blockImportData) =>
         val blockHash = s"0x${ByteStringUtils.hash2string(blockImportData.head.block.header.hash)}"
@@ -301,7 +319,6 @@ class TestService(
         log.warn("Block import failed with {}", e)
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
     }
-  }
 
   def setEtherbase(req: SetEtherbaseRequest): ServiceResponse[SetEtherbaseResponse] = {
     etherbase = req.etherbase
@@ -314,9 +331,7 @@ class TestService(
       (_, account) <- genesisData.alloc
       storage <- account.storage
       storageKey <- storage.keys
-    } {
-      preimageCache.put(crypto.kec256(storageKey.bytes), storageKey)
-    }
+    } preimageCache.put(crypto.kec256(storageKey.bytes), storageKey)
   }
 
   private def getBlockForMining(parentBlock: Block): Task[PendingBlock] = {
@@ -444,7 +459,7 @@ class TestService(
 
   private val emptyLogRlpHash: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
-  private implicit class RichResponse[A](response: A) {
+  implicit private class RichResponse[A](response: A) {
     def rightNow: Task[Either[JsonRpcError, A]] = Task.now(Right(response))
   }
 }

@@ -1,20 +1,24 @@
 package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError._
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader}
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError._
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+
 class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
   it should "validate correctly a valid list of ommers" in new BlockUtils {
     ommersValidator.validate(ommersBlockParentHash, ommersBlockNumber, ommers, blockchainReader) match {
-      case Right(_) => succeed
+      case Right(_)  => succeed
       case Left(err) => fail(s"Unexpected validation error: $err")
     }
   }
@@ -27,8 +31,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmersLengthError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)               => fail(s"Unexpected validation error: $err")
+      case Right(_)                => fail("Unexpected validation success")
     }
   }
 
@@ -42,8 +46,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmersHeaderError(List(_))) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                        => fail(s"Unexpected validation error: $err")
+      case Right(_)                         => fail("Unexpected validation success")
     }
   }
 
@@ -55,8 +59,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmersUsedBeforeError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                   => fail(s"Unexpected validation error: $err")
+      case Right(_)                    => fail("Unexpected validation success")
     }
   }
 
@@ -68,8 +72,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmerIsAncestorError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                  => fail(s"Unexpected validation error: $err")
+      case Right(_)                   => fail("Unexpected validation success")
     }
   }
 
@@ -84,7 +88,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       getNBlocksBack
     ) match {
       case Left(OmmerParentIsNotAncestorError) => succeed
-      case err => fail(err.toString)
+      case err                                 => fail(err.toString)
     }
   }
 
@@ -98,7 +102,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       getNBlocksBack
     ) match {
       case Left(OmmerParentIsNotAncestorError) => succeed
-      case err => fail(err.toString)
+      case err                                 => fail(err.toString)
     }
   }
 
@@ -110,7 +114,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmerParentIsNotAncestorError) => succeed
-      case err => fail(err.toString)
+      case err                                 => fail(err.toString)
     }
   }
 
@@ -122,8 +126,8 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       blockchainReader
     ) match {
       case Left(OmmersDuplicatedError) => succeed
-      case Left(err) => fail(s"Unexpected validation error: $err")
-      case Right(_) => fail("Unexpected validation success")
+      case Left(err)                   => fail(s"Unexpected validation error: $err")
+      case Right(_)                    => fail("Unexpected validation success")
     }
   }
 
@@ -132,7 +136,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
     val ommersValidator = new StdOmmersValidator(new PoWBlockHeaderValidator(blockchainConfig))
 
-    val ommerInvalidBranch = BlockHeader(
+    val ommerInvalidBranch: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b12345f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("28921e4e2c9d84f4c0f0c0ceb991f45751a0fe93")),
@@ -155,7 +159,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     )
 
     //Ommers from block 0xe9fb121a7ee5cb03b33adbf59e95321a2453f09db98068e1f31f0da79860c50c (of number 97)
-    val ommer1 = BlockHeader(
+    val ommer1: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("1b7047b4338acf65be94c1a3e8c5c9338ad7d67c")),
@@ -176,7 +180,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       mixHash = ByteString(Hex.decode("c6d695926546d3d679199303a6d1fc983fe3f09f44396619a24c4271830a7b95")),
       nonce = ByteString(Hex.decode("62bc3dca012c1b27"))
     )
-    val ommer2 = BlockHeader(
+    val ommer2: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
       ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
       beneficiary = ByteString(Hex.decode("28921e4e2c9d84f4c0f0c0ceb991f45751a0fe93")),
@@ -200,7 +204,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     val ommers: Seq[BlockHeader] = Seq[BlockHeader](ommer1, ommer2)
     val ommersBlockNumber: BigInt = 97
 
-    val block90 = Block(
+    val block90: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("6da5970538eba5db93162e219182fca7e093cfe4fbd8dd0b82789adb25dcbb42")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -224,7 +228,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
-    val block91 = Block(
+    val block91: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("69d2798993659c0d864d6f2824440b091368c147efc6c33410ef181036fc2bf1")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -248,7 +252,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
-    val block92 = Block(
+    val block92: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("d691ed6cf02375620d9cca9052bcf38a4a23f5c77058581c8bb54a06e2eb6ed9")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -272,7 +276,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
-    val block93 = Block(
+    val block93: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("c86dcbd8ba3cd836bd9c00d9dababe81ed5a42310ade70a77700d42b5ff8b64c")),
         ommersHash = ByteString(Hex.decode("445ccaa7ee03cf387e4835482288f6b08dc351eef4ecc94b3ed8de56afd298a6")),
@@ -322,7 +326,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
         )
       )
     )
-    val block94 = Block(
+    val block94: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b36678f6a89fb1e8f017f2411a29d0ae810ab8b")),
         ommersHash = ByteString(Hex.decode("7766c4251396a6833ccbe4be86fbda3a200dccbe6a15d80ae3de5378b1540e04")),
@@ -372,7 +376,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
         )
       )
     )
-    val block95 = Block(
+    val block95: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("665586bdd5aefc860f8ff2d186617544d5aa6e5ae7203bf54b26f310be372e91")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -396,7 +400,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       ),
       BlockBody(Seq.empty, Seq.empty)
     )
-    val block96 = Block(
+    val block96: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("c0f772db658b2279a736f232e75d98629a53d36086e34a18f9fe65a4650d50a7")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -421,7 +425,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       BlockBody(Seq.empty, Seq.empty)
     )
 
-    val block89 = Block(
+    val block89: Block = Block(
       BlockHeader(
         parentHash = ByteString(Hex.decode("ba39b4ee19e5db0f5a85c344aa2bd2e7b0cdb2404b7d5c0e6cdc08c83f85083e")),
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),

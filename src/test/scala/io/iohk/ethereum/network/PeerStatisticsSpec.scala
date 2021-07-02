@@ -1,15 +1,18 @@
 package io.iohk.ethereum.network
 
 import akka.actor._
-import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.p2p.messages.ETH61.NewBlockHashes
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.utils.MockClock
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
+import scala.concurrent.duration._
+
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.network.PeerEventBusActor._
+import io.iohk.ethereum.network.p2p.messages.ETH61.NewBlockHashes
+import io.iohk.ethereum.utils.MockClock
 
 class PeerStatisticsSpec
     extends TestKit(ActorSystem("PeerStatisticsSpec_System"))
@@ -20,14 +23,14 @@ class PeerStatisticsSpec
   import PeerStatisticsActor._
 
   val TICK: Long = 50
-  val mockClock = new MockClock(0L) {
+  val mockClock: MockClock = new MockClock(0L) {
     override def millis(): Long = {
       windByMillis(TICK)
       super.millis()
     }
   }
 
-  behavior of "PeerStatisticsActor"
+  behavior.of("PeerStatisticsActor")
 
   it should "subscribe to peer events" in new Fixture {
     peerEventBus.expectMsg(Subscribe(PeerStatisticsActor.MessageSubscriptionClassifier))
@@ -70,11 +73,11 @@ class PeerStatisticsSpec
   }
 
   trait Fixture {
-    val sender = TestProbe()
-    implicit val senderRef = sender.ref
+    val sender: TestProbe = TestProbe()
+    implicit val senderRef: ActorRef = sender.ref
 
-    val peerEventBus = TestProbe()
-    val peerStatistics =
+    val peerEventBus: TestProbe = TestProbe()
+    val peerStatistics: ActorRef =
       system.actorOf(PeerStatisticsActor.props(peerEventBus.ref, slotDuration = 1.minute, slotCount = 30)(mockClock))
   }
 }

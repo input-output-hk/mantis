@@ -1,29 +1,43 @@
 package io.iohk.ethereum.sync.util
 
-import akka.actor.{ActorRef, typed}
+import akka.actor.ActorRef
+import akka.actor.typed
+import akka.actor.typed.scaladsl.adapter._
 import akka.util.ByteString
+
 import cats.effect.Resource
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.concurrent.duration._
+
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
+import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlock
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
-import io.iohk.ethereum.blockchain.sync.regular.{
-  BlockBroadcast,
-  BlockBroadcasterActor,
-  BlockFetcher,
-  BlockImporter,
-  RegularSync
-}
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.FullConsensusConfig
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.pow.{EthashConfig, PoWConsensus}
-import io.iohk.ethereum.consensus.{ConsensusConfig, FullConsensusConfig, pow}
+import io.iohk.ethereum.consensus.pow
+import io.iohk.ethereum.consensus.pow.EthashConfig
+import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
 import io.iohk.ethereum.nodebuilder.VmSetup
@@ -32,13 +46,6 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.def
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import monix.eval.Task
-import monix.execution.Scheduler
-import akka.actor.typed.scaladsl.adapter._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-
-import scala.concurrent.duration._
 object RegularSyncItSpecUtils {
 
   class ValidatorsExecutorAlwaysSucceed extends MockValidatorsAlwaysSucceed {
@@ -81,9 +88,9 @@ object RegularSyncItSpecUtils {
         "peers-client"
       )
 
-    lazy val consensus = buildEthashConsensus()
+    lazy val consensus: PoWConsensus = buildEthashConsensus()
 
-    lazy val blockQueue = BlockQueue(bl, syncConfig)
+    lazy val blockQueue: BlockQueue = BlockQueue(bl, syncConfig)
     lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
     lazy val blockExecution =
       new BlockExecution(
@@ -104,7 +111,7 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
-    lazy val validators = buildEthashConsensus().validators
+    lazy val validators: ValidatorsExecutor = buildEthashConsensus().validators
 
     val broadcasterRef: ActorRef = system.actorOf(
       BlockBroadcasterActor
@@ -125,7 +132,7 @@ object RegularSyncItSpecUtils {
         "block-fetcher"
       )
 
-    lazy val blockImporter = system.actorOf(
+    lazy val blockImporter: ActorRef = system.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
         blockImport,
@@ -139,7 +146,7 @@ object RegularSyncItSpecUtils {
       )
     )
 
-    lazy val regularSync = system.actorOf(
+    lazy val regularSync: ActorRef = system.actorOf(
       RegularSync.props(
         peersClient,
         etcPeerManager,
@@ -162,7 +169,7 @@ object RegularSyncItSpecUtils {
 
     def broadcastBlock(
         blockNumber: Option[Int] = None
-    )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = {
+    )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
       Task(blockNumber match {
         case Some(bNumber) =>
           blockchainReader
@@ -179,11 +186,9 @@ object RegularSyncItSpecUtils {
           broadcastBlock(newBlock, newWeight)
         }
       }
-    }
 
-    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] = {
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90) { isDone => isDone }
-    }
+    def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] =
+      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90)(isDone => isDone)
 
     def mineNewBlock(
         plusDifficulty: BigInt = 0
@@ -200,13 +205,12 @@ object RegularSyncItSpecUtils {
 
     def mineNewBlocks(delay: FiniteDuration, nBlocks: Int)(
         updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy
-    ): Task[Unit] = {
+    ): Task[Unit] =
       if (nBlocks > 0) {
         mineNewBlock()(updateWorldForBlock)
           .delayExecution(delay)
           .flatMap(_ => mineNewBlocks(delay, nBlocks - 1)(updateWorldForBlock))
       } else Task(())
-    }
 
     def addCheckpointedBlock(parent: Block): Task[Unit] = Task {
       val signatures = CheckpointingTestHelpers.createCheckpointSignatures(
@@ -222,7 +226,7 @@ object RegularSyncItSpecUtils {
       fetcher ! AdaptedMessageFromEventBus(NewBlock(checkpoint, checkpoint.header.difficulty), peerId)
     }
 
-    private def getMptForBlock(block: Block) = {
+    private def getMptForBlock(block: Block) =
       InMemoryWorldStateProxy(
         storagesInstance.storages.evmCodeStorage,
         bl.getBackingMptStorage(block.number),
@@ -232,11 +236,9 @@ object RegularSyncItSpecUtils {
         noEmptyAccounts = false,
         ethCompatibleStorage = true
       )
-    }
 
-    private def broadcastBlock(block: Block, weight: ChainWeight) = {
+    private def broadcastBlock(block: Block, weight: ChainWeight) =
       broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
-    }
 
     private def createChildBlock(
         parent: Block,
@@ -263,33 +265,30 @@ object RegularSyncItSpecUtils {
 
   object FakePeer {
 
-    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] = {
+    def startFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig): Task[FakePeer] =
       for {
         peer <- Task(new FakePeer(peerName, fakePeerCustomConfig))
         _ <- peer.startPeer()
       } yield peer
-    }
 
     def start1FakePeerRes(
         fakePeerCustomConfig: FakePeerCustomConfig = defaultConfig,
         name: String
-    ): Resource[Task, FakePeer] = {
+    ): Resource[Task, FakePeer] =
       Resource.make {
         startFakePeer(name, fakePeerCustomConfig)
       } { peer =>
         peer.shutdown()
       }
-    }
 
     def start2FakePeersRes(
         fakePeerCustomConfig1: FakePeerCustomConfig = defaultConfig,
         fakePeerCustomConfig2: FakePeerCustomConfig = defaultConfig
-    ): Resource[Task, (FakePeer, FakePeer)] = {
+    ): Resource[Task, (FakePeer, FakePeer)] =
       for {
         peer1 <- start1FakePeerRes(fakePeerCustomConfig1, "Peer1")
         peer2 <- start1FakePeerRes(fakePeerCustomConfig2, "Peer2")
       } yield (peer1, peer2)
-    }
 
   }
 }

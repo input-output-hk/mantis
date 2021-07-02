@@ -1,12 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
-import java.time.temporal.ChronoUnit
 import java.time.Duration
-
-import io.iohk.ethereum.jsonrpc.ExpiringMap.ValueWithDuration
+import java.time.temporal.ChronoUnit
 
 import scala.collection.mutable
 import scala.util.Try
+
+import io.iohk.ethereum.jsonrpc.ExpiringMap.ValueWithDuration
 
 object ExpiringMap {
 
@@ -16,8 +16,7 @@ object ExpiringMap {
     new ExpiringMap(mutable.Map.empty, defaultElementRetentionTime)
 }
 
-/**
-  * Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
+/** Simple wrapper around mutable map which enriches each element with expiration time (specified by user or default)
   * Map is passive which means it only check for expiration and remove expired element during get function.
   * Duration in all calls is relative to current System.nanoTime()
   */
@@ -33,9 +32,8 @@ class ExpiringMap[K, V] private (
     this
   }
 
-  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] = {
+  def add(k: K, v: V, duration: Duration): ExpiringMap[K, V] =
     addFor(k, v, duration)
-  }
 
   def addForever(k: K, v: V): ExpiringMap[K, V] =
     addFor(k, v, maxHoldDuration)
@@ -48,7 +46,7 @@ class ExpiringMap[K, V] private (
     this
   }
 
-  def get(k: K): Option[V] = {
+  def get(k: K): Option[V] =
     underlying
       .get(k)
       .flatMap(value =>
@@ -59,7 +57,6 @@ class ExpiringMap[K, V] private (
           None
         }
       )
-  }
 
   private def isNotExpired(value: ValueWithDuration[V]) =
     currentNanoDuration().minus(value.expiration).isNegative

@@ -1,16 +1,21 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, BlockHeader}
-import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.vm.Fixtures.blockchainConfig
-import io.iohk.ethereum.vm.MockWorldState.{PC, TestVM}
 import akka.util.ByteString.{empty => bEmpty}
-import io.iohk.ethereum.crypto.kec256
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.vm.Fixtures.blockchainConfig
+import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState.TestVM
 
 class StoreOpCodeGasPostConstantinopleSpec
     extends AnyWordSpec
@@ -44,13 +49,11 @@ class StoreOpCodeGasPostConstantinopleSpec
     )
 
     forAll(eip1283table) { (code, original, gasUsed, refund) =>
-      {
-        val result =
-          vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
+      val result =
+        vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, defaultGaspool, EipToCheck.EIP1283))
 
-        result.gasUsed shouldEqual gasUsed
-        result.gasRefund shouldEqual refund
-      }
+      result.gasUsed shouldEqual gasUsed
+      result.gasRefund shouldEqual refund
     }
   }
 
@@ -80,13 +83,11 @@ class StoreOpCodeGasPostConstantinopleSpec
     )
 
     forAll(eip2200table) { (code, original, gasUsed, refund, gaspool, maybeError) =>
-      {
-        val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
+      val result = vm.exec(prepareProgramState(ByteString(Hex.decode(code)), original, gaspool, EipToCheck.EIP2200))
 
-        result.gasUsed shouldEqual gasUsed
-        result.gasRefund shouldEqual refund
-        result.error shouldEqual maybeError
-      }
+      result.gasUsed shouldEqual gasUsed
+      result.gasRefund shouldEqual refund
+      result.error shouldEqual maybeError
     }
   }
 }
@@ -94,8 +95,8 @@ class StoreOpCodeGasPostConstantinopleSpec
 trait TestSetup {
   val vm = new TestVM
 
-  val senderAddr = Address(0xcafebabeL)
-  val senderAcc = Account(nonce = 1, balance = 1000000)
+  val senderAddr: Address = Address(0xcafebabeL)
+  val senderAcc: Account = Account(nonce = 1, balance = 1000000)
 
   val accountWithCode: ByteString => Account = code => Account.empty().withCode(kec256(code))
 

@@ -1,12 +1,14 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
+
+import org.scalacheck.Gen
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
-import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalatest.funsuite.AnyFunSuite
 
 class NodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("NodeStorage insert") {
@@ -44,7 +46,7 @@ class NodeStorageSuite extends AnyFunSuite with ScalaCheckPropertyChecks with Ob
         val obtainedNode = nodeStorageAfterDelete.get(ByteString(node.hash)).map(_.toMptNode)
         assert(obtainedNode.contains(node))
       }
-      toDelete.foreach { node => assert(nodeStorageAfterDelete.get(ByteString(node.hash)).isEmpty) }
+      toDelete.foreach(node => assert(nodeStorageAfterDelete.get(ByteString(node.hash)).isEmpty))
     }
   }
 }

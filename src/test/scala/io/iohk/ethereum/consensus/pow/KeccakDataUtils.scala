@@ -1,11 +1,13 @@
 package io.iohk.ethereum.consensus.pow
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.BlockHeader
+
 import org.bouncycastle.util.encoders.Hex
 
+import io.iohk.ethereum.domain.BlockHeader
+
 object KeccakDataUtils {
-  val header = BlockHeader(
+  val header: BlockHeader = BlockHeader(
     parentHash = ByteString(Hex.decode("ad22d4d8f0e94032cb32e86027e0a5533d945ed95088264e91dd71e4fbaebeda")),
     ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
     beneficiary = ByteString(Hex.decode("6A9ECfa04e99726eC105517AC7ae1aba550BeA6c")),

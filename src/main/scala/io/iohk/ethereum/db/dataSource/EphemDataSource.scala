@@ -2,27 +2,25 @@ package io.iohk.ethereum.db.dataSource
 
 import java.nio.ByteBuffer
 
+import monix.reactive.Observable
+
 import io.iohk.ethereum.db.dataSource.DataSource._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import monix.reactive.Observable
 
 class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSource {
 
-  /**
-    * key.drop to remove namespace prefix from the key
+  /** key.drop to remove namespace prefix from the key
     * @return key values paris from this storage
     */
   def getAll(namespace: Namespace): Seq[(IndexedSeq[Byte], IndexedSeq[Byte])] = synchronized {
     storage.toSeq.map { case (key, value) => (key.array().drop(namespace.length).toIndexedSeq, value.toIndexedSeq) }
   }
 
-  override def get(namespace: Namespace, key: Key): Option[Value] = {
+  override def get(namespace: Namespace, key: Key): Option[Value] =
     storage.get(ByteBuffer.wrap((namespace ++ key).toArray)).map(_.toIndexedSeq)
-  }
 
-  override def getOptimized(namespace: Namespace, key: Array[Byte]): Option[Array[Byte]] = {
+  override def getOptimized(namespace: Namespace, key: Array[Byte]): Option[Array[Byte]] =
     get(namespace, key.toIndexedSeq).map(_.toArray)
-  }
 
   override def update(dataSourceUpdates: Seq[DataUpdate]): Unit = synchronized {
     dataSourceUpdates.foreach {
@@ -58,13 +56,12 @@ class EphemDataSource(var storage: Map[ByteBuffer, Array[Byte]]) extends DataSou
 
   override def destroy(): Unit = ()
 
-  override def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
-    Observable.fromIterable(storage.toList.map { case (key, value) => Right(key.array(), value) })
-  }
+  override def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] =
+    Observable.fromIterable(storage.toList.map { case (key, value) => Right((key.array(), value)) })
 
   override def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
-    val namespaceVals = storage collect {
-      case (buffer, bytes) if buffer.array().startsWith(namespace) => Right(buffer.array(), bytes)
+    val namespaceVals = storage.collect {
+      case (buffer, bytes) if buffer.array().startsWith(namespace) => Right((buffer.array(), bytes))
     }
 
     Observable.fromIterable(namespaceVals)

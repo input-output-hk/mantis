@@ -1,14 +1,24 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.PoisonPill
+import akka.actor.Props
+import akka.actor.Scheduler
+
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.{AppStateStorage, EvmCodeStorage, FastSyncStateStorage, NodeStorage}
-import io.iohk.ethereum.domain.{Blockchain, BlockchainReader}
-import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.db.storage.FastSyncStateStorage
+import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -29,7 +39,7 @@ class SyncController(
 ) extends Actor
     with ActorLogging {
 
-  def scheduler: Scheduler = externalSchedulerOpt getOrElse context.system.scheduler
+  def scheduler: Scheduler = externalSchedulerOpt.getOrElse(context.system.scheduler)
 
   override def receive: Receive = idle
 
@@ -94,7 +104,7 @@ class SyncController(
       "fast-sync"
     )
     fastSync ! SyncProtocol.Start
-    context become runningFastSync(fastSync)
+    context.become(runningFastSync(fastSync))
   }
 
   def startRegularSync(): Unit = {
@@ -118,7 +128,7 @@ class SyncController(
       "regular-sync"
     )
     regularSync ! SyncProtocol.Start
-    context become runningRegularSync(regularSync)
+    context.become(runningRegularSync(regularSync))
   }
 
 }

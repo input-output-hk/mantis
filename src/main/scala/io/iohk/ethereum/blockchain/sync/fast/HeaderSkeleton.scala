@@ -3,8 +3,7 @@ package io.iohk.ethereum.blockchain.sync.fast
 import io.iohk.ethereum.blockchain.sync.fast.HeaderSkeleton._
 import io.iohk.ethereum.domain.BlockHeader
 
-/**
-  * This class contains the state of the current skeleton being downloaded. This state is represented as the downloaded
+/** This class contains the state of the current skeleton being downloaded. This state is represented as the downloaded
   * skeleton headers plus the downloaded batches.
   * A skeleton of block headers consists of `limit` headers, separated by `gapSize` blocks in between.
   * A batch of blocks is a sequence of `gapSize + 1` block headers starting one block after the previous skeleton
@@ -46,23 +45,19 @@ final case class HeaderSkeleton(
 
   private val remainingBlocks: BigInt = to - from + 1
 
-  /**
-    * Number of batched headers to request to a peer
+  /** Number of batched headers to request to a peer
     */
   val batchSize: BigInt = remainingBlocks.min(maxSkeletonHeaders)
 
-  /**
-    * Number of blocks in between each skeleton header
+  /** Number of blocks in between each skeleton header
     */
   val gapSize: BigInt = batchSize - 1
 
-  /**
-    * Not to be confused with `from`. This is the number of the first header in the skeleton.
+  /** Not to be confused with `from`. This is the number of the first header in the skeleton.
     */
   val firstSkeletonHeaderNumber: BigInt = from + gapSize
 
-  /**
-    * Maximum number of blocks to be downloaded at once. This is the total number of skeleton headers that the skeleton contains.
+  /** Maximum number of blocks to be downloaded at once. This is the total number of skeleton headers that the skeleton contains.
     */
   val limit: BigInt = {
     val remainingSkeletonHeaders = remainingBlocks / batchSize
@@ -80,8 +75,7 @@ final case class HeaderSkeleton(
       _ <- checkSkeletonHeaderNumbers(headers)
     } yield copy(skeletonHeaders = headers)
 
-  /**
-    * Use this method to update this state with the downloaded skeleton
+  /** Use this method to update this state with the downloaded skeleton
     * @param headers The downloaded skeleton
     * @return Either the updated structure if the validation succeeded or an error
     */
@@ -102,13 +96,11 @@ final case class HeaderSkeleton(
     Either.cond(isValid, (), InvalidHeaderNumber(downloadedHeaderNumbers, skeletonHeaderNumbers))
   }
 
-  /**
-    * An ordered sequence with the numbers of the first block of each batch
+  /** An ordered sequence with the numbers of the first block of each batch
     */
   val batchStartingHeaderNumbers: Seq[BigInt] = from +: skeletonHeaderNumbers.dropRight(1).map(_ + 1)
 
-  /**
-    * Use this method to update this state with a downloaded batch of headers
+  /** Use this method to update this state with a downloaded batch of headers
     * @param batchHeaders The downloaded batch of headers
     * @return Either the updated structure if the validation succeeded or an error
     */
@@ -119,7 +111,7 @@ final case class HeaderSkeleton(
       batchStartingNumber <- findBatchStartingNumber(batchHeaders)
     } yield copy(batches = batches + (batchStartingNumber -> batchHeaders))
 
-  private def findSkeletonHeader(batchHeaders: Seq[BlockHeader]): Either[HeaderBatchError, BlockHeader] = {
+  private def findSkeletonHeader(batchHeaders: Seq[BlockHeader]): Either[HeaderBatchError, BlockHeader] =
     batchHeaders.lastOption match {
       case Some(header) =>
         for {
@@ -129,27 +121,24 @@ final case class HeaderSkeleton(
       case None =>
         Left(EmptyDownloadedBatch(skeletonHeaderNumbers))
     }
-  }
 
-  private def findSkeletonHeaderByNumber(header: BlockHeader): Either[InvalidBatchLastNumber, BlockHeader] = {
+  private def findSkeletonHeaderByNumber(header: BlockHeader): Either[InvalidBatchLastNumber, BlockHeader] =
     skeletonHeaders
       .find(_.number == header.number)
       .toRight(InvalidBatchLastNumber(header.number, skeletonHeaderNumbers))
-  }
 
   private def checkSkeletonParentHash(
       batchHeaders: Seq[BlockHeader],
       skeletonHeader: BlockHeader
-  ): Either[HeaderBatchError, Unit] = {
+  ): Either[HeaderBatchError, Unit] =
     batchHeaders.dropRight(1).lastOption match {
       case Some(penultimateBatchHeader) if penultimateBatchHeader.hash != skeletonHeader.parentHash =>
         Left(InvalidPenultimateHeader(penultimateBatchHeader, skeletonHeader))
       case _ =>
         Right(())
     }
-  }
 
-  private def findBatchStartingNumber(batchHeaders: Seq[BlockHeader]): Either[HeaderBatchError, BigInt] = {
+  private def findBatchStartingNumber(batchHeaders: Seq[BlockHeader]): Either[HeaderBatchError, BigInt] =
     batchHeaders.headOption.map(_.number) match {
       case Some(firstBatchHeader) =>
         val found = batchStartingHeaderNumbers.find(_ == firstBatchHeader)
@@ -157,12 +146,10 @@ final case class HeaderSkeleton(
       case None =>
         Left(EmptyDownloadedBatch(skeletonHeaderNumbers))
     }
-  }
 
   private val isFull: Boolean = batchStartingHeaderNumbers.forall(batches.contains)
 
-  /**
-    * The complete skeleton plus the filled in batches, or `None` if not everything was downloaded
+  /** The complete skeleton plus the filled in batches, or `None` if not everything was downloaded
     */
   val fullChain: Option[Seq[BlockHeader]] =
     if (isFull) Some(batchStartingHeaderNumbers.flatMap(batches.apply))

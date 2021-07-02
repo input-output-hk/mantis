@@ -1,11 +1,15 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.cache.Cache
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdateOptimized}
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+
 import monix.reactive.Observable
+
+import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceUpdateOptimized
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 
 sealed trait NodesStorage extends {
   def get(key: NodeHash): Option[NodeEncoded]
@@ -13,8 +17,7 @@ sealed trait NodesStorage extends {
   def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage
 }
 
-/**
-  * This class is used to store Nodes (defined in mpt/Node.scala), by using:
+/** This class is used to store Nodes (defined in mpt/Node.scala), by using:
   *   Key: hash of the RLP encoded node
   *   Value: the RLP encoded node
   */
@@ -30,8 +33,7 @@ class NodeStorage(val dataSource: DataSource)
 
   override def get(key: NodeHash): Option[NodeEncoded] = dataSource.getOptimized(namespace, key.toArray)
 
-  /**
-    * This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
+  /** This function updates the KeyValueStorage by deleting, updating and inserting new (key-value) pairs
     * in the current namespace.
     *
     * @param toRemove which includes all the keys to be removed from the KeyValueStorage.
@@ -52,17 +54,15 @@ class NodeStorage(val dataSource: DataSource)
     apply(dataSource)
   }
 
-  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] = {
+  override def storageContent: Observable[Either[IterationError, (NodeHash, NodeEncoded)]] =
     dataSource.iterate(namespace).map { result =>
       result.map { case (key, value) => (ByteString.fromArrayUnsafe(key), value) }
     }
-  }
 
   protected def apply(dataSource: DataSource): NodeStorage = new NodeStorage(dataSource)
 
-  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage = {
+  def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage =
     update(toRemove, toUpsert)
-  }
 }
 
 class CachedNodeStorage(val storage: NodeStorage, val cache: Cache[NodeHash, NodeEncoded])

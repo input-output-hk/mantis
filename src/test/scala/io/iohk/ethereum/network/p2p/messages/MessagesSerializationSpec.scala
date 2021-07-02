@@ -1,16 +1,19 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.NetworkMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages._
 import io.iohk.ethereum.network.p2p.messages.ETH61.BlockHashesFromNumber
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.p2p.{EthereumMessageDecoder, NetworkMessageDecoder}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
 
@@ -159,5 +162,5 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
     messageDecoder(version).fromBytes(code, encode(msg)) shouldEqual msg
 
   private def messageDecoder(version: Capability) =
-    NetworkMessageDecoder orElse EthereumMessageDecoder.ethMessageDecoder(version)
+    NetworkMessageDecoder.orElse(EthereumMessageDecoder.ethMessageDecoder(version))
 }

@@ -1,22 +1,12 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum._
-import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.{EphemBlockchainTestSetup, SyncProtocol}
-import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{Block, UInt256, _}
-import io.iohk.ethereum.jsonrpc.EthInfoService.{ProtocolVersionRequest, _}
-import io.iohk.ethereum.keystore.KeyStore
-import io.iohk.ethereum.ledger.TxResult
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
-import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
+
 import monix.execution.Scheduler.Implicits.global
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -24,6 +14,25 @@ import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
+import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthInfoService.ProtocolVersionRequest
+import io.iohk.ethereum.jsonrpc.EthInfoService._
+import io.iohk.ethereum.keystore.KeyStore
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.StxLedger
+import io.iohk.ethereum.ledger.TxResult
+import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 
 class EthServiceSpec
     extends TestKit(ActorSystem("EthInfoServiceSpec_ActorSystem"))
@@ -142,15 +151,15 @@ class EthServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
-    val blockGenerator = mock[PoWBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
-    val keyStore = mock[KeyStore]
-    override lazy val stxLedger = mock[StxLedger]
+    val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val keyStore: KeyStore = mock[KeyStore]
+    override lazy val stxLedger: StxLedger = mock[StxLedger]
 
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
-    val syncingController = TestProbe()
+    val syncingController: TestProbe = TestProbe()
 
     val currentProtocolVersion = 11
 
@@ -166,8 +175,8 @@ class EthServiceSpec
       Timeouts.shortTimeout
     )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txToRequest = Fixtures.Blocks.Block3125369.body.transactionList.head
-    val txSender = SignedTransaction.getSender(txToRequest).get
+    val txSender: Address = SignedTransaction.getSender(txToRequest).get
   }
 }

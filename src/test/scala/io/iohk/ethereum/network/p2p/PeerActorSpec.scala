@@ -1,45 +1,66 @@
 package io.iohk.ethereum.network.p2p
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
+import java.net.URI
 import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
-import akka.actor.{ActorSystem, PoisonPill, Props, Terminated}
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.PoisonPill
+import akka.actor.Props
+import akka.actor.Terminated
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum._
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.PeerActor.Status.Handshaked
-import io.iohk.ethereum.network.PeerActor.{GetStatus, StatusResponse}
-import io.iohk.ethereum.network.PeerManagerActor.{FastSyncHostConfiguration, PeerConfiguration}
-import io.iohk.ethereum.network.handshaker.{EtcHandshaker, EtcHandshakerConfiguration}
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status.StatusEnc
-import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.{Capability, ETC64, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.{DisconnectEnc, Reasons}
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
-import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
-import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
-import io.iohk.ethereum.network.{ForkResolver, PeerActor, PeerEventBusActor, _}
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.{Config, NodeStatus, ServerStatus}
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
+import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.ForkResolver
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerActor.GetStatus
+import io.iohk.ethereum.network.PeerActor.Status.Handshaked
+import io.iohk.ethereum.network.PeerActor.StatusResponse
+import io.iohk.ethereum.network.PeerEventBusActor
+import io.iohk.ethereum.network.PeerManagerActor.FastSyncHostConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network._
+import io.iohk.ethereum.network.handshaker.EtcHandshaker
+import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status.StatusEnc
+import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
+import io.iohk.ethereum.network.p2p.messages.ETC64
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.DisconnectEnc
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong.PongEnc
+import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
+import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
 
 class PeerActorSpec
     extends TestKit(ActorSystem("PeerActorSpec_System"))
@@ -68,7 +89,7 @@ class PeerActorSpec
 
     rlpxConnection.watch(peer)
 
-    (0 to 3) foreach { _ =>
+    (0 to 3).foreach { _ =>
       time.advance(5.seconds)
       rlpxConnection.expectMsgClass(classOf[RLPxConnectionHandler.ConnectTo])
       rlpxConnection.reply(RLPxConnectionHandler.ConnectionFailed)
@@ -78,7 +99,7 @@ class PeerActorSpec
   }
 
   it should "try to reconnect on broken rlpx connection" in new NodeStatusSetup with HandshakerSetup {
-    override implicit lazy val system = ActorSystem("PeerActorSpec_System")
+    implicit override lazy val system = ActorSystem("PeerActorSpec_System")
     override def protocol: Capability = ProtocolVersions.ETH63
 
     val time = new VirtualTime
@@ -160,7 +181,7 @@ class PeerActorSpec
 
   it should "fail handshake with peer that has a wrong genesis hash" in new TestSetup {
     val uri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@localhost:9000")
-    val completeUri = new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
+    new URI(s"enode://${Hex.toHexString(remoteNodeId.toArray[Byte])}@127.0.0.1:9000?discport=9000")
     peer ! PeerActor.ConnectTo(uri)
     peer ! PeerActor.ConnectTo(uri)
 
@@ -491,7 +512,7 @@ class PeerActorSpec
 
     val etcForkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
-    val nonEtcForkBlockHeader =
+    val nonEtcForkBlockHeader: BlockHeader =
       etcForkBlockHeader.copy(
         parentHash = ByteString("this"),
         ommersHash = ByteString("is"),
@@ -504,21 +525,21 @@ class PeerActorSpec
   }
 
   trait NodeStatusSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
-    override lazy val nodeKey = crypto.generateKeyPair(secureRandom)
+    override lazy val nodeKey: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
 
-    val nodeStatus =
+    val nodeStatus: NodeStatus =
       NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
 
     val nodeStatusHolder = new AtomicReference(nodeStatus)
 
     val genesisBlock = Fixtures.Blocks.Genesis.block
-    val genesisWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
+    val genesisWeight: ChainWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
     blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 
-    val peerConf = new PeerConfiguration {
+    val peerConf: PeerConfiguration = new PeerConfiguration {
       override val fastSyncHostConfiguration: FastSyncHostConfiguration = new FastSyncHostConfiguration {
         val maxBlocksHeadersPerMessage: Int = 200
         val maxBlocksBodiesPerMessage: Int = 200
@@ -556,7 +577,7 @@ class PeerActorSpec
   trait HandshakerSetup extends NodeStatusSetup { self =>
     def protocol: Capability
 
-    val handshakerConfiguration = new EtcHandshakerConfiguration {
+    val handshakerConfiguration: EtcHandshakerConfiguration = new EtcHandshakerConfiguration {
       override val forkResolverOpt: Option[ForkResolver] = Some(
         new ForkResolver.EtcForkResolver(self.blockchainConfig.daoForkConfig.get)
       )
@@ -568,7 +589,7 @@ class PeerActorSpec
       override val capabilities: List[Capability] = List(protocol)
     }
 
-    val handshaker = EtcHandshaker(handshakerConfiguration)
+    val handshaker: EtcHandshaker = EtcHandshaker(handshakerConfiguration)
   }
 
   trait TestSetup extends NodeStatusSetup with BlockUtils with HandshakerSetup {
@@ -576,17 +597,17 @@ class PeerActorSpec
 
     val genesisHash = genesisBlock.hash
 
-    val daoForkBlockChainTotalDifficulty = BigInt("39490964433395682584")
+    val daoForkBlockChainTotalDifficulty: BigInt = BigInt("39490964433395682584")
 
-    val rlpxConnection = TestProbe()
+    val rlpxConnection: TestProbe = TestProbe()
 
     val time = new VirtualTime
 
-    val peerMessageBus = system.actorOf(PeerEventBusActor.props)
+    val peerMessageBus: ActorRef = system.actorOf(PeerEventBusActor.props)
 
-    val knownNodesManager = TestProbe()
+    val knownNodesManager: TestProbe = TestProbe()
 
-    val peer = TestActorRef(
+    val peer: TestActorRef[Nothing] = TestActorRef(
       Props(
         new PeerActor(
           new InetSocketAddress("127.0.0.1", 0),

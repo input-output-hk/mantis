@@ -2,26 +2,39 @@ package io.iohk.ethereum.network
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorSystem, Props}
-import akka.testkit.{TestActorRef, TestProbe}
+import akka.actor.ActorSystem
+import akka.actor.Props
+import akka.testkit.TestActorRef
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.Fixtures.Blocks.{DaoForkBlock, Genesis}
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.PeerActor.DisconnectPeer
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.{MessageFromPeer, PeerDisconnected, PeerHandshakeSuccessful}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.network.p2p.messages.{Codes, ETC64, ProtocolVersions}
-import io.iohk.ethereum.utils.Config
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Fixtures.Blocks.DaoForkBlock
+import io.iohk.ethereum.Fixtures.Blocks.Genesis
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor._
+import io.iohk.ethereum.network.PeerActor.DisconnectPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETC64
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.Config
 
 class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
@@ -277,14 +290,14 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    override implicit lazy val system = ActorSystem("PeersInfoHolderSpec_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("PeersInfoHolderSpec_System")
 
     blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
@@ -292,7 +305,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
 
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -300,7 +313,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       bestBlockHash = peerStatus.bestHash
     )
 
-    val initialPeerInfoETC64 = PeerInfo(
+    val initialPeerInfoETC64: PeerInfo = PeerInfo(
       remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.ETC64.version),
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -308,27 +321,30 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       bestBlockHash = peerStatus.bestHash
     )
 
-    val fakeNodeId = ByteString()
+    val fakeNodeId: ByteString = ByteString()
 
-    val peer1Probe = TestProbe()
-    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
-    val peer1Info = initialPeerInfo.withForkAccepted(false)
-    val peer1InfoETC64 = initialPeerInfoETC64.withForkAccepted(false)
-    val peer2Probe = TestProbe()
-    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
-    val peer2Info = initialPeerInfo.withForkAccepted(false)
-    val peer3Probe = TestProbe()
-    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, Some(fakeNodeId))
+    val peer1Probe: TestProbe = TestProbe()
+    val peer1: Peer =
+      Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
+    val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
+    val peer1InfoETC64: PeerInfo = initialPeerInfoETC64.withForkAccepted(false)
+    val peer2Probe: TestProbe = TestProbe()
+    val peer2: Peer =
+      Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
+    val peer2Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
+    val peer3Probe: TestProbe = TestProbe()
+    val peer3: Peer =
+      Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, Some(fakeNodeId))
 
-    val freshPeerProbe = TestProbe()
-    val freshPeer =
+    val freshPeerProbe: TestProbe = TestProbe()
+    val freshPeer: Peer =
       Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, Some(fakeNodeId))
-    val freshPeerInfo = initialPeerInfo.withForkAccepted(false)
+    val freshPeerInfo: PeerInfo = initialPeerInfo.withForkAccepted(false)
 
-    val peerManager = TestProbe()
-    val peerEventBus = TestProbe()
+    val peerManager: TestProbe = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
 
-    val peersInfoHolder = TestActorRef(
+    val peersInfoHolder: TestActorRef[Nothing] = TestActorRef(
       Props(
         new EtcPeerManagerActor(
           peerManager.ref,
@@ -339,11 +355,11 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
       )
     )
 
-    val requestSender = TestProbe()
+    val requestSender: TestProbe = TestProbe()
 
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
-    val baseBlockBody = BlockBody(Nil, Nil)
-    val baseBlock = Block(baseBlockHeader, baseBlockBody)
+    val baseBlockBody: BlockBody = BlockBody(Nil, Nil)
+    val baseBlock: Block = Block(baseBlockHeader, baseBlockBody)
 
     def setupNewPeer(peer: Peer, peerProbe: TestProbe, peerInfo: PeerInfo): Unit = {
 

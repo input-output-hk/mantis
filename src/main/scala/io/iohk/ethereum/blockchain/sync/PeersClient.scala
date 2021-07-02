@@ -1,18 +1,27 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
-import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.utils.Config.SyncConfig
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
+
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class PeersClient(
     val etcPeerManager: ActorRef,
@@ -38,8 +47,8 @@ class PeersClient(
   }
 
   def running(requesters: Requesters): Receive =
-    handlePeerListMessages orElse {
-      case PrintStatus => printStatus(requesters: Requesters)
+    handlePeerListMessages.orElse {
+      case PrintStatus                   => printStatus(requesters: Requesters)
       case BlacklistPeer(peerId, reason) => blacklistIfHandshaked(peerId, syncConfig.blacklistDuration, reason)
       case Request(message, peerSelector, toSerializable) =>
         val requester = sender()
@@ -49,7 +58,7 @@ class PeersClient(
             val handler =
               makeRequest(peer, message, responseMsgCode(message), toSerializable)(scheduler, responseClassTag(message))
             val newRequesters = requesters + (handler -> requester)
-            context become running(newRequesters)
+            context.become(running(newRequesters))
           case None =>
             log.debug("No suitable peer found to issue a request")
             requester ! NoSuitablePeer
@@ -81,7 +90,7 @@ class PeersClient(
   private def handleResponse[ResponseMsg <: ResponseMessage](requesters: Requesters, responseMsg: ResponseMsg): Unit = {
     val requestHandler = sender()
     requesters.get(requestHandler).foreach(_ ! responseMsg)
-    context become running(requesters - requestHandler)
+    context.become(running(requesters - requestHandler))
   }
 
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
@@ -92,15 +101,15 @@ class PeersClient(
   private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
     requestMsg match {
       case _: GetBlockHeaders => implicitly[ClassTag[BlockHeaders]]
-      case _: GetBlockBodies => implicitly[ClassTag[BlockBodies]]
-      case _: GetNodeData => implicitly[ClassTag[NodeData]]
+      case _: GetBlockBodies  => implicitly[ClassTag[BlockBodies]]
+      case _: GetNodeData     => implicitly[ClassTag[NodeData]]
     }
 
   private def responseMsgCode[RequestMsg <: Message](requestMsg: RequestMsg): Int =
     requestMsg match {
       case _: GetBlockHeaders => Codes.BlockHeadersCode
-      case _: GetBlockBodies => Codes.BlockBodiesCode
-      case _: GetNodeData => Codes.NodeDataCode
+      case _: GetBlockBodies  => Codes.BlockBodiesCode
+      case _: GetNodeData     => Codes.NodeDataCode
     }
 
   private def printStatus(requesters: Requesters): Unit = {

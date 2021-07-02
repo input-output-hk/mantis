@@ -1,10 +1,13 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.{Consensus, ConsensusBuilder, ConsensusConfigBuilder}
-import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.nodebuilder.{ActorSystemBuilder, _}
 import monix.execution.Scheduler
+
+import io.iohk.ethereum.consensus.ConsensusBuilder
+import io.iohk.ethereum.consensus.ConsensusConfigBuilder
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.nodebuilder.ActorSystemBuilder
+import io.iohk.ethereum.nodebuilder._
 
 trait TestModeServiceBuilder extends StxLedgerBuilder {
   self: BlockchainConfigBuilder
@@ -17,7 +20,7 @@ trait TestModeServiceBuilder extends StxLedgerBuilder {
     with BlockQueueBuilder
     with VmBuilder =>
 
-  val scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
+  val scheduler: Scheduler = Scheduler(system.dispatchers.lookup("validation-context"))
 
   lazy val testModeComponentsProvider: TestModeComponentsProvider =
     new TestModeComponentsProvider(

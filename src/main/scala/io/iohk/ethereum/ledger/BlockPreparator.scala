@@ -1,20 +1,21 @@
 package io.iohk.ethereum.ledger
 
+import scala.annotation.tailrec
+
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{StateBeforeFailure, TxsExecutionError}
+import io.iohk.ethereum.ledger.BlockExecutionError.StateBeforeFailure
+import io.iohk.ethereum.ledger.BlockExecutionError.TxsExecutionError
 import io.iohk.ethereum.ledger.BlockPreparator._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import io.iohk.ethereum.utils.{BlockchainConfig, Config, Logger}
+import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.vm.{PC => _, _}
 
-import scala.annotation.tailrec
-
-/**
-  * This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
+/** This is used from a [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 class BlockPreparator(
     vm: VMImpl,
@@ -32,8 +33,7 @@ class BlockPreparator(
     blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
   )
 
-  /**
-    * This function updates the state in order to pay rewards based on YP section 11.3 and with the required
+  /** This function updates the state in order to pay rewards based on YP section 11.3 and with the required
     * modifications due to ECIP1097:
     *  1. Reward for block is distributed as:
     *      a. If treasury is disabled or it's has been selfdestructed:
@@ -94,16 +94,14 @@ class BlockPreparator(
   private def treasuryEnabled(blockNo: BigInt): Boolean =
     blockNo >= blockchainConfig.forkBlockNumbers.ecip1098BlockNumber
 
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
+  /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
     *
     * @param tx Target transaction
     * @return Upfront cost
     */
   private[ledger] def calculateUpfrontGas(tx: Transaction): UInt256 = UInt256(tx.gasLimit * tx.gasPrice)
 
-  /**
-    * v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
+  /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price) + Tv (Tx value). See YP equation number (65)
     *
     * @param tx Target transaction
     * @return Upfront cost
@@ -111,8 +109,7 @@ class BlockPreparator(
   private[ledger] def calculateUpfrontCost(tx: Transaction): UInt256 =
     UInt256(calculateUpfrontGas(tx) + tx.value)
 
-  /**
-    * Increments account nonce by 1 stated in YP equation (69) and
+  /** Increments account nonce by 1 stated in YP equation (69) and
     * Pays the upfront Tx gas calculated as TxGasPrice * TxGasLimit from balance. YP equation (68)
     *
     * @param stx
@@ -139,19 +136,17 @@ class BlockPreparator(
     vm.run(context)
   }
 
-  /**
-    * Calculate total gas to be refunded
+  /** Calculate total gas to be refunded
     * See YP, eq (72)
     */
-  private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt = {
+  private[ledger] def calcTotalGasToRefund(stx: SignedTransaction, result: PR): BigInt =
     result.error.map(_.useWholeGas) match {
-      case Some(true) => 0
+      case Some(true)  => 0
       case Some(false) => result.gasRemaining
       case None =>
         val gasUsed = stx.tx.gasLimit - result.gasRemaining
         result.gasRemaining + (gasUsed / 2).min(result.gasRefund)
     }
-  }
 
   private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(
       world: InMemoryWorldStateProxy
@@ -163,17 +158,15 @@ class BlockPreparator(
 
   private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(
       world: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy = {
+  ): InMemoryWorldStateProxy =
     if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
       val savedWorld = increaseAccountBalance(address, value)(world)
       if (withTouch) savedWorld.touchAccounts(address) else savedWorld
     }
-  }
 
-  /**
-    * Delete all accounts (that appear in SUICIDE list). YP eq (78).
+  /** Delete all accounts (that appear in SUICIDE list). YP eq (78).
     * The contract storage should be cleared during pruning as nodes could be used in other tries.
     * The contract code is also not deleted as there can be contracts with the exact same code, making it risky to delete
     * the code of an account in case it is shared with another one.
@@ -190,8 +183,7 @@ class BlockPreparator(
   ): InMemoryWorldStateProxy =
     addressesToDelete.foldLeft(worldStateProxy) { case (world, address) => world.deleteAccount(address) }
 
-  /**
-    * EIP161 - State trie clearing
+  /** EIP161 - State trie clearing
     * Delete all accounts that have been touched (involved in any potentially state-changing operation) during transaction execution.
     *
     * All potentially state-changing operation are:
@@ -207,12 +199,11 @@ class BlockPreparator(
     *         Set is cleared
     */
   private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
-    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) = {
+    def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) =
       if (world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)))
         world.deleteAccount(address)
       else
         world
-    }
 
     world.touchedAccounts
       .foldLeft(world)(deleteEmptyAccount)
@@ -246,13 +237,13 @@ class BlockPreparator(
     val payMinerForGasFn =
       pay(Address(blockHeader.beneficiary), (executionGasToPayToMiner * gasPrice).toUInt256, withTouch = true) _
 
-    val worldAfterPayments = (refundGasFn andThen payMinerForGasFn)(resultWithErrorHandling.world)
+    val worldAfterPayments = (refundGasFn.andThen(payMinerForGasFn))(resultWithErrorHandling.world)
 
     val deleteAccountsFn = deleteAccounts(resultWithErrorHandling.addressesToDelete) _
     val deleteTouchedAccountsFn = deleteEmptyTouchedAccounts _
     val persistStateFn = InMemoryWorldStateProxy.persistState _
 
-    val world2 = (deleteAccountsFn andThen deleteTouchedAccountsFn andThen persistStateFn)(worldAfterPayments)
+    val world2 = (deleteAccountsFn.andThen(deleteTouchedAccountsFn).andThen(persistStateFn))(worldAfterPayments)
 
     log.debug(s"""Transaction ${stx.hash.toHex} execution end. Summary:
          | - Error: ${result.error}.
@@ -263,8 +254,7 @@ class BlockPreparator(
   }
 
   // scalastyle:off method.length
-  /**
-    * This functions executes all the signed transactions from a block (till one of those executions fails)
+  /** This functions executes all the signed transactions from a block (till one of those executions fails)
     *
     * @param signedTransactions from the block that are left to execute
     * @param world that will be updated by the execution of the signedTransactions
@@ -275,7 +265,7 @@ class BlockPreparator(
     *         if one of them failed
     */
   @tailrec
-  private[ledger] final def executeTransactions(
+  final private[ledger] def executeTransactions(
       signedTransactions: Seq[SignedTransaction],
       world: InMemoryWorldStateProxy,
       blockHeader: BlockHeader,
@@ -302,7 +292,7 @@ class BlockPreparator(
         val validatedStx = for {
           accData <- accountDataOpt
           _ <- signedTxValidator.validate(stx, accData._1, blockHeader, upfrontCost, acumGas)
-        } yield (accData)
+        } yield accData
 
         validatedStx match {
           case Right((account, address)) =>
@@ -336,7 +326,7 @@ class BlockPreparator(
     }
 
   @tailrec
-  private[ledger] final def executePreparedTransactions(
+  final private[ledger] def executePreparedTransactions(
       signedTransactions: Seq[SignedTransaction],
       world: InMemoryWorldStateProxy,
       blockHeader: BlockHeader,
@@ -401,5 +391,5 @@ class BlockPreparator(
 
 object BlockPreparator {
   val TreasuryRewardPercentageAfterECIP1098 = 20
-  val MinerRewardPercentageAfterECIP1098 = 100 - TreasuryRewardPercentageAfterECIP1098
+  val MinerRewardPercentageAfterECIP1098: Int = 100 - TreasuryRewardPercentageAfterECIP1098
 }

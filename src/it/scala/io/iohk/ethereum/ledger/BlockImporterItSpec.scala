@@ -1,29 +1,43 @@
 package io.iohk.ethereum.ledger
 
+import akka.actor.ActorRef
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
-import io.iohk.ethereum.blockchain.sync.regular.{BlockFetcher, BlockImporter}
-import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.pow.validators.{OmmersValidator, StdOmmersValidator}
-import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, Mocks, NormalPatience, ObjectGenerators, Timeouts, crypto}
-import io.iohk.ethereum.ledger.BlockResult
+
 import monix.execution.Scheduler
+import monix.execution.schedulers.SchedulerService
+
+import scala.concurrent.duration._
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
+import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
+import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockResult
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class BlockImporterItSpec
     extends MockFactory
@@ -34,32 +48,32 @@ class BlockImporterItSpec
     with Eventually
     with NormalPatience {
 
-  implicit val testScheduler = Scheduler.fixedPool("test", 32)
+  implicit val testScheduler: SchedulerService = Scheduler.fixedPool("test", 32)
 
   override def afterAll(): Unit = {
     testScheduler.shutdown()
     testScheduler.awaitTermination(60.second)
   }
 
-  override lazy val blockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
 
-  val genesis = Block(
+  val genesis: Block = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
     Fixtures.Blocks.Genesis.body
   )
-  val genesisWeight = ChainWeight.zero.increase(genesis.header)
+  val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesis.header)
 
   blockchain.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
 
-  val fetcherProbe = TestProbe()
-  val ommersPoolProbe = TestProbe()
-  val broadcasterProbe = TestProbe()
-  val pendingTransactionsManagerProbe = TestProbe()
-  val supervisor = TestProbe()
+  val fetcherProbe: TestProbe = TestProbe()
+  val ommersPoolProbe: TestProbe = TestProbe()
+  val broadcasterProbe: TestProbe = TestProbe()
+  val pendingTransactionsManagerProbe: TestProbe = TestProbe()
+  val supervisor: TestProbe = TestProbe()
 
-  val emptyWorld = InMemoryWorldStateProxy(
+  val emptyWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
     storagesInstance.storages.evmCodeStorage,
     blockchain.getBackingMptStorage(-1),
     (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
@@ -81,7 +95,7 @@ class BlockImporterItSpec
         .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
-  override lazy val blockImport = mkBlockImport(
+  override lazy val blockImport: BlockImport = mkBlockImport(
     validators = successValidators,
     blockExecutionOpt = Some(
       new BlockExecution(
@@ -102,7 +116,7 @@ class BlockImporterItSpec
   )
   // }
 
-  val blockImporter = system.actorOf(
+  val blockImporter: ActorRef = system.actorOf(
     BlockImporter.props(
       fetcherProbe.ref,
       blockImport,
@@ -125,12 +139,12 @@ class BlockImporterItSpec
   val oldBlock3: Block = getBlock(genesisBlock.number + 3, difficulty = 103, parent = oldBlock2.header.hash)
   val oldBlock4: Block = getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
 
-  val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty)
-  val newWeight2 = weight1.increase(newBlock2.header)
-  val newWeight3 = newWeight2.increase(newBlock3.header)
-  val oldWeight2 = weight1.increase(oldBlock2.header)
-  val oldWeight3 = oldWeight2.increase(oldBlock3.header)
-  val oldWeight4 = oldWeight3.increase(oldBlock4.header)
+  val weight1: ChainWeight = ChainWeight.totalDifficultyOnly(block1.header.difficulty)
+  val newWeight2: ChainWeight = weight1.increase(newBlock2.header)
+  val newWeight3: ChainWeight = newWeight2.increase(newBlock3.header)
+  val oldWeight2: ChainWeight = weight1.increase(oldBlock2.header)
+  val oldWeight3: ChainWeight = oldWeight2.increase(oldBlock3.header)
+  val oldWeight4: ChainWeight = oldWeight3.increase(oldBlock4.header)
 
   //saving initial main chain
   blockchain.save(block1, Nil, weight1, saveAsBestBlock = true)
@@ -138,8 +152,8 @@ class BlockImporterItSpec
   blockchain.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
   blockchain.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
 
-  val oldBranch = List(oldBlock2, oldBlock3, oldBlock4)
-  val newBranch = List(newBlock2, newBlock3)
+  val oldBranch: List[Block] = List(oldBlock2, oldBlock3, oldBlock4)
+  val newBranch: List[Block] = List(newBlock2, newBlock3)
 
   blockImporter ! BlockImporter.Start
 
@@ -163,7 +177,7 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
     //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
-    eventually { blockchain.getBestBlock().get shouldEqual oldBlock4 }
+    eventually(blockchain.getBestBlock().get shouldEqual oldBlock4)
   }
 
   it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
@@ -175,7 +189,7 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    eventually { blockchain.getBestBlock().get shouldEqual newBlock3 }
+    eventually(blockchain.getBestBlock().get shouldEqual newBlock3)
   }
 
   it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
@@ -202,7 +216,7 @@ class BlockImporterItSpec
     //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock5ParentOldBlock4)))
 
-    eventually { blockchain.getBestBlock().get shouldEqual newBlock4ParentOldBlock3 }
+    eventually(blockchain.getBestBlock().get shouldEqual newBlock4ParentOldBlock3)
   }
 
   it should "switch to a branch with a checkpoint" in {
@@ -215,8 +229,8 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    eventually { blockchain.getBestBlock().get shouldEqual oldBlock5WithCheckpoint }
-    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number }
+    eventually(blockchain.getBestBlock().get shouldEqual oldBlock5WithCheckpoint)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number)
   }
 
   it should "switch to a branch with a newer checkpoint" in {
@@ -229,8 +243,8 @@ class BlockImporterItSpec
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
-    eventually { blockchain.getBestBlock().get shouldEqual newBlock4WithCheckpoint }
-    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number }
+    eventually(blockchain.getBestBlock().get shouldEqual newBlock4WithCheckpoint)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number)
   }
 
   it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in {
@@ -248,8 +262,8 @@ class BlockImporterItSpec
     val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
     blockImporter ! NewCheckpoint(checkpointBlock)
 
-    eventually { blockchain.getBestBlock().get shouldEqual checkpointBlock }
-    eventually { blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1 }
+    eventually(blockchain.getBestBlock().get shouldEqual checkpointBlock)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1)
   }
 
   it should "ask BlockFetcher to resolve missing node" in {
@@ -278,7 +292,7 @@ class BlockImporterItSpec
       val msg = fetcherProbe
         .fishForMessage(Timeouts.longTimeout) {
           case BlockFetcher.FetchStateNode(_, _) => true
-          case _ => false
+          case _                                 => false
         }
         .asInstanceOf[BlockFetcher.FetchStateNode]
 

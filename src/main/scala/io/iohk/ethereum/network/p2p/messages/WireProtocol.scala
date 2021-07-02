@@ -1,11 +1,14 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.bouncycastle.util.encoders.Hex
 
 object WireProtocol {
 
@@ -47,7 +50,7 @@ object WireProtocol {
 
     override val code: Int = Hello.code
 
-    override def toString: String = {
+    override def toString: String =
       s"Hello { " +
         s"p2pVersion: $p2pVersion " +
         s"clientId: $clientId " +
@@ -55,7 +58,6 @@ object WireProtocol {
         s"listenPort: $listenPort " +
         s"nodeId: ${Hex.toHexString(nodeId.toArray[Byte])} " +
         s"}"
-    }
     override def toShortString: String = toString
   }
 
@@ -77,19 +79,19 @@ object WireProtocol {
 
     def reasonToString(reasonCode: Long): String =
       reasonCode match {
-        case Reasons.DisconnectRequested => "Disconnect requested"
-        case Reasons.TcpSubsystemError => "TCP sub-system error"
-        case Reasons.UselessPeer => "Useless peer"
-        case Reasons.TooManyPeers => "Too many peers"
-        case Reasons.AlreadyConnected => "Already connected"
+        case Reasons.DisconnectRequested            => "Disconnect requested"
+        case Reasons.TcpSubsystemError              => "TCP sub-system error"
+        case Reasons.UselessPeer                    => "Useless peer"
+        case Reasons.TooManyPeers                   => "Too many peers"
+        case Reasons.AlreadyConnected               => "Already connected"
         case Reasons.IncompatibleP2pProtocolVersion => "Incompatible P2P protocol version"
-        case Reasons.NullNodeIdentityReceived => "Null node identity received - this is automatically invalid"
-        case Reasons.ClientQuitting => "Client quitting"
-        case Reasons.UnexpectedIdentity => "Unexpected identity"
-        case Reasons.IdentityTheSame => "Identity is the same as this node"
-        case Reasons.TimeoutOnReceivingAMessage => "Timeout on receiving a message"
-        case Reasons.Other => "Some other reason specific to a subprotocol"
-        case other => s"unknown reason code: $other"
+        case Reasons.NullNodeIdentityReceived       => "Null node identity received - this is automatically invalid"
+        case Reasons.ClientQuitting                 => "Client quitting"
+        case Reasons.UnexpectedIdentity             => "Unexpected identity"
+        case Reasons.IdentityTheSame                => "Identity is the same as this node"
+        case Reasons.TimeoutOnReceivingAMessage     => "Timeout on receiving a message"
+        case Reasons.Other                          => "Some other reason specific to a subprotocol"
+        case other                                  => s"unknown reason code: $other"
       }
 
     val code = 0x01
@@ -105,7 +107,7 @@ object WireProtocol {
     implicit class DisconnectDec(val bytes: Array[Byte]) extends AnyVal {
       def toDisconnect: Disconnect = rawDecode(bytes) match {
         case RLPList(reason, _*) => Disconnect(reason = reason)
-        case _ => throw new RuntimeException("Cannot decode Disconnect")
+        case _                   => throw new RuntimeException("Cannot decode Disconnect")
       }
     }
   }

@@ -3,15 +3,22 @@ package io.iohk.ethereum.crypto
 import java.io.ByteArrayInputStream
 
 import akka.util.ByteString
+
+import org.bouncycastle.crypto.BufferedBlockCipher
+import org.bouncycastle.crypto.Digest
+import org.bouncycastle.crypto.InvalidCipherTextException
+import org.bouncycastle.crypto.Mac
 import org.bouncycastle.crypto.agreement.ECDHBasicAgreement
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator
-import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters, KeyParameter, ParametersWithIV}
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
+import org.bouncycastle.crypto.params.KeyParameter
+import org.bouncycastle.crypto.params.ParametersWithIV
 import org.bouncycastle.crypto.parsers.ECIESPublicKeyParser
-import org.bouncycastle.crypto.{BufferedBlockCipher, Digest, InvalidCipherTextException, Mac}
-import org.bouncycastle.util.{Arrays, BigIntegers}
+import org.bouncycastle.util.Arrays
+import org.bouncycastle.util.BigIntegers
 
-/**
-  * Support class for constructing integrated encryption cipher
+/** Support class for constructing integrated encryption cipher
   * for doing basic message exchanges on top of key agreement ciphers.
   * Follows the description given in IEEE Std 1363a with a couple of changes
   * specific to Ethereum:
@@ -19,8 +26,7 @@ import org.bouncycastle.util.{Arrays, BigIntegers}
   * - Include the encryption IV in the MAC computation
   */
 
-/**
-  * set up for use with stream mode, where the key derivation function
+/** set up for use with stream mode, where the key derivation function
   * is used to provide a stream of bytes to xor with the message.
   *
   * @param kdf        the key derivation function used for byte generation
@@ -62,7 +68,7 @@ class EthereumIESEngine(
 
         IV match {
           case Some(iv) => cphr.init(true, new ParametersWithIV(new KeyParameter(firstPart.toArray), iv))
-          case None => cphr.init(true, new KeyParameter(firstPart.toArray))
+          case None     => cphr.init(true, new KeyParameter(firstPart.toArray))
         }
 
         val encrypted = new Array[Byte](cphr.getOutputSize(inLen))
@@ -119,7 +125,7 @@ class EthereumIESEngine(
 
         IV match {
           case Some(iv) => cphr.init(false, new ParametersWithIV(new KeyParameter(firstPart.toArray), iv))
-          case None => cphr.init(false, new KeyParameter(firstPart.toArray))
+          case None     => cphr.init(false, new KeyParameter(firstPart.toArray))
         }
 
         val decrypted = new Array[Byte](cphr.getOutputSize(inLen - encodedPublicKey.length - mac.getMacSize))
@@ -157,7 +163,7 @@ class EthereumIESEngine(
       inLen - encodedPublicKey.length - messageAuthenticationCodeCalculated.length
     )
 
-    macData foreach { data => mac.update(data, 0, data.length) }
+    macData.foreach(data => mac.update(data, 0, data.length))
     mac.doFinal(messageAuthenticationCodeCalculated, 0)
 
     if (!Arrays.constantTimeAreEqual(messageAuthenticationCode, messageAuthenticationCodeCalculated))

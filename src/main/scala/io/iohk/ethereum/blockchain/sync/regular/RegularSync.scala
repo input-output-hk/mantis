@@ -1,19 +1,31 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{Actor, ActorLogging, ActorRef, AllForOneStrategy, Cancellable, Props, Scheduler, SupervisorStrategy}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.AllForOneStrategy
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
+import akka.actor.SupervisorStrategy
+import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
-import io.iohk.ethereum.blockchain.sync.{Blacklist, SyncProtocol}
+
+import io.iohk.ethereum.blockchain.sync.Blacklist
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.{NewCheckpoint, ProgressProtocol, ProgressState}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
 import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.domain.{Block, Blockchain}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.ledger.BlockImport
+import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
-import akka.actor.typed.scaladsl.adapter._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
-import io.iohk.ethereum.ledger.BranchResolution
-import io.iohk.ethereum.ledger.BlockImport
 
 class RegularSync(
     peersClient: ActorRef,
@@ -89,21 +101,21 @@ class RegularSync(
 
     case ProgressProtocol.StartedFetching =>
       val newState = progressState.copy(startedFetching = true)
-      context become running(newState)
+      context.become(running(newState))
     case ProgressProtocol.StartingFrom(blockNumber) =>
       val newState = progressState.copy(initialBlock = blockNumber, currentBlock = blockNumber)
-      context become running(newState)
+      context.become(running(newState))
     case ProgressProtocol.GotNewBlock(blockNumber) =>
       log.info(s"Got information about new block [number = $blockNumber]")
       val newState = progressState.copy(bestKnownNetworkBlock = blockNumber)
-      context become running(newState)
+      context.become(running(newState))
     case ProgressProtocol.ImportedBlock(blockNumber, internally) =>
       log.info(s"Imported new block [number = $blockNumber, internally = $internally]")
       val newState = progressState.copy(currentBlock = blockNumber)
       if (internally) {
         fetcher ! InternalLastBlockImport(blockNumber)
       }
-      context become running(newState)
+      context.become(running(newState))
   }
 
   override def supervisorStrategy: SupervisorStrategy = AllForOneStrategy()(SupervisorStrategy.defaultDecider)
@@ -154,7 +166,7 @@ object RegularSync {
       currentBlock: BigInt,
       bestKnownNetworkBlock: BigInt
   ) {
-    def toStatus: SyncProtocol.Status = {
+    def toStatus: SyncProtocol.Status =
       if (startedFetching && bestKnownNetworkBlock != 0 && currentBlock < bestKnownNetworkBlock) {
         Status.Syncing(initialBlock, Progress(currentBlock, bestKnownNetworkBlock), None)
       } else if (startedFetching && currentBlock >= bestKnownNetworkBlock) {
@@ -162,7 +174,6 @@ object RegularSync {
       } else {
         Status.NotSyncing
       }
-    }
   }
   sealed trait ProgressProtocol
   object ProgressProtocol {

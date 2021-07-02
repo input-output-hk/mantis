@@ -1,17 +1,20 @@
 package io.iohk.ethereum.consensus
 package pow
 
+import java.lang.Integer.remainderUnsigned
 import java.math.BigInteger
 import java.util
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.{kec256, kec512}
-import io.iohk.ethereum.utils.ByteUtils._
-import org.bouncycastle.util.BigIntegers
-import org.bouncycastle.util.encoders.Hex
-import java.lang.Integer.remainderUnsigned
 
 import scala.annotation.tailrec
+
+import org.bouncycastle.util.BigIntegers
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto.kec512
+import io.iohk.ethereum.utils.ByteUtils._
 
 object EthashUtils {
 
@@ -91,10 +94,9 @@ object EthashUtils {
   }
 
   @tailrec
-  private def highestPrimeBelow(n: Long, len: Long): Long = {
+  private def highestPrimeBelow(n: Long, len: Long): Long =
     if (isPrime(n / len)) n
     else highestPrimeBelow(n - 2 * len, len)
-  }
 
   private def isPrime(n: BigInt): Boolean = {
     @tailrec
@@ -139,9 +141,8 @@ object EthashUtils {
       nonce: Array[Byte],
       fullSize: Long,
       cache: Array[Int]
-  ): EthashProofOfWork = {
+  ): EthashProofOfWork =
     hashimoto(hashWithoutNonce, nonce, fullSize, (calcDatasetItem _).curried(cache))
-  }
 
   def hashimoto(
       hashWithoutNonce: Array[Byte],
@@ -241,13 +242,12 @@ object EthashUtils {
     }
   }
 
-  private def fnv(v1: Int, v2: Int): Int = {
+  private def fnv(v1: Int, v2: Int): Int =
     (v1 * FNV_PRIME) ^ v2
-  }
 
   private[pow] def checkDifficulty(blockDifficulty: Long, proofOfWork: EthashProofOfWork): Boolean = {
     @tailrec
-    def compare(a1: Array[Byte], a2: Array[Byte]): Int = {
+    def compare(a1: Array[Byte], a2: Array[Byte]): Int =
       if (a1.length > a2.length) 1
       else if (a1.length < a2.length) -1
       else {
@@ -256,7 +256,6 @@ object EthashUtils {
         else if ((a1.head & 0xff) < (a2.head & 0xff)) -1
         else compare(a1.tail, a2.tail)
       }
-    }
 
     val headerDifficultyAsByteArray: Array[Byte] =
       BigIntegers.asUnsignedByteArray(32, BigInteger.ONE.shiftLeft(256).divide(BigInteger.valueOf(blockDifficulty)))

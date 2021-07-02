@@ -1,8 +1,8 @@
 package io.iohk.ethereum.testmode
 
-import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockchainImpl, UInt256}
-import io.iohk.ethereum.nodebuilder.{BlockchainBuilder, StorageBuilder}
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.nodebuilder.BlockchainBuilder
+import io.iohk.ethereum.nodebuilder.StorageBuilder
 
 trait TestBlockchainBuilder extends BlockchainBuilder {
   self: StorageBuilder =>

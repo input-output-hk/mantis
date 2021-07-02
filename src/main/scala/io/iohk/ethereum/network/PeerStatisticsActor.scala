@@ -1,13 +1,14 @@
 package io.iohk.ethereum.network
 
-import akka.actor._
-import io.iohk.ethereum.network.PeerEventBusActor._
-import io.iohk.ethereum.network.p2p.messages.Codes
 import java.time.Clock
 
-import io.iohk.ethereum.network.p2p.Message
+import akka.actor._
 
 import scala.concurrent.duration.FiniteDuration
+
+import io.iohk.ethereum.network.PeerEventBusActor._
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Codes
 
 class PeerStatisticsActor(
     peerEventBus: ActorRef,
@@ -23,7 +24,7 @@ class PeerStatisticsActor(
     peerEventBus ! Subscribe(SubscriptionClassifier.PeerDisconnectedClassifier(PeerSelector.AllPeers))
   }
 
-  def receive: Receive = handlePeerEvents orElse handleStatsRequests
+  def receive: Receive = handlePeerEvents.orElse(handleStatsRequests)
 
   private def handlePeerEvents: Receive = {
     case PeerEvent.MessageFromPeer(msg, peerId) =>
@@ -67,7 +68,7 @@ object PeerStatisticsActor {
   case class GetStatsForPeer(window: FiniteDuration, peerId: PeerId)
   case class StatsForPeer(peerId: PeerId, stat: PeerStat)
 
-  val ResponseCodes = Set(
+  val ResponseCodes: Set[Int] = Set(
     Codes.NewBlockCode,
     Codes.NewBlockHashesCode,
     Codes.SignedTransactionsCode,
@@ -78,16 +79,16 @@ object PeerStatisticsActor {
     Codes.ReceiptsCode
   )
 
-  val RequestCodes = Set(
+  val RequestCodes: Set[Int] = Set(
     Codes.GetBlockHeadersCode,
     Codes.GetBlockBodiesCode,
     Codes.GetNodeDataCode,
     Codes.GetReceiptsCode
   )
 
-  val MessageSubscriptionClassifier =
+  val MessageSubscriptionClassifier: SubscriptionClassifier.MessageClassifier =
     SubscriptionClassifier.MessageClassifier(
-      messageCodes = RequestCodes union ResponseCodes,
+      messageCodes = RequestCodes.union(ResponseCodes),
       peerSelector = PeerSelector.AllPeers
     )
 }

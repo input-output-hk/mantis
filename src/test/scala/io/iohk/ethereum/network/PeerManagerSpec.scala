@@ -1,39 +1,63 @@
 package io.iohk.ethereum.network
 
-import java.net.{InetSocketAddress, URI}
+import java.net.InetSocketAddress
+import java.net.URI
 import java.util.concurrent.TimeUnit
 
 import akka.actor._
-import akka.testkit.{TestActorRef, TestKit, TestProbe}
+import akka.testkit.TestActorRef
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import scala.concurrent.duration._
+
+import com.github.blemale.scaffeine.Cache
+import com.github.blemale.scaffeine.Scaffeine
+import com.google.common.testing.FakeTicker
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.PeerActor.{ConnectTo, PeerClosedConnection}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerEvent, Publish, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.{GetPeers, PeerAddress, PeerConfiguration, Peers, SendMessage}
-import io.iohk.ethereum.network.discovery.{DiscoveryConfig, Node, PeerDiscoveryManager}
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
-import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
 import org.bouncycastle.util.encoders.Hex
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.Inspectors
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen}
-import Arbitrary.arbitrary
-import com.github.blemale.scaffeine.Scaffeine
-import com.google.common.testing.FakeTicker
-import io.iohk.ethereum.blockchain.sync.Blacklist.{BlacklistId, BlacklistReason}
-import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistId
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.PeerActor.ConnectTo
+import io.iohk.ethereum.network.PeerActor.PeerClosedConnection
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
+import io.iohk.ethereum.network.PeerEventBusActor.Publish
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerHandshaked
+import io.iohk.ethereum.network.PeerManagerActor.GetPeers
+import io.iohk.ethereum.network.PeerManagerActor.PeerAddress
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.PeerManagerActor.SendMessage
+import io.iohk.ethereum.network.discovery.DiscoveryConfig
+import io.iohk.ethereum.network.discovery.Node
+import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
+import io.iohk.ethereum.utils.Config
+
+import Arbitrary.arbitrary
 
 // scalastyle:off magic.number
 class PeerManagerSpec
@@ -45,7 +69,7 @@ class PeerManagerSpec
     with NormalPatience
     with ScalaCheckDrivenPropertyChecks {
 
-  behavior of "PeerManagerActor"
+  behavior.of("PeerManagerActor")
 
   it should "try to connect to bootstrap and known nodes on startup" in new TestSetup {
     start()
@@ -313,7 +337,7 @@ class PeerManagerSpec
     peerAsOutgoingProbe.expectMsg(PeerActor.DisconnectPeer(Disconnect.Reasons.AlreadyConnected))
   }
 
-  behavior of "outgoingConnectionDemand"
+  behavior.of("outgoingConnectionDemand")
 
   it should "try to connect to at least min-outgoing-peers but no more than max-outgoing-peers" in new ConnectedPeersFixture {
     forAll { (connectedPeers: ConnectedPeers) =>
@@ -369,7 +393,7 @@ class PeerManagerSpec
     peerManager.underlyingActor.triedNodes.size shouldEqual 3
   }
 
-  behavior of "numberOfIncomingConnectionsToPrune"
+  behavior.of("numberOfIncomingConnectionsToPrune")
 
   it should "try to prune incoming connections down to the minimum allowed number" in new ConnectedPeersFixture {
     forAll { (connectedPeers: ConnectedPeers) =>
@@ -388,7 +412,7 @@ class PeerManagerSpec
     }
   }
 
-  behavior of "ConnectedPeers.prunePeers"
+  behavior.of("ConnectedPeers.prunePeers")
 
   // The `ConnectedPeers` is quite slow to generate, so doing a few tests in one go.
   it should "prune peers which are old enough, protecting against repeated forced pruning" in new ConnectedPeersFixture {
@@ -457,7 +481,7 @@ class PeerManagerSpec
           numPeers = numPeersToPrune,
           currentTimeMillis = now + peerConfiguration.minPruneAge.toMillis
         )
-        peers1.toSet intersect peers2.toSet shouldBe empty
+        peers1.toSet.intersect(peers2.toSet) shouldBe empty
       }
 
       // Prune peers with minimum priority first.
@@ -468,7 +492,7 @@ class PeerManagerSpec
           priority = _.hashCode.toDouble // Dummy priority
         )
         whenever(peers.nonEmpty) {
-          Inspectors.forAll(peers.init zip peers.tail) { case (a, b) =>
+          Inspectors.forAll(peers.init.zip(peers.tail)) { case (a, b) =>
             a.id.hashCode shouldBe <=(b.id.hashCode)
           }
         }
@@ -512,7 +536,7 @@ class PeerManagerSpec
     }
   }
 
-  behavior of "prunePriority"
+  behavior.of("prunePriority")
 
   it should "calculate priority as count(responses)/lifetime" in {
     val now = System.currentTimeMillis
@@ -548,7 +572,7 @@ class PeerManagerSpec
         minPruneAge: FiniteDuration = 30.minutes
     ) extends PeerManagerActor.PeerConfiguration.ConnectionLimits
 
-    val peerConfiguration = TestConfig()
+    val peerConfiguration: TestConfig = TestConfig()
 
     implicit val arbConnectedPeers: Arbitrary[ConnectedPeers] = Arbitrary {
       genConnectedPeers(peerConfiguration.maxIncomingPeers, peerConfiguration.maxOutgoingPeers)
@@ -563,12 +587,13 @@ class PeerManagerSpec
     var createdPeers: Seq[TestPeer] = Seq.empty
 
     val peerConfiguration: PeerConfiguration = Config.Network.peer
-    val discoveryConfig = DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
+    val discoveryConfig: DiscoveryConfig =
+      DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes)
 
-    val peerDiscoveryManager = TestProbe()
-    val peerEventBus = TestProbe()
-    val knownNodesManager = TestProbe()
-    val peerStatistics = TestProbe()
+    val peerDiscoveryManager: TestProbe = TestProbe()
+    val peerEventBus: TestProbe = TestProbe()
+    val knownNodesManager: TestProbe = TestProbe()
+    val peerStatistics: TestProbe = TestProbe()
 
     val bootstrapNodes: Set[Node] =
       DiscoveryConfig(Config.config, Config.blockchains.blockchainConfig.bootstrapNodes).bootstrapNodes
@@ -582,17 +607,17 @@ class PeerManagerSpec
     }
 
     val port = 30340
-    val incomingConnection1 = TestProbe()
-    val incomingNodeId1 = ByteString(1)
+    val incomingConnection1: TestProbe = TestProbe()
+    val incomingNodeId1: ByteString = ByteString(1)
     val incomingPeerAddress1 = new InetSocketAddress("127.0.0.2", port)
-    val incomingConnection2 = TestProbe()
-    val incomingNodeId2 = ByteString(2)
+    val incomingConnection2: TestProbe = TestProbe()
+    val incomingNodeId2: ByteString = ByteString(2)
     val incomingPeerAddress2 = new InetSocketAddress("127.0.0.3", port)
-    val incomingConnection3 = TestProbe()
-    val incomingNodeId3 = ByteString(3)
+    val incomingConnection3: TestProbe = TestProbe()
+    val incomingNodeId3: ByteString = ByteString(3)
     val incomingPeerAddress3 = new InetSocketAddress("127.0.0.4", port)
     val ticker = new FakeTicker()
-    val cache = Scaffeine()
+    val cache: Cache[BlacklistId, BlacklistReason.BlacklistReasonType] = Scaffeine()
       .expireAfter[BlacklistId, BlacklistReason.BlacklistReasonType](
         create = (_, _) => 60.minutes,
         update = (_, _, _) => 60.minutes,
@@ -605,14 +630,14 @@ class PeerManagerSpec
       .build[BlacklistId, BlacklistReason.BlacklistReasonType]()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist(cache)
 
-    val peerStatus = RemoteStatus(
+    val peerStatus: RemoteStatus = RemoteStatus(
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
       genesisHash = Fixtures.Blocks.Genesis.header.hash
     )
-    val initialPeerInfo = PeerInfo(
+    val initialPeerInfo: PeerInfo = PeerInfo(
       remoteStatus = peerStatus,
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
@@ -668,8 +693,8 @@ class PeerManagerSpec
     )
   }
 
-  val genIncomingPeer = arbitrary[Peer].map(_.copy(incomingConnection = true))
-  val genOugoingPeer = arbitrary[Peer].map(_.copy(incomingConnection = false))
+  val genIncomingPeer: Gen[Peer] = arbitrary[Peer].map(_.copy(incomingConnection = true))
+  val genOugoingPeer: Gen[Peer] = arbitrary[Peer].map(_.copy(incomingConnection = false))
 
   def genConnectedPeers(
       maxIncomingPeers: Int,

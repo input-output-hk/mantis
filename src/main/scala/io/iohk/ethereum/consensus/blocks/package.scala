@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
-import io.iohk.ethereum.domain.{Block, Receipt}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
 package object blocks {

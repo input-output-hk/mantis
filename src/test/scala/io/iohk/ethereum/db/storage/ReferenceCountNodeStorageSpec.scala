@@ -3,14 +3,18 @@ package io.iohk.ethereum.db.storage
 import java.util.concurrent.TimeUnit
 
 import akka.util.ByteString
+
+import scala.collection.mutable
+import scala.concurrent.duration.FiniteDuration
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import io.iohk.ethereum.crypto.kec256
-import scala.concurrent.duration.FiniteDuration
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
@@ -217,24 +221,24 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
     val storage = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 1)
 
-    val inserted: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage)
+    insertRangeKeys(1, storage)
 
     val storage2 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 2)
 
-    val inserted2: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage2)
+    insertRangeKeys(1, storage2)
 
     val storage3 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 3)
 
-    val inserted3: Seq[(ByteString, Array[Byte])] = insertRangeKeys(1, storage3)
+    insertRangeKeys(1, storage3)
 
     // we are still in memory as cache size = 7 < 10
     cachedNodeStorage.persist() shouldEqual false
     dataSource.storage.size shouldEqual 0
     underlying.size shouldEqual 7 // 1 key + 3 block indexex + 3 snapshots
 
-    val storage4 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 4)
+    new ReferenceCountNodeStorage(cachedNodeStorage, bn = 4)
 
-    val inserted4: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage3)
+    insertRangeKeys(4, storage3)
     ReferenceCountNodeStorage.prune(1, cachedNodeStorage, inMemory = true)
 
     // Number of nodes in cache > maxsize, so everything goes to data source, including unpruned blocks 2,3,4
@@ -243,8 +247,8 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
     underlying.size shouldEqual 0
 
     // Now as our block to prune(2) is <= best saved block(4), we need to prune junk from disk
-    val storage5 = new ReferenceCountNodeStorage(cachedNodeStorage, bn = 5)
-    val inserted5: Seq[(ByteString, Array[Byte])] = insertRangeKeys(4, storage3)
+    new ReferenceCountNodeStorage(cachedNodeStorage, bn = 5)
+    insertRangeKeys(4, storage3)
     ReferenceCountNodeStorage.prune(2, cachedNodeStorage, inMemory = false)
 
     cachedNodeStorage.persist() shouldEqual false //
@@ -291,7 +295,7 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup {
-    val dataSource = EphemDataSource()
+    val dataSource: EphemDataSource = EphemDataSource()
     val nodeStorage = new NodeStorage(dataSource)
 
     def insertRangeKeys(n: Int, storage: NodesKeyValueStorage): Seq[(ByteString, Array[Byte])] = {
@@ -302,10 +306,10 @@ class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {
 
     object testCacheConfig extends NodeCacheConfig {
       override val maxSize = 10
-      override val maxHoldTime = FiniteDuration(5, TimeUnit.MINUTES)
+      override val maxHoldTime: FiniteDuration = FiniteDuration(5, TimeUnit.MINUTES)
     }
 
-    val underlying = MapCache.getMap[ByteString, Array[Byte]]
+    val underlying: mutable.Map[ByteString, Array[Byte]] = MapCache.getMap[ByteString, Array[Byte]]
     val cache = new MapCache[ByteString, Array[Byte]](underlying, testCacheConfig)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, cache)
 

@@ -3,14 +3,15 @@ package io.iohk.ethereum.mpt
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.mpt.MerklePatriciaTrie._
-import io.iohk.ethereum.utils.Logger
+import scala.util.Random
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.util.Random
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.mpt.MerklePatriciaTrie._
+import io.iohk.ethereum.utils.Logger
 
 class MerklePatriciaTreeIntegrationSuite
     extends AnyFunSuite
@@ -31,9 +32,8 @@ class MerklePatriciaTreeIntegrationSuite
     override def fromBytes(bytes: Array[Byte]): Int = ByteBuffer.wrap(bytes).getInt()
   }
 
-  def md5(bytes: Array[Byte]): Array[Byte] = {
+  def md5(bytes: Array[Byte]): Array[Byte] =
     MessageDigest.getInstance("MD5").digest(bytes)
-  }
 
   test("EthereumJ compatibility - Insert of the first 40000 numbers") {
     withRocksDbNodeStorage { ns =>

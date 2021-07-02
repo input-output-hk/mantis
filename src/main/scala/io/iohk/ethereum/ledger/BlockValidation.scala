@@ -1,8 +1,12 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainReader, Receipt}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 
 class BlockValidation(
@@ -11,17 +15,15 @@ class BlockValidation(
     blockQueue: BlockQueue
 ) {
 
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
     )
-  }
 
-  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] = {
+  private def getBlockHeaderFromChainOrQueue(hash: ByteString): Option[BlockHeader] =
     blockchainReader.getBlockHeaderByHash(hash).orElse(blockQueue.getBlockByHash(hash).map(_.header))
-  }
 
   private def getNBlocksBackFromChainOrQueue(hash: ByteString, n: Int): List[Block] = {
     val queuedBlocks = blockQueue.getBranch(hash, dequeue = false).takeRight(n)
@@ -50,12 +52,11 @@ class BlockValidation(
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] = {
+  ): Either[BlockExecutionError, BlockExecutionSuccess] =
     consensus.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = stateRootHash,
       receipts = receipts,
       gasUsed = gasUsed
     )
-  }
 }

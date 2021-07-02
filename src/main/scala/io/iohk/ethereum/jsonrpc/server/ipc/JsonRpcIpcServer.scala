@@ -1,23 +1,31 @@
 package io.iohk.ethereum.jsonrpc.server.ipc
 
-import java.io.{BufferedReader, File, InputStreamReader}
-import java.net.{ServerSocket, Socket}
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.net.ServerSocket
+import java.net.Socket
 
 import akka.actor.ActorSystem
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
-import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcController, JsonRpcRequest}
-import io.iohk.ethereum.utils.Logger
+
 import monix.execution.Scheduler.Implicits.global
-import org.json4s.JsonAST.JValue
-import org.json4s.native.JsonMethods._
-import org.json4s.native.Serialization
-import org.json4s.native
-import org.scalasbt.ipcsocket.UnixDomainServerSocket
 
 import scala.annotation.tailrec
 import scala.concurrent.duration._
 import scala.util.Try
+
+import org.json4s.Formats
+import org.json4s.JsonAST.JValue
+import org.json4s.native
+import org.json4s.native.JsonMethods._
+import org.json4s.native.Serialization
+import org.scalasbt.ipcsocket.UnixDomainServerSocket
+
+import io.iohk.ethereum.jsonrpc.JsonRpcController
+import io.iohk.ethereum.jsonrpc.JsonRpcRequest
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
+import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.utils.Logger
 
 class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcServerConfig)(implicit
     system: ActorSystem
@@ -32,13 +40,12 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
 
     serverSocket = new UnixDomainServerSocket(config.socketFile)
     new Thread {
-      override def run(): Unit = {
+      override def run(): Unit =
         while (!serverSocket.isClosed) {
           val clientSocket = serverSocket.accept()
           // Note: consider using a thread pool to limit the number of connections/requests
           new ClientThread(jsonRpcController, clientSocket).start()
         }
-      }
     }.start()
   }
 
@@ -54,8 +61,8 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
 
   class ClientThread(jsonRpcController: JsonRpcController, clientSocket: Socket) extends Thread {
 
-    implicit private val serialization = native.Serialization
-    implicit private val formats = JsonSerializers.formats
+    native.Serialization
+    implicit private val formats: Formats = JsonSerializers.formats
 
     private val out = clientSocket.getOutputStream
     private val in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream))
@@ -65,9 +72,8 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
     private var running = true
 
     override def run(): Unit = {
-      while (running) {
+      while (running)
         handleNextRequest()
-      }
       clientSocket.close()
     }
 
@@ -81,12 +87,12 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
         val dataSoFar = accum ++ newData
         parseOpt(dataSoFar) match {
           case Some(json) => Some(json)
-          case None => readNextMessage(dataSoFar)
+          case None       => readNextMessage(dataSoFar)
         }
       }
     }
 
-    private def handleNextRequest(): Unit = {
+    private def handleNextRequest(): Unit =
       readNextMessage() match {
         case Some(nextMsgJson) =>
           val request = nextMsgJson.extract[JsonRpcRequest]
@@ -97,7 +103,6 @@ class JsonRpcIpcServer(jsonRpcController: JsonRpcController, config: JsonRpcIpcS
         case None =>
           running = false
       }
-    }
 
   }
 }

@@ -2,9 +2,10 @@ package io.iohk.ethereum.utils
 
 import java.net.InetSocketAddress
 
-import io.iohk.ethereum.network._
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
+
+import io.iohk.ethereum.network._
 
 sealed trait ServerStatus
 object ServerStatus {
@@ -14,5 +15,5 @@ object ServerStatus {
 
 case class NodeStatus(key: AsymmetricCipherKeyPair, serverStatus: ServerStatus, discoveryStatus: ServerStatus) {
 
-  val nodeId = key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
+  val nodeId: Array[Byte] = key.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
 }

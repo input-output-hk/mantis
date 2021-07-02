@@ -1,7 +1,10 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.vm
 
 object World {
@@ -48,12 +51,11 @@ case class World(
 
   protected def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def keepPrecompileTouched(world: World): World = {
+  override def keepPrecompileTouched(world: World): World =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copy(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
   def getCode(address: Address): ByteString =
     codeRepo.getOrElse(address, codeCache.getCode(address))
 

@@ -1,12 +1,17 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.utils.ByteStringUtils.Padding
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 
 // scalastyle:off magic.number
@@ -160,8 +165,7 @@ object OpCode {
   }
 }
 
-/**
-  * Base class for all the opcodes of the EVM
+/** Base class for all the opcodes of the EVM
   *
   * @param code Opcode byte representation
   * @param delta number of words to be popped from stack
@@ -172,7 +176,7 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
     with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
 
-  def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+  def execute[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     if (!availableInContext(state))
       state.withError(OpCodeNotAvailableInStaticContext(code))
     else if (state.stack.size < delta)
@@ -188,7 +192,6 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
       else
         exec(state).spendGas(gas)
     }
-  }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt
 
@@ -289,7 +292,7 @@ case object EXP extends BinaryOp(0x0a, _.G_exp)(_ ** _) {
   }
 }
 
-case object SIGNEXTEND extends BinaryOp(0x0b, _.G_low)((a, b) => b signExtend a) with ConstGas
+case object SIGNEXTEND extends BinaryOp(0x0b, _.G_low)((a, b) => b.signExtend(a)) with ConstGas
 
 case object LT extends BinaryOp(0x10, _.G_verylow)(_ < _) with ConstGas
 
@@ -311,7 +314,7 @@ case object XOR extends BinaryOp(0x18, _.G_verylow)(_ ^ _) with ConstGas
 
 case object NOT extends UnaryOp(0x19, _.G_verylow)(~_) with ConstGas
 
-case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b getByte a) with ConstGas
+case object BYTE extends BinaryOp(0x1a, _.G_verylow)((a, b) => b.getByte(a)) with ConstGas
 
 // logical shift left
 case object SHL extends ShiftingOp(0x1b, _ << _)
@@ -326,7 +329,7 @@ case object SAR extends OpCode(0x1d, 2, 1, _.G_verylow) with ConstGas {
 
     val result = if (shift >= UInt256(256)) {
       if (value.toSign >= 0) Zero else UInt256(-1)
-    } else value sshift shift
+    } else value.sshift(shift)
 
     val resultStack = remainingStack.push(result)
     state.withStack(resultStack).step()
@@ -367,8 +370,7 @@ case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with ConstGas {
     val (accountAddress, stack1) = state.stack.pop
     val address = Address(accountAddress)
 
-    /**
-      * Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0
+    /** Specification of EIP1052 - https://eips.ethereum.org/EIPS/eip-1052, says that we should return 0
       * In case the account does not exist 0 is pushed to the stack.
       *
       * But the interpretation is, that account does not exists if:
@@ -565,7 +567,7 @@ case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with ConstGas {
 case object MSTORE8 extends OpCode(0x53, 2, 0, _.G_verylow) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(offset, value), stack1) = state.stack.pop(2)
-    val valueToByte = (value mod 256).toByte
+    val valueToByte = value.mod(256).toByte
     val updatedMem = state.memory.store(offset, valueToByte)
     state.withStack(stack1).withMemory(updatedMem).step()
   }
@@ -670,7 +672,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
   // https://eips.ethereum.org/EIPS/eip-2200
   private def isEip2200Enabled(etcFork: EtcFork, ethFork: EthFork): Boolean =
-    (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix)
+    ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix
 }
 
 case object JUMP extends OpCode(0x56, 1, 0, _.G_mid) with ConstGas {
@@ -706,9 +708,8 @@ case object MSIZE extends ConstOp(0x59)(s => (UInt256.Size * wordsForBytes(s.mem
 case object GAS extends ConstOp(0x5a)(state => (state.gas - state.config.feeSchedule.G_base).toUInt256)
 
 case object JUMPDEST extends OpCode(0x5b, 0, 0, _.G_jumpdest) with ConstGas {
-  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
+  protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     state.step()
-  }
 }
 
 sealed abstract class PushOp(code: Int) extends OpCode(code, 0, 1, _.G_verylow) with ConstGas {
@@ -936,8 +937,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
         (toAddr, state.ownAddress, callValue, callValue, true, state.staticCtx)
 
       case STATICCALL =>
-        /**
-          * We return `doTransfer = true` for STATICCALL as it should  `functions equivalently to a CALL` (spec)
+        /** We return `doTransfer = true` for STATICCALL as it should  `functions equivalently to a CALL` (spec)
           * Note that we won't transfer any founds during later transfer, as `value` and `endowment` are equal to Zero.
           * One thing that will change though is that both - recipient and sender addresses will be added to touched accounts
           * Set. And if empty they will be deleted at the end of transaction.
@@ -1046,7 +1046,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
 
     val memCostIn = state.config.calcMemCost(state.memory.size, inOffset, inSize)
     val memCostOut = state.config.calcMemCost(state.memory.size, outOffset, outSize)
-    memCostIn max memCostOut
+    memCostIn.max(memCostOut)
   }
 
   protected def getParams[W <: WorldStateProxy[W, S], S <: Storage[S]](
@@ -1074,12 +1074,11 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       state: ProgramState[W, S],
       g: BigInt,
       consumedGas: BigInt
-  ): BigInt = {
+  ): BigInt =
     if (state.config.subGasCapDivisor.isDefined && state.gas >= consumedGas)
-      g min state.config.gasCap(state.gas - consumedGas)
+      g.min(state.config.gasCap(state.gas - consumedGas))
     else
       g
-  }
 
   private def gasExtra[W <: WorldStateProxy[W, S], S <: Storage[S]](
       state: ProgramState[W, S],

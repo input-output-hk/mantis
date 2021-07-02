@@ -1,29 +1,35 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
+import java.net.InetSocketAddress
+
 import akka.actor.ActorRef
 import akka.util.ByteString
-import io.iohk.ethereum.{BlockHelpers, Fixtures}
-import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainImpl, BlockchainReader}
-import io.iohk.ethereum.network.{Peer, PeerId}
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.must.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.net.InetSocketAddress
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport._
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolver.SearchState
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
 
 class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFactory {
 
   import Fixtures.Blocks.ValidBlock
 
-  private def blocksMap(amount: Int, parent: Block): Map[BigInt, Block] = {
+  private def blocksMap(amount: Int, parent: Block): Map[BigInt, Block] =
     BlockHelpers.generateChain(amount, parent).map(b => (b.number, b)).toMap
-  }
 
-  private def headersMap(amount: Int, parent: Block): Map[BigInt, BlockHeader] = {
+  private def headersMap(amount: Int, parent: Block): Map[BigInt, BlockHeader] =
     BlockHelpers.generateChain(amount, parent).map(b => (b.number, b.header)).toMap
-  }
 
   private def headersList(blocksMap: Map[BigInt, Block]): List[BlockHeader] =
     blocksMap.values.map(_.header).toList
@@ -195,7 +201,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         initialSearchState
       ) match {
         case ContinueBinarySearch(searchState) => searchState
-        case _ => fail()
+        case _                                 => fail()
       }
       assert(s1 === SearchState(5, 10, dummyPeer))
 
@@ -210,7 +216,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         s1
       ) match {
         case ContinueBinarySearch(searchState) => searchState
-        case _ => fail()
+        case _                                 => fail()
       }
       assert(s2 === SearchState(5, 6, dummyPeer))
 
@@ -226,7 +232,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         s2
       ) match {
         case ContinueBinarySearch(searchState) => searchState
-        case _ => fail()
+        case _                                 => fail()
       }
       assert(s3 === SearchState(6, 6, dummyPeer))
 
@@ -241,12 +247,11 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         s3
       ) match {
         case BinarySearchCompleted(highestHeader) => highestHeader
-        case _ => fail()
+        case _                                    => fail()
       }
       assert(res === BigInt(6))
     }
     "complete search with no match" in {
-      val ourBestBlock = 10
 
       val blocksSaved: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
       val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
@@ -271,7 +276,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         initialSearchState
       ) match {
         case ContinueBinarySearch(searchState) => searchState
-        case _ => fail()
+        case _                                 => fail()
       }
       assert(s1 === SearchState(1, 3, dummyPeer))
 
@@ -286,7 +291,7 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
         s1
       ) match {
         case ContinueBinarySearch(searchState) => searchState
-        case _ => fail()
+        case _                                 => fail()
       }
       assert(s2 === SearchState(1, 1, dummyPeer))
 

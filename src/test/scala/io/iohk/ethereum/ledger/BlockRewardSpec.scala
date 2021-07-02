@@ -1,20 +1,24 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+
+import org.scalamock.scalatest.MockFactory
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator._
-import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
+import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils.{Config, ForkBlockNumbers}
-import org.scalamock.scalatest.MockFactory
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.ForkBlockNumbers
 
 class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with MockFactory {
 
@@ -167,29 +171,29 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
     //- cake overrides
 
-    val validAccountAddress = Address(0xababab) // 11250603
-    val validAccountAddress2 = Address(0xcdcdcd) // 13487565
-    val validAccountAddress3 = Address(0xefefef) // 15724527
+    val validAccountAddress: Address = Address(0xababab) // 11250603
+    val validAccountAddress2: Address = Address(0xcdcdcd) // 13487565
+    val validAccountAddress3: Address = Address(0xefefef) // 15724527
 
-    val validAccountAddress4 = Address("0x29a2241af62c0001") // 3000000000000000001
-    val validAccountAddress5 = Address("0x29a2241af64e2223") // 3000000000002236963
-    val validAccountAddress6 = Address("0x29a2241af6704445") // 3000000000004473925
+    val validAccountAddress4: Address = Address("0x29a2241af62c0001") // 3000000000000000001
+    val validAccountAddress5: Address = Address("0x29a2241af64e2223") // 3000000000002236963
+    val validAccountAddress6: Address = Address("0x29a2241af6704445") // 3000000000004473925
 
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
     private val forkBlockNumbers: ForkBlockNumbers = baseBlockchainConfig.forkBlockNumbers
-    override lazy val blockchainConfig = baseBlockchainConfig
+    override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
       .copy(
         treasuryAddress = treasuryAddress,
         forkBlockNumbers = forkBlockNumbers
           .copy(ecip1098BlockNumber = forkBlockNumbers.byzantiumBlockNumber + 100)
       )
 
-    val minerTwoOmmersReward = BigInt("5312500000000000000")
-    val ommerFiveBlocksDifferenceReward = BigInt("1875000000000000000")
+    val minerTwoOmmersReward: BigInt = BigInt("5312500000000000000")
+    val ommerFiveBlocksDifferenceReward: BigInt = BigInt("1875000000000000000")
     val afterByzantiumNewBlockReward: BigInt = BigInt(10).pow(18) * 3
 
-    val worldState = InMemoryWorldStateProxy(
+    val worldState: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getBackingMptStorage(-1),
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),

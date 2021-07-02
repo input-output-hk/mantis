@@ -1,7 +1,9 @@
 package io.iohk.ethereum.txExecTest
 
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain.{BlockchainImpl, BlockchainReader, BlockchainStorages}
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainStorages
 import io.iohk.ethereum.ledger.VMImpl
 
 trait ScenarioSetup extends EphemBlockchainTestSetup {

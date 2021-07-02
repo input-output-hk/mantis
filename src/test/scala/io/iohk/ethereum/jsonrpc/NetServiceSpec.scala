@@ -2,19 +2,29 @@ package io.iohk.ethereum.jsonrpc
 
 import java.net.InetSocketAddress
 import java.util.concurrent.atomic.AtomicReference
+
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
-import io.iohk.ethereum.jsonrpc.NetService._
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network.{Peer, PeerActor, PeerId, PeerManagerActor}
-import io.iohk.ethereum.utils.{NodeStatus, ServerStatus}
-import io.iohk.ethereum.{NormalPatience, crypto}
+
 import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration._
+
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerActor
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.PeerManagerActor
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.NodeStatus
+import io.iohk.ethereum.utils.ServerStatus
 
 class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience with SecureRandomBuilder {
 
@@ -46,13 +56,13 @@ class NetServiceSpec extends AnyFlatSpec with Matchers with ScalaFutures with No
   }
 
   trait TestSetup {
-    implicit val system = ActorSystem("Testsystem")
+    implicit val system: ActorSystem = ActorSystem("Testsystem")
 
-    val testRef = TestProbe().ref
+    val testRef: ActorRef = TestProbe().ref
 
-    val peerManager = TestProbe()
+    val peerManager: TestProbe = TestProbe()
 
-    val nodeStatus = NodeStatus(
+    val nodeStatus: NodeStatus = NodeStatus(
       crypto.generateKeyPair(secureRandom),
       ServerStatus.Listening(new InetSocketAddress(9000)),
       discoveryStatus = ServerStatus.NotListening

@@ -1,10 +1,11 @@
 package io.iohk.ethereum.consensus.blocks
 
-import io.iohk.ethereum.domain.{Address, Block, SignedTransaction}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 
-/**
-  * We use a `BlockGenerator` to create the next block.
+/** We use a `BlockGenerator` to create the next block.
   * In a PoW setting, this is what a miner typically does.
   * In general, a [[BlockGenerator]] depends on and is provided by the
   * [[io.iohk.ethereum.consensus.Consensus Consensus]].
@@ -16,8 +17,7 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
   */
 trait BlockGenerator {
 
-  /**
-    * The type of consensus-specific data used in the block generation process.
+  /** The type of consensus-specific data used in the block generation process.
     * For example, under [[io.iohk.ethereum.consensus.pow.PoWConsensus EthashConsensus]],
     * this represents the [[io.iohk.ethereum.domain.BlockBody#uncleNodesList ommers]].
     */
@@ -26,15 +26,13 @@ trait BlockGenerator {
   /** An empty `X` */
   def emptyX: X
 
-  /**
-    * This function returns the block currently being mined block with highest timestamp
+  /** This function returns the block currently being mined block with highest timestamp
     */
   def getPendingBlock: Option[PendingBlock]
 
   def getPendingBlockAndState: Option[PendingBlockAndState]
 
-  /**
-    * Generates the next block.
+  /** Generates the next block.
     */
   def generateBlock(
       parent: Block,
@@ -45,8 +43,7 @@ trait BlockGenerator {
   ): PendingBlockAndState
 }
 
-/**
-  * Internal API, used for testing.
+/** Internal API, used for testing.
   *
   * This is a [[BlockGenerator]] API for the needs of the test suites.
   */

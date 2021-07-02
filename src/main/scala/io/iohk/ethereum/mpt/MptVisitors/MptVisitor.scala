@@ -1,11 +1,16 @@
 package io.iohk.ethereum.mpt.MptVisitors
 
 import akka.util.ByteString
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode}
+
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
 
 sealed abstract class HashNodeResult[T] {
   def next(visitor: MptVisitor[T])(f: (MptNode, MptVisitor[T]) => T): T = this match {
-    case Result(value) => value
+    case Result(value)       => value
     case ResolveResult(node) => f(node, visitor)
   }
 }

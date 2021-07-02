@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.difficulty
 
-import io.iohk.ethereum.consensus.pow.difficulty.{TargetTimeDifficultyCalculator, EthashDifficultyCalculator}
+import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.consensus.pow.difficulty.TargetTimeDifficultyCalculator
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
@@ -9,12 +10,11 @@ trait DifficultyCalculator {
 }
 
 object DifficultyCalculator {
-  def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator = {
+  def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator =
     blockchainConfig.powTargetTime match {
       case Some(targetTime) => new TargetTimeDifficultyCalculator(targetTime)
-      case None => new EthashDifficultyCalculator(blockchainConfig)
+      case None             => new EthashDifficultyCalculator(blockchainConfig)
     }
-  }
 
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99

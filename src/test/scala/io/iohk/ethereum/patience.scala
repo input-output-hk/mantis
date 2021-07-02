@@ -1,9 +1,10 @@
 package io.iohk.ethereum
 
 import akka.util.Timeout
-import org.scalatest.concurrent.PatienceConfiguration
 
 import scala.concurrent.duration._
+
+import org.scalatest.concurrent.PatienceConfiguration
 
 trait NormalPatience {
   self: PatienceConfiguration =>

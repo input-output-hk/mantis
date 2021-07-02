@@ -1,24 +1,31 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, PoisonPill, Props, Scheduler, Terminated}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Scheduler
+import akka.actor.Terminated
+import akka.actor.Timers
+
+import scala.concurrent.duration._
+
+import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.{RequestFailed, ResponseReceived}
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor._
-import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg, PeerRequestHandler}
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.RequestFailed
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.ResponseReceived
 import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.utils.Config.SyncConfig
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.duration._
-import monix.eval.Coeval
-import monix.catnap.cancelables.AssignableCancelableF.Bool
-import akka.actor.Timers
-import io.iohk.ethereum.blockchain.sync.fast.BinarySearchSupport.ContinueBinarySearch
 
 class FastSyncBranchResolverActor(
     val fastSync: ActorRef,
@@ -46,7 +53,7 @@ class FastSyncBranchResolverActor(
 
   override def receive: Receive = waitingForPeerWithHighestBlock
 
-  private def waitingForPeerWithHighestBlock: Receive = handlePeerListMessages orElse { case StartBranchResolver =>
+  private def waitingForPeerWithHighestBlock: Receive = handlePeerListMessages.orElse { case StartBranchResolver =>
     getPeerWithHighestBlock match {
       case Some(peerWithInfo @ PeerWithInfo(peer, _)) =>
         log.debug(
@@ -66,7 +73,7 @@ class FastSyncBranchResolverActor(
       bestBlockNumber: BigInt,
       requestHandler: ActorRef
   ): Receive =
-    handlePeerListMessages orElse {
+    handlePeerListMessages.orElse {
       case ResponseReceived(peer, BlockHeaders(headers), timeTaken) if peer == masterPeer =>
         if (headers.size == recentHeadersSize) {
           log.debug("Received {} block headers from peer {} in {} ms", headers.size, masterPeer.id, timeTaken)
@@ -74,7 +81,7 @@ class FastSyncBranchResolverActor(
         } else {
           handleInvalidResponse(peer, requestHandler)
         }
-      case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
+      case RequestFailed(peer, reason)              => handleRequestFailure(peer, sender(), reason)
       case Terminated(ref) if ref == requestHandler => handlePeerTermination(masterPeer, ref)
     }
 
@@ -82,8 +89,8 @@ class FastSyncBranchResolverActor(
       searchState: SearchState,
       blockHeaderNumberToSearch: BigInt,
       requestHandler: ActorRef
-  ): Receive = {
-    handlePeerListMessages orElse {
+  ): Receive =
+    handlePeerListMessages.orElse {
       case ResponseReceived(peer, BlockHeaders(headers), durationMs) if peer == searchState.masterPeer =>
         context.unwatch(requestHandler)
         headers.toList match {
@@ -94,11 +101,10 @@ class FastSyncBranchResolverActor(
             log.warning(ReceivedWrongHeaders, blockHeaderNumberToSearch, headers.map(_.number))
             handleInvalidResponse(peer, requestHandler)
         }
-      case RequestFailed(peer, reason) => handleRequestFailure(peer, sender(), reason)
+      case RequestFailed(peer, reason)              => handleRequestFailure(peer, sender(), reason)
       case Terminated(ref) if ref == requestHandler => handlePeerTermination(searchState.masterPeer, ref)
-      case Terminated(_) => () // ignore
+      case Terminated(_)                            => () // ignore
     }
-  }
 
   private def requestRecentBlockHeaders(masterPeer: Peer, bestBlockNumber: BigInt): Unit = {
     val requestHandler = sendGetBlockHeadersRequest(
@@ -109,15 +115,14 @@ class FastSyncBranchResolverActor(
     context.become(waitingForRecentBlockHeaders(masterPeer, bestBlockNumber, requestHandler))
   }
 
-  /**
-    * Searches recent blocks for a valid parent/child relationship.
+  /** Searches recent blocks for a valid parent/child relationship.
     * If we dont't find one, we switch to binary search.
     */
   private def handleRecentBlockHeadersResponse(
       blockHeaders: Seq[BlockHeader],
       masterPeer: Peer,
       bestBlockNumber: BigInt
-  ): Unit = {
+  ): Unit =
     recentBlocksSearch.getHighestCommonBlock(blockHeaders, bestBlockNumber) match {
       case Some(highestCommonBlockNumber) =>
         finalizeBranchResolver(highestCommonBlockNumber, masterPeer)
@@ -127,7 +132,6 @@ class FastSyncBranchResolverActor(
           SearchState(minBlockNumber = 1, maxBlockNumber = bestBlockNumber, masterPeer)
         )
     }
-  }
 
   private def requestBlockHeaderForBinarySearch(searchState: SearchState): Unit = {
     val headerNumberToRequest = blockHeaderNumberToRequest(searchState.minBlockNumber, searchState.maxBlockNumber)
@@ -158,8 +162,7 @@ class FastSyncBranchResolverActor(
     context.stop(self)
   }
 
-  /**
-    * In case of fatal errors (and to prevent trying forever) branch resolver will signal fast-sync about
+  /** In case of fatal errors (and to prevent trying forever) branch resolver will signal fast-sync about
     * the error and let fast-sync decide if it issues another request.
     */
   private def stopWithFailure(response: BranchResolutionFailed): Unit = {

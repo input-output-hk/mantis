@@ -1,6 +1,7 @@
 package io.iohk.ethereum.security
-import com.typesafe.config.ConfigFactory
 import javax.net.ssl.SSLContext
+
+import com.typesafe.config.ConfigFactory
 
 case class SSLError(reason: String)
 

@@ -1,6 +1,7 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.domain.Block
 
 case class PreparedBlock(

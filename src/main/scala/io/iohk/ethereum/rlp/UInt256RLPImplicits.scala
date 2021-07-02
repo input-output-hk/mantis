@@ -1,6 +1,7 @@
 package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.rlp.RLP._
 
@@ -18,7 +19,7 @@ object UInt256RLPImplicits {
   implicit class UInt256RLPEncodableDec(val rLPEncodeable: RLPEncodeable) extends AnyVal {
     def toUInt256: UInt256 = rLPEncodeable match {
       case RLPValue(b) => UInt256(b)
-      case _ => throw RLPException("src is not an RLPValue")
+      case _           => throw RLPException("src is not an RLPValue")
     }
   }
 

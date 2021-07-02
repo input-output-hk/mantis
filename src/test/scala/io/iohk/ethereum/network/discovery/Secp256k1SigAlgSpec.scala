@@ -1,12 +1,13 @@
 package io.iohk.ethereum.network.discovery
 
+import scala.util.Random
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
-import scala.util.Random
 
 class Secp256k1SigAlgSpec extends AnyFlatSpec with Matchers {
-  behavior of "Secp256k1SigAlg"
+  behavior.of("Secp256k1SigAlg")
 
   val sigalg = new Secp256k1SigAlg
 

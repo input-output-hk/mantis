@@ -1,19 +1,25 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import MockWorldState._
-import io.iohk.ethereum.utils.ByteUtils
+
 import org.bouncycastle.util.encoders.Hex
-import Fixtures.blockchainConfig
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
-import io.iohk.ethereum.vm.PrecompiledContracts.ModExp
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
+import io.iohk.ethereum.vm.PrecompiledContracts.ModExp
+
+import MockWorldState._
+import Fixtures.blockchainConfig
 
 class PrecompiledContractsSpec
     extends AnyFunSuite
@@ -235,7 +241,7 @@ class PrecompiledContractsSpec
     }
   }
 
-  val modexpTestInputs = Map(
+  val modexpTestInputs: Map[String, (String, String)] = Map(
     "modexp_nagydani_1_square" ->
       ("000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000040e09ad9675465c53a109fac66a445c91b292d2bb2c5268addb30cd82f80fcb0033ff97c80a5fc6f39193ae969c6ede6710a6b7ac27078a06d90ef1c72e5c85fb502fc9e1f6beb81516545975218075ec2af118cd8798df6e08a147c60fd6095ac2bb02c2908cf4dd7c81f11c289e4bce98f3553768f392a80ce22bf5c4f4a248c6b",
       "60008f1614cc01dcfb6bfb09c625cf90b47d4468db81b5f8b7a39d42f332eab9b2da8f2d95311648a8f243f4bb13cfb3d8f7f2a3c014122ebb3ed41b02783adc"),

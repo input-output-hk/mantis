@@ -1,15 +1,18 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
+
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Config
-import org.bouncycastle.util.encoders.Hex
 
 object BaseETH6XMessages {
   object Status {
@@ -47,8 +50,7 @@ object BaseETH6XMessages {
 
   }
 
-  /**
-    * used by eth61, eth62, eth63
+  /** used by eth61, eth62, eth63
     */
   case class Status(
       protocolVersion: Int,
@@ -111,8 +113,7 @@ object BaseETH6XMessages {
     }
   }
 
-  /**
-    * used by eth61, eth62, eth63
+  /** used by eth61, eth62, eth63
     */
   case class NewBlock(block: Block, totalDifficulty: BigInt) extends Message {
 
@@ -167,7 +168,7 @@ object BaseETH6XMessages {
     implicit class SignedTransactionsDec(val bytes: Array[Byte]) extends AnyVal {
       def toSignedTransactions: SignedTransactions = rawDecode(bytes) match {
         case rlpList: RLPList => SignedTransactions(rlpList.items.map(_.toSignedTransaction))
-        case _ => throw new RuntimeException("Cannot decode SignedTransactions")
+        case _                => throw new RuntimeException("Cannot decode SignedTransactions")
       }
     }
 

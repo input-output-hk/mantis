@@ -1,9 +1,16 @@
 package io.iohk.ethereum
 
+import cats.effect.Bracket
+import cats.effect.Effect
+import cats.effect.Resource
 import cats.effect.implicits._
-import cats.effect.{Bracket, Effect, Resource}
+
 import monix.eval.Task
 import monix.execution.Scheduler
+
+import scala.concurrent.ExecutionContext
+import scala.concurrent.Future
+
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalatest._
 import org.scalatest.diagrams.Diagrams
@@ -12,9 +19,6 @@ import org.scalatest.freespec.AsyncFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AsyncWordSpecLike
 
-import scala.concurrent.{ExecutionContext, Future}
-import scala.language.higherKinds
-
 trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { self: AsyncTestSuite =>
 
   override val executionContext = ExecutionContext.global
@@ -22,16 +26,15 @@ trait SpecBase extends TypeCheckedTripleEquals with Diagrams with Matchers { sel
 
   def customTestCaseResourceM[M[_]: Effect, T](
       fixture: Resource[M, T]
-  )(theTest: T => M[Assertion])(implicit bracket: Bracket[M, Throwable]): Future[Assertion] = {
+  )(theTest: T => M[Assertion])(implicit bracket: Bracket[M, Throwable]): Future[Assertion] =
     fixture.use(theTest).toIO.unsafeToFuture()
-  }
 
   def customTestCaseM[M[_]: Effect, T](fixture: => T)(theTest: T => M[Assertion]): Future[Assertion] =
     customTestCaseResourceM(Resource.pure[M, T](fixture))(theTest)
 
   def testCaseM[M[_]: Effect](theTest: => M[Assertion]): Future[Assertion] = customTestCaseM(())(_ => theTest)
 
-  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task { theTest })
+  def testCase(theTest: => Assertion): Future[Assertion] = testCaseM(Task(theTest))
 }
 
 trait FlatSpecBase extends AsyncFlatSpecLike with SpecBase {}
@@ -60,8 +63,7 @@ trait ResourceFixtures { self: SpecBase =>
   def testCaseM[M[_]: Effect](theTest: Fixture => M[Assertion]): Future[Assertion] =
     customTestCaseResourceM(fixtureResource.mapK(Task.liftTo[M]))(theTest)
 
-  /**
-    * Task-specific method to avoid type inference issues in [[testCaseM]]
+  /** Task-specific method to avoid type inference issues in [[testCaseM]]
     */
   def testCaseT(theTest: Fixture => Task[Assertion]): Future[Assertion] =
     customTestCaseResourceM(fixtureResource)(theTest)

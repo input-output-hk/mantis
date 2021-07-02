@@ -1,14 +1,17 @@
 package io.iohk.ethereum.utils
 
 import akka.util.ByteString
-import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.domain.{Address, UInt256}
-import io.iohk.ethereum.utils.NumericUtils._
 
 import scala.jdk.CollectionConverters._
 import scala.util.Try
+
 import com.typesafe.config.ConfigRenderOptions
+import com.typesafe.config.{Config => TypesafeConfig}
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.utils.NumericUtils._
 
 case class BlockchainConfig(
     powTargetTime: Option[Long] = None,
@@ -63,7 +66,7 @@ case class ForkBlockNumbers(
     case i: Option[_] =>
       i.flatMap {
         case n if n.isInstanceOf[BigInt] => Some(n.asInstanceOf[BigInt])
-        case n => None
+        case n                           => None
       }
     case default => None
   }

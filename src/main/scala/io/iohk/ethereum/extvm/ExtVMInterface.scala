@@ -1,24 +1,30 @@
 package io.iohk.ethereum.extvm
 
+import java.nio.ByteOrder
+
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Framing, Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete, Tcp}
+import akka.stream.scaladsl.Framing
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.Tcp
 import akka.util.ByteString
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage}
-import io.iohk.ethereum.utils.{BlockchainConfig, VmConfig}
-import io.iohk.ethereum.vm._
-import java.nio.ByteOrder
+
 import scala.annotation.tailrec
-import scala.util.{Failure, Success, Try}
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.VmConfig
+import io.iohk.ethereum.vm._
 
 class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig: BlockchainConfig, testMode: Boolean)(
     implicit system: ActorSystem
 ) extends VM[InMemoryWorldStateProxy, InMemoryWorldStateProxyStorage] {
-
-  private var out: Option[SourceQueueWithComplete[ByteString]] = None
-
-  private var in: Option[SinkQueueWithCancel[ByteString]] = None
-
   private var vmClient: Option[VMClient] = None
 
   initConnection()
@@ -36,9 +42,6 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
       .toMat(Sink.queue[ByteString]())(Keep.both)
       .run()
 
-    out = Some(connOut)
-    in = Some(connIn)
-
     val client = new VMClient(externaVmConfig, new MessageHandler(connIn, connOut), testMode)
     client.sendHello(ApiVersionProvider.version, blockchainConfig)
     //TODO: await hello response, check version
@@ -47,7 +50,7 @@ class ExtVMInterface(externaVmConfig: VmConfig.ExternalConfig, blockchainConfig:
   }
 
   @tailrec
-  override final def run(context: PC): PR = {
+  final override def run(context: PC): PR = {
     if (vmClient.isEmpty) initConnection()
 
     Try(vmClient.get.run(context)) match {

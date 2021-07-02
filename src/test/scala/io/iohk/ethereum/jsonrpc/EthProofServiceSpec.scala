@@ -3,21 +3,10 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import com.softwaremill.diffx.scalatest.DiffMatcher
-import io.iohk.ethereum._
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService.{
-  GetBalanceRequest,
-  GetBalanceResponse,
-  GetStorageAtRequest,
-  GetTransactionCountRequest
-}
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, StorageProofKey}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.nodebuilder.ApisBuilder
+
 import monix.execution.Scheduler.Implicits.global
+
+import com.softwaremill.diffx.scalatest.DiffMatcher
 import org.bouncycastle.util.encoders.Hex
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
@@ -25,7 +14,20 @@ import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetBalanceResponse
+import io.iohk.ethereum.jsonrpc.EthUserService.GetStorageAtRequest
+import io.iohk.ethereum.jsonrpc.EthUserService.GetTransactionCountRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.rlp.RLPValue
 
 class EthProofServiceSpec
@@ -106,10 +108,10 @@ class EthProofServiceSpec
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
-        accountProof.storageProof.map(v => {
+        accountProof.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(0)
-        })
+        }
       }
     )
   }
@@ -131,10 +133,10 @@ class EthProofServiceSpec
         accountProof.codeHash shouldBe account.codeHash
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
-        r.proofAccount.storageProof.map(v => {
+        r.proofAccount.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           v.value shouldBe BigInt(value)
-        })
+        }
       }
     )
   }
@@ -158,10 +160,10 @@ class EthProofServiceSpec
         accountProof.nonce shouldBe nonce
         accountProof.storageHash shouldBe account.storageRoot
         accountProof.storageProof.size shouldBe 2
-        accountProof.storageProof.map(v => {
+        accountProof.storageProof.map { v =>
           v.proof.nonEmpty shouldBe true
           expectedValueStorageKey should contain(v.value)
-        })
+        }
       }
     )
   }
@@ -214,9 +216,9 @@ class EthProofServiceSpec
 
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
 
-    val blockGenerator = mock[PoWBlockGenerator]
-    val address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
-    val balance = UInt256(0)
+    val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
+    val address: Address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
+    val balance: UInt256 = UInt256(0)
     val nonce = 0
 
     val key = 333
@@ -226,7 +228,7 @@ class EthProofServiceSpec
     val key2 = 335
     val value2 = 125
 
-    val storageMpt = EthereumUInt256Mpt
+    val storageMpt: MerklePatriciaTrie[BigInt, BigInt] = EthereumUInt256Mpt
       .storageMpt(
         ByteString(MerklePatriciaTrie.EmptyRootHash),
         storagesInstance.storages.stateStorage.getBackingStorage(0)
@@ -235,29 +237,29 @@ class EthProofServiceSpec
       .put(UInt256(key1), UInt256(value1))
       .put(UInt256(key2), UInt256(value2))
 
-    val account = Account(
+    val account: Account = Account(
       nonce = nonce,
       balance = balance,
       storageRoot = ByteString(storageMpt.getRootHash)
     )
 
-    val mpt =
+    val mpt: MerklePatriciaTrie[Array[Byte], Account] =
       MerklePatriciaTrie[Array[Byte], Account](storagesInstance.storages.stateStorage.getBackingStorage(0))
         .put(
           crypto.kec256(address.bytes.toArray[Byte]),
           account
         )
 
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
-    val newblock = blockToRequest.copy(header = newBlockHeader)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val newBlockHeader: BlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
+    val newblock: Block = blockToRequest.copy(header = newBlockHeader)
     blockchain.storeBlock(newblock).commit()
     blockchain.saveBestKnownBlocks(newblock.header.number)
 
     val ethGetProof =
       new EthProofService(blockchain, blockchainReader, blockGenerator, blockchainConfig.ethCompatibleStorage)
 
-    val storageKeys = Seq(StorageProofKey(key))
+    val storageKeys: Seq[StorageProofKey] = Seq(StorageProofKey(key))
     val blockNumber = BlockParam.Latest
 
     def fetchProof(

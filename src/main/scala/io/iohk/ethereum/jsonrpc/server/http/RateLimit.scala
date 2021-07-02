@@ -3,21 +3,28 @@ package io.iohk.ethereum.jsonrpc.server.http
 import java.time.Duration
 
 import akka.NotUsed
-import akka.http.scaladsl.model.{RemoteAddress, StatusCodes}
-import akka.http.scaladsl.server.{Directive0, Route}
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.RateLimitConfig
+import akka.http.scaladsl.model.RemoteAddress
+import akka.http.scaladsl.model.StatusCodes
+import akka.http.scaladsl.server.Directive0
 import akka.http.scaladsl.server.Directives._
+import akka.http.scaladsl.server.Route
+
 import com.google.common.base.Ticker
 import com.google.common.cache.CacheBuilder
-import io.iohk.ethereum.jsonrpc.JsonRpcError
 import de.heikoseeberger.akkahttpjson4s.Json4sSupport
+import org.json4s.DefaultFormats
+import org.json4s.Formats
+import org.json4s.Serialization
+import org.json4s.native
+
+import io.iohk.ethereum.jsonrpc.JsonRpcError
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers
-import org.json4s.{DefaultFormats, Formats, Serialization, native}
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.RateLimitConfig
 
 class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
 
-  private implicit val serialization: Serialization = native.Serialization
-  private implicit val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
+  implicit private val serialization: Serialization = native.Serialization
+  implicit private val formats: Formats = DefaultFormats + JsonSerializers.RpcErrorJsonSerializer
 
   private[this] lazy val minInterval = config.minRequestInterval.toSeconds
 
@@ -55,7 +62,7 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
   //   1) no IP address is extracted unless config.enabled is true
   //   2) no LRU is created unless config.enabled is true
   //   3) cache is accessed only once (using get)
-  override def tapply(f: Unit => Route): Route = {
+  override def tapply(f: Unit => Route): Route =
     if (config.enabled) {
       extractClientIP { ip =>
         if (isBelowRateLimit(ip)) {
@@ -66,6 +73,5 @@ class RateLimit(config: RateLimitConfig) extends Directive0 with Json4sSupport {
         }
       }
     } else f.apply(())
-  }
 
 }

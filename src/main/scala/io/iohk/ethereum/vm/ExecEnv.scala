@@ -1,7 +1,10 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Address, BlockHeader, UInt256}
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.UInt256
 
 object ExecEnv {
   def apply(context: ProgramContext[_, _], code: ByteString, ownerAddr: Address): ExecEnv = {

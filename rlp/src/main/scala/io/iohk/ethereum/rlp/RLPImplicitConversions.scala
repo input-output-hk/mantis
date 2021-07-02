@@ -1,9 +1,10 @@
 package io.iohk.ethereum.rlp
 
 import akka.util.ByteString
-import io.iohk.ethereum.rlp.RLPImplicits._
 
 import scala.language.implicitConversions
+
+import io.iohk.ethereum.rlp.RLPImplicits._
 
 object RLPImplicitConversions {
 

@@ -1,10 +1,15 @@
 package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.{OmmersError, OmmersValid}
+
+import io.iohk.ethereum.consensus.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
-import io.iohk.ethereum.consensus.{GetBlockHeaderByHash, GetNBlocksBack}
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainReader}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
 
 trait OmmersValidator {
 

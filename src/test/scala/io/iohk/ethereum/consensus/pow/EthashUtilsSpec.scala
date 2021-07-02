@@ -1,17 +1,15 @@
 package io.iohk.ethereum.consensus.pow
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import org.scalacheck.Gen
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableFor2
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.annotation.tailrec
 import io.iohk.ethereum.SuperSlow
 import io.iohk.ethereum.utils.ByteStringUtils
-import org.scalatest.prop.TableFor2
 
 class EthashUtilsSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SuperSlow {
 

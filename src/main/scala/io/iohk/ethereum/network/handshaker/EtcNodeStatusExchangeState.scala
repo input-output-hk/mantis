@@ -1,10 +1,13 @@
 package io.iohk.ethereum.network.handshaker
 
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
 import io.iohk.ethereum.utils.Logger
 
 trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo] with Logger {
@@ -41,7 +44,7 @@ trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo]
       DisconnectedState(Reasons.DisconnectRequested)
   }
 
-  protected def getBestBlockHeader() = {
+  protected def getBestBlockHeader(): BlockHeader = {
     val bestBlockNumber = blockchain.getBestBlockNumber()
     blockchainReader.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchain.genesisHeader)
   }

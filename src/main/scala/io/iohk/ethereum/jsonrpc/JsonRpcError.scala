@@ -1,8 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
+import org.json4s.JInt
+import org.json4s.JLong
+import org.json4s.JObject
+import org.json4s.JString
+import org.json4s.JValue
+
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
-import org.json4s.{JLong, JInt, JObject, JString, JValue}
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])
 
@@ -25,25 +30,27 @@ object JsonRpcError extends JsonMethodsImplicits {
     )
 
   case class RateLimitInformation(backoffSeconds: Long)
-  def RateLimitError(backoffSeconds: Long) =
+  def RateLimitError(backoffSeconds: Long): JsonRpcError =
     JsonRpcError(-32005, "request rate exceeded", RateLimitInformation(backoffSeconds))
-  val ParseError = JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
-  val InvalidRequest = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
-  val MethodNotFound = JsonRpcError(-32601, "The method does not exist / is not available", None)
-  def InvalidParams(msg: String = "Invalid method parameters") = JsonRpcError(-32602, msg, None)
-  val InternalError = JsonRpcError(-32603, "Internal JSON-RPC error", None)
-  def LogicError(msg: String) = JsonRpcError(-32000, msg, None)
-  val AccountLocked = LogicError("account is locked or unknown")
+  val ParseError: JsonRpcError =
+    JsonRpcError(-32700, "An error occurred on the server while parsing the JSON text", None)
+  val InvalidRequest: JsonRpcError = JsonRpcError(-32600, "The JSON sent is not a valid Request object", None)
+  val MethodNotFound: JsonRpcError = JsonRpcError(-32601, "The method does not exist / is not available", None)
+  def InvalidParams(msg: String = "Invalid method parameters"): JsonRpcError = JsonRpcError(-32602, msg, None)
+  val InternalError: JsonRpcError = JsonRpcError(-32603, "Internal JSON-RPC error", None)
+  def LogicError(msg: String): JsonRpcError = JsonRpcError(-32000, msg, None)
+  val AccountLocked: JsonRpcError = LogicError("account is locked or unknown")
 
   // We use the recommendation from https://eth.wiki/json-rpc/json-rpc-error-codes-improvement-proposal
   //
   // Note Error Code "2", "Action not allowed" could be a candidate here, but the description they provide
   //      probably does not match this use-case.
-  final val ConsensusIsNotEthash = JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.PoW}", None)
+  final val ConsensusIsNotEthash: JsonRpcError =
+    JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.PoW}", None)
 
   def executionError(reasons: List[EthCustomError]): JsonRpcError = JsonRpcError(3, "Execution error", reasons)
-  val NodeNotFound = executionError(List(EthCustomError.DoesntExist("State node")))
-  val BlockNotFound = executionError(List(EthCustomError.DoesntExist("Block")))
+  val NodeNotFound: JsonRpcError = executionError(List(EthCustomError.DoesntExist("State node")))
+  val BlockNotFound: JsonRpcError = executionError(List(EthCustomError.DoesntExist("Block")))
 
   // Custom errors based on proposal https://eth.wiki/json-rpc/json-rpc-error-codes-improvement-proposal
   sealed abstract class EthCustomError private (val code: Int, val message: String)
