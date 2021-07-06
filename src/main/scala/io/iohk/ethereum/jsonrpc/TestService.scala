@@ -188,7 +188,7 @@ class TestService(
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, node.blockchainConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state

@@ -853,10 +853,10 @@ trait ShutdownHookBuilder {
 object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 
 trait GenesisDataLoaderBuilder {
-  self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
+  self: BlockchainBuilder with StorageBuilder =>
 
   lazy val genesisDataLoader =
-    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
+    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage)
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.
