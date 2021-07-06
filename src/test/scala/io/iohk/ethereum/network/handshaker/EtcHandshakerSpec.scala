@@ -365,7 +365,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait LocalPeerETH64Setup extends LocalPeerSetup {
-    val localStatusMsg = ETH64.Status(
+    val localStatusMsg: ETH64.Status = ETH64.Status(
       protocolVersion = ProtocolVersions.ETH64.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
@@ -373,7 +373,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       genesisHash = genesisBlock.header.hash,
       forkId = ForkId(1L, None)
     )
-    val localStatus = RemoteStatus(localStatusMsg)
+    val localStatus: RemoteStatus = RemoteStatus(localStatusMsg)
   }
 
   trait LocalPeerETC64Setup extends LocalPeerSetup {
@@ -436,7 +436,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait RemotePeerETH64Setup extends RemotePeerSetup {
-    val remoteHello = Hello(
+    val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
       capabilities = Seq(Eth64Capability),
@@ -444,7 +444,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
-    val remoteStatusMsg = ETH64.Status(
+    val remoteStatusMsg: ETH64.Status = ETH64.Status(
       protocolVersion = ProtocolVersions.ETH64.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,
@@ -453,6 +453,6 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       forkId = ForkId(2L, Some(3L))
     )
 
-    val remoteStatus = RemoteStatus(remoteStatusMsg)
+    val remoteStatus: RemoteStatus = RemoteStatus(remoteStatusMsg)
   }
 }

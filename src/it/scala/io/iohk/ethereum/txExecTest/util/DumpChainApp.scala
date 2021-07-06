@@ -42,7 +42,6 @@ import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.EtcHandshaker
 import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.AuthHandshakerBuilder
 import io.iohk.ethereum.nodebuilder.NodeKeyBuilder
