@@ -31,14 +31,17 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class MockedMiner(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockCreator: PoWBlockCreator,
-    syncEventListener: ActorRef
+    syncEventListener: ActorRef,
+    node: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
+  import node._
   import akka.pattern.pipe
   implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
@@ -122,14 +125,16 @@ object MockedMiner {
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockCreator: PoWBlockCreator,
-      syncEventListener: ActorRef
+      syncEventListener: ActorRef,
+      node: BlockchainConfigBuilder
   ): Props =
     Props(
       new MockedMiner(
         blockchain,
         blockchainReader,
         blockCreator,
-        syncEventListener
+        syncEventListener,
+        node
       )
     ).withDispatcher(BlockForgerDispatcherId)
 
@@ -146,7 +151,8 @@ object MockedMiner {
           blockchain = node.blockchain,
           blockchainReader = node.blockchainReader,
           blockCreator = blockCreator,
-          syncEventListener = node.syncController
+          syncEventListener = node.syncController,
+          node = node
         )
         node.system.actorOf(minerProps)
       case consensus =>

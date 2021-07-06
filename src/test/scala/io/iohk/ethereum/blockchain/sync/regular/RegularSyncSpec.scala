@@ -669,7 +669,7 @@ class RegularSyncSpec
 
         val parentBlock = testBlocks.last
         setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        blockImport.importBlock(parentBlock)(Scheduler.global, blockchainConfig) // impl?
+        blockImport.importBlock(parentBlock)(Scheduler.global, implicitly[BlockchainConfig])
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)

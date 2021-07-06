@@ -47,6 +47,7 @@ import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63._
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 // scalastyle:off file.size.limit
 class FastSync(
@@ -61,13 +62,15 @@ class FastSync(
     val etcPeerManager: ActorRef,
     val blacklist: Blacklist,
     val syncConfig: SyncConfig,
-    implicit val scheduler: Scheduler
+    implicit val scheduler: Scheduler,
+    node: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging
     with PeerListSupportNg
     with ReceiptsValidator
     with SyncBlocksValidator {
 
+  import node._
   import FastSync._
   import syncConfig._
 
@@ -1154,7 +1157,8 @@ object FastSync {
       etcPeerManager: ActorRef,
       blacklist: Blacklist,
       syncConfig: SyncConfig,
-      scheduler: Scheduler
+      scheduler: Scheduler,
+      node: BlockchainConfigBuilder
   ): Props =
     Props(
       new FastSync(
@@ -1169,7 +1173,8 @@ object FastSync {
         etcPeerManager,
         blacklist,
         syncConfig,
-        scheduler
+        scheduler,
+        node
       )
     )
 

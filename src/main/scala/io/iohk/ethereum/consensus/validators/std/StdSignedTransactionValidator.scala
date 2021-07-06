@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
 
-class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends SignedTransactionValidator {
+class StdSignedTransactionValidator() extends SignedTransactionValidator {
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 
@@ -26,7 +26,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
       blockHeader: BlockHeader,
       upfrontGasCost: UInt256,
       accumGasUsed: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
     for {
       _ <- checkSyntacticValidity(stx)
       _ <- validateSignature(stx, blockHeader.number)
@@ -77,7 +77,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
   private def validateSignature(
       stx: SignedTransaction,
       blockNumber: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] = {
     val r = stx.signature.r
     val s = stx.signature.s
 
@@ -114,7 +114,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
   private def validateGasLimitEnoughForIntrinsicGas(
       stx: SignedTransaction,
       blockHeaderNumber: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] = {
     import stx.tx
     val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig)
     val txIntrinsicGas = config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)

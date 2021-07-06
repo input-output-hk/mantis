@@ -16,6 +16,7 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class PoWBlockCreator(
     val pendingTransactionsManager: ActorRef,
@@ -35,7 +36,7 @@ class PoWBlockCreator(
       parentBlock: Block,
       withTransactions: Boolean = true,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
-  ): Task[PendingBlockAndState] = {
+  )(implicit blockchainConfig: BlockchainConfig): Task[PendingBlockAndState] = {
     val transactions = if (withTransactions) getTransactionsFromPool else Task.now(PendingTransactionsResponse(Nil))
     Task.parZip2(getOmmersFromPool(parentBlock.hash), transactions).map { case (ommers, pendingTxs) =>
       blockGenerator.generateBlock(

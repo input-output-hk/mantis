@@ -15,7 +15,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 /** A block header validator for Ethash.
   */
-class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
+class EthashBlockHeaderValidator() {
   import EthashBlockHeaderValidator._
 
   // NOTE the below comment is from before PoW decoupling
@@ -28,7 +28,9 @@ class EthashBlockHeaderValidator(blockchainConfig: BlockchainConfig) {
     * @param blockHeader BlockHeader to validate.
     * @return BlockHeaderValid if valid or an BlockHeaderError.HeaderPoWError otherwise
     */
-  def validateHeader(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  def validateHeader(
+      blockHeader: BlockHeader
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = {
     import EthashUtils._
 
     def getPowCacheData(epoch: Long, seed: ByteString): PowCacheData =

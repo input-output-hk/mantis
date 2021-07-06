@@ -90,9 +90,7 @@ class TestModeComponentsProvider(
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       consensusConfig,
-      DifficultyCalculator(blockchainConfig),
       sealEngine,
       blockTimestamp
     )

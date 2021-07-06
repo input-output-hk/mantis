@@ -24,6 +24,8 @@ trait ValidatorsExecutor extends Validators {
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
+  )(implicit
+      blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] =
     ValidatorsExecutor.validateBlockBeforeExecution(
       self = this,
@@ -37,6 +39,8 @@ trait ValidatorsExecutor extends Validators {
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
+  )(implicit
+      blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError, BlockExecutionSuccess] =
     ValidatorsExecutor.validateBlockAfterExecution(
       self = this,
@@ -48,28 +52,28 @@ trait ValidatorsExecutor extends Validators {
 }
 
 object ValidatorsExecutor {
-  def apply(blockchainConfig: BlockchainConfig, protocol: Protocol): ValidatorsExecutor = {
+  def apply(protocol: Protocol): ValidatorsExecutor = {
     val blockHeaderValidator: BlockHeaderValidator = protocol match {
-      case Protocol.MockedPow     => new MockedPowBlockHeaderValidator(blockchainConfig)
-      case Protocol.PoW           => new PoWBlockHeaderValidator(blockchainConfig)
-      case Protocol.RestrictedPoW => new RestrictedEthashBlockHeaderValidator(blockchainConfig)
+      case Protocol.MockedPow     => new MockedPowBlockHeaderValidator()
+      case Protocol.PoW           => new PoWBlockHeaderValidator()
+      case Protocol.RestrictedPoW => new RestrictedEthashBlockHeaderValidator()
     }
 
     new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
-      new StdSignedTransactionValidator(blockchainConfig),
+      new StdSignedTransactionValidator(),
       new StdOmmersValidator(blockHeaderValidator)
     )
   }
 
   // Created only for testing purposes, shouldn't be used in production code.
   // Connected with: https://github.com/ethereum/tests/issues/480
-  def apply(blockchainConfig: BlockchainConfig, blockHeaderValidator: BlockHeaderValidator): ValidatorsExecutor =
+  def apply(blockHeaderValidator: BlockHeaderValidator): ValidatorsExecutor =
     new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
-      new StdSignedTransactionValidator(blockchainConfig),
+      new StdSignedTransactionValidator(),
       new StdOmmersValidator(blockHeaderValidator)
     )
 
@@ -78,6 +82,8 @@ object ValidatorsExecutor {
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
+  )(implicit
+      blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     val header = block.header

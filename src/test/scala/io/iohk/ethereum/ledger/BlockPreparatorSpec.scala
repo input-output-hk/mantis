@@ -30,6 +30,8 @@ import io.iohk.ethereum.vm.ProgramError
 import io.iohk.ethereum.vm.RevertOccurs
 import io.iohk.ethereum.vm.StackOverflow
 import io.iohk.ethereum.vm.StackUnderflow
+import io.iohk.ethereum.consensus.validators.SignedTransactionError
+import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off magic.number
 class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
@@ -270,12 +272,19 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
     override lazy val validators: MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
-        (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
-          if (stx.tx.receivingAddress.contains(Address(42))) {
-            Right(SignedTransactionValid)
-          } else {
-            Left(TransactionSignatureError)
-          }
+        new SignedTransactionValidator {
+          def validate(
+              stx: SignedTransaction,
+              senderAccount: Account,
+              blockHeader: BlockHeader,
+              upfrontGasCost: UInt256,
+              accumGasUsed: BigInt
+          )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+            if (stx.tx.receivingAddress.contains(Address(42))) {
+              Right(SignedTransactionValid)
+            } else {
+              Left(TransactionSignatureError)
+            }
         }
     }
 
@@ -310,8 +319,15 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
     override lazy val validators: Mocks.MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
-        (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
-          Left(TransactionSignatureError)
+        new SignedTransactionValidator {
+          def validate(
+              stx: SignedTransaction,
+              senderAccount: Account,
+              blockHeader: BlockHeader,
+              upfrontGasCost: UInt256,
+              accumGasUsed: BigInt
+          )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+            Left(TransactionSignatureError)
         }
     }
 

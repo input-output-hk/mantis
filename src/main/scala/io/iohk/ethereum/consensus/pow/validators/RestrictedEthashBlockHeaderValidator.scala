@@ -11,8 +11,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class RestrictedEthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
-    extends PoWBlockHeaderValidator(blockchainConfig) {
+class RestrictedEthashBlockHeaderValidator() extends PoWBlockHeaderValidator() {
 
   val ExtraDataMaxSize: Int = BlockHeaderValidator.MaxExtraDataSize + ECDSASignature.EncodedLength
 
@@ -24,7 +23,9 @@ class RestrictedEthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     Either.cond(emptyOrValid, BlockHeaderValid, RestrictedPoWHeaderExtraDataError)
   }
 
-  override protected def validateExtraData(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] = {
+  override protected def validateExtraData(
+      blockHeader: BlockHeader
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = {
     val tooLargeExtraData = blockHeader.extraData.length > ExtraDataMaxSize
 
     if (tooLargeExtraData) {

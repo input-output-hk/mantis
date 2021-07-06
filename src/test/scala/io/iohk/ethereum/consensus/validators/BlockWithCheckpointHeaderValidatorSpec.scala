@@ -293,11 +293,17 @@ class BlockWithCheckpointHeaderValidatorSpec
     )
 
     def blockHeaderValidatorBuilder(config: BlockchainConfig): BlockHeaderValidatorSkeleton =
-      new BlockHeaderValidatorSkeleton(config) {
+      new BlockHeaderValidatorSkeleton() {
         override def difficulty: DifficultyCalculator =
-          (_: BigInt, _: Long, _: BlockHeader) => 0
+          new DifficultyCalculator {
+            def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: BlockHeader)(implicit
+                blockchainConfig: BlockchainConfig
+            ): BigInt = 0
+          }
 
-        override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        override def validateEvenMore(blockHeader: BlockHeader)(implicit
+            blockchainConfig: BlockchainConfig
+        ): Either[BlockHeaderError, BlockHeaderValid] =
           Right(BlockHeaderValid)
       }
 

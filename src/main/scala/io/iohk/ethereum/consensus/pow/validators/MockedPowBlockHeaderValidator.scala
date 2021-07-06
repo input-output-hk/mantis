@@ -8,12 +8,13 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorSkeleton
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class MockedPowBlockHeaderValidator(blockchainConfig: BlockchainConfig)
-    extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+class MockedPowBlockHeaderValidator() extends BlockHeaderValidatorSkeleton() {
 
-  protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
+  protected def difficulty: DifficultyCalculator = DifficultyCalculator
 
-  override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+  override def validateEvenMore(blockHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     Right(BlockHeaderValid)
 
 }

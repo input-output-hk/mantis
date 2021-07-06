@@ -85,15 +85,8 @@ class BlockImporterItSpec
   )
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val ommersValidator: OmmersValidator = (
-        parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack
-    ) =>
-      new StdOmmersValidator(blockHeaderValidator)
-        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+    override val ommersValidator: OmmersValidator = new StdOmmersValidator(blockHeaderValidator)
+
   }
 
   override lazy val blockImport: BlockImport = mkBlockImport(

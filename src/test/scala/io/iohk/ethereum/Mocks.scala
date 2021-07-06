@@ -24,6 +24,7 @@ import io.iohk.ethereum.network.handshaker.DisconnectedState
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.HandshakerState
 import io.iohk.ethereum.vm._
+import io.iohk.ethereum.utils.BlockchainConfig
 
 object Mocks {
   private val defaultProgramResult: PC => PR = context =>
@@ -64,39 +65,80 @@ object Mocks {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Right(
+        BlockHeaderValid
+      )
 
       override def validateHeaderOnly(
           blockHeader: BlockHeader
-      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Right(
+        BlockHeaderValid
+      )
     }
 
-    override val ommersValidator: OmmersValidator =
-      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) => Right(OmmersValid)
+    override val ommersValidator: OmmersValidator = new OmmersValidator {
+      def validate(
+          parentHash: ByteString,
+          blockNumber: BigInt,
+          ommers: Seq[BlockHeader],
+          getBlockByHash: GetBlockHeaderByHash,
+          getNBlocksBack: GetNBlocksBack
+      )(implicit blockchainConfig: BlockchainConfig): Either[OmmersValidator.OmmersError, OmmersValid] = Right(
+        OmmersValid
+      )
+    }
 
     override val signedTransactionValidator: SignedTransactionValidator =
-      (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => Right(SignedTransactionValid)
+      new SignedTransactionValidator {
+        def validate(
+            stx: SignedTransaction,
+            senderAccount: Account,
+            blockHeader: BlockHeader,
+            upfrontGasCost: UInt256,
+            accumGasUsed: BigInt
+        )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+          Right(SignedTransactionValid)
+      }
   }
 
   object MockValidatorsAlwaysSucceed extends MockValidatorsAlwaysSucceed
 
   object MockValidatorsAlwaysFail extends ValidatorsExecutor {
     override val signedTransactionValidator: SignedTransactionValidator =
-      (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) =>
-        Left(SignedTransactionError.TransactionSignatureError)
+      new SignedTransactionValidator {
+        def validate(
+            stx: SignedTransaction,
+            senderAccount: Account,
+            blockHeader: BlockHeader,
+            upfrontGasCost: UInt256,
+            accumGasUsed: BigInt
+        )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+          Left(SignedTransactionError.TransactionSignatureError)
+      }
 
     override val blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Left(HeaderNumberError)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Left(
+        HeaderNumberError
+      )
 
-      override def validateHeaderOnly(blockHeader: BlockHeader) = Left(HeaderNumberError)
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit blockchainConfig: BlockchainConfig) = Left(
+        HeaderNumberError
+      )
     }
 
-    override val ommersValidator: OmmersValidator =
-      (_: ByteString, _: BigInt, _: Seq[BlockHeader], _: GetBlockHeaderByHash, _: GetNBlocksBack) =>
+    override val ommersValidator: OmmersValidator = new OmmersValidator {
+      def validate(
+          parentHash: ByteString,
+          blockNumber: BigInt,
+          ommers: Seq[BlockHeader],
+          getBlockByHash: GetBlockHeaderByHash,
+          getNBlocksBack: GetNBlocksBack
+      )(implicit blockchainConfig: BlockchainConfig): Either[OmmersValidator.OmmersError, OmmersValid] =
         Left(OmmersHeaderError(List(HeaderDifficultyError)))
+    }
 
     override val blockValidator: BlockValidator = new BlockValidator {
       override def validateHeaderAndBody(blockHeader: BlockHeader, blockBody: BlockBody) = Left(
@@ -127,7 +169,7 @@ object Mocks {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] =
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
       if (block.header.number == number) Left(ValidationAfterExecError("")) else Right(BlockExecutionSuccess)
   }
 

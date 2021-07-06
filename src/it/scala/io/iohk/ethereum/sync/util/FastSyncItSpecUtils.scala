@@ -43,7 +43,8 @@ object FastSyncItSpecUtils {
         etcPeerManager,
         blacklist,
         testSyncConfig,
-        system.scheduler
+        system.scheduler,
+        this
       )
     )
 

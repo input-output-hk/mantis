@@ -22,9 +22,9 @@ import io.iohk.ethereum.vm.EvmConfig
 
 class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
-  val blockchainConfig = Config.blockchains.blockchainConfig
+  implicit val blockchainConfig = Config.blockchains.blockchainConfig
 
-  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
+  val signedTransactionValidator = new StdSignedTransactionValidator()
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead: Transaction = Transaction(

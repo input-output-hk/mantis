@@ -23,7 +23,6 @@ class RestrictedPoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     override val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
@@ -33,7 +32,6 @@ class RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
       blockchainReader,
-      blockchainConfig,
       consensusConfig,
       blockPreparator,
       difficultyCalc,
@@ -46,37 +44,38 @@ class RestrictedPoWBlockGeneratorImpl(
       beneficiary: Address,
       ommers: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
-    val pHeader = parent.header
-    val blockNumber = pHeader.number + 1
-    val parentHash = pHeader.hash
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
+    ConsensusMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
+      val pHeader = parent.header
+      val blockNumber = pHeader.number + 1
+      val parentHash = pHeader.hash
 
-    val validatedOmmers =
-      validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchainReader) match {
-        case Left(_)  => emptyX
-        case Right(_) => ommers
+      val validatedOmmers =
+        validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchainReader) match {
+          case Left(_)  => emptyX
+          case Right(_) => ommers
+        }
+      val prepared = prepareBlock(
+        evmCodeStorage,
+        parent,
+        transactions,
+        beneficiary,
+        blockNumber,
+        blockPreparator,
+        validatedOmmers,
+        initialWorldStateBeforeExecution
+      )
+      val preparedHeader = prepared.pendingBlock.block.header
+      val headerWithAdditionalExtraData = RestrictedPoWSigner.signHeader(preparedHeader, minerKeyPair)
+      val modifiedPrepared = prepared.copy(pendingBlock =
+        prepared.pendingBlock.copy(block = prepared.pendingBlock.block.copy(header = headerWithAdditionalExtraData))
+      )
+
+      cache.updateAndGet { t: List[PendingBlockAndState] =>
+        (modifiedPrepared :: t).take(blockCacheSize)
       }
-    val prepared = prepareBlock(
-      evmCodeStorage,
-      parent,
-      transactions,
-      beneficiary,
-      blockNumber,
-      blockPreparator,
-      validatedOmmers,
-      initialWorldStateBeforeExecution
-    )
-    val preparedHeader = prepared.pendingBlock.block.header
-    val headerWithAdditionalExtraData = RestrictedPoWSigner.signHeader(preparedHeader, minerKeyPair)
-    val modifiedPrepared = prepared.copy(pendingBlock =
-      prepared.pendingBlock.copy(block = prepared.pendingBlock.block.copy(header = headerWithAdditionalExtraData))
-    )
 
-    cache.updateAndGet { t: List[PendingBlockAndState] =>
-      (modifiedPrepared :: t).take(blockCacheSize)
+      modifiedPrepared
     }
-
-    modifiedPrepared
-  }
 
 }

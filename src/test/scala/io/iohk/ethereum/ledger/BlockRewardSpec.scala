@@ -182,7 +182,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
     private val forkBlockNumbers: ForkBlockNumbers = baseBlockchainConfig.forkBlockNumbers
-    override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
+    implicit override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
       .copy(
         treasuryAddress = treasuryAddress,
         forkBlockNumbers = forkBlockNumbers

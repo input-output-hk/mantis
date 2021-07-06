@@ -39,7 +39,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val fullConfig = newConfig(specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(consensusConfig.protocol)
 
     val additionalPoWData = consensusConfig.protocol match {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData

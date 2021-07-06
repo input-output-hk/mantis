@@ -15,9 +15,12 @@ import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait Miner extends Logger {
-  def processMining(bestBlock: Block): CancelableFuture[CoordinatorProtocol]
+  def processMining(bestBlock: Block)(implicit
+      blockchainConfig: BlockchainConfig
+  ): CancelableFuture[CoordinatorProtocol]
 
   def handleMiningResult(
       miningResult: MiningResult,

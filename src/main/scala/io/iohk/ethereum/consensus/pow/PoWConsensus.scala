@@ -34,6 +34,7 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 /** Implements standard Ethereum consensus (Proof of Work).
   */
@@ -56,8 +57,7 @@ class PoWConsensus private (
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
-    blockchainReader = blockchainReader,
-    blockchainConfig = blockchainConfig
+    blockchainReader = blockchainReader
   )
 
   @volatile private[pow] var minerCoordinatorRef: Option[ActorRef[CoordinatorProtocol]] = None
@@ -106,7 +106,8 @@ class PoWConsensus private (
                   node.ethMiningService,
                   blockCreator,
                   blockchain,
-                  blockchainConfig.forkBlockNumbers.ecip1049BlockNumber
+                  blockchainConfig.forkBlockNumbers.ecip1049BlockNumber,
+                  node
                 ),
                 "PoWMinerCoordinator",
                 DispatcherSelector.fromConfig(BlockForgerDispatcherId)
@@ -161,15 +162,13 @@ class PoWConsensus private (
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
           blockchain = blockchain,
-          blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig
+          blockchainReader = blockchainReader
         )
 
         new PoWBlockGeneratorImpl(
           evmCodeStorage = evmCodeStorage,
           validators = _validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalculator,
@@ -243,13 +242,12 @@ object PoWConsensus {
       validators: ValidatorsExecutor,
       additionalEthashProtocolData: AdditionalPoWProtocolData
   ): PoWConsensus = {
-    val difficultyCalculator = DifficultyCalculator(blockchainConfig)
+    val difficultyCalculator = DifficultyCalculator
     val blockPreparator = new BlockPreparator(
       vm = vm,
       signedTxValidator = validators.signedTransactionValidator,
       blockchain = blockchain,
-      blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig
+      blockchainReader = blockchainReader
     )
     val blockGenerator = additionalEthashProtocolData match {
       case RestrictedPoWMinerData(key) =>
@@ -257,7 +255,6 @@ object PoWConsensus {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator,
@@ -268,7 +265,6 @@ object PoWConsensus {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           consensusConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator

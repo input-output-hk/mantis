@@ -10,9 +10,11 @@ import io.iohk.ethereum.utils.ByteStringUtils
   *
   * @param blockchainConfig
   */
-class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
+class BlockWithCheckpointHeaderValidator() {
 
-  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+  def validate(blockHeader: BlockHeader, parentHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     for {
       _ <- validateLexicographicalOrderOfSignatures(blockHeader)
       _ <- validateCheckpointSignatures(blockHeader, parentHeader)
@@ -44,7 +46,7 @@ class BlockWithCheckpointHeaderValidator(blockchainConfig: BlockchainConfig) {
   private def validateCheckpointSignatures(
       blockHeader: BlockHeader,
       parentHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     blockHeader.checkpoint
       .map { checkpoint =>
         lazy val signaturesWithRecoveredKeys = checkpoint.signatures.map(s => s -> s.publicKey(parentHeader.hash))

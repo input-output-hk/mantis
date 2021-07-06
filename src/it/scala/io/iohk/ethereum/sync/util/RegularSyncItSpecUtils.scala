@@ -54,7 +54,9 @@ object RegularSyncItSpecUtils {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
   }
 
   object ValidatorsExecutorAlwaysSucceed extends ValidatorsExecutorAlwaysSucceed

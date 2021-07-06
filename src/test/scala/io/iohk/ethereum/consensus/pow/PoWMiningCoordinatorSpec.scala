@@ -78,7 +78,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchain,
-            Some(0)
+            Some(0),
+            this
           ),
           "KeccakMining"
         )
@@ -105,7 +106,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchain,
-            Some(0)
+            Some(0),
+            this
           ),
           "AutomaticMining"
         )
@@ -130,7 +132,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchain,
-            Some(0)
+            Some(0),
+            this
           ),
           "AlwaysAttemptToMine"
         )
@@ -156,7 +159,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchain,
-            Some(0)
+            Some(0),
+            this
           ),
           "StoppingMining"
         )
@@ -203,7 +207,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
         ethMiningService,
         blockCreator,
         blockchain,
-        None
+        None,
+        this
       ),
       coordinatorName
     )

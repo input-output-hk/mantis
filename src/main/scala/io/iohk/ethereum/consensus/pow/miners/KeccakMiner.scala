@@ -22,6 +22,7 @@ import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class KeccakMiner(
     blockCreator: PoWBlockCreator,
@@ -33,7 +34,9 @@ class KeccakMiner(
 
   import KeccakMiner._
 
-  def processMining(bestBlock: Block): CancelableFuture[CoordinatorProtocol] = {
+  def processMining(
+      bestBlock: Block
+  )(implicit blockchainConfig: BlockchainConfig): CancelableFuture[CoordinatorProtocol] = {
     log.debug("Starting mining with parent block {}", bestBlock.number)
     blockCreator
       .getBlockForMining(bestBlock)

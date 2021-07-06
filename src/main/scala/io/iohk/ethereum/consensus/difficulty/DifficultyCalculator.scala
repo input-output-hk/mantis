@@ -6,15 +6,20 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
 trait DifficultyCalculator {
-  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: BlockHeader): BigInt
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): BigInt
 }
 
-object DifficultyCalculator {
-  def apply(blockchainConfig: BlockchainConfig): DifficultyCalculator =
-    blockchainConfig.powTargetTime match {
+object DifficultyCalculator extends DifficultyCalculator {
+
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parent: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): BigInt =
+    (blockchainConfig.powTargetTime match {
       case Some(targetTime) => new TargetTimeDifficultyCalculator(targetTime)
-      case None             => new EthashDifficultyCalculator(blockchainConfig)
-    }
+      case None             => new EthashDifficultyCalculator()
+    }).calculateDifficulty(blockNumber, blockTimestamp, parent)
 
   val DifficultyBoundDivision: Int = 2048
   val FrontierTimestampDiffLimit: Int = -99

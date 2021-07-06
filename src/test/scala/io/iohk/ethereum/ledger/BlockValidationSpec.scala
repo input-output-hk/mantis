@@ -11,6 +11,7 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
   import BlockValidationTestSetup._
@@ -50,6 +51,8 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
         override val blockValidator: StdBlockValidator.type = StdBlockValidator
       }
     }
+
+    implicit val blockchainConfig: BlockchainConfig = setup.blockchainConfig
 
     def blockValidation: BlockValidation =
       new BlockValidation(

@@ -63,7 +63,7 @@ class EthashMinerSpec extends AnyFlatSpec with Matchers {
       Fixtures.Blocks.ValidBlock.body
     )
 
-    val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
+    val powBlockHeaderValidator = new PoWBlockHeaderValidator()
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
     override val blockCreator = new PoWBlockCreator(

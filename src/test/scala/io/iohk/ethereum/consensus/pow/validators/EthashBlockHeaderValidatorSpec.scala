@@ -38,10 +38,10 @@ class EthashBlockHeaderValidatorSpec
 
   val ExtraDataSizeLimit = 20
 
-  val blockchainConfig: BlockchainConfig = createBlockchainConfig()
+  implicit val blockchainConfig: BlockchainConfig = createBlockchainConfig()
 
-  val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
-  val difficultyCalculator = new EthashDifficultyCalculator(blockchainConfig)
+  val powBlockHeaderValidator = new PoWBlockHeaderValidator()
+  val difficultyCalculator = new EthashDifficultyCalculator()
 
   "BlockHeaderValidator" should "validate correctly formed BlockHeaders" in {
     powBlockHeaderValidator.validate(validBlockHeader, validParent.header) match {
@@ -81,8 +81,8 @@ class EthashBlockHeaderValidatorSpec
     }.toSeq.flatten
 
     forAll(cases) { (blockHeader, parentBlock, supportsDaoFork, valid) =>
-      val blockHeaderValidator = new PoWBlockHeaderValidator(createBlockchainConfig(supportsDaoFork))
-      blockHeaderValidator.validate(blockHeader, parentBlock.header) match {
+      val blockHeaderValidator = new PoWBlockHeaderValidator()
+      blockHeaderValidator.validate(blockHeader, parentBlock.header)(createBlockchainConfig(supportsDaoFork)) match {
         case Right(_)                      => assert(valid)
         case Left(DaoHeaderExtraDataError) => assert(!valid)
         case _                             => fail()
@@ -201,11 +201,12 @@ class EthashBlockHeaderValidatorSpec
     val ecip1098BlockNumber = validBlockHeader.number / 2
     val blockchainConfigWithECIP1098Enabled: BlockchainConfig =
       blockchainConfig.withUpdatedForkBlocks(_.copy(ecip1098BlockNumber = ecip1098BlockNumber))
-    val blockHeaderValidator = new BlockValidatorWithPowMocked(blockchainConfigWithECIP1098Enabled)
+    val blockHeaderValidator = new BlockValidatorWithPowMocked()
 
     val validHeader = validBlockHeader.copy(extraFields = HefEmpty)
 
-    val validationResult = blockHeaderValidator.validate(validHeader, validParentBlockHeader)
+    val validationResult =
+      blockHeaderValidator.validate(validHeader, validParentBlockHeader)(blockchainConfigWithECIP1098Enabled)
     validationResult shouldBe Right(BlockHeaderValid)
   }
 
@@ -260,11 +261,12 @@ class EthashBlockHeaderValidatorSpec
   }
 
   // FIXME: Replace with mocked miner validators once we have them
-  class BlockValidatorWithPowMocked(blockchainConfig: BlockchainConfig)
-      extends BlockHeaderValidatorSkeleton(blockchainConfig) {
+  class BlockValidatorWithPowMocked() extends BlockHeaderValidatorSkeleton() {
     override protected def difficulty: DifficultyCalculator = difficultyCalculator
 
-    override def validateEvenMore(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+    override def validateEvenMore(blockHeader: BlockHeader)(implicit
+        blockchainConfig: BlockchainConfig
+    ): Either[BlockHeaderError, BlockHeaderValid] =
       Right(BlockHeaderValid)
   }
 

@@ -224,7 +224,8 @@ class MockedMinerSpec
         blockchain,
         blockchainReader,
         blockCreator,
-        sync.ref
+        sync.ref,
+        this
       )
     )
 

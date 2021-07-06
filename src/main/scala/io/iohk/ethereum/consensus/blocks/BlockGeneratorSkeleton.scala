@@ -28,7 +28,6 @@ import io.iohk.ethereum.utils.ByteUtils.or
 /** This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 abstract class BlockGeneratorSkeleton(
-    blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     difficultyCalc: DifficultyCalculator,
     _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
@@ -48,7 +47,7 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Long,
       x: Ommers
-  ): BlockHeader = {
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader = {
     val extraFields =
       if (blockNumber >= blockchainConfig.forkBlockNumbers.ecip1097BlockNumber)
         HefPostEcip1097(None)
@@ -84,7 +83,7 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Long,
       x: X
-  ): BlockHeader
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader
 
   protected def prepareBlock(
       evmCodeStorage: EvmCodeStorage,
@@ -95,7 +94,7 @@ abstract class BlockGeneratorSkeleton(
       blockPreparator: BlockPreparator,
       x: X,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = {
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState = {
 
     val blockTimestamp = blockTimestampProvider.getEpochSecond
     val header = prepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)

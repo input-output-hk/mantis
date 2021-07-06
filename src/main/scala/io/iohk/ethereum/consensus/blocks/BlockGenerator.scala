@@ -4,6 +4,7 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.utils.BlockchainConfig
 
 /** We use a `BlockGenerator` to create the next block.
   * In a PoW setting, this is what a miner typically does.
@@ -40,7 +41,7 @@ trait BlockGenerator {
       beneficiary: Address,
       x: X,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState
 }
 
 /** Internal API, used for testing.

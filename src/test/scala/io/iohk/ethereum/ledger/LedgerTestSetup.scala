@@ -351,9 +351,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Left(HeaderParentNotFoundError)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Left(
+        HeaderParentNotFoundError
+      )
 
-      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+          blockchainConfig: BlockchainConfig
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         Left(HeaderParentNotFoundError)
     }
   }
@@ -364,7 +368,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
   }
 
   lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
@@ -473,15 +479,8 @@ trait CheckpointHelpers {
 
 trait OmmersTestSetup extends EphemBlockchain {
   object OmmerValidation extends Mocks.MockValidatorsAlwaysSucceed {
-    override val ommersValidator: OmmersValidator = (
-        parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack
-    ) =>
+    override val ommersValidator: OmmersValidator =
       new StdOmmersValidator(blockHeaderValidator)
-        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
   override lazy val blockImportWithMockedBlockExecution: BlockImport =

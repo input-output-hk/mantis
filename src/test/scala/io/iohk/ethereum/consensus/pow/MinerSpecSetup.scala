@@ -35,8 +35,9 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
-trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
   implicit val scheduler: Scheduler = Scheduler(classicSystem.dispatcher)
   val parentActor: TestProbe = TestProbe()
@@ -72,8 +73,8 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   )
 
   lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
-  lazy val blockchainConfig = Config.blockchains.blockchainConfig
-  lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+  implicit override lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  lazy val difficultyCalc = new EthashDifficultyCalculator()
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
 
   protected def getParentBlock(parentBlockNumber: Int): Block =
@@ -85,7 +86,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
 
     val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(consensusConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
     PoWConsensus(

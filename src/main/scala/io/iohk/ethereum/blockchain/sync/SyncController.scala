@@ -101,7 +101,8 @@ class SyncController(
         etcPeerManager,
         blacklist,
         syncConfig,
-        scheduler
+        scheduler,
+        node
       ),
       "fast-sync"
     )

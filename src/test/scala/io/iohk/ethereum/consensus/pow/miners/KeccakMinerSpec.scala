@@ -53,9 +53,9 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
   trait TestSetup extends ScalaTestWithActorTestKit with MinerSpecSetup {
     implicit private val durationTimeout: Duration = Timeouts.miningTimeout
 
-    override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+    implicit override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
       .withUpdatedForkBlocks(_.copy(ecip1049BlockNumber = Some(0)))
-    val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
+    val powBlockHeaderValidator = new PoWBlockHeaderValidator()
 
     val ethService: EthInfoService = mock[EthInfoService]
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
