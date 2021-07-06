@@ -32,6 +32,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.TxPoolConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object PersonalService {
 
@@ -80,9 +81,10 @@ class PersonalService(
     blockchain: Blockchain,
     txPool: ActorRef,
     appStateStorage: AppStateStorage,
-    blockchainConfig: BlockchainConfig,
-    txPoolConfig: TxPoolConfig
+    txPoolConfig: TxPoolConfig,
+    node: BlockchainConfigBuilder
 ) extends Logger {
+  import node._
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 

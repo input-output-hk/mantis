@@ -563,8 +563,8 @@ trait PersonalServiceBuilder {
     blockchain,
     pendingTransactionsManager,
     storagesInstance.storages.appStateStorage,
-    blockchainConfig,
-    txPoolConfig
+    txPoolConfig,
+    this
   )
 }
 
