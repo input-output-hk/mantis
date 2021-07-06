@@ -156,8 +156,9 @@ class EthTxService(
     val bestBlock = blockchainReader.getBestBlockNumber()
 
     Task {
+      val bestBranch = blockchainReader.getBestBranch()
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
-        .flatMap(blockchainReader.getBestBranch.getBlockByNumber)
+        .flatMap(nb => bestBranch.flatMap(_.getBlockByNumber(nb)))
         .flatMap(_.body.transactionList)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {

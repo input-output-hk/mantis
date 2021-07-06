@@ -23,6 +23,7 @@ import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
+import io.iohk.ethereum.domain.branch.BlockchainBranch
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.BlockQueue
 
@@ -53,7 +54,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -83,7 +84,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = 0)))
-      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -111,7 +112,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
-      (blockchainReader.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
+      (bestChain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -139,7 +140,7 @@ class CheckpointingServiceSpec
 
       (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _).expects(hash).returning(None)
-      (blockchainReader.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -167,13 +168,13 @@ class CheckpointingServiceSpec
     (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (blockchainReader.getBlockByNumber _)
+    (bestChain.getBlockByNumber _)
       .expects(BigInt(4))
       .returning(None)
     (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (blockchainReader.getBlockByNumber _)
+    (bestChain.getBlockByNumber _)
       .expects(BigInt(4))
       .returning(Some(block))
 
@@ -185,6 +186,8 @@ class CheckpointingServiceSpec
   trait TestSetup {
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    val bestChain: BlockchainBranch = mock[BlockchainBranch]
+    (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(Some(bestChain))
     val blockQueue: BlockQueue = mock[BlockQueue]
     val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()

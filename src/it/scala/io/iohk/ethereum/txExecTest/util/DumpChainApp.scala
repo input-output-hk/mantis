@@ -26,6 +26,7 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.branch.BlockchainBranch
 import io.iohk.ethereum.jsonrpc.ProofService.EmptyStorageValueProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
@@ -101,7 +102,9 @@ object DumpChainApp
 
   val blockchain: Blockchain = new BlockchainMock(genesisHash)
   val blockchainReader: BlockchainReader = mock[BlockchainReader]
-  (blockchainReader.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
+  val bestChain: BlockchainBranch = mock[BlockchainBranch]
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(Some(bestChain))
+  (bestChain.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
 
   val nodeStatus: NodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)

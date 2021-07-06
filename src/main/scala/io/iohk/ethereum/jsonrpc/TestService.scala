@@ -372,7 +372,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBestBranch.getBlockByNumber(number),
+        number => blockchainReader.getBestBranch().flatMap(_.getBlockByNumber(number)),
         blockHash => blockchainReader.getBlockByHash(blockHash)
       )
 
@@ -412,7 +412,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBestBranch.getBlockByNumber(number),
+        number => blockchainReader.getBestBranch().flatMap(_.getBlockByNumber(number)),
         hash => blockchainReader.getBlockByHash(hash)
       )
 
