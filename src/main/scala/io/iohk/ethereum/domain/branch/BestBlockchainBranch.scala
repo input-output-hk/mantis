@@ -25,7 +25,7 @@ class BestBlockchainBranch(
    * */
 
   override def getBlockByNumber(number: BigInt): Option[Block] =
-    if (tipBlockHeader.number <= number && number > 0) {
+    if (tipBlockHeader.number >= number && number >= 0) {
       for {
         hash <- getHashByBlockNumber(number)
         block <- blockchainReader.getBlockByHash(hash)

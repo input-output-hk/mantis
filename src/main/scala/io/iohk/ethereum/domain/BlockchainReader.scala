@@ -69,12 +69,17 @@ class BlockchainReader(
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
-  def getBestBranch(): BlockchainBranch =
-    new BestBlockchainBranch(
-      getBestBlock().map(_.header).getOrElse(genesisHeader),
-      blockNumberMappingStorage,
-      this
-    )
+  /** get the current best stored branch */
+  // FIXME this should not be an option as we should always have the genesis
+  // but some tests prevent it to simply be BlockchainBranch for now
+  def getBestBranch(): Option[BlockchainBranch] =
+    getBestBlock().map { block =>
+      new BestBlockchainBranch(
+        block.header,
+        blockNumberMappingStorage,
+        this
+      )
+    }
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
@@ -105,7 +110,7 @@ class BlockchainReader(
     getBlockHeaderByNumber(0).get
 
   def genesisBlock: Block =
-    getBestBranch().getBlockByNumber(0).get
+    getBlockByNumber(0).get
 
   /** Allows to query for a block based on it's number
     *

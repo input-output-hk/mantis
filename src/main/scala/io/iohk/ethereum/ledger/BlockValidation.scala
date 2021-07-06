@@ -41,8 +41,9 @@ class BlockValidation(
           val remaining = n - queuedBlocks.length - 1
 
           val numbers = (block.header.number - remaining) until block.header.number
+          val bestBranch = blockchainReader.getBestBranch()
           val blocks =
-            (numbers.toList.flatMap(blockchainReader.getBestBranch.getBlockByNumber) :+ block) ::: queuedBlocks
+            (numbers.toList.flatMap(nb => bestBranch.flatMap(_.getBlockByNumber(nb))) :+ block) ::: queuedBlocks
           blocks
       }
     }
