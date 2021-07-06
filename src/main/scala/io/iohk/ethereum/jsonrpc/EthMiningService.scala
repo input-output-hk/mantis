@@ -61,7 +61,7 @@ class EthMiningService(
     val getTransactionFromPoolTimeout: FiniteDuration,
     node: BlockchainConfigBuilder
 ) extends TransactionPicker {
-
+  import node._
   import EthMiningService._
 
   private[this] def fullConsensusConfig = consensus.config
@@ -101,7 +101,7 @@ class EthMiningService(
                 dagSeed = EthashUtils
                   .seed(
                     pb.block.header.number.toLong,
-                    node.blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong
+                    blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong
                   ),
                 target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
               )

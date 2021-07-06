@@ -537,7 +537,7 @@ trait EthUserServiceBuilder {
     blockchainReader,
     consensus,
     storagesInstance.storages.evmCodeStorage,
-    blockchainConfig
+    this
   )
 }
 

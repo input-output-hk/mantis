@@ -132,7 +132,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchainReader,
     consensus,
     storagesInstance.storages.evmCodeStorage,
-    blockchainConfig
+    this
   )
 
   val ethFilterService = new EthFilterService(
