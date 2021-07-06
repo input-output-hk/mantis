@@ -8,9 +8,8 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.NodeStatus
 
 case class EtcHandshaker private (
     handshakerState: HandshakerState[PeerInfo],

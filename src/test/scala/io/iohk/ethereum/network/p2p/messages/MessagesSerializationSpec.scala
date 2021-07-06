@@ -111,7 +111,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
   }
 
   //scalastyle:off method.length
-  def commonEthAssertions(version: Capability) = {
+  def commonEthAssertions(version: Capability): Unit = {
     "encoding and decoding ETH61.NewBlockHashes" should {
       "throw for unsupported message version" in {
         val msg = ETH61.NewBlockHashes(Seq(ByteString("23"), ByteString("10"), ByteString("36")))

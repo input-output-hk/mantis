@@ -1,15 +1,16 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain._
+
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.forkid.ForkId
 import io.iohk.ethereum.forkid.ForkId._
-import io.iohk.ethereum.mpt.{MptNode, MptTraversals}
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.bouncycastle.util.encoders.Hex
 
 object ETH64 {
 
