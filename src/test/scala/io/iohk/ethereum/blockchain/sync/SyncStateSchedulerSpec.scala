@@ -1,25 +1,30 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.{MptNodeData, TrieProvider, checkAllDataExists}
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.{
-  AlreadyProcessedItem,
-  CannotDecodeMptNode,
-  NotRequestedItem,
-  SchedulerState,
-  SyncResponse
-}
-import io.iohk.ethereum.db.components.{EphemDataSourceComponent, Storages}
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader}
-import io.iohk.ethereum.vm.Generators.genMultipleNodeData
+
 import org.scalactic.anyvals.PosInt
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.must.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.SuperSlow
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.TrieProvider
+import io.iohk.ethereum.blockchain.sync.StateSyncUtils.checkAllDataExists
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.AlreadyProcessedItem
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.CannotDecodeMptNode
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.NotRequestedItem
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SchedulerState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.db.components.EphemDataSourceComponent
+import io.iohk.ethereum.db.components.Storages
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 
 class SyncStateSchedulerSpec
     extends AnyFlatSpec
@@ -160,7 +165,7 @@ class SyncStateSchedulerSpec
     val allMissingNodes2Response = prov.getNodes(allMissingNodes2)
     val state5 = syncStateScheduler.processResponses(state4, allMissingNodes2Response).value._1
     val remaingNodes = state5.numberOfPendingRequests
-    val state6 = syncStateScheduler.persistBatch(state5, 1)
+    syncStateScheduler.persistBatch(state5, 1)
 
     // 1 non finalized request for branch node + 2 non finalized request for leaf nodes
     assert(state1.numberOfPendingRequests == 3)
@@ -230,7 +235,8 @@ class SyncStateSchedulerSpec
     assert(result1.left.value == CannotDecodeMptNode)
   }
 
-  implicit override val generatorDrivenConfig = PropertyCheckConfiguration(minSuccessful = PosInt(3))
+  implicit override val generatorDrivenConfig: PropertyCheckConfiguration =
+    PropertyCheckConfiguration(minSuccessful = PosInt(3))
 
   // Long running test generating random mpt tries and checking that scheduler is able to correctly
   // traverse them

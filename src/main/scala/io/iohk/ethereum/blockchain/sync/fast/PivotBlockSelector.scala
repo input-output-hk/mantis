@@ -1,25 +1,35 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Cancellable, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.{
-  InvalidPivotBlockElectionResponse,
-  PivotBlockElectionTimeout
-}
-import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg}
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Config.SyncConfig
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.FiniteDuration
+
+import io.iohk.ethereum.blockchain.sync.Blacklist
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.InvalidPivotBlockElectionResponse
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason.PivotBlockElectionTimeout
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class PivotBlockSelector(
     val etcPeerManager: ActorRef,
@@ -39,7 +49,7 @@ class PivotBlockSelector(
 
   override def receive: Receive = idle
 
-  private def idle: Receive = handlePeerListMessages orElse { case SelectPivotBlock =>
+  private def idle: Receive = handlePeerListMessages.orElse { case SelectPivotBlock =>
     val electionDetails = collectVoters()
     startPivotBlockSelection(electionDetails)
   }
@@ -61,12 +71,14 @@ class PivotBlockSelector(
       peersToAsk.foreach(peer => obtainBlockHeaderFromPeer(peer.id, expectedPivotBlock))
 
       val timeout = scheduler.scheduleOnce(peerResponseTimeout, self, ElectionPivotBlockTimeout)
-      context become runningPivotBlockElection(
-        peersToAsk.map(_.id).toSet,
-        waitingPeers.map(_.id),
-        expectedPivotBlock,
-        timeout,
-        Map.empty
+      context.become(
+        runningPivotBlockElection(
+          peersToAsk.map(_.id).toSet,
+          waitingPeers.map(_.id),
+          expectedPivotBlock,
+          timeout,
+          Map.empty
+        )
       )
     } else {
       log.info(
@@ -105,7 +117,7 @@ class PivotBlockSelector(
       timeout: Cancellable,
       headers: Map[ByteString, BlockHeaderWithVotes]
   ): Receive =
-    handlePeerListMessages orElse {
+    handlePeerListMessages.orElse {
       case MessageFromPeer(blockHeaders: BlockHeaders, peerId) =>
         peerEventBus ! Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peerId)))
         val updatedPeersToAsk = peersToAsk - peerId
@@ -152,12 +164,14 @@ class PivotBlockSelector(
 
         obtainBlockHeaderFromPeer(additionalPeer, pivotBlockNumber)
 
-        context become runningPivotBlockElection(
-          peersToAsk + additionalPeer,
-          newWaitingPeers,
-          pivotBlockNumber,
-          newTimeout,
-          headers
+        context.become(
+          runningPivotBlockElection(
+            peersToAsk + additionalPeer,
+            newWaitingPeers,
+            pivotBlockNumber,
+            newTimeout,
+            headers
+          )
         )
       } else { // No more peers. Restart the whole process
         peerEventBus ! Unsubscribe()
@@ -166,12 +180,14 @@ class PivotBlockSelector(
       }
       // Continue voting
     } else {
-      context become runningPivotBlockElection(
-        peersToAsk,
-        waitingPeers,
-        pivotBlockNumber,
-        timeout,
-        headers
+      context.become(
+        runningPivotBlockElection(
+          peersToAsk,
+          waitingPeers,
+          pivotBlockNumber,
+          timeout,
+          headers
+        )
       )
     }
   }
@@ -182,14 +198,14 @@ class PivotBlockSelector(
   private def scheduleRetry(interval: FiniteDuration): Unit = {
     pivotBlockRetryCount = 0
     scheduler.scheduleOnce(interval, self, SelectPivotBlock)
-    context become idle
+    context.become(idle)
   }
 
   private def sendResponseAndCleanup(pivotBlockHeader: BlockHeader): Unit = {
     log.info("Found pivot block: {} hash: {}", pivotBlockHeader.number, pivotBlockHeader.hashAsHexString)
     fastSync ! Result(pivotBlockHeader)
     peerEventBus ! Unsubscribe()
-    context stop self
+    context.stop(self)
   }
 
   private def obtainBlockHeaderFromPeer(peer: PeerId, blockNumber: BigInt): Unit = {
@@ -248,9 +264,8 @@ object PivotBlockSelector {
   }
   import cats.implicits._
   implicit class SortableHeadersMap(headers: Map[ByteString, BlockHeaderWithVotes]) {
-    def mostVotedHeader: Option[BlockHeaderWithVotes] = {
+    def mostVotedHeader: Option[BlockHeaderWithVotes] =
       headers.toList.maximumByOption { case (_, headerWithVotes) => headerWithVotes.votes }.map(_._2)
-    }
   }
 
   final case class ElectionDetails(

@@ -1,10 +1,10 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
-/**
-  * This class is used to store Nodes (defined in mpt/Node.scala), by using:
+/** This class is used to store Nodes (defined in mpt/Node.scala), by using:
   * Key: hash of the RLP encoded node
   * Value: the RLP encoded node
   */

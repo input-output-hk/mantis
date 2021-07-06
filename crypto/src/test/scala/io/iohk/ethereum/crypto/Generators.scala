@@ -1,7 +1,9 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import org.scalacheck.{Arbitrary, Gen}
+
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 
 object Generators {
 

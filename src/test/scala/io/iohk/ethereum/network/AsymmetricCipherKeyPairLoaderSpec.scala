@@ -3,21 +3,22 @@ package io.iohk.ethereum.network
 import java.io.File
 import java.nio.file.Files
 
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.network
+import io.iohk.ethereum.security.SecureRandomBuilder
 
 class AsymmetricCipherKeyPairLoaderSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
   def withFilePath(testCode: String => Any): Unit = {
     val path = Files.createTempFile("key-", "").toAbsolutePath.toString
     require(new File(path).delete(), "File deletion before test failed")
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val file = new File(path)
       assert(!file.exists() || file.delete(), "File deletion after test failed")
     }

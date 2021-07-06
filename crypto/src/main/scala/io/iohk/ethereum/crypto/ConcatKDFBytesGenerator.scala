@@ -1,18 +1,17 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
+
 import org.bouncycastle.crypto.Digest
 import org.bouncycastle.util.Pack
 
-/**
-  * Basic KDF generator for derived keys and ivs as defined by NIST SP 800-56A.
+/** Basic KDF generator for derived keys and ivs as defined by NIST SP 800-56A.
   * @param digest for source of derived keys
   */
 class ConcatKDFBytesGenerator(digest: Digest) {
   val digestSize: Int = digest.getDigestSize
 
-  /**
-    * @param outputLength length of output that will be produced by this method,
+  /** @param outputLength length of output that will be produced by this method,
     *                     maximum value is (digest output size in bits) * (2^32 - 1) but it should not be a problem
     *                     because we are using Int
     * @throws scala.IllegalArgumentException ("Output length too large") when outputLength is greater than (digest output size in bits) * (2^32 - 1)

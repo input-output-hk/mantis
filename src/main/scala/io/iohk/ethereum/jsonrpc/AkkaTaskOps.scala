@@ -1,8 +1,10 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{Actor, ActorRef}
+import akka.actor.Actor
+import akka.actor.ActorRef
 import akka.pattern.ask
 import akka.util.Timeout
+
 import monix.eval.Task
 
 import scala.reflect.ClassTag

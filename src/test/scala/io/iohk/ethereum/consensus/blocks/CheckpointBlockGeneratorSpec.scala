@@ -1,12 +1,14 @@
 package io.iohk.ethereum.consensus.blocks
 
 import akka.util.ByteString
+
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BloomFilter
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 
 class CheckpointBlockGeneratorSpec extends AnyFlatSpec with Matchers {
 

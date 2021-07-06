@@ -1,10 +1,11 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
+
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class AesCtrSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 

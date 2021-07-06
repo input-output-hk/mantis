@@ -1,27 +1,39 @@
 package io.iohk.ethereum.blockchain.data
 
 import java.io.FileNotFoundException
+
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.{
-  ByteStringJsonSerializer,
-  UInt256JsonSerializer
-}
+
+import scala.io.Source
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+import org.json4s.CustomSerializer
+import org.json4s.DefaultFormats
+import org.json4s.Formats
+import org.json4s.JString
+import org.json4s.JValue
+
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.ByteStringJsonSerializer
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader.JsonSerializers.UInt256JsonSerializer
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.{ArchiveNodeStorage, MptStorage, NodeStorage, SerializingMptStorage, StateStorage}
+import io.iohk.ethereum.db.storage.ArchiveNodeStorage
+import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.SerializingMptStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
-import io.iohk.ethereum.rlp.RLPList
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.{crypto, rlp}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicits._
-import org.json4s.{CustomSerializer, DefaultFormats, Formats, JString, JValue}
-import org.bouncycastle.util.encoders.Hex
-
-import scala.io.Source
-import scala.util.{Failure, Success, Try}
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
 
 class GenesisDataLoader(
     blockchain: Blockchain,
@@ -37,7 +49,7 @@ class GenesisDataLoader(
   import Account._
 
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
-  private val emptyEvmHash: ByteString = crypto.kec256(ByteString.empty)
+  crypto.kec256(ByteString.empty)
 
   def loadGenesisData(): Unit = {
     log.debug("Loading genesis data")
@@ -54,11 +66,8 @@ class GenesisDataLoader(
           } match {
             case Success(customGenesis) =>
               log.info(s"Using custom genesis data from: $customGenesisFile")
-              try {
-                customGenesis.getLines().mkString
-              } finally {
-                customGenesis.close()
-              }
+              try customGenesis.getLines().mkString
+              finally customGenesis.close()
             case Failure(ex) =>
               log.error(s"Cannot load custom genesis data from: $customGenesisFile", ex)
               throw ex
@@ -66,11 +75,8 @@ class GenesisDataLoader(
         case None =>
           log.info("Using default genesis data")
           val src = Source.fromResource("blockchain/default-genesis.json")
-          try {
-            src.getLines().mkString
-          } finally {
-            src.close()
-          }
+          try src.getLines().mkString
+          finally src.close()
       }
     }
 
@@ -93,7 +99,6 @@ class GenesisDataLoader(
   }
 
   def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
-    import MerklePatriciaTrie.defaultByteArraySerializable
 
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
@@ -158,7 +163,7 @@ class GenesisDataLoader(
 
     val storageTrie = storage.foldLeft(emptyTrie) {
       case (trie, (key, UInt256.Zero)) => trie
-      case (trie, (key, value)) => trie.put(key, value)
+      case (trie, (key, value))        => trie.put(key, value)
     }
 
     ByteString(storageTrie.getRootHash)
@@ -199,7 +204,7 @@ object GenesisDataLoader {
           else "0" ++ noPrefix
         Try(ByteString(Hex.decode(inp))) match {
           case Success(bs) => bs
-          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Failure(_)  => throw new RuntimeException("Cannot parse hex string: " + s)
         }
       case other => throw new RuntimeException("Expected hex string, but got: " + other)
     }
@@ -215,7 +220,7 @@ object GenesisDataLoader {
     def deserializeUint256String(jv: JValue): UInt256 = jv match {
       case JString(s) =>
         Try(UInt256(BigInt(s))) match {
-          case Failure(_) => throw new RuntimeException("Cannot parse hex string: " + s)
+          case Failure(_)     => throw new RuntimeException("Cannot parse hex string: " + s)
           case Success(value) => value
         }
       case other => throw new RuntimeException("Expected hex string, but got: " + other)

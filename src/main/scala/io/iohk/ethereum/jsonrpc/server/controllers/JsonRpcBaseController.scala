@@ -1,26 +1,33 @@
 package io.iohk.ethereum.jsonrpc.server.controllers
 
-import java.util.concurrent.TimeUnit
+import java.time.Duration
 
 import cats.syntax.all._
-import com.typesafe.config.{Config => TypesafeConfig}
-import io.iohk.ethereum.jsonrpc.JsonRpcError.{InternalError, MethodNotFound}
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
-import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
-import io.iohk.ethereum.jsonrpc.{JsonRpcControllerMetrics, JsonRpcError, JsonRpcRequest, JsonRpcResponse}
-import io.iohk.ethereum.jsonrpc.NodeJsonRpcHealthChecker.JsonRpcHealthConfig
-import io.iohk.ethereum.utils.Logger
+
 import monix.eval.Task
-import org.json4s.JsonDSL._
-import org.json4s.{DefaultFormats, native}
 
 import scala.collection.immutable.ArraySeq
 import scala.concurrent.ExecutionContext
 import scala.concurrent.duration.FiniteDuration
-import io.micrometer.core.instrument.Timer
-import io.micrometer.core.annotation.Timed
-import java.time.Duration
+
+import com.typesafe.config.{Config => TypesafeConfig}
+import org.json4s.DefaultFormats
+import org.json4s.JsonDSL._
+import org.json4s.native
+import org.json4s.native.Serialization
+
+import io.iohk.ethereum.jsonrpc.JsonRpcControllerMetrics
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InternalError
+import io.iohk.ethereum.jsonrpc.JsonRpcError.MethodNotFound
+import io.iohk.ethereum.jsonrpc.JsonRpcRequest
+import io.iohk.ethereum.jsonrpc.JsonRpcResponse
+import io.iohk.ethereum.jsonrpc.NodeJsonRpcHealthChecker.JsonRpcHealthConfig
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer.JsonRpcIpcServerConfig
+import io.iohk.ethereum.utils.Logger
 
 trait ApisBase {
   def available: List[String]
@@ -31,8 +38,7 @@ trait JsonRpcBaseController {
 
   import JsonRpcBaseController._
 
-  /**
-    * FIXME: We are making mandatory to pass a config in all the Controllers that implements this trait
+  /** FIXME: We are making mandatory to pass a config in all the Controllers that implements this trait
     * when it is just used for the disabled methods.
     * We should change this behaviour in order to remove this unnecessary dependency.
     */
@@ -43,9 +49,9 @@ trait JsonRpcBaseController {
 
   def enabledApis: Seq[String]
 
-  implicit val formats = DefaultFormats
+  implicit val formats: DefaultFormats.type = DefaultFormats
 
-  implicit val serialization = native.Serialization
+  implicit val serialization: Serialization.type = native.Serialization
 
   def handleRequest(request: JsonRpcRequest): Task[JsonRpcResponse] = {
     val startTimeNanos = System.nanoTime()
@@ -58,7 +64,7 @@ trait JsonRpcBaseController {
     }
 
     val handleFn: PartialFunction[JsonRpcRequest, Task[JsonRpcResponse]] =
-      enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty) orElse fn)
+      enabledApis.foldLeft(notFoundFn)((fn, api) => apisHandleFns.getOrElse(api, PartialFunction.empty).orElse(fn))
 
     handleFn(request)
       .flatTap {
@@ -78,7 +84,7 @@ trait JsonRpcBaseController {
             JsonRpcControllerMetrics.recordMethodTime(request.method, time)
           }
       }
-      .flatTap { response => Task { log.debug(s"sending response ${response.inspect}") } }
+      .flatTap(response => Task(log.debug(s"sending response ${response.inspect}")))
       .onErrorRecoverWith { case t: Throwable =>
         JsonRpcControllerMetrics.MethodsExceptionCounter.increment()
         log.error(s"Error serving request: ${request.toStringWithSensitiveInformation}", t)
@@ -89,13 +95,13 @@ trait JsonRpcBaseController {
   def handle[Req, Res](
       fn: Req => Task[Either[JsonRpcError, Res]],
       rpcReq: JsonRpcRequest
-  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] = {
+  )(implicit dec: JsonMethodDecoder[Req], enc: JsonEncoder[Res]): Task[JsonRpcResponse] =
     dec.decodeJson(rpcReq.params) match {
       case Right(req) =>
         fn(req)
           .map {
             case Right(success) => successResponse(rpcReq, success)
-            case Left(error) => errorResponse(rpcReq, error)
+            case Left(error)    => errorResponse(rpcReq, error)
           }
           .recover { case ex =>
             log.error("Failed to handle RPC request", ex)
@@ -104,7 +110,6 @@ trait JsonRpcBaseController {
       case Left(error) =>
         Task.now(errorResponse(rpcReq, error))
     }
-  }
 
   private def successResponse[T](req: JsonRpcRequest, result: T)(implicit enc: JsonEncoder[T]): JsonRpcResponse =
     JsonRpcResponse(req.jsonrpc, Some(enc.encodeJson(result)), None, req.id.getOrElse(0))

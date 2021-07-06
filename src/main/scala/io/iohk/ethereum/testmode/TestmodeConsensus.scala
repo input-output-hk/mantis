@@ -1,22 +1,36 @@
 package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
+
+import monix.eval.Task
+
 import io.iohk.ethereum.consensus._
-import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, NoOmmersBlockGenerator, TestBlockGenerator}
+import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
+import io.iohk.ethereum.consensus.blocks.NoOmmersBlockGenerator
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.consensus.validators.std.{StdBlockValidator, StdSignedTransactionValidator}
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainImpl, BlockchainReader, Receipt}
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
+import io.iohk.ethereum.consensus.validators.std.StdSignedTransactionValidator
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
+import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.ledger.{BlockExecutionError, BlockExecutionSuccess, BlockPreparator, InMemoryWorldStateProxy}
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
-import monix.eval.Task
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.db.storage.EvmCodeStorage
 
 class TestmodeConsensus(
     override val vm: VMImpl,
@@ -106,13 +120,11 @@ class TestmodeConsensus(
   override def startProtocol(node: Node): Unit = {}
   override def stopProtocol(): Unit = {}
 
-  /**
-    * Sends msg to the internal miner and waits for the response
+  /** Sends msg to the internal miner and waits for the response
     */
   override def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse] = Task.now(MinerNotExist)
 
-  /**
-    * Sends msg to the internal miner
+  /** Sends msg to the internal miner
     */
   override def sendMiner(msg: MinerProtocol): Unit = {}
 }

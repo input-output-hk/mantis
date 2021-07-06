@@ -1,8 +1,12 @@
 package io.iohk.ethereum.network.p2p.messages
 
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPException
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPException, RLPList, RLPSerializable, rawDecode}
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPSerializable
+import io.iohk.ethereum.rlp.rawDecode
 
 case class Capability(name: String, version: Byte)
 
@@ -10,7 +14,7 @@ object Capability {
   def negotiate(c1: List[Capability], c2: List[Capability]): Option[Capability] =
     c1.intersect(c2) match {
       case Nil => None
-      case l => Some(best(l))
+      case l   => Some(best(l))
     }
 
   private val pattern = "(.*)/(\\d*)".r
@@ -41,7 +45,7 @@ object Capability {
   implicit class CapabilityRLPEncodableDec(val rLPEncodeable: RLPEncodeable) extends AnyVal {
     def toCapability: Capability = rLPEncodeable match {
       case RLPList(name, version) => Capability(name, version)
-      case _ => throw new RLPException("Cannot decode Capability")
+      case _                      => throw new RLPException("Cannot decode Capability")
     }
   }
 

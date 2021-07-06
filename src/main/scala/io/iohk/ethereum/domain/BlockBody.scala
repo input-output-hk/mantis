@@ -1,7 +1,10 @@
 package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPSerializable
+import io.iohk.ethereum.rlp.rawDecode
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 
 case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Seq[BlockHeader]) {
@@ -18,7 +21,7 @@ case class BlockBody(transactionList: Seq[SignedTransaction], uncleNodesList: Se
 
 object BlockBody {
 
-  val empty = BlockBody(Seq.empty, Seq.empty)
+  val empty: BlockBody = BlockBody(Seq.empty, Seq.empty)
 
   def blockBodyToRlpEncodable(
       blockBody: BlockBody,

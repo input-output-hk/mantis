@@ -1,21 +1,27 @@
 package io.iohk.ethereum.domain
 
+import java.math.BigInteger
+import java.util.concurrent.Executors
+
 import akka.util.ByteString
-import com.google.common.cache.{Cache, CacheBuilder}
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.util.Try
+
+import com.google.common.cache.Cache
+import com.google.common.cache.CacheBuilder
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.{ECDSASignature, kec256}
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
-import java.math.BigInteger
-import java.util.concurrent.Executors
-import monix.eval.Task
-import monix.execution.Scheduler
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.util.encoders.Hex
-import scala.util.Try
 
 object SignedTransaction {
 
@@ -74,18 +80,16 @@ object SignedTransaction {
     SignedTransactionWithSender(tx, sig, address)
   }
 
-  private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] = {
+  private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
     chainId match {
       case Some(id) =>
         chainSpecificTransactionBytes(tx, id)
       case None =>
         generalTransactionBytes(tx)
     }
-  }
 
-  def getSender(tx: SignedTransaction): Option[Address] = {
-    Option(txSenders.getIfPresent(tx.hash)) orElse calculateSender(tx)
-  }
+  def getSender(tx: SignedTransaction): Option[Address] =
+    Option(txSenders.getIfPresent(tx.hash)).orElse(calculateSender(tx))
 
   private def calculateSender(tx: SignedTransaction): Option[Address] = Try {
     val ECDSASignature(_, _, v) = tx.signature
@@ -115,13 +119,11 @@ object SignedTransaction {
     Task.traverse(blocktx.toSeq)(calculateSendersForTxs).runAsyncAndForget
   }
 
-  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Task[Unit] = {
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Task[Unit] =
     Task(txs.foreach(calculateAndCacheSender))
-  }
 
-  private def calculateAndCacheSender(stx: SignedTransaction) = {
+  private def calculateAndCacheSender(stx: SignedTransaction) =
     calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
-  }
 
   private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
@@ -147,7 +149,7 @@ object SignedTransaction {
     )
   }
 
-  val byteArraySerializable = new ByteArraySerializable[SignedTransaction] {
+  val byteArraySerializable: ByteArraySerializable[SignedTransaction] = new ByteArraySerializable[SignedTransaction] {
 
     override def fromBytes(bytes: Array[Byte]): SignedTransaction = bytes.toSignedTransaction
 
@@ -176,14 +178,12 @@ case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Add
 
 object SignedTransactionWithSender {
 
-  def getSignedTransactions(stxs: Seq[SignedTransaction]): Seq[SignedTransactionWithSender] = {
+  def getSignedTransactions(stxs: Seq[SignedTransaction]): Seq[SignedTransactionWithSender] =
     stxs.foldLeft(List.empty[SignedTransactionWithSender]) { (acc, stx) =>
       val sender = SignedTransaction.getSender(stx)
-      sender.fold(acc) { addr => SignedTransactionWithSender(stx, addr) :: acc }
+      sender.fold(acc)(addr => SignedTransactionWithSender(stx, addr) :: acc)
     }
-  }
 
-  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender = {
+  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender =
     SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
-  }
 }

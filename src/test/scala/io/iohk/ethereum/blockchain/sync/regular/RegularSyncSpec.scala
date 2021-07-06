@@ -1,45 +1,66 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{ActorRef, ActorSystem, typed}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.typed
 import akka.actor.typed.{ActorRef => TypedActorRef}
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import cats.data.NonEmptyList
+
 import cats.effect.Resource
 import cats.syntax.traverse._
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.concurrent.Await
+import scala.concurrent.Future
+import scala.concurrent.Promise
+import scala.concurrent.duration._
+import scala.math.BigInt
+
+import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.Assertion
+import org.scalatest.BeforeAndAfterEach
+import org.scalatest.diagrams.Diagrams
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.ResourceFixtures
+import io.iohk.ethereum.WordSpecBase
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.blockchain.sync.{PeersClient, SyncProtocol}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.network.EtcPeerManagerActor.{GetHandshakedPeers, HandshakedPeers, PeerInfo}
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.GetHandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, ProtocolVersions}
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerEventBusActor}
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{BlockHelpers, ObjectGenerators, ResourceFixtures, WordSpecBase}
-import monix.eval.Task
-import monix.execution.Scheduler
-import org.scalamock.scalatest.AsyncMockFactory
-import org.scalatest.diagrams.Diagrams
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.{Assertion, BeforeAndAfterEach}
-
-import scala.concurrent.duration._
-import scala.concurrent.{Await, Future, Promise}
-import scala.math.BigInt
 
 class RegularSyncSpec
     extends WordSpecBase
@@ -51,9 +72,9 @@ class RegularSyncSpec
     with RegularSyncFixtures {
   type Fixture = RegularSyncFixture
 
-  val actorSystemResource =
-    Resource.make(Task { ActorSystem() })(system => Task { TestKit.shutdownActorSystem(system) })
-  val fixtureResource = actorSystemResource.map(new Fixture(_))
+  val actorSystemResource: Resource[Task, ActorSystem] =
+    Resource.make(Task(ActorSystem()))(system => Task(TestKit.shutdownActorSystem(system)))
+  val fixtureResource: Resource[Task, Fixture] = actorSystemResource.map(new Fixture(_))
 
   // Used only in sync tests
   var testSystem: ActorSystem = _
@@ -462,7 +483,7 @@ class RegularSyncSpec
         (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
-          .onCall((hash, encoded, totalDifficulty) => {
+          .onCall { (hash, encoded, totalDifficulty) =>
             val expectedNode = nodeData.head
 
             hash should be(kec256(expectedNode))
@@ -470,7 +491,7 @@ class RegularSyncSpec
             totalDifficulty should be(failingBlock.number)
 
             saveNodeWasCalled = true
-          })
+          }
 
         regularSync ! SyncProtocol.Start
 
@@ -536,7 +557,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == newBlock => true
-              case _ => false
+              case _                                       => false
             }
           case _ => false
         }
@@ -606,7 +627,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == newBlock => true
-              case _ => false
+              case _                                       => false
             }
           case _ => false
         }
@@ -635,7 +656,7 @@ class RegularSyncSpec
         regularSync ! newCheckpointMsg
 
         assertForDuration(
-          { didTryToImportBlock(checkpointBlock) shouldBe false },
+          didTryToImportBlock(checkpointBlock) shouldBe false,
           1.second
         )
         blockPromise.success(BlockImportedToTop(Nil))
@@ -669,7 +690,7 @@ class RegularSyncSpec
           case EtcPeerManagerActor.SendMessage(message, _) =>
             message.underlyingMsg match {
               case NewBlock(block, _) if block == checkpointBlock => true
-              case _ => false
+              case _                                              => false
             }
           case _ => false
         }
@@ -697,7 +718,7 @@ class RegularSyncSpec
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
                 case BaseETH6XMessages.NewBlock(`newBlock`, _) => true
-                case _ => false
+                case _                                         => false
               }
             case _ => false
           }
@@ -720,7 +741,7 @@ class RegularSyncSpec
             case EtcPeerManagerActor.SendMessage(message, _) =>
               message.underlyingMsg match {
                 case NewBlock(`newBlock`, _) => true
-                case _ => false
+                case _                       => false
               }
             case _ => false
           }
@@ -733,7 +754,7 @@ class RegularSyncSpec
         import fixture._
 
         for {
-          _ <- Task { regularSync ! SyncProtocol.Start }
+          _ <- Task(regularSync ! SyncProtocol.Start)
           before <- getSyncStatus
           _ <- Task {
             peerEventBus.expectMsgClass(classOf[Subscribe])
@@ -758,7 +779,7 @@ class RegularSyncSpec
           _ <- testBlocks
             .take(5)
             .traverse(block =>
-              Task { blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true) }
+              Task(blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
             )
           _ <- Task {
             regularSync ! SyncProtocol.Start
@@ -801,9 +822,7 @@ class RegularSyncSpec
           }
           status <- pollForStatus(_.syncing)
           lastBlock = testBlocks.last.number
-        } yield {
-          assert(status === Status.Syncing(0, Progress(0, lastBlock), None))
-        }
+        } yield assert(status === Status.Syncing(0, Progress(0, lastBlock), None))
       }
 
       "return updated status after importing blocks" in testCaseT { fixture =>
@@ -838,7 +857,7 @@ class RegularSyncSpec
           import fixture._
 
           for {
-            _ <- Task { goToTop() }
+            _ <- Task(goToTop())
             status <- getSyncStatus
           } yield assert(status === Status.SyncDone)
       }

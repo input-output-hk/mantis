@@ -1,6 +1,7 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions.SignedTransactionEnc
 import io.iohk.ethereum.rlp

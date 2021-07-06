@@ -1,29 +1,45 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
-import akka.actor.{ActorRef, ActorSystem}
-import akka.testkit.{TestKit, TestProbe}
+
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import scala.concurrent.duration._
+
 import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector
-import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.{Result, SelectPivotBlock}
-import io.iohk.ethereum.domain.{BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{HandshakedPeers, PeerInfo, RemoteStatus}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.{MessageClassifier, PeerDisconnectedClassifier}
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe, Unsubscribe}
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.{Codes, ProtocolVersions}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.{Fixtures, WithActorSystemShutDown}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.Result
+import io.iohk.ethereum.blockchain.sync.fast.PivotBlockSelector.SelectPivotBlock
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.HandshakedPeers
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDisconnectedClassifier
+import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class PivotBlockSelectorSpec
     extends TestKit(ActorSystem("FastSyncPivotBlockSelectorSpec_System"))
@@ -495,21 +511,21 @@ class PivotBlockSelectorSpec
 
     private def isNewBlock(msg: Message): Boolean = msg match {
       case _: NewBlock => true
-      case _ => false
+      case _           => false
     }
 
-    val etcPeerManager = TestProbe()
+    val etcPeerManager: TestProbe = TestProbe()
     etcPeerManager.ignoreMsg {
       case EtcPeerManagerActor.SendMessage(msg, _) if isNewBlock(msg.underlyingMsg) => true
-      case EtcPeerManagerActor.GetHandshakedPeers => true
+      case EtcPeerManagerActor.GetHandshakedPeers                                   => true
     }
 
-    val peerMessageBus = TestProbe()
+    val peerMessageBus: TestProbe = TestProbe()
     peerMessageBus.ignoreMsg {
       case Subscribe(MessageClassifier(codes, PeerSelector.AllPeers))
           if codes == Set(Codes.NewBlockCode, Codes.NewBlockHashesCode) =>
         true
-      case Subscribe(PeerDisconnectedClassifier(_)) => true
+      case Subscribe(PeerDisconnectedClassifier(_))         => true
       case Unsubscribe(Some(PeerDisconnectedClassifier(_))) => true
     }
 
@@ -531,7 +547,7 @@ class PivotBlockSelectorSpec
       blacklistDuration = 1.second
     )
 
-    val fastSync = TestProbe()
+    val fastSync: TestProbe = TestProbe()
     val time = new VirtualTime
 
     lazy val pivotBlockSelector: ActorRef = system.actorOf(
@@ -549,7 +565,7 @@ class PivotBlockSelectorSpec
 
     val bestBlock = 400000
     // Ask for pivot block header (the best block from the best peer - offset)
-    val expectedPivotBlock = bestBlock - syncConfig.pivotBlockOffset
+    val expectedPivotBlock: Int = bestBlock - syncConfig.pivotBlockOffset
 
     val pivotBlockHeader: BlockHeader = baseBlockHeader.copy(number = expectedPivotBlock)
     val differentBlockHeader: BlockHeader =
@@ -564,12 +580,12 @@ class PivotBlockSelectorSpec
     val peer3TestProbe: TestProbe = TestProbe("peer3")(system)
     val peer4TestProbe: TestProbe = TestProbe("peer4")(system)
 
-    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
-    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
-    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
-    val peer4 = Peer(PeerId("peer4"), new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
+    val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 0), peer1TestProbe.ref, false)
+    val peer2: Peer = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.2", 0), peer2TestProbe.ref, false)
+    val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.3", 0), peer3TestProbe.ref, false)
+    val peer4: Peer = Peer(PeerId("peer4"), new InetSocketAddress("127.0.0.4", 0), peer4TestProbe.ref, false)
 
-    val peer1Status =
+    val peer1Status: RemoteStatus =
       RemoteStatus(
         ProtocolVersions.ETC64.version,
         1,
@@ -577,11 +593,11 @@ class PivotBlockSelectorSpec
         ByteString("peer1_bestHash"),
         ByteString("unused")
       )
-    val peer2Status = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
-    val peer3Status = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
-    val peer4Status = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
+    val peer2Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer2_bestHash"))
+    val peer3Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer3_bestHash"))
+    val peer4Status: RemoteStatus = peer1Status.copy(bestHash = ByteString("peer4_bestHash"))
 
-    val allPeers = Map(
+    val allPeers: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -612,7 +628,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val threeAcceptedPeers = Map(
+    val threeAcceptedPeers: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -636,7 +652,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val singlePeer = Map(
+    val singlePeer: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,
@@ -646,7 +662,7 @@ class PivotBlockSelectorSpec
       )
     )
 
-    val peersFromDifferentNetworks = Map(
+    val peersFromDifferentNetworks: Map[Peer, PeerInfo] = Map(
       peer1 -> PeerInfo(
         peer1Status,
         forkAccepted = true,

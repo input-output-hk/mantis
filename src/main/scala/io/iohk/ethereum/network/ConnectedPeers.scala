@@ -4,6 +4,7 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+
 import scala.concurrent.duration.FiniteDuration
 
 case class ConnectedPeers(
@@ -48,14 +49,13 @@ case class ConnectedPeers(
 
   def getPeer(peerId: PeerId): Option[Peer] = peers.get(peerId)
 
-  def addNewPendingPeer(pendingPeer: Peer): ConnectedPeers = {
+  def addNewPendingPeer(pendingPeer: Peer): ConnectedPeers =
     if (pendingPeer.incomingConnection)
       copy(incomingPendingPeers = incomingPendingPeers + (pendingPeer.id -> pendingPeer))
     else
       copy(outgoingPendingPeers = outgoingPendingPeers + (pendingPeer.id -> pendingPeer))
-  }
 
-  def promotePeerToHandshaked(peerAfterHandshake: Peer): ConnectedPeers = {
+  def promotePeerToHandshaked(peerAfterHandshake: Peer): ConnectedPeers =
     if (peerAfterHandshake.incomingConnection)
       copy(
         incomingPendingPeers = incomingPendingPeers - PeerId.fromRef(peerAfterHandshake.ref),
@@ -66,7 +66,6 @@ case class ConnectedPeers(
         outgoingPendingPeers = outgoingPendingPeers - PeerId.fromRef(peerAfterHandshake.ref),
         handshakedPeers = handshakedPeers + (peerAfterHandshake.id -> peerAfterHandshake)
       )
-  }
 
   def removeTerminatedPeer(peerRef: ActorRef): (Iterable[PeerId], ConnectedPeers) = {
     val peersId = allPeers.collect { case (id, peer) if peer.ref == peerRef => id }
@@ -110,11 +109,10 @@ case class ConnectedPeers(
     }
   }
 
-  private def canPrune(incoming: Boolean, minCreateTimeMillis: Long)(peer: Peer): Boolean = {
+  private def canPrune(incoming: Boolean, minCreateTimeMillis: Long)(peer: Peer): Boolean =
     peer.incomingConnection == incoming &&
-    peer.createTimeMillis <= minCreateTimeMillis &&
-    !pruningPeers.contains(peer.id)
-  }
+      peer.createTimeMillis <= minCreateTimeMillis &&
+      !pruningPeers.contains(peer.id)
 }
 
 object ConnectedPeers {

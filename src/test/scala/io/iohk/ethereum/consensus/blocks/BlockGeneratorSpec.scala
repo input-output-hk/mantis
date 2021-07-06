@@ -1,21 +1,12 @@
 package io.iohk.ethereum.consensus.blocks
 
+import java.time.Instant
+
 import akka.util.ByteString
-import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.{HefEmpty, HefPostEcip1097}
-import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
-import io.iohk.ethereum.utils._
+
 import monix.execution.Scheduler
+import monix.execution.schedulers.SchedulerService
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -23,10 +14,27 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import java.time.Instant
+import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
+import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.utils._
 
 class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with Logger {
-  implicit val testContext = Scheduler.fixedPool("block-generator-spec-pool", 4)
+  implicit val testContext: SchedulerService = Scheduler.fixedPool("block-generator-spec-pool", 4)
 
   "BlockGenerator" should "generate correct block with empty transactions" in new TestSetup {
     val pendingBlock =
@@ -101,7 +109,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    val res = blockImport.importBlock(fullBlock).runSyncUnsafe()
+    blockImport.importBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(
@@ -640,14 +648,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   trait TestSetup extends EphemBlockchainTestSetup {
 
     val testAddress = 42
-    val privateKey = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
+    val privateKey: BigInt = BigInt(1, Hex.decode("f3202185c84325302d43887e90a2e23e7bc058d0450bb58ef2f7585765d7d48b"))
     lazy val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(privateKey)
     lazy val pubKey: Array[Byte] = keyPair.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail
-    lazy val address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
+    lazy val address: Address = Address(crypto.kec256(pubKey).drop(FirstByteOfAddress))
 
     val txGasLimit = 21000
     val txTransfer = 9000
-    val transaction = Transaction(
+    val transaction: Transaction = Transaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
@@ -657,14 +665,15 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     //defined in test-genesis-treasury.json
-    val treasuryAccount = Address(0xeeeeee)
-    val maliciousAccount = Address(0x123)
+    val treasuryAccount: Address = Address(0xeeeeee)
+    val maliciousAccount: Address = Address(0x123)
 
-    lazy val signedTransaction = SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
-    lazy val duplicatedSignedTransaction =
+    lazy val signedTransaction: SignedTransactionWithSender =
+      SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
+    lazy val duplicatedSignedTransaction: SignedTransactionWithSender =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
-    val baseBlockchainConfig = BlockchainConfig(
+    val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
@@ -709,7 +718,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
     genesisDataLoader.loadGenesisData()
 
-    val bestBlock = blockchain.getBestBlock()
+    val bestBlock: Option[Block] = blockchain.getBestBlock()
 
     lazy val blockTimestampProvider = new FakeBlockTimestampProvider
 
@@ -718,10 +727,11 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     override lazy val validators: ValidatorsExecutor = powValidators
 
-    override lazy val consensusConfig =
+    override lazy val consensusConfig: ConsensusConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
-    lazy val blockGenerator = consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+    lazy val blockGenerator: TestBlockGenerator =
+      consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
       new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))

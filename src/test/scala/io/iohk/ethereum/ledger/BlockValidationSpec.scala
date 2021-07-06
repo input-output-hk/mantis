@@ -1,13 +1,15 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import io.iohk.ethereum.domain._
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
+import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.ByteStringUtils._
 
 class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {

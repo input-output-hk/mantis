@@ -2,22 +2,29 @@ package io.iohk.ethereum.consensus.pow
 
 import akka.actor.ActorRef
 import akka.actor.testkit.typed.LoggingEvent
-import akka.actor.testkit.typed.scaladsl.{LoggingTestKit, ScalaTestWithActorTestKit}
+import akka.actor.testkit.typed.scaladsl.LoggingTestKit
+import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter._
-import akka.testkit.{TestActor, TestProbe}
-import io.iohk.ethereum.Fixtures
-import io.iohk.ethereum.blockchain.sync.SyncProtocol.MinedBlock
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator._
-import io.iohk.ethereum.domain.{Block, UInt256}
-import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
-import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.transactions.PendingTransactionsManager
+import akka.testkit.TestActor
+import akka.testkit.TestProbe
+
 import monix.eval.Task
+
+import scala.concurrent.duration._
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.MinedBlock
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator._
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.transactions.PendingTransactionsManager
 
 class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpecLike with Matchers {
 
@@ -190,7 +197,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
       ommersPool = ommersPool.ref
     )
 
-    val coordinator = testKit.spawn(
+    val coordinator: typed.ActorRef[CoordinatorProtocol] = testKit.spawn(
       PoWMiningCoordinator(
         sync.ref,
         ethMiningService,
@@ -206,14 +213,14 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
       .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
 
-    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+    ommersPool.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! OmmersPool.Ommers(Nil)
       TestActor.KeepRunning
-    })
+    }
 
-    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+    pendingTransactionsManager.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
       TestActor.KeepRunning
-    })
+    }
   }
 }

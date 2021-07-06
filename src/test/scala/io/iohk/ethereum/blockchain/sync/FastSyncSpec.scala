@@ -1,22 +1,31 @@
 package io.iohk.ethereum.blockchain.sync
 
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.pattern.ask
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.Timeout
-import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
-import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.GenOps.GenOps
-import io.iohk.ethereum.{FreeSpecBase, ObjectGenerators, SpecFixtures, WithActorSystemShutDown}
+
 import monix.eval.Task
 import monix.reactive.Observable
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.blockchain.sync.fast.FastSync
-import io.iohk.ethereum.domain.ChainWeight
-import monix.execution.Scheduler
 
 import scala.concurrent.duration.DurationInt
+
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.FreeSpecBase
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.SpecFixtures
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
+import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
+import io.iohk.ethereum.blockchain.sync.fast.FastSync
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.GenOps.GenOps
 
 class FastSyncSpec
     extends TestKit(ActorSystem("FastSync_testing"))
@@ -26,7 +35,7 @@ class FastSyncSpec
   implicit val timeout: Timeout = Timeout(30.seconds)
 
   class Fixture extends EphemBlockchainTestSetup with TestSyncConfig with TestSyncPeers {
-    override implicit lazy val system: ActorSystem = self.system
+    implicit override lazy val system: ActorSystem = self.system
 
     val blacklistMaxElems: Int = 100
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(blacklistMaxElems)
@@ -42,16 +51,16 @@ class FastSyncSpec
       (stateRoot, trieProvider)
     }
 
-    lazy val testBlocks = BlockHelpers.generateChain(
+    lazy val testBlocks: List[Block] = BlockHelpers.generateChain(
       20,
       BlockHelpers.genesis,
       block => block.copy(header = block.header.copy(stateRoot = stateRoot))
     )
 
-    lazy val bestBlockAtStart = testBlocks(10)
-    lazy val expectedPivotBlockNumber = bestBlockAtStart.number - syncConfig.pivotBlockOffset
-    lazy val expectedTargetBlockNumber = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
-    lazy val testPeers = twoAcceptedPeers.map { case (k, peerInfo) =>
+    lazy val bestBlockAtStart: Block = testBlocks(10)
+    lazy val expectedPivotBlockNumber: BigInt = bestBlockAtStart.number - syncConfig.pivotBlockOffset
+    lazy val expectedTargetBlockNumber: BigInt = expectedPivotBlockNumber + syncConfig.fastSyncBlockValidationX
+    lazy val testPeers: Map[Peer, EtcPeerManagerActor.PeerInfo] = twoAcceptedPeers.map { case (k, peerInfo) =>
       val lastBlock = bestBlockAtStart
       k -> peerInfo
         .withBestBlockData(lastBlock.number, lastBlock.hash)
@@ -64,8 +73,8 @@ class FastSyncSpec
         testBlocks,
         req => trieProvider.getNodes(req).map(_.data)
       )
-    lazy val peerEventBus = TestProbe("peer_event-bus")
-    lazy val fastSync = system.actorOf(
+    lazy val peerEventBus: TestProbe = TestProbe("peer_event-bus")
+    lazy val fastSync: ActorRef = system.actorOf(
       FastSync.props(
         fastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage,
         appStateStorage = storagesInstance.storages.appStateStorage,
@@ -86,7 +95,7 @@ class FastSyncSpec
       blockchain.save(BlockHelpers.genesis, receipts = Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
     }
 
-    val startSync: Task[Unit] = Task { fastSync ! SyncProtocol.Start }
+    val startSync: Task[Unit] = Task(fastSync ! SyncProtocol.Start)
 
     val getSyncStatus: Task[Status] =
       Task.deferFuture((fastSync ? SyncProtocol.GetStatus).mapTo[Status])
@@ -115,14 +124,12 @@ class FastSyncSpec
           _ <- etcPeerManager.pivotBlockSelected.firstL
           _ <- etcPeerManager.fetchedHeaders.firstL
           status <- getSyncStatus
-        } yield {
-          status match {
-            case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
-              assert(startingBlockNumber === BigInt(0))
-              assert(blocksProgress.target === expectedPivotBlockNumber)
-              assert(stateNodesProgress === Some(Progress(0, 1)))
-            case Status.NotSyncing | Status.SyncDone => fail("Expected syncing status")
-          }
+        } yield status match {
+          case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
+            assert(startingBlockNumber === BigInt(0))
+            assert(blocksProgress.target === expectedPivotBlockNumber)
+            assert(stateNodesProgress === Some(Progress(0, 1)))
+          case Status.NotSyncing | Status.SyncDone => fail("Expected syncing status")
         })
           .timeout(timeout.duration)
       }
@@ -138,15 +145,13 @@ class FastSyncSpec
           blocksBatch <- etcPeerManager.fetchedBlocks.firstL
           status <- getSyncStatus
           lastBlockFromBatch = blocksBatch.last.number
-        } yield {
-          status match {
-            case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
-              assert(startingBlockNumber === BigInt(0))
-              assert(blocksProgress.current >= lastBlockFromBatch)
-              assert(blocksProgress.target === expectedPivotBlockNumber)
-              assert(stateNodesProgress === Some(Progress(0, 1)))
-            case Status.NotSyncing | Status.SyncDone => fail("Expected other state")
-          }
+        } yield status match {
+          case Status.Syncing(startingBlockNumber, blocksProgress, stateNodesProgress) =>
+            assert(startingBlockNumber === BigInt(0))
+            assert(blocksProgress.current >= lastBlockFromBatch)
+            assert(blocksProgress.target === expectedPivotBlockNumber)
+            assert(stateNodesProgress === Some(Progress(0, 1)))
+          case Status.NotSyncing | Status.SyncDone => fail("Expected other state")
         })
           .timeout(timeout.duration)
       }

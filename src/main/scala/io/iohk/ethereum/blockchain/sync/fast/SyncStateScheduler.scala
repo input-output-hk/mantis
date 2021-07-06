@@ -1,16 +1,9 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import java.util.Comparator
+
 import akka.util.ByteString
-import com.google.common.hash.{BloomFilter, Funnel, PrimitiveSink}
-import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
-import io.iohk.ethereum.db.storage.{EvmCodeStorage, NodeStorage}
-import io.iohk.ethereum.domain.{Account, Blockchain, BlockchainReader}
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MerklePatriciaTrie, MptNode}
-import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
-import io.vavr.collection.PriorityQueue
+
 import monix.eval.Task
 import monix.reactive.Observable
 
@@ -18,8 +11,28 @@ import scala.annotation.tailrec
 import scala.collection.immutable.ArraySeq
 import scala.util.Try
 
-/**
-  * Scheduler which traverses Merkle patricia trie in DFS fashion, while also creating requests for nodes missing in traversed
+import com.google.common.hash.BloomFilter
+import com.google.common.hash.Funnel
+import com.google.common.hash.PrimitiveSink
+import io.vavr.collection.PriorityQueue
+
+import io.iohk.ethereum.blockchain.sync.fast.LoadableBloomFilter.BloomFilterLoadingResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
+
+/** Scheduler which traverses Merkle patricia trie in DFS fashion, while also creating requests for nodes missing in traversed
   * trie.
   * Traversal example: Merkle Patricia Trie with 2 leaf child nodes, each with non empty code value.
   * Final State:
@@ -54,7 +67,7 @@ class SyncStateScheduler(
 
   val loadFilterFromBlockchain: Task[BloomFilterLoadingResult] = bloomFilter.loadFromSource
 
-  def initState(targetRootHash: ByteString): Option[SchedulerState] = {
+  def initState(targetRootHash: ByteString): Option[SchedulerState] =
     if (targetRootHash == emptyStateRootHash) {
       None
     } else if (blockchainReader.getMptNodeByHash(targetRootHash).isDefined) {
@@ -64,10 +77,8 @@ class SyncStateScheduler(
       val initialRequest = StateNodeRequest(targetRootHash, None, StateNode, Seq(), 0, 0)
       Option(initialState.schedule(initialRequest))
     }
-  }
 
-  /**
-    * Default responses processor which ignores duplicated or not requested hashes, but informs the caller about critical
+  /** Default responses processor which ignores duplicated or not requested hashes, but informs the caller about critical
     * errors.
     * If it would valuable, it possible to implement processor which would gather statistics about duplicated or not requested data.
     */
@@ -80,7 +91,7 @@ class SyncStateScheduler(
         currentState: SchedulerState,
         currentStatistics: ProcessingStatistics,
         remaining: Seq[SyncResponse]
-    ): Either[CriticalError, (SchedulerState, ProcessingStatistics)] = {
+    ): Either[CriticalError, (SchedulerState, ProcessingStatistics)] =
       if (remaining.isEmpty) {
         Right((currentState, currentStatistics))
       } else {
@@ -103,18 +114,15 @@ class SyncStateScheduler(
             go(newState, currentStatistics, remaining.tail)
         }
       }
-    }
 
     go(state, ProcessingStatistics(), responses)
   }
 
-  def getMissingNodes(state: SchedulerState, max: Int): (List[ByteString], SchedulerState) = {
+  def getMissingNodes(state: SchedulerState, max: Int): (List[ByteString], SchedulerState) =
     state.getMissingHashes(max)
-  }
 
-  def getAllMissingNodes(state: SchedulerState): (List[ByteString], SchedulerState) = {
+  def getAllMissingNodes(state: SchedulerState): (List[ByteString], SchedulerState) =
     getMissingNodes(state, state.numberOfMissingHashes)
-  }
 
   def persistBatch(state: SchedulerState, targetBlockNumber: BigInt): SchedulerState = {
     // Potential optimisation would be to expose some kind batch api from db to make only 1 write instead od 100k
@@ -136,18 +144,17 @@ class SyncStateScheduler(
   private def isRequestAlreadyKnownOrResolved(
       state: SchedulerState,
       response: SyncResponse
-  ): Either[ResponseProcessingError, StateNodeRequest] = {
+  ): Either[ResponseProcessingError, StateNodeRequest] =
     for {
       activeRequest <- state.getPendingRequestByHash(response.hash).toRight(NotRequestedItem)
       _ <- if (activeRequest.resolvedData.isDefined) Left(AlreadyProcessedItem) else Right(())
     } yield activeRequest
-  }
 
   private def processActiveResponse(
       state: SchedulerState,
       activeRequest: StateNodeRequest,
       response: SyncResponse
-  ): Either[ResponseProcessingError, SchedulerState] = {
+  ): Either[ResponseProcessingError, SchedulerState] =
     activeRequest.requestType match {
       case _: CodeRequest => Right(state.commit(activeRequest.copy(resolvedData = Some(response.data))))
       case requestType: NodeRequest =>
@@ -164,18 +171,16 @@ class SyncStateScheduler(
           }
         }
     }
-  }
 
   def processResponse(
       state: SchedulerState,
       response: SyncResponse
-  ): Either[ResponseProcessingError, SchedulerState] = {
+  ): Either[ResponseProcessingError, SchedulerState] =
     for {
       activeRequest <- isRequestAlreadyKnownOrResolved(state, response)
       newState <- processActiveResponse(state, activeRequest, response)
     } yield newState
 
-  }
   // scalastyle:off method.length
   private def createPossibleChildRequests(
       mptNode: MptNode,
@@ -247,21 +252,19 @@ class SyncStateScheduler(
     case _ => Right(Nil)
   }
 
-  private def isInDatabase(req: StateNodeRequest): Boolean = {
+  private def isInDatabase(req: StateNodeRequest): Boolean =
     req.requestType match {
       case _: CodeRequest =>
         evmCodeStorage.get(req.nodeHash).isDefined
       case _: NodeRequest =>
         blockchainReader.getMptNodeByHash(req.nodeHash).isDefined
     }
-  }
 
-  private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean = {
+  private def isRequestedHashAlreadyCommitted(state: SchedulerState, req: StateNodeRequest): Boolean =
     state.memBatch.contains(req.nodeHash) ||
-    (bloomFilter.mightContain(req.nodeHash) && isInDatabase(
-      req
-    )) // if hash is in bloom filter we need to double check on db
-  }
+      (bloomFilter.mightContain(req.nodeHash) && isInDatabase(
+        req
+      )) // if hash is in bloom filter we need to double check on db
 }
 
 object SyncStateScheduler {
@@ -282,14 +285,12 @@ object SyncStateScheduler {
   case object StorageNode extends NodeRequest
 
   implicit object ByteStringFunnel extends Funnel[ByteString] {
-    override def funnel(from: ByteString, into: PrimitiveSink): Unit = {
+    override def funnel(from: ByteString, into: PrimitiveSink): Unit =
       into.putBytes(from.toArray)
-    }
   }
 
-  def getEmptyFilter(expectedFilterSize: Int): BloomFilter[ByteString] = {
+  def getEmptyFilter(expectedFilterSize: Int): BloomFilter[ByteString] =
     BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
-  }
 
   def apply(
       blockchain: Blockchain,
@@ -327,9 +328,8 @@ object SyncStateScheduler {
   }
 
   private val stateNodeRequestComparator = new Comparator[StateNodeRequest] {
-    override def compare(o1: StateNodeRequest, o2: StateNodeRequest): Int = {
-      o2.nodeDepth compare o1.nodeDepth
-    }
+    override def compare(o1: StateNodeRequest, o2: StateNodeRequest): Int =
+      o2.nodeDepth.compare(o1.nodeDepth)
   }
 
   implicit class Tuple2Ops[A, B](o: io.vavr.Tuple2[A, B]) {
@@ -344,7 +344,7 @@ object SyncStateScheduler {
       memBatch: Map[ByteString, (ByteString, RequestType)]
   ) {
 
-    def schedule(request: StateNodeRequest): SchedulerState = {
+    def schedule(request: StateNodeRequest): SchedulerState =
       activeRequest.get(request.nodeHash) match {
         case Some(oldRequest) =>
           copy(activeRequest + (request.nodeHash -> oldRequest.copy(parents = oldRequest.parents ++ request.parents)))
@@ -352,7 +352,6 @@ object SyncStateScheduler {
         case None =>
           copy(activeRequest + (request.nodeHash -> request), queue.enqueue(request))
       }
-    }
 
     def getMissingHashes(max: Int): (List[ByteString], SchedulerState) = {
       @tailrec
@@ -360,7 +359,7 @@ object SyncStateScheduler {
           currentQueue: PriorityQueue[StateNodeRequest],
           remaining: Int,
           got: List[ByteString]
-      ): (PriorityQueue[StateNodeRequest], List[ByteString]) = {
+      ): (PriorityQueue[StateNodeRequest], List[ByteString]) =
         if (remaining == 0) {
           (currentQueue, got.reverse)
         } else if (currentQueue.isEmpty) {
@@ -369,7 +368,6 @@ object SyncStateScheduler {
           val (elem, newQueue) = currentQueue.dequeue().asScala()
           go(newQueue, remaining - 1, elem.nodeHash :: got)
         }
-      }
 
       val (newQueue, elements) = go(queue, max, List.empty)
       (elements, copy(queue = newQueue))
@@ -389,7 +387,7 @@ object SyncStateScheduler {
           currentRequests: Map[ByteString, StateNodeRequest],
           currentBatch: Map[ByteString, (ByteString, RequestType)],
           parentsToCheck: Seq[ByteString]
-      ): (Map[ByteString, StateNodeRequest], Map[ByteString, (ByteString, RequestType)]) = {
+      ): (Map[ByteString, StateNodeRequest], Map[ByteString, (ByteString, RequestType)]) =
         if (parentsToCheck.isEmpty) {
           (currentRequests, currentBatch)
         } else {
@@ -424,7 +422,6 @@ object SyncStateScheduler {
             )
           }
         }
-      }
 
       val newActive = activeRequest - request.nodeHash
       val newMemBatch = memBatch + (request.nodeHash -> (request.resolvedData.get, request.requestType))
@@ -446,19 +443,17 @@ object SyncStateScheduler {
       requestNewChildren.foldLeft(stateWithUpdatedParent) { case (state, child) => state.schedule(child) }
     }
 
-    def getNodesToPersist: (Seq[(ByteString, (ByteString, RequestType))], SchedulerState) = {
+    def getNodesToPersist: (Seq[(ByteString, (ByteString, RequestType))], SchedulerState) =
       (memBatch.toSeq, copy(memBatch = Map.empty))
-    }
   }
 
   object SchedulerState {
-    def apply(): SchedulerState = {
+    def apply(): SchedulerState =
       new SchedulerState(
         Map.empty[ByteString, StateNodeRequest],
         PriorityQueue.empty(stateNodeRequestComparator),
         Map.empty
       )
-    }
   }
 
   case object ProcessingSuccess

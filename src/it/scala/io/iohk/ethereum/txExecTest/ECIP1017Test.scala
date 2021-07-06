@@ -1,18 +1,28 @@
 package io.iohk.ethereum.txExecTest
 
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, Receipt, UInt256}
-import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
-import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.dsl.ResultOfATypeInvocation
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.txExecTest.util.FixtureProvider
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ForkBlockNumbers
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
 class ECIP1017Test extends AnyFlatSpec with Matchers {
 
   val EraDuration = 3
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
+    override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       monetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
       // unused
       maxCodeSize = None,
@@ -50,11 +60,10 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       gasTieBreaker = false,
       treasuryAddress = Address(0)
     )
-    val noErrors = a[Right[_, Seq[Receipt]]]
+    val noErrors: ResultOfATypeInvocation[Right[_, Seq[Receipt]]] = a[Right[_, Seq[Receipt]]]
   }
 
-  /**
-    * Tests the block reward calculation through out all the monetary policy through all the eras till block
+  /** Tests the block reward calculation through out all the monetary policy through all the eras till block
     * mining reward goes to zero. Block mining reward is tested till era 200 (that starts at block number 602)
     * as the reward reaches zero at era 193 (which starts at block number 579), given an eraDuration of 3,
     * a rewardReductionRate of 0.2 and a firstEraBlockReward of 5 ether.
@@ -67,7 +76,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
 
     protected val testBlockchainStorages = FixtureProvider.prepareStorages(endBlock, fixtures)
 
-    (startBlock to endBlock) foreach { blockToExecute =>
+    (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchainReader = BlockchainReader(storages)
       val blockchain = BlockchainImpl(storages, blockchainReader)

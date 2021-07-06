@@ -1,24 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.healthcheck.HealthcheckResponse
-import io.iohk.ethereum.jsonrpc.EthBlocksService.{
-  BlockByNumberRequest,
-  BlockByNumberResponse,
-  BestBlockNumberRequest,
-  BestBlockNumberResponse
-}
-import io.iohk.ethereum.jsonrpc.EthInfoService._
-import io.iohk.ethereum.jsonrpc.NodeJsonRpcHealthChecker.JsonRpcHealthConfig
-import io.iohk.ethereum.jsonrpc.NetService._
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
-import com.typesafe.config.{Config => TypesafeConfig}
-import monix.eval.Task
-import java.time.Instant
 import java.time.Duration
+import java.time.Instant
+
 import akka.actor.ActorRef
+import akka.util.Timeout
+
+import monix.eval.Task
+
+import com.typesafe.config.{Config => TypesafeConfig}
+
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status._
-import akka.util.Timeout
+import io.iohk.ethereum.healthcheck.HealthcheckResponse
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
+import io.iohk.ethereum.jsonrpc.EthBlocksService.BlockByNumberRequest
+import io.iohk.ethereum.jsonrpc.NetService._
+import io.iohk.ethereum.jsonrpc.NodeJsonRpcHealthChecker.JsonRpcHealthConfig
 import io.iohk.ethereum.utils.AsyncConfig
 
 class NodeJsonRpcHealthChecker(
@@ -76,9 +74,9 @@ class NodeJsonRpcHealthChecker(
     JsonRpcHealthcheck
       .fromTask("syncStatus", syncingController.askFor[SyncProtocol.Status](SyncProtocol.GetStatus))
       .map(_.withInfo {
-        case NotSyncing => "STARTING"
+        case NotSyncing                                          => "STARTING"
         case s: Syncing if isConsideredSyncing(s.blocksProgress) => "SYNCING"
-        case _ => "SYNCED"
+        case _                                                   => "SYNCED"
       })
 
   override def healthCheck(): Task[HealthcheckResponse] = {

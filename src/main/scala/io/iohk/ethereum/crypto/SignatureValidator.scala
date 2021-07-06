@@ -1,12 +1,15 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
+
+import scala.util.Failure
+import scala.util.Success
+import scala.util.Try
+
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
-
-import scala.util.{Failure, Success, Try}
 
 // scalastyle:off regex
 object SignatureValidator extends App with SecureRandomBuilder with JsonMethodsImplicits {

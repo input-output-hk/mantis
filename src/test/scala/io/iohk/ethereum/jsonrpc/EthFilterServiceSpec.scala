@@ -3,22 +3,24 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.utils.FilterConfig
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.jsonrpc.EthFilterService._
-import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
+
+import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration.FiniteDuration
+
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
+import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.OptionValues
-import scala.concurrent.duration.FiniteDuration
-import monix.execution.Scheduler.Implicits.global
-import io.iohk.ethereum.jsonrpc.FilterManager.UninstallFilter
-import io.iohk.ethereum.jsonrpc.FilterManager.FilterChanges
+
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.jsonrpc.EthFilterService._
+import io.iohk.ethereum.jsonrpc.{FilterManager => FM}
+import io.iohk.ethereum.utils.FilterConfig
 
 class EthFilterServiceSpec
     extends TestKit(ActorSystem("EthFilterServiceSpec_ActorSystem"))
@@ -50,7 +52,7 @@ class EthFilterServiceSpec
     val res = ethFilterService.newPendingTransactionFilter(NewPendingTransactionFilterRequest()).runToFuture
     filterManager.expectMsg(FM.NewPendingTransactionFilter)
     filterManager.reply(FM.NewFilterResponse(123))
-    res.futureValue shouldEqual Right(NewFilterResponse((123)))
+    res.futureValue shouldEqual Right(NewFilterResponse(123))
   }
 
   it should "handle uninstallFilter request" in new TestSetup {
@@ -86,8 +88,8 @@ class EthFilterServiceSpec
   }
 
   class TestSetup(implicit system: ActorSystem) {
-    val filterManager = TestProbe()
-    val filterConfig = new FilterConfig {
+    val filterManager: TestProbe = TestProbe()
+    val filterConfig: FilterConfig = new FilterConfig {
       override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
       override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
     }

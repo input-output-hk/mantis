@@ -2,15 +2,19 @@ package io.iohk.ethereum.network
 
 import java.net.URI
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.testkit.TestProbe
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
 import scala.concurrent.duration._
+
+import com.miguno.akka.testing.VirtualTime
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.network.KnownNodesManager.KnownNodesManagerConfig
 
 class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
 
@@ -59,16 +63,16 @@ class KnownNodesManagerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends EphemBlockchainTestSetup {
-    override implicit lazy val system = ActorSystem("KnownNodesManagerSpec_System")
+    implicit override lazy val system: ActorSystem = ActorSystem("KnownNodesManagerSpec_System")
 
     val time = new VirtualTime
-    val config = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
+    val config: KnownNodesManagerConfig = KnownNodesManagerConfig(persistInterval = 5.seconds, maxPersistedNodes = 5)
 
-    val client = TestProbe()
+    val client: TestProbe = TestProbe()
 
     def uri(n: Int): URI = new URI(s"enode://test$n@test$n.com:9000")
 
-    val knownNodesManager = system.actorOf(
+    val knownNodesManager: ActorRef = system.actorOf(
       Props(new KnownNodesManager(config, storagesInstance.storages.knownNodesStorage, Some(time.scheduler)))
     )
   }

@@ -1,23 +1,31 @@
 package io.iohk.ethereum.extvm
 
+import java.math.BigInteger
+
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
-import akka.stream.scaladsl.{Keep, Sink, SinkQueueWithCancel, Source, SourceQueueWithComplete}
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.SinkQueueWithCancel
+import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.SourceQueueWithComplete
 import akka.testkit.TestProbe
 import akka.util.ByteString
-import scalapb.{GeneratedMessage, GeneratedMessageCompanion}
-import io.iohk.ethereum.vm.Generators
-import java.math.BigInteger
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 import com.google.protobuf.CodedOutputStream
 import org.bouncycastle.util.BigIntegers
 import org.scalamock.scalatest.MockFactory
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
-import scala.concurrent.ExecutionContext.Implicits.global
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import scalapb.descriptors.{FieldDescriptor, PValue}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import scalapb.GeneratedMessage
+import scalapb.GeneratedMessageCompanion
+import scalapb.descriptors.FieldDescriptor
+import scalapb.descriptors.PValue
+
+import io.iohk.ethereum.vm.Generators
 
 class MessageHandlerSpec extends AnyFlatSpec with Matchers with MockFactory with ScalaCheckPropertyChecks {
 

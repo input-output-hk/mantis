@@ -1,22 +1,31 @@
 package io.iohk.ethereum.db.storage
 
 import java.util.concurrent.TimeUnit
+
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.cache.{LruCache, MapCache}
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.{NodeEncoded, NodeHash}
-import io.iohk.ethereum.db.storage.pruning.{ArchivePruning, BasicPruning, InMemoryPruning}
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
-import io.iohk.ethereum.utils.Config.NodeCacheConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import scala.concurrent.duration.FiniteDuration
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.cache.Cache
+import io.iohk.ethereum.db.cache.LruCache
+import io.iohk.ethereum.db.cache.MapCache
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.pruning.ArchivePruning
+import io.iohk.ethereum.db.storage.pruning.BasicPruning
+import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
+import io.iohk.ethereum.mpt.NodesKeyValueStorage
+import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {
 
-  def saveNodeToDbTest(storage: StateStorage, nodeStorage: NodesKeyValueStorage): Unit = {
+  def saveNodeToDbTest(storage: StateStorage, nodeStorage: NodesKeyValueStorage): Unit =
     forAll(keyValueByteStringGen(32)) { keyvals =>
       keyvals.foreach { case (key, value) =>
         storage.saveNode(key, value, 10)
@@ -25,12 +34,11 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
       keyvals.foreach { case (key, value) =>
         val result = nodeStorage.get(key)
         assert(result.isDefined)
-        assert(result.get sameElements value)
+        assert(result.get.sameElements(value))
       }
     }
-  }
 
-  def getNodeFromDbTest(stateStorage: StateStorage): Unit = {
+  def getNodeFromDbTest(stateStorage: StateStorage): Unit =
     forAll(nodeGen) { node =>
       val storage = stateStorage.getBackingStorage(0)
       storage.updateNodesInStorage(Some(node), Nil)
@@ -38,16 +46,14 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
       assert(fromStorage.isDefined)
       assert(fromStorage.get == node)
     }
-  }
 
-  def provideStorageForTrieTest(stateStorage: StateStorage): Unit = {
+  def provideStorageForTrieTest(stateStorage: StateStorage): Unit =
     forAll(nodeGen) { node =>
       val storage = stateStorage.getBackingStorage(0)
       storage.updateNodesInStorage(Some(node), Nil)
       val fromStorage = storage.get(node.hash)
-      assert(fromStorage.hash sameElements node.hash)
+      assert(fromStorage.hash.sameElements(node.hash))
     }
-  }
 
   "ArchiveStateStorage" should "save node directly to db" in new TestSetup {
     saveNodeToDbTest(archiveStateStorage, archiveNodeStorage)
@@ -160,8 +166,8 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
   trait TestSetup {
     val minNodes = 5
     val maxNodes = 15
-    val dataSource = EphemDataSource()
-    val testCache = MapCache.createTestCache[NodeHash, NodeEncoded](10)
+    val dataSource: EphemDataSource = EphemDataSource()
+    val testCache: Cache[NodeHash, NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val nodeStorage = new NodeStorage(dataSource)
     val cachedNodeStorage = new CachedNodeStorage(nodeStorage, testCache)
     object TestCacheConfig extends NodeCacheConfig {
@@ -173,12 +179,13 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
 
     val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
-    val archiveStateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
+    val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
 
     val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
-    val referenceCounteStateStorage = StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val referenceCounteStateStorage: StateStorage =
+      StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
 
-    val cachedStateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
     val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)
   }
 }

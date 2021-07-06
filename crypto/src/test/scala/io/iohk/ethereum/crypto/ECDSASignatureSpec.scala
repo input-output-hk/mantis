@@ -1,14 +1,16 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteStringUtils
-import org.scalacheck.Arbitrary
-import org.scalacheck.Arbitrary.arbitrary
+
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Arbitrary
+import org.scalacheck.Arbitrary.arbitrary
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.utils.ByteStringUtils
 
 class ECDSASignatureSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
   "ECDSASignature" should "recover public key correctly for go ethereum transaction" in {

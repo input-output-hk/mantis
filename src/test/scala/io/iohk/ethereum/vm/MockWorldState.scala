@@ -1,8 +1,11 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 
 object MockWorldState {
   type TestVM = VM[MockWorldState, MockStorage]
@@ -69,10 +72,9 @@ case class MockWorldState(
 
   def noEmptyAccounts: Boolean = noEmptyAccountsCond
 
-  override def keepPrecompileTouched(world: MockWorldState): MockWorldState = {
+  override def keepPrecompileTouched(world: MockWorldState): MockWorldState =
     if (world.touchedAccounts.contains(ripmdContractAddress))
       copy(touchedAccounts = touchedAccounts + ripmdContractAddress)
     else
       this
-  }
 }

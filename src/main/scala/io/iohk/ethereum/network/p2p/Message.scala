@@ -1,7 +1,6 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.messages.Capability
 
 import scala.util.Try
 

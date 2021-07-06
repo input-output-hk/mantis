@@ -1,19 +1,30 @@
 package io.iohk.ethereum.network.discovery
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.pattern.pipe
 import akka.util.ByteString
+
 import cats.effect.Resource
-import io.iohk.ethereum.db.storage.KnownNodesStorage
+
+import monix.catnap.ConsumerF
+import monix.eval.Task
+import monix.execution.BufferCapacity
+import monix.execution.Scheduler
+import monix.tail.Iterant
+
+import scala.util.Failure
+import scala.util.Random
+import scala.util.Success
+
+import io.iohk.scalanet.discovery.crypto.PublicKey
 import io.iohk.scalanet.discovery.ethereum.v4
 import io.iohk.scalanet.discovery.ethereum.{Node => ENode}
-import io.iohk.scalanet.discovery.crypto.PublicKey
-import monix.eval.Task
-import monix.execution.{Scheduler, BufferCapacity}
-import monix.tail.Iterant
-import monix.catnap.ConsumerF
-import scala.util.{Failure, Success, Random}
 import scodec.bits.BitVector
+
+import io.iohk.ethereum.db.storage.KnownNodesStorage
 
 class PeerDiscoveryManager(
     localNodeId: ByteString,
@@ -29,7 +40,7 @@ class PeerDiscoveryManager(
   // Derive a random nodes iterator on top of the service so the node can quickly ramp up its peers
   // while it has demand to connect to more, rather than wait on the periodic lookups performed in
   // the background by the DiscoveryService.
-  val discoveryResources = for {
+  val discoveryResources: Resource[Task, (v4.DiscoveryService, Iterant.Consumer[Task, Node])] = for {
     service <- discoveryServiceResource
 
     // Create an Iterant (like a pull-based Observable) that repeatedly performs a random lookup
@@ -86,7 +97,7 @@ class PeerDiscoveryManager(
   }
 
   // The service hasn't been started yet, so it just serves the static known nodes.
-  def init: Receive = handleNodeInfoRequests(None) orElse {
+  def init: Receive = handleNodeInfoRequests(None).orElse {
     case Start =>
       if (discoveryConfig.discoveryEnabled) {
         log.info("Starting peer discovery...")
@@ -101,7 +112,7 @@ class PeerDiscoveryManager(
 
   // Waiting for the DiscoveryService to be initialized. Keep serving known nodes.
   // This would not be needed if Actors were treated as resources themselves.
-  def starting: Receive = handleNodeInfoRequests(None) orElse {
+  def starting: Receive = handleNodeInfoRequests(None).orElse {
     case Start =>
 
     case Stop =>
@@ -122,7 +133,7 @@ class PeerDiscoveryManager(
 
   // DiscoveryService started, we can ask it for nodes now.
   def started(discovery: Discovery, release: Task[Unit]): Receive =
-    handleNodeInfoRequests(Some(discovery)) orElse {
+    handleNodeInfoRequests(Some(discovery)).orElse {
       case Start =>
 
       case Stop =>
@@ -133,7 +144,7 @@ class PeerDiscoveryManager(
 
   // Waiting for the DiscoveryService to be initialized OR we received a stop request
   // before it even got a chance to start, so we'll stop it immediately.
-  def stopping: Receive = handleNodeInfoRequests(None) orElse {
+  def stopping: Receive = handleNodeInfoRequests(None).orElse {
     case Start | Stop =>
 
     case StartAttempt(result) =>
@@ -157,7 +168,7 @@ class PeerDiscoveryManager(
       context.become(init)
   }
 
-  def startDiscoveryService(): Unit = {
+  def startDiscoveryService(): Unit =
     discoveryResources.allocated.runToFuture
       .onComplete {
         case Failure(ex) =>
@@ -165,16 +176,14 @@ class PeerDiscoveryManager(
         case Success(result) =>
           self ! StartAttempt(Right(result))
       }
-  }
 
-  def stopDiscoveryService(release: Task[Unit]): Unit = {
+  def stopDiscoveryService(release: Task[Unit]): Unit =
     release.runToFuture.onComplete {
       case Failure(ex) =>
         self ! StopAttempt(Left(ex))
       case Success(result) =>
         self ! StopAttempt(Right(result))
     }
-  }
 
   def sendDiscoveredNodesInfo(
       maybeDiscoveryService: Option[v4.DiscoveryService],

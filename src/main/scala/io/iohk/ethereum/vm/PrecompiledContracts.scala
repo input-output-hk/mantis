@@ -1,65 +1,67 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteStringUtils._
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.crypto.zksnark.BN128.{BN128G1, BN128G2}
-import io.iohk.ethereum.crypto.zksnark.{BN128Fp, PairingCheck}
-import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.utils.ByteUtils
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.{EtcForks, EthForks}
 
 import scala.util.Try
+
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G1
+import io.iohk.ethereum.crypto.zksnark.BN128.BN128G2
+import io.iohk.ethereum.crypto.zksnark.BN128Fp
+import io.iohk.ethereum.crypto.zksnark.PairingCheck
+import io.iohk.ethereum.crypto.zksnark.PairingCheck.G1G2Pair
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
 
 // scalastyle:off magic.number
 object PrecompiledContracts {
 
-  val EcDsaRecAddr = Address(1)
-  val Sha256Addr = Address(2)
-  val Rip160Addr = Address(3)
-  val IdAddr = Address(4)
-  val ModExpAddr = Address(5)
-  val Bn128AddAddr = Address(6)
-  val Bn128MulAddr = Address(7)
-  val Bn128PairingAddr = Address(8)
-  val Blake2bCompressionAddr = Address(9)
+  val EcDsaRecAddr: Address = Address(1)
+  val Sha256Addr: Address = Address(2)
+  val Rip160Addr: Address = Address(3)
+  val IdAddr: Address = Address(4)
+  val ModExpAddr: Address = Address(5)
+  val Bn128AddAddr: Address = Address(6)
+  val Bn128MulAddr: Address = Address(7)
+  val Bn128PairingAddr: Address = Address(8)
+  val Blake2bCompressionAddr: Address = Address(9)
 
-  val contracts = Map(
+  val contracts: Map[Address, PrecompiledContract] = Map(
     EcDsaRecAddr -> EllipticCurveRecovery,
     Sha256Addr -> Sha256,
     Rip160Addr -> Ripemp160,
     IdAddr -> Identity
   )
 
-  val byzantiumAtlantisContracts = contracts ++ Map(
+  val byzantiumAtlantisContracts: Map[Address, PrecompiledContract] = contracts ++ Map(
     ModExpAddr -> ModExp,
     Bn128AddAddr -> Bn128Add,
     Bn128MulAddr -> Bn128Mul,
     Bn128PairingAddr -> Bn128Pairing
   )
 
-  val istanbulPhoenixContracts = byzantiumAtlantisContracts ++ Map(
+  val istanbulPhoenixContracts: Map[Address, PrecompiledContract] = byzantiumAtlantisContracts ++ Map(
     Blake2bCompressionAddr -> Blake2bCompress
   )
 
-  /**
-    * Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
+  /** Checks whether `ProgramContext#recipientAddr` points to a precompiled contract
     */
   def isDefinedAt(context: ProgramContext[_, _]): Boolean =
     getContract(context).isDefined
 
-  /**
-    * Runs a contract for address provided in `ProgramContext#recipientAddr`
+  /** Runs a contract for address provided in `ProgramContext#recipientAddr`
     * Will throw an exception if the address does not point to a precompiled contract - callers should first
     * check with `isDefinedAt`
     */
   def run[W <: WorldStateProxy[W, S], S <: Storage[S]](context: ProgramContext[W, S]): ProgramResult[W, S] =
     getContract(context).get.run(context)
 
-  private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] = {
+  private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] =
     context.recipientAddr.flatMap { addr =>
       val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
       val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
@@ -72,7 +74,6 @@ object PrecompiledContracts {
       } else
         contracts.get(addr)
     }
-  }
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): Option[ByteString]
@@ -89,7 +90,7 @@ object PrecompiledContracts {
         if (g <= context.startGas)
           exec(context.inputData) match {
             case Some(returnData) => (returnData, None, context.startGas - g)
-            case None => (ByteString.empty, Some(PreCompiledContractFail), 0)
+            case None             => (ByteString.empty, Some(PreCompiledContractFail), 0)
           }
         else
           (ByteString.empty, Some(OutOfGas), 0)
@@ -250,9 +251,8 @@ object PrecompiledContracts {
       ByteUtils.toBigInt(number)
     }
 
-    private def safeAdd(a: Int, b: Int): Int = {
+    private def safeAdd(a: Int, b: Int): Int =
       safeInt(BigInt(a) + BigInt(b))
-    }
 
     private def safeInt(value: BigInt): Int =
       if (value.isValidInt)
@@ -284,7 +284,7 @@ object PrecompiledContracts {
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Add extends PrecompiledContract {
-    val expectedBytes = 4 * 32
+    val expectedBytes: Int = 4 * 32
 
     def exec(inputData: ByteString): Option[ByteString] = {
       val paddedInput = inputData.padToByteString(expectedBytes, 0.toByte)
@@ -309,16 +309,15 @@ object PrecompiledContracts {
       else
         BigInt(500)
 
-    private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString, ByteString) = {
+    private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString, ByteString) =
       (input.slice(0, 32), input.slice(32, 64), input.slice(64, 96), input.slice(96, 128))
-    }
 
   }
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-196.md
   object Bn128Mul extends PrecompiledContract {
-    val expectedBytes = 3 * 32
-    val maxScalar = BigInt(2).pow(256) - 1
+    val expectedBytes: Int = 3 * 32
+    val maxScalar: BigInt = BigInt(2).pow(256) - 1
 
     def exec(inputData: ByteString): Option[ByteString] = {
       val paddedInput = inputData.padToByteString(expectedBytes, 0.toByte)
@@ -345,9 +344,8 @@ object PrecompiledContracts {
       else
         40000
 
-    private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString) = {
+    private def getCurvePointsBytes(input: ByteString): (ByteString, ByteString, ByteString) =
       (input.slice(0, 32), input.slice(32, 64), input.slice(64, 96))
-    }
   }
 
   //Spec: https://github.com/ethereum/EIPs/blob/master/EIPS/eip-197.md
@@ -356,10 +354,10 @@ object PrecompiledContracts {
     private val wordLength = 32
     private val inputLength = 6 * wordLength
 
-    val positiveResult = ByteUtils.padLeft(ByteString(1), wordLength)
-    val negativeResult = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
+    val positiveResult: ByteString = ByteUtils.padLeft(ByteString(1), wordLength)
+    val negativeResult: ByteString = ByteString(Seq.fill(wordLength)(0.toByte).toArray)
 
-    def exec(inputData: ByteString): Option[ByteString] = {
+    def exec(inputData: ByteString): Option[ByteString] =
       if (inputData.length % inputLength != 0) {
         None
       } else {
@@ -370,7 +368,6 @@ object PrecompiledContracts {
             negativeResult
         }
       }
-    }
 
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
       val k = inputData.length / inputLength
@@ -385,16 +382,15 @@ object PrecompiledContracts {
     // BN128 curve
     private def getPairs(bytes: Iterator[ByteString]): Option[Seq[G1G2Pair]] = {
       var accum = List.empty[G1G2Pair]
-      while (bytes.hasNext) {
+      while (bytes.hasNext)
         getPair(bytes.next()) match {
           case Some(part) => accum = part :: accum
-          case None => return None // scalastyle:ignore
+          case None       => return None // scalastyle:ignore
         }
-      }
       Some(accum)
     }
 
-    private def getPair(input: ByteString): Option[G1G2Pair] = {
+    private def getPair(input: ByteString): Option[G1G2Pair] =
       for {
         g1 <- BN128G1(getBytesOnPosition(input, 0), getBytesOnPosition(input, 1))
         g2 <- BN128G2(
@@ -404,7 +400,6 @@ object PrecompiledContracts {
           getBytesOnPosition(input, 4)
         )
       } yield G1G2Pair(g1, g2)
-    }
 
     private def getBytesOnPosition(input: ByteString, pos: Int): ByteString = {
       val from = pos * wordLength
@@ -415,9 +410,8 @@ object PrecompiledContracts {
   //Spec: https://eips.ethereum.org/EIPS/eip-152
   // scalastyle: off
   object Blake2bCompress extends PrecompiledContract {
-    def exec(inputData: ByteString): Option[ByteString] = {
+    def exec(inputData: ByteString): Option[ByteString] =
       Blake2bCompression.blake2bCompress(inputData.toArray).map(ByteString.fromArrayUnsafe)
-    }
 
     def gas(inputData: ByteString, etcFork: EtcFork, ethFork: EthFork): BigInt = {
       val inputArray = inputData.toArray

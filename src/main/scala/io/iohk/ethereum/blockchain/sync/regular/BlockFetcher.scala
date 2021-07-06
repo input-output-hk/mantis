@@ -1,39 +1,50 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.typed.{ActorRef, Behavior}
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.Behaviors
+import akka.actor.typed.scaladsl.adapter._
 import akka.actor.{ActorRef => ClassicActorRef}
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import akka.util.Timeout
+
 import cats.data.NonEmptyList
 import cats.instances.option._
+
+import monix.execution.{Scheduler => MonixScheduler}
+
+import scala.concurrent.duration._
+
+import mouse.all._
+
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
-import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.blockchain.sync.PeersClient._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.{
-  AwaitingBodiesToBeIgnored,
-  AwaitingHeadersToBeIgnored,
-  HeadersNotFormingSeq,
-  HeadersNotMatchingReadyBlocks
-}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingBodiesToBeIgnored
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingHeadersToBeIgnored
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotFormingSeq
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.ImportNewBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.{Peer, PeerEventBusActor, PeerId}
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.{Codes, BaseETH6XMessages, ETC64}
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import monix.execution.{Scheduler => MonixScheduler}
-import mouse.all._
-import akka.actor.typed.scaladsl.adapter._
-
-import scala.concurrent.duration._
 
 class BlockFetcher(
     val peersClient: ClassicActorRef,
@@ -79,7 +90,7 @@ class BlockFetcher(
       Behaviors.same
     }
 
-  override def onMessage(message: FetchCommand): Behavior[FetchCommand] = {
+  override def onMessage(message: FetchCommand): Behavior[FetchCommand] =
     message match {
       case Start(importer, fromBlock) =>
         val sa = context.spawn(subscribeAdapter(context.self), "fetcher-subscribe-adapter")
@@ -97,7 +108,6 @@ class BlockFetcher(
         log.debug("Fetcher subscribe adapter received unhandled message {}", msg)
         Behaviors.unhandled
     }
-  }
 
   // scalastyle:off cyclomatic.complexity method.length
   private def processFetchCommands(state: BlockFetcherState): Behavior[FetchCommand] =
@@ -208,7 +218,7 @@ class BlockFetcher(
       case AdaptedMessageFromEventBus(NewBlockHashes(hashes), _) =>
         log.debug("Received NewBlockHashes numbers {}", hashes.map(_.number).mkString(", "))
         val newState = state.validateNewBlockHashes(hashes) match {
-          case Left(_) => state
+          case Left(_)            => state
           case Right(validHashes) => state.withPossibleNewTopAt(validHashes.lastOption.map(_.number))
         }
         supervisor ! ProgressProtocol.GotNewBlock(newState.knownTop)

@@ -3,11 +3,12 @@ package io.iohk.ethereum.mpt
 import java.util
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPValue}
 
-/**
-  * Trie elements
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPValue
+
+/** Trie elements
   */
 sealed abstract class MptNode {
   val cachedHash: Option[Array[Byte]]
@@ -28,18 +29,16 @@ sealed abstract class MptNode {
   val parsedRlp: Option[RLPEncodeable]
 
   // Overriding equals is necessery to avoid array comparisons.
-  override def equals(obj: Any): Boolean = {
+  override def equals(obj: Any): Boolean =
     if (!obj.isInstanceOf[MptNode]) {
       false
     } else {
       val compared = obj.asInstanceOf[MptNode]
-      hash sameElements compared.hash
+      hash.sameElements(compared.hash)
     }
-  }
 
-  override def hashCode(): Int = {
+  override def hashCode(): Int =
     17 + util.Arrays.hashCode(hash)
-  }
 
   def isNew: Boolean = parsedRlp.isEmpty
 }
@@ -49,9 +48,8 @@ object MptNode {
 }
 
 object Node {
-  def hashFn(input: Array[Byte]): Array[Byte] = {
+  def hashFn(input: Array[Byte]): Array[Byte] =
     crypto.kec256(input, 0, input.length)
-  }
 }
 
 case class LeafNode(
@@ -93,8 +91,7 @@ case class BranchNode(
 
   require(children.length == 16, "MptBranch childHashes length have to be 16")
 
-  /**
-    * This function creates a new BranchNode by updating one of the children of the self node.
+  /** This function creates a new BranchNode by updating one of the children of the self node.
     *
     * @param childIndex of the BranchNode children where the child should be inserted.
     * @param childNode  to be inserted as a child of the new BranchNode (and hashed if necessary).
@@ -131,8 +128,7 @@ case object NullNode extends MptNode {
 
 object ExtensionNode {
 
-  /**
-    * This function creates a new ExtensionNode with next parameter as its node pointer
+  /** This function creates a new ExtensionNode with next parameter as its node pointer
     *
     * @param sharedKey of the new ExtensionNode.
     * @param next      to be inserted as the node pointer (and hashed if necessary).
@@ -148,19 +144,16 @@ object BranchNode {
   val numberOfChildren = 16
   private val emptyChildren: Array[MptNode] = Array.fill(numberOfChildren)(NullNode)
 
-  /**
-    * This function creates a new terminator BranchNode having only a value associated with it.
+  /** This function creates a new terminator BranchNode having only a value associated with it.
     * This new BranchNode will be temporarily in an invalid state.
     *
     * @param terminator to be associated with the new BranchNode.
     * @return a new BranchNode.
     */
-  def withValueOnly(terminator: Array[Byte]): BranchNode = {
+  def withValueOnly(terminator: Array[Byte]): BranchNode =
     BranchNode(util.Arrays.copyOf(emptyChildren, numberOfChildren), Some(ByteString(terminator)))
-  }
 
-  /**
-    * This function creates a new BranchNode having only one child associated with it (and optionaly a value).
+  /** This function creates a new BranchNode having only one child associated with it (and optionaly a value).
     * This new BranchNode will be temporarily in an invalid state.
     *
     * @param position   of the BranchNode children where the child should be inserted.

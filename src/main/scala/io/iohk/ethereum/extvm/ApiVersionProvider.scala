@@ -7,10 +7,7 @@ object ApiVersionProvider {
 
   lazy val version: String = {
     val source = Source.fromResource(ResourcePath)
-    try {
-      source.getLines().next()
-    } finally {
-      source.close()
-    }
+    try source.getLines().next()
+    finally source.close()
   }
 }

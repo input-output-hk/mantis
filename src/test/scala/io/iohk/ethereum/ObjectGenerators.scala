@@ -4,17 +4,25 @@ import java.math.BigInteger
 import java.security.SecureRandom
 
 import akka.util.ByteString
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+
 import io.iohk.ethereum.blockchain.sync.StateSyncUtils.MptNodeData
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.mpt.BranchNode
+import io.iohk.ethereum.mpt.ExtensionNode
+import io.iohk.ethereum.mpt.HashNode
 import io.iohk.ethereum.mpt.HexPrefix.bytesToNibbles
-import io.iohk.ethereum.mpt.{BranchNode, ExtensionNode, HashNode, LeafNode, MptNode, MptTraversals}
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.MptTraversals
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETC64
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.scalacheck.{Arbitrary, Gen, Shrink}
 
 // scalastyle:off number.of.methods
 trait ObjectGenerators {
@@ -43,26 +51,23 @@ trait ObjectGenerators {
 
   def seqByteStringOfNItemsGen(n: Int): Gen[Seq[ByteString]] = Gen.listOf(byteStringOfLengthNGen(n))
 
-  def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] = {
+  def hexPrefixDecodeParametersGen(): Gen[(Array[Byte], Boolean)] =
     for {
       aByteList <- Gen.nonEmptyListOf(Arbitrary.arbitrary[Byte])
       t <- Arbitrary.arbitrary[Boolean]
     } yield (aByteList.toArray, t)
-  }
 
-  def keyValueListGen(minValue: Int = Int.MinValue, maxValue: Int = Int.MaxValue): Gen[List[(Int, Int)]] = {
+  def keyValueListGen(minValue: Int = Int.MinValue, maxValue: Int = Int.MaxValue): Gen[List[(Int, Int)]] =
     for {
       values <- Gen.chooseNum(minValue, maxValue)
       aKeyList <- Gen.nonEmptyListOf(values).map(_.distinct)
     } yield aKeyList.zip(aKeyList)
-  }
 
-  def keyValueByteStringGen(size: Int): Gen[List[(ByteString, Array[Byte])]] = {
+  def keyValueByteStringGen(size: Int): Gen[List[(ByteString, Array[Byte])]] =
     for {
       byteStringList <- Gen.nonEmptyListOf(byteStringOfLengthNGen(size))
       arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
     } yield byteStringList.zip(arrayList)
-  }
 
   def receiptGen(): Gen[Receipt] = for {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
@@ -142,11 +147,10 @@ trait ObjectGenerators {
     }
   }
 
-  def genKey(rnd: SecureRandom): Gen[AsymmetricCipherKeyPair] = {
+  def genKey(rnd: SecureRandom): Gen[AsymmetricCipherKeyPair] =
     Gen.resultOf { _: Unit =>
       crypto.generateKeyPair(rnd)
     }
-  }
 
   def newBlockGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[NewBlock] = for {
     blockHeader <- blockHeaderGen
@@ -167,7 +171,7 @@ trait ObjectGenerators {
     checkpoint <- if (shouldCheckpoint.isDefined) Gen.option(fakeCheckpointOptGen(0, 5)) else Gen.const(None)
   } yield checkpoint match {
     case Some(definedCheckpoint) => HefPostEcip1097(definedCheckpoint)
-    case None => HefEmpty
+    case None                    => HefEmpty
   }
 
   def blockHeaderGen: Gen[BlockHeader] = for {
@@ -243,7 +247,7 @@ trait ObjectGenerators {
     list <- Gen.listOfN(n, genMptNodeData)
   } yield list
 
-  val chainWeightGen = for {
+  val chainWeightGen: Gen[ChainWeight] = for {
     lcn <- bigIntGen
     td <- bigIntGen
   } yield ChainWeight(lcn, td)

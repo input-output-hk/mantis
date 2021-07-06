@@ -1,22 +1,23 @@
 package io.iohk.ethereum.cli
 
-import io.iohk.ethereum.keystore.EncryptedKeyJsonCodec
-import io.iohk.ethereum.utils.ByteStringUtils
 import org.scalatest.EitherValues
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.keystore.EncryptedKeyJsonCodec
+import io.iohk.ethereum.utils.ByteStringUtils
 
 class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
 
   import CliCommands._
   import Fixture._
 
-  behavior of generatePrivateKeyCommand
+  behavior.of(generatePrivateKeyCommand)
   it should "generate correct private key" in {
     api.parse(Seq(generatePrivateKeyCommand)) shouldBe a[Right[_, _]]
   }
 
-  behavior of deriveAddressCommand
+  behavior.of(deriveAddressCommand)
   it should "derive address from private key" in {
     api.parse(Seq(deriveAddressCommand, privateKey)).value shouldBe address
   }
@@ -25,7 +26,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
     api.parse(Seq(deriveAddressCommand)) shouldBe a[Left[_, _]]
   }
 
-  behavior of generateAllocsCommand
+  behavior.of(generateAllocsCommand)
   it should "generate correct alloc using private key" in {
     api
       .parse(
@@ -78,7 +79,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
       .value shouldBe s""""alloc": {$address: { "balance": $requestedBalance }, $address3: { "balance": $requestedBalance }, $address2: { "balance": $requestedBalance }}"""
   }
 
-  behavior of generateKeyPairsCommand
+  behavior.of(generateKeyPairsCommand)
   it should "generate one key pair when passed no args" in {
     val result = api.parse(Seq(generateKeyPairsCommand))
     result shouldBe a[Right[_, _]]
@@ -95,7 +96,7 @@ class CliCommandsSpec extends AnyFlatSpec with Matchers with EitherValues {
     stringSplit.length shouldEqual numOfKeysAsInt
   }
 
-  behavior of encryptKeyCommand
+  behavior.of(encryptKeyCommand)
   it should "encrypt private key (without passphrase)" in {
     val json = api.parse(Seq(encryptKeyCommand, privateKey)).value
 

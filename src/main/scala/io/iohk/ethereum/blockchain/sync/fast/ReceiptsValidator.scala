@@ -1,9 +1,11 @@
 package io.iohk.ethereum.blockchain.sync.fast
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator.BlockError
-import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, Receipt}
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Receipt
 
 trait ReceiptsValidator {
 
@@ -13,8 +15,7 @@ trait ReceiptsValidator {
   def blockchainReader: BlockchainReader
   def validators: Validators
 
-  /**
-    * Validates whether the received receipts match the block headers stored on the blockchain,
+  /** Validates whether the received receipts match the block headers stored on the blockchain,
     * returning the valid receipts
     *
     * @param requestedHashes hash of the blocks to which the requested receipts should belong
@@ -31,7 +32,7 @@ trait ReceiptsValidator {
       case (Some(header), receipt) =>
         validators.blockValidator.validateBlockAndReceipts(header, receipt) match {
           case Left(err) => Some(Invalid(err))
-          case _ => None
+          case _         => None
         }
       case (None, _) => Some(DbError)
     }

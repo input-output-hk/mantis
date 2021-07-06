@@ -6,6 +6,6 @@ import io.iohk.ethereum.utils.Config
 
 trait RocksDbDataSourceComponent extends DataSourceComponent {
 
-  lazy val dataSource = RocksDbDataSource(Config.Db.RocksDb, Namespaces.nsSeq)
+  lazy val dataSource: RocksDbDataSource = RocksDbDataSource(Config.Db.RocksDb, Namespaces.nsSeq)
 
 }

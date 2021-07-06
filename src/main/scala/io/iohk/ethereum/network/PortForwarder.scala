@@ -1,13 +1,24 @@
 package io.iohk.ethereum.network
 
-import io.iohk.ethereum.utils.Logger
 import java.net.InetAddress
 import java.util.concurrent.ExecutorService
+
+import cats.effect.Resource
+import cats.implicits._
+
 import monix.eval.Task
+
+import scala.jdk.CollectionConverters._
+import scala.util.chaining._
+
 import org.jupnp.DefaultUpnpServiceConfiguration
+import org.jupnp.QueueingThreadPoolExecutor
+import org.jupnp.UpnpService
+import org.jupnp.UpnpServiceImpl
 import org.jupnp.support.igd.PortMappingListener
 import org.jupnp.support.model.PortMapping
-import org.jupnp.support.model.PortMapping.Protocol.{TCP, UDP}
+import org.jupnp.support.model.PortMapping.Protocol.TCP
+import org.jupnp.support.model.PortMapping.Protocol.UDP
 import org.jupnp.tool.transport.JDKTransportConfiguration
 import org.jupnp.transport.Router
 import org.jupnp.transport.spi.NetworkAddressFactory
@@ -15,16 +26,11 @@ import org.jupnp.transport.spi.StreamClient
 import org.jupnp.transport.spi.StreamClientConfiguration
 import org.jupnp.transport.spi.StreamServer
 import org.jupnp.transport.spi.StreamServerConfiguration
-import org.jupnp.UpnpServiceImpl
-import scala.jdk.CollectionConverters._
-import scala.util.chaining._
-import org.jupnp.QueueingThreadPoolExecutor
-import cats.effect.Resource
-import org.jupnp.UpnpService
-import cats.implicits._
+
+import io.iohk.ethereum.utils.Logger
 
 private class ClientOnlyUpnpServiceConfiguration extends DefaultUpnpServiceConfiguration() {
-  private final val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping
+  final private val THREAD_POOL_SIZE = 4 // seemingly the minimum required to perform port mapping
 
   override def createDefaultExecutorService(): ExecutorService =
     QueueingThreadPoolExecutor.createInstance("mantis-jupnp", THREAD_POOL_SIZE);
@@ -47,7 +53,7 @@ private object NoStreamServer extends StreamServer[StreamServerConfiguration] {
 }
 
 object PortForwarder extends Logger {
-  private final val description = "Mantis"
+  final private val description = "Mantis"
 
   def openPorts(tcpPorts: Seq[Int], udpPorts: Seq[Int]): Resource[Task, Unit] =
     Resource.make(startForwarding(tcpPorts, udpPorts))(stopForwarding).void

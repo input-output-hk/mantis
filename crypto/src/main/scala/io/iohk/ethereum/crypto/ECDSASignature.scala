@@ -1,15 +1,19 @@
 package io.iohk.ethereum.crypto
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteUtils
+
+import scala.util.Try
+
 import org.bouncycastle.asn1.x9.X9IntegerConverter
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.digests.SHA256Digest
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.bouncycastle.crypto.signers.{ECDSASigner, HMacDSAKCalculator}
-import org.bouncycastle.math.ec.{ECCurve, ECPoint}
+import org.bouncycastle.crypto.signers.ECDSASigner
+import org.bouncycastle.crypto.signers.HMacDSAKCalculator
+import org.bouncycastle.math.ec.ECCurve
+import org.bouncycastle.math.ec.ECPoint
 
-import scala.util.Try
+import io.iohk.ethereum.utils.ByteUtils
 
 object ECDSASignature {
 
@@ -29,18 +33,16 @@ object ECDSASignature {
   val positivePointSign: Byte = 28
   val newPositivePointSign: Byte = 36
 
-  val allowedPointSigns = Set(negativePointSign, positivePointSign)
+  val allowedPointSigns: Set[Byte] = Set(negativePointSign, positivePointSign)
 
-  def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature = {
+  def apply(r: ByteString, s: ByteString, v: Byte): ECDSASignature =
     ECDSASignature(BigInt(1, r.toArray), BigInt(1, s.toArray), v)
-  }
 
-  def fromBytes(bytes65: ByteString): Option[ECDSASignature] = {
+  def fromBytes(bytes65: ByteString): Option[ECDSASignature] =
     if (bytes65.length == EncodedLength)
       Some(apply(bytes65.take(RLength), bytes65.drop(RLength).take(SLength), bytes65.last))
     else
       None
-  }
 
   def sign(messageHash: ByteString, prvKey: ByteString): ECDSASignature =
     sign(messageHash.toArray, keyPairFromPrvKey(prvKey.toArray), None)
@@ -63,18 +65,17 @@ object ECDSASignature {
     val pointSign = chainId match {
       case Some(id) if v == negativePointSign => (id * 2 + newNegativePointSign).toByte
       case Some(id) if v == positivePointSign => (id * 2 + newPositivePointSign).toByte
-      case None => v
-      case _ => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
+      case None                               => v
+      case _                                  => throw new IllegalStateException(s"Unexpected pointSign. ChainId: ${chainId}, v: ${v}")
     }
 
     ECDSASignature(r, s, pointSign)
   }
 
-  /**
-    * new formula for calculating point sign post EIP 155 adoption
+  /** new formula for calculating point sign post EIP 155 adoption
     * v = CHAIN_ID * 2 + 35 or v = CHAIN_ID * 2 + 36
     */
-  private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Byte] = {
+  private def getRecoveredPointSign(pointSign: Byte, chainId: Option[Byte]): Option[Byte] =
     (chainId match {
       case Some(id) =>
         if (pointSign == negativePointSign || pointSign == (id * 2 + newNegativePointSign).toByte) {
@@ -86,7 +87,6 @@ object ECDSASignature {
         }
       case None => Some(pointSign)
     }).filter(pointSign => allowedPointSigns.contains(pointSign))
-  }
 
   private def canonicalise(s: BigInt): BigInt = {
     val halfCurveOrder: BigInt = curveParams.getN.shiftRight(1)
@@ -109,7 +109,7 @@ object ECDSASignature {
       recId: Byte,
       chainId: Option[Byte],
       messageHash: Array[Byte]
-  ): Option[Array[Byte]] = {
+  ): Option[Array[Byte]] =
     Try {
       val order = curve.getCurve.getOrder
       //ignore case when x = r + order because it is negligibly improbable
@@ -132,7 +132,6 @@ object ECDSASignature {
         } else None
       }
     }.toOption.flatten
-  }
 
   private def constructPoint(xCoordinate: BigInt, recId: Int): ECPoint = {
     val x9 = new X9IntegerConverter
@@ -142,8 +141,7 @@ object ECDSASignature {
   }
 }
 
-/**
-  * ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
+/** ECDSASignature r and s are same as in documentation where signature is represented by tuple (r, s)
   *
   * The `publicKey` method is also the way to verify the signature: if the key can be retrieved based
   * on the signed message, the signature is correct, otherwise it isn't.
@@ -154,8 +152,7 @@ object ECDSASignature {
   */
 case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
 
-  /**
-    * returns ECC point encoded with on compression and without leading byte indicating compression
+  /** returns ECC point encoded with on compression and without leading byte indicating compression
     * @param messageHash message to be signed; should be a hash of the actual data.
     * @param chainId optional value if you want new signing schema with recovery id calculated with chain id
     * @return
@@ -163,8 +160,7 @@ case class ECDSASignature(r: BigInt, s: BigInt, v: Byte) {
   def publicKey(messageHash: Array[Byte], chainId: Option[Byte] = None): Option[Array[Byte]] =
     ECDSASignature.recoverPubBytes(r, s, v, chainId, messageHash)
 
-  /**
-    * returns ECC point encoded with on compression and without leading byte indicating compression
+  /** returns ECC point encoded with on compression and without leading byte indicating compression
     * @param messageHash message to be signed; should be a hash of the actual data.
     * @return
     */

@@ -1,7 +1,8 @@
 package io.iohk.ethereum.utils
 
 import java.math.BigInteger
-import java.nio.{ByteBuffer, ByteOrder}
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 import akka.util.ByteString
 
@@ -9,8 +10,7 @@ import scala.util.Random
 
 object ByteUtils {
 
-  /**
-    * Calculates number of matching bytes from the beginning of both arrays.
+  /** Calculates number of matching bytes from the beginning of both arrays.
     * Due to performance reasons needs to be as fast as possible which means usage of while loops and var's.
     *
     * @param a - first array of bytes to check
@@ -19,9 +19,8 @@ object ByteUtils {
     */
   def matchingLength(a: Array[Byte], b: Array[Byte]): Int = {
     var prefixLen = 0
-    while (prefixLen < a.length && prefixLen < b.length && a(prefixLen) == b(prefixLen)) {
+    while (prefixLen < a.length && prefixLen < b.length && a(prefixLen) == b(prefixLen))
       prefixLen = prefixLen + 1
-    }
     prefixLen
   }
 
@@ -38,7 +37,7 @@ object ByteUtils {
     bigIntegerToBytes(b.bigInteger, numBytes)
 
   def toBigInt(bytes: ByteString): BigInt =
-    bytes.foldLeft(BigInt(0)) { (n, b) => (n << 8) + (b & 0xff) }
+    bytes.foldLeft(BigInt(0))((n, b) => (n << 8) + (b & 0xff))
 
   def bigIntToUnsignedByteArray(i: BigInt): Array[Byte] = {
     val asByteArray = i.toByteArray
@@ -46,8 +45,7 @@ object ByteUtils {
     else asByteArray
   }
 
-  /**
-    * Calculates xor distance between two byte arrays. Due to performance reasons needs to be as fast as possible
+  /** Calculates xor distance between two byte arrays. Due to performance reasons needs to be as fast as possible
     * which means usage of while loops and var's.
     *
     * @param a - array of bytes to xor
@@ -108,9 +106,8 @@ object ByteUtils {
     data
   }
 
-  def compactPickledBytes(buffer: ByteBuffer): ByteString = {
+  def compactPickledBytes(buffer: ByteBuffer): ByteString =
     ByteString(compactPickledBytesToArray(buffer))
-  }
 
   def byteSequenceToBuffer(bytes: IndexedSeq[Byte]): ByteBuffer =
     ByteBuffer.wrap(bytes.toArray)
@@ -127,12 +124,10 @@ object ByteUtils {
     ret
   }
 
-  def getIntFromWord(arr: Array[Byte]): Int = {
+  def getIntFromWord(arr: Array[Byte]): Int =
     ByteBuffer.wrap(arr, 0, 4).order(ByteOrder.LITTLE_ENDIAN).getInt
-  }
 
-  /**
-    * Converts array of Int to corresponding array of bytes. Due to performance reasons needs to be as fast as possible
+  /** Converts array of Int to corresponding array of bytes. Due to performance reasons needs to be as fast as possible
     * which means usage of while loops and var's.
     *
     * @param arr - array of int's to convert
@@ -141,7 +136,7 @@ object ByteUtils {
     * @param bigEndian - param specifying which int representation should be used.
     * @return Unit
     */
-  def intsToBytesMut(arr: Array[Int], b: Array[Byte], bigEndian: Boolean): Unit = {
+  def intsToBytesMut(arr: Array[Int], b: Array[Byte], bigEndian: Boolean): Unit =
     if (!bigEndian) {
       var off = 0
       var i = 0
@@ -175,10 +170,8 @@ object ByteUtils {
         i = i + 1
       }
     }
-  }
 
-  /**
-    * Converts array of bytes to corresponding array of ints. Due to performance reasons needs to be as fast as possible
+  /** Converts array of bytes to corresponding array of ints. Due to performance reasons needs to be as fast as possible
     * which means usage of while loops and var's.
     *
     * @param b - array of bytes to convert
@@ -187,7 +180,7 @@ object ByteUtils {
     * @param bigEndian - param specifying which int representation should be used.
     * @return Unit
     */
-  def bytesToIntsMut(b: Array[Byte], arr: Array[Int], bigEndian: Boolean): Unit = {
+  def bytesToIntsMut(b: Array[Byte], arr: Array[Int], bigEndian: Boolean): Unit =
     if (!bigEndian) {
       var off = 0
       var i = 0
@@ -222,6 +215,5 @@ object ByteUtils {
         i = i + 1
       }
     }
-  }
 
 }

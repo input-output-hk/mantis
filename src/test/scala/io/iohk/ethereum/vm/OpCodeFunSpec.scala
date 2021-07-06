@@ -1,28 +1,33 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Account, Address, TxLogEntry, UInt256}
-import io.iohk.ethereum.vm.Generators._
-import io.iohk.ethereum.domain.UInt256._
+
 import org.scalacheck.Gen
-import Fixtures.blockchainConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.TxLogEntry
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.domain.UInt256._
+import io.iohk.ethereum.vm.Generators._
+
+import Fixtures.blockchainConfig
 
 class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
 
   import MockWorldState.PS
 
-  override val config = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
+  override val config: EvmConfig = EvmConfig.PhoenixConfigBuilder(blockchainConfig)
 
-  def executeOp(op: OpCode, stateIn: PS): PS = {
+  def executeOp(op: OpCode, stateIn: PS): PS =
     // gas is not tested in this spec
     op.execute(stateIn).copy(gas = stateIn.gas, gasRefund = stateIn.gasRefund)
-  }
 
-  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any = {
+  def withStackVerification(op: OpCode, stateIn: PS, stateOut: PS)(body: => Any): Any =
     if (stateIn.stack.size < op.delta)
       stateOut shouldEqual stateIn.withError(StackUnderflow).halt
     else if (stateIn.stack.size - op.delta + op.alpha > stateIn.stack.maxSize)
@@ -38,7 +43,6 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       }
       body
     }
-  }
 
   def stateWithCode(state: PS, code: ByteString): PS = {
     val newProgram = Program(code)
@@ -161,7 +165,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       val (addr, stack1) = stateIn.stack.pop
 
       val account = Account(balance = accountBalance)
-      val world1 = stateIn.world.saveAccount(Address(addr mod UInt256(BigInt(2).pow(160))), account)
+      val world1 = stateIn.world.saveAccount(Address(addr.mod(UInt256(BigInt(2).pow(160)))), account)
 
       val stateInWithAccount = stateIn.withWorld(world1)
       val stateOutWithAccount = executeOp(op, stateInWithAccount)
@@ -185,7 +189,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       val codeHash = kec256(extCode)
 
       val account = Account(codeHash = codeHash)
-      val accAddr = Address(addr mod UInt256(BigInt(2).pow(160)))
+      val accAddr = Address(addr.mod(UInt256(BigInt(2).pow(160))))
       val world1 = stateIn.world.saveAccount(accAddr, account).saveCode(accAddr, extCode)
 
       val stateInWithAccount = stateIn.withWorld(world1)
@@ -410,7 +414,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       withStackVerification(op, stateIn, stateOut) {
         val (Seq(offset, value), _) = stateIn.stack.pop(2)
         val (data, _) = stateOut.memory.load(offset, 1)
-        ByteString((value mod 256).toByte) shouldEqual data
+        ByteString(value.mod(256).toByte) shouldEqual data
 
         stateOut shouldEqual stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
       }

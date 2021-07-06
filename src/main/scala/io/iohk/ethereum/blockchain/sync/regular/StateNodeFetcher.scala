@@ -1,21 +1,30 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.typed.scaladsl.{AbstractBehavior, ActorContext, Behaviors}
-import akka.actor.typed.{ActorRef, Behavior}
+import akka.actor.typed.ActorRef
+import akka.actor.typed.Behavior
+import akka.actor.typed.scaladsl.AbstractBehavior
+import akka.actor.typed.scaladsl.ActorContext
+import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.ByteString
+
+import cats.syntax.either._
+
+import monix.execution.Scheduler
+
+import scala.util.Failure
+import scala.util.Success
+
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.PeersClient._
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{FetchCommand, FetchedStateNode}
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchedStateNode
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.utils.Config.SyncConfig
-import cats.syntax.either._
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
-import monix.execution.Scheduler
-
-import scala.util.{Failure, Success}
 
 class StateNodeFetcher(
     val peersClient: ClassicActorRef,
@@ -34,7 +43,7 @@ class StateNodeFetcher(
 
   private var requester: Option[StateNodeRequester] = None
 
-  override def onMessage(message: StateNodeFetcherCommand): Behavior[StateNodeFetcherCommand] = {
+  override def onMessage(message: StateNodeFetcherCommand): Behavior[StateNodeFetcherCommand] =
     message match {
       case StateNodeFetcher.FetchStateNode(hash, sender) =>
         log.debug("Start fetching state node")
@@ -45,7 +54,7 @@ class StateNodeFetcher(
         log.debug("Received state node response from peer {}", peer)
 
         requester
-          .collect(stateNodeRequester => {
+          .collect { stateNodeRequester =>
             val validatedNode = values
               .asRight[BlacklistReason]
               .ensure(BlacklistReason.EmptyStateNodeResponse)(_.nonEmpty)
@@ -62,7 +71,7 @@ class StateNodeFetcher(
                 requester = None
                 Behaviors.same[StateNodeFetcherCommand]
             }
-          })
+          }
           .getOrElse(Behaviors.same)
 
       case StateNodeFetcher.RetryStateNodeRequest if requester.isDefined =>
@@ -74,13 +83,12 @@ class StateNodeFetcher(
         Behaviors.same
       case _ => Behaviors.unhandled
     }
-  }
 
   private def requestStateNode(hash: ByteString): Unit = {
     val resp = makeRequest(Request.create(GetNodeData(List(hash)), BestPeer), StateNodeFetcher.RetryStateNodeRequest)
     context.pipeToSelf(resp.runToFuture) {
       case Success(res) => res
-      case Failure(_) => StateNodeFetcher.RetryStateNodeRequest
+      case Failure(_)   => StateNodeFetcher.RetryStateNodeRequest
     }
   }
 }
@@ -97,7 +105,7 @@ object StateNodeFetcher {
   sealed trait StateNodeFetcherCommand
   final case class FetchStateNode(hash: ByteString, originalSender: ClassicActorRef) extends StateNodeFetcherCommand
   final case object RetryStateNodeRequest extends StateNodeFetcherCommand
-  private final case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends StateNodeFetcherCommand
+  final private case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends StateNodeFetcherCommand
 
   final case class StateNodeRequester(hash: ByteString, replyTo: ClassicActorRef)
 }

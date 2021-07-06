@@ -1,18 +1,22 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
-import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
-import io.iohk.ethereum.jsonrpc.TestService._
-import io.iohk.ethereum.jsonrpc.serialization.{JsonEncoder, JsonMethodDecoder}
-import org.json4s.JsonAST._
-import org.json4s.JsonDSL._
+
 import cats.implicits._
-import io.iohk.ethereum.blockchain.data.GenesisAccount
 
 import scala.util.Try
-import io.iohk.ethereum.domain.UInt256
-import io.iohk.ethereum.testmode.SealEngineType
+
 import org.json4s.Extraction
+import org.json4s.JsonAST._
+import org.json4s.JsonDSL._
+
+import io.iohk.ethereum.blockchain.data.GenesisAccount
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.JsonRpcError.InvalidParams
+import io.iohk.ethereum.jsonrpc.TestService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
+import io.iohk.ethereum.jsonrpc.serialization.JsonMethodDecoder
+import io.iohk.ethereum.testmode.SealEngineType
 
 object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
@@ -69,11 +73,11 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
 
       private def extractSealEngine(str: String) = str match {
         case "NoReward" => Right(SealEngineType.NoReward)
-        case "NoProof" => Right(SealEngineType.NoProof)
-        case other => Left(InvalidParams(s"unknown seal engine $other"))
+        case "NoProof"  => Right(SealEngineType.NoProof)
+        case other      => Left(InvalidParams(s"unknown seal engine $other"))
       }
 
-      private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] = {
+      private def extractGenesis(genesisJson: JValue): Either[JsonRpcError, GenesisParams] =
         for {
           author <- extractBytes((genesisJson \ "author").extract[String])
           difficulty = (genesisJson \ "difficulty").extractOrElse("0")
@@ -84,9 +88,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           nonce <- extractBytes((genesisJson \ "nonce").extract[String])
           mixHash <- extractBytes((genesisJson \ "mixHash").extract[String])
         } yield GenesisParams(author, difficulty, extraData, gasLimit, parentHash, timestamp, nonce, mixHash)
-      }
 
-      private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] = {
+      private def extractBlockchainParams(blockchainParamsJson: JValue): Either[JsonRpcError, BlockchainParams] =
         for {
           eIP150ForkBlock <- optionalQuantity(blockchainParamsJson \ "EIP150ForkBlock")
           eIP158ForkBlock <- optionalQuantity(blockchainParamsJson \ "EIP158ForkBlock")
@@ -109,7 +112,6 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           constantinopleForkBlock = constantinopleForkBlock,
           istanbulForkBlock = istanbulForkBlock
         )
-      }
 
       override def encodeJson(t: SetChainParamsResponse): JValue = true
     }

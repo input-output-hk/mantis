@@ -1,21 +1,35 @@
 package io.iohk.ethereum.blockchain.sync
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import cats.effect.concurrent.Deferred
-import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
-import io.iohk.ethereum.domain.{Block, BlockHeader}
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, SendMessage}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.utils.Config.SyncConfig
+
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
-import monix.reactive.subjects.{ReplaySubject, Subject}
+import monix.reactive.subjects.ReplaySubject
+import monix.reactive.subjects.Subject
+
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.SendMessage
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class EtcPeerManagerFake(
     syncConfig: SyncConfig,
@@ -27,7 +41,7 @@ class EtcPeerManagerFake(
   private val requestsSubject: Subject[SendMessage, SendMessage] = ReplaySubject()
   private val peersConnectedDeferred = Deferred.unsafe[Task, Unit]
 
-  val probe = TestProbe("etc_peer_manager")
+  val probe: TestProbe = TestProbe("etc_peer_manager")
   val autoPilot =
     new EtcPeerManagerFake.EtcPeerManagerAutoPilot(
       requestsSubject,
@@ -49,7 +63,7 @@ class EtcPeerManagerFake(
       (header, peer)
     }
     .bufferTumbling(peers.size)
-    .concatMap(headersFromPeers => {
+    .concatMap { headersFromPeers =>
       val (headers, respondedPeers) = headersFromPeers.unzip
 
       if (headers.distinct.size == 1 && respondedPeers.toSet == peers.keySet.map(_.id)) {
@@ -57,32 +71,32 @@ class EtcPeerManagerFake(
       } else {
         Observable.empty
       }
-    })
+    }
 
-  val fetchedHeaders = responses
+  val fetchedHeaders: Observable[Seq[BlockHeader]] = responses
     .collect {
       case MessageFromPeer(BlockHeaders(headers), _) if headers.size == syncConfig.blockHeadersPerRequest => headers
     }
-  val fetchedBodies = responses
+  val fetchedBodies: Observable[Seq[BlockBody]] = responses
     .collect { case MessageFromPeer(BlockBodies(bodies), _) =>
       bodies
     }
-  val requestedReceipts = requests.collect(
+  val requestedReceipts: Observable[Seq[ByteString]] = requests.collect(
     Function.unlift(msg =>
       msg.message.underlyingMsg match {
         case GetReceipts(hashes) => Some(hashes)
-        case _ => None
+        case _                   => None
       }
     )
   )
-  val fetchedBlocks = fetchedBodies
+  val fetchedBlocks: Observable[List[Block]] = fetchedBodies
     .scan[(List[Block], List[Block])]((Nil, blocks)) { case ((_, remainingBlocks), bodies) =>
       remainingBlocks.splitAt(bodies.size)
     }
     .map(_._1)
     .combineLatestMap(requestedReceipts)((blocks, _) => blocks) // a big simplification, but should be sufficient here
 
-  val fetchedState = responses.collect { case MessageFromPeer(NodeData(values), _) =>
+  val fetchedState: Observable[Seq[ByteString]] = responses.collect { case MessageFromPeer(NodeData(values), _) =>
     values
   }
 
@@ -97,7 +111,7 @@ object EtcPeerManagerFake {
       getMptNodes: List[ByteString] => List[ByteString]
   )(implicit scheduler: Scheduler)
       extends AutoPilot {
-    def run(sender: ActorRef, msg: Any) = {
+    def run(sender: ActorRef, msg: Any): EtcPeerManagerAutoPilot = {
       msg match {
         case EtcPeerManagerActor.GetHandshakedPeers =>
           sender ! EtcPeerManagerActor.HandshakedPeers(peers)

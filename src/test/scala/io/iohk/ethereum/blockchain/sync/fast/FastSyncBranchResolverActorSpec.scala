@@ -2,35 +2,50 @@ package io.iohk.ethereum.blockchain.sync.fast
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.pattern.gracefulStop
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestKit, TestProbe}
-import akka.util.{ByteString, Timeout}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+import akka.util.ByteString
+import akka.util.Timeout
+
 import cats.effect.concurrent.Deferred
 import cats.implicits._
-import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.{BranchResolvedSuccessful, StartBranchResolver}
-import io.iohk.ethereum.domain.{Block, BlockHeader, ChainWeight}
-import io.iohk.ethereum.network.EtcPeerManagerActor._
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockHeaders, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.{EtcPeerManagerActor, Peer, PeerId}
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.{BlockHelpers, NormalPatience, WithActorSystemShutDown}
+
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
-import monix.reactive.subjects.{ReplaySubject, Subject}
+import monix.reactive.subjects.ReplaySubject
+import monix.reactive.subjects.Subject
+
+import scala.concurrent.duration.DurationInt
+import scala.util.Random
+
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpecLike
 
-import scala.concurrent.duration.DurationInt
-import scala.language.postfixOps
-import scala.util.Random
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.BranchResolutionFailed
 import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.BranchResolutionFailed.NoCommonBlockFound
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.BranchResolvedSuccessful
+import io.iohk.ethereum.blockchain.sync.fast.FastSyncBranchResolverActor.StartBranchResolver
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.EtcPeerManagerActor._
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.utils.Logger
 
 class FastSyncBranchResolverActorSpec
     extends TestKit(ActorSystem("FastSyncBranchResolver_testing"))
@@ -45,7 +60,7 @@ class FastSyncBranchResolverActorSpec
   "FastSyncBranchResolver" - {
     "fetch headers from the new master peer" - {
       "the chain is repaired from the first request to the new master pair and then the last two blocks are removed" in new TestSetup {
-        override implicit lazy val system = self.system
+        implicit override lazy val system = self.system
         implicit val scheduler = Scheduler(system.dispatcher)
 
         val sender = TestProbe("sender")
@@ -92,7 +107,7 @@ class FastSyncBranchResolverActorSpec
 
       "The chain is repaired doing binary searching with the new master peer and then remove the last invalid blocks" - {
         "highest common block is in the middle" in new TestSetup {
-          override implicit lazy val system = self.system
+          implicit override lazy val system = self.system
           implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
@@ -129,7 +144,7 @@ class FastSyncBranchResolverActorSpec
           assert(getBestPeers.contains(response.masterPeer))
         }
         "highest common block is in the first half" in new TestSetup {
-          override implicit lazy val system = self.system
+          implicit override lazy val system = self.system
           implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
@@ -168,7 +183,7 @@ class FastSyncBranchResolverActorSpec
         }
 
         "highest common block is in the second half" in new TestSetup {
-          override implicit lazy val system = self.system
+          implicit override lazy val system = self.system
           implicit val scheduler = Scheduler(system.dispatcher)
 
           val sender = TestProbe("sender")
@@ -207,7 +222,7 @@ class FastSyncBranchResolverActorSpec
       }
 
       "No common block is found" in new TestSetup {
-        override implicit lazy val system = self.system
+        implicit override lazy val system = self.system
         implicit val scheduler = Scheduler(system.dispatcher)
 
         val sender = TestProbe("sender")
@@ -267,9 +282,8 @@ class FastSyncBranchResolverActorSpec
     val handshakedPeers: Map[Peer, PeerInfo] =
       (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
 
-    def saveBlocks(blocks: List[Block]): Unit = {
+    def saveBlocks(blocks: List[Block]): Unit =
       blocks.foreach(block => blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true))
-    }
 
     def createEtcPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
         scheduler: Scheduler
@@ -301,9 +315,8 @@ class FastSyncBranchResolverActorSpec
         )
       )
 
-    def stopController(actorRef: ActorRef): Unit = {
+    def stopController(actorRef: ActorRef): Unit =
       awaitCond(gracefulStop(actorRef, actorAskTimeout.duration).futureValue)
-    }
 
     def getBestPeers: List[Peer] = {
       val maxBlock = handshakedPeers.toList.map { case (_, peerInfo) => peerInfo.maxBlockNumber }.max
@@ -321,12 +334,11 @@ object FastSyncBranchResolverActorSpec extends Logger {
 
   var responses: Observable[MessageFromPeer] = responsesSubject
 
-  def fetchedHeaders: Observable[Seq[BlockHeader]] = {
+  def fetchedHeaders: Observable[Seq[BlockHeader]] =
     responses
       .collect { case MessageFromPeer(BlockHeaders(headers), _) =>
         headers
       }
-  }
 
   class EtcPeerManagerAutoPilot(
       responses: Subject[MessageFromPeer, MessageFromPeer],

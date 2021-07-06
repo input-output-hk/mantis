@@ -1,16 +1,17 @@
 package io.iohk.ethereum.vm
 
-import io.iohk.ethereum.vm.Fixtures.blockchainConfig
-import io.iohk.ethereum.vm.MockWorldState._
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.vm.Fixtures.blockchainConfig
+import io.iohk.ethereum.vm.MockWorldState._
 
 // scalastyle:off object.name
 class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
-  val startState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
+  val config: EvmConfig = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  val startState: MockWorldState = MockWorldState(touchedAccounts = Set.empty, noEmptyAccountsCond = true)
 
   val fxt = new CallOpFixture(config, startState)
 

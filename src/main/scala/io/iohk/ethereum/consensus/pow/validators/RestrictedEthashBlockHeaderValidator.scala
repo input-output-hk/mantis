@@ -1,9 +1,12 @@
 package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
+import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.RestrictedPoWHeaderExtraDataError
-import io.iohk.ethereum.consensus.validators.{BlockHeaderError, BlockHeaderValid, BlockHeaderValidator}
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -11,7 +14,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 class RestrictedEthashBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     extends PoWBlockHeaderValidator(blockchainConfig) {
 
-  val ExtraDataMaxSize = BlockHeaderValidator.MaxExtraDataSize + ECDSASignature.EncodedLength
+  val ExtraDataMaxSize: Int = BlockHeaderValidator.MaxExtraDataSize + ECDSASignature.EncodedLength
 
   private def validateSignatureAgainstAllowedMiners(
       blockHeader: BlockHeader,

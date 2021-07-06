@@ -1,30 +1,34 @@
 package io.iohk.ethereum.network
 
-import cats._
-import cats.implicits._
-import cats.data.State
-import cats.kernel.Monoid
 import java.time.Clock
+
+import cats.data.State
+import cats.implicits._
+import cats.kernel.Monoid
+
+import scala.concurrent.duration._
+
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalatest.Inspectors
+import org.scalatest.compatible.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-import org.scalatest.Inspectors
 import org.scalatestplus.scalacheck.ScalaCheckDrivenPropertyChecks
-import org.scalacheck.{Arbitrary, Gen, Shrink}, Arbitrary.arbitrary
-import scala.concurrent.duration._
-import org.scalatest.compatible.Assertion
+
 import io.iohk.ethereum.utils.MockClock
+
+import Arbitrary.arbitrary
 
 class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenPropertyChecks {
   import TimeSlotStatsSpec._
 
-  behavior of "TimeSlotStats"
+  behavior.of("TimeSlotStats")
 
   it should "add new keys to the last timeslot" in test {
     for {
       stats <- add("foo", 1)
-    } yield {
-      stats.buffer(0).slotStats("foo") shouldBe 1
-    }
+    } yield stats.buffer(0).slotStats("foo") shouldBe 1
   }
 
   it should "merge keys in the last timeslot" in test {
@@ -45,9 +49,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
       stats0 <- add("foo", 1)
       _ <- windClock(-defaultSlotDuration - 1.millis)
       stats1 <- add("foo", 2)
-    } yield {
-      stats0.buffer shouldBe stats1.buffer
-    }
+    } yield stats0.buffer shouldBe stats1.buffer
   }
 
   it should "add new slots for the next timeslot" in test {
@@ -77,7 +79,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
         entry.slotStats should not contain key("foo")
       }
       Inspectors.forExactly(2, stats.buffer.values) { entry =>
-        entry.slotStats should contain key ("bar")
+        (entry.slotStats should contain).key("bar")
       }
     }
   }
@@ -98,7 +100,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     }
   }
 
-  def testAggregate(f: TestState[String, Int, Assertion]) = test {
+  def testAggregate(f: TestState[String, Int, Assertion]): Unit = test {
     val setup = for {
       _ <- add("foo", 1)
       _ <- windClock(defaultSlotDuration * defaultSlotCount) // puts t0 out of scope
@@ -128,27 +130,21 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
   it should "aggregate all stats" in testAggregate {
     for {
       stats <- getStats
-    } yield {
-      stats.getAll() shouldBe Map("foo" -> 3, "bar" -> 6)
-    }
+    } yield stats.getAll() shouldBe Map("foo" -> 3, "bar" -> 6)
   }
 
   it should "aggregate stats that still fall in the window" in testAggregate {
     for {
       _ <- windClock(defaultSlotDuration * 2)
       stats <- getStats
-    } yield {
-      stats.getAll() should not be empty
-    }
+    } yield stats.getAll() should not be empty
   }
 
   it should "not aggregate beyond the window" in testAggregate {
     for {
       _ <- windClock(defaultSlotDuration * (defaultSlotCount + 1))
       stats <- getStats
-    } yield {
-      stats.getAll() shouldBe empty
-    }
+    } yield stats.getAll() shouldBe empty
   }
 
   it should "handle 0 in configuration" in {
@@ -182,7 +178,7 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
     testRandomAggregation[Int, Vector[Int]](_ ++ _)
   }
 
-  def testRandomAggregation[K: Arbitrary, V: Arbitrary: Monoid](f: (V, V) => V): Unit = {
+  def testRandomAggregation[K: Arbitrary, V: Arbitrary: Monoid](f: (V, V) => V): Unit =
     forAll(genTimeSlotStats[K, V]) { case (stats, clock, window) =>
       val timestamp = clock.millis()
       val (start, end) = stats.slotRange(timestamp, window)
@@ -212,16 +208,15 @@ class TimeSlotStatsSpec extends AnyFlatSpec with Matchers with ScalaCheckDrivenP
         stats.get(key, Some(window)) shouldBe expected
       }
     }
-  }
 }
 
 object TimeSlotStatsSpec {
 
-  implicit val clock = new MockClock()
+  implicit val clock: MockClock = new MockClock()
 
   type TestState[K, V, A] = State[(TimeSlotStats[K, V], MockClock), A]
 
-  val defaultSlotDuration = 1.minute
+  val defaultSlotDuration: FiniteDuration = 1.minute
   val defaultSlotCount = 30
 
   def getStats[K, V]: TestState[K, V, TimeSlotStats[K, V]] =

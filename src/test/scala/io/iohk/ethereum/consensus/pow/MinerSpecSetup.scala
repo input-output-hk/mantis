@@ -1,17 +1,32 @@
 package io.iohk.ethereum.consensus.pow
 
-import akka.actor.{ActorRef, ActorSystem => ClassicSystem}
-import akka.testkit.{TestActor, TestProbe}
+import akka.actor.ActorRef
+import akka.actor.{ActorSystem => ClassicSystem}
+import akka.testkit.TestActor
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
+import monix.eval.Task
+import monix.execution.Scheduler
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+
+import org.bouncycastle.util.encoders.Hex
+import org.scalamock.handlers.CallHandler3
+import org.scalamock.scalatest.MockFactory
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.ConsensusConfigBuilder
+import io.iohk.ethereum.consensus.FullConsensusConfig
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
-import io.iohk.ethereum.consensus.{ConsensusConfigBuilder, FullConsensusConfig}
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.db.storage.{EvmCodeStorage, MptStorage}
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
@@ -20,34 +35,28 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
-import monix.eval.Task
-import monix.execution.Scheduler
-import org.bouncycastle.util.encoders.Hex
-import org.scalamock.scalatest.MockFactory
-
-import scala.concurrent.duration.{Duration, FiniteDuration}
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
-  implicit val classicSystem = ClassicSystem()
-  implicit val scheduler = Scheduler(classicSystem.dispatcher)
-  val parentActor = TestProbe()
-  val sync = TestProbe()
+  implicit val classicSystem: ClassicSystem = ClassicSystem()
+  implicit val scheduler: Scheduler = Scheduler(classicSystem.dispatcher)
+  val parentActor: TestProbe = TestProbe()
+  val sync: TestProbe = TestProbe()
   val ommersPool: TestProbe = TestProbe()
   val pendingTransactionsManager: TestProbe = TestProbe()
 
-  val origin = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
+  val origin: Block = Block(Fixtures.Blocks.Genesis.header, Fixtures.Blocks.Genesis.body)
 
   val blockchainReader: BlockchainReader = mock[BlockchainReader]
   val blockchain: BlockchainImpl = mock[BlockchainImpl]
-  val blockCreator = mock[PoWBlockCreator]
-  val fakeWorld = mock[InMemoryWorldStateProxy]
+  val blockCreator: PoWBlockCreator = mock[PoWBlockCreator]
+  val fakeWorld: InMemoryWorldStateProxy = mock[InMemoryWorldStateProxy]
   val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
   val ethMiningService: EthMiningService = mock[EthMiningService]
   val evmCodeStorage: EvmCodeStorage = mock[EvmCodeStorage]
 
   lazy val vm: VMImpl = new VMImpl
 
-  val txToMine = SignedTransaction(
+  val txToMine: SignedTransaction = SignedTransaction(
     tx = Transaction(
       nonce = BigInt("438553"),
       gasPrice = BigInt("20000000000"),
@@ -65,9 +74,9 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
   lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
-  val blockForMiningTimestamp = System.currentTimeMillis()
+  val blockForMiningTimestamp: Long = System.currentTimeMillis()
 
-  protected def getParentBlock(parentBlockNumber: Int) =
+  protected def getParentBlock(parentBlockNumber: Int): Block =
     origin.copy(header = origin.header.copy(number = parentBlockNumber))
 
   def buildPoWConsensus(): PoWConsensus = {
@@ -130,7 +139,11 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     parentGas + gasLimitDifference - 1
   }
 
-  protected def blockCreatorBehaviour(parentBlock: Block, withTransactions: Boolean, resultBlock: Block) = {
+  protected def blockCreatorBehaviour(
+      parentBlock: Block,
+      withTransactions: Boolean,
+      resultBlock: Block
+  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(parentBlock, withTransactions, *)
@@ -138,13 +151,12 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
-  }
 
   protected def blockCreatorBehaviourExpectingInitialWorld(
       parentBlock: Block,
       withTransactions: Boolean,
       resultBlock: Block
-  ) = {
+  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
     (blockCreator
       .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
       .expects(where { (parent, withTxs, _) =>
@@ -154,7 +166,6 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
       .atLeastOnce()
-  }
 
   protected def prepareMocks(): Unit = {
     (ethMiningService.submitHashRate _)
@@ -162,24 +173,22 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
       .returns(Task.now(Right(SubmitHashRateResponse(true))))
       .atLeastOnce()
 
-    ommersPool.setAutoPilot((sender: ActorRef, _: Any) => {
+    ommersPool.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! OmmersPool.Ommers(Nil)
       TestActor.KeepRunning
-    })
+    }
 
-    pendingTransactionsManager.setAutoPilot((sender: ActorRef, _: Any) => {
+    pendingTransactionsManager.setAutoPilot { (sender: ActorRef, _: Any) =>
       sender ! PendingTransactionsManager.PendingTransactionsResponse(Nil)
       TestActor.KeepRunning
-    })
-  }
-
-  protected def waitForMinedBlock(implicit timeout: Duration): Block = {
-    sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
-      m.block
     }
   }
 
-  protected def expectNoNewBlockMsg(timeout: FiniteDuration): Unit = {
+  protected def waitForMinedBlock(implicit timeout: Duration): Block =
+    sync.expectMsgPF[Block](timeout) { case m: SyncProtocol.MinedBlock =>
+      m.block
+    }
+
+  protected def expectNoNewBlockMsg(timeout: FiniteDuration): Unit =
     sync.expectNoMessage(timeout)
-  }
 }

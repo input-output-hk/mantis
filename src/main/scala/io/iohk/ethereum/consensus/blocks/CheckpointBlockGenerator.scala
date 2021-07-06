@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.blocks
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.domain._

@@ -1,11 +1,12 @@
 package io.iohk.ethereum.db.storage
 
+import org.scalacheck.Gen
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain.BlockHeader
-import org.scalacheck.Gen
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalatest.wordspec.AnyWordSpec
 
 class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks with ObjectGenerators {
 
@@ -50,8 +51,7 @@ class BlockHeadersStorageSpec extends AnyWordSpec with ScalaCheckPropertyChecks 
     }
   }
 
-  def checkIfIsInStorage(headers: List[BlockHeader], totalStorage: BlockHeadersStorage): Unit = {
+  def checkIfIsInStorage(headers: List[BlockHeader], totalStorage: BlockHeadersStorage): Unit =
     headers.foreach(header => assert(totalStorage.get(header.hash).contains(header)))
 
-  }
 }

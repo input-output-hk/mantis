@@ -4,14 +4,20 @@ import java.math.BigInteger
 import java.net.URI
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.network.rlpx.{AuthHandshakeSuccess, AuthHandshaker, AuthResponseMessage, Secrets}
-import org.bouncycastle.crypto.params.{ECPrivateKeyParameters, ECPublicKeyParameters}
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters
+import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.network.rlpx.AuthHandshakeSuccess
+import io.iohk.ethereum.network.rlpx.AuthHandshaker
+import io.iohk.ethereum.network.rlpx.AuthResponseMessage
+import io.iohk.ethereum.network.rlpx.Secrets
+import io.iohk.ethereum.security.SecureRandomBuilder
 
 class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
 
@@ -45,7 +51,7 @@ class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     )
   )
 
-  val remoteNonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(9.toByte))
+  val remoteNonce: ByteString = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(9.toByte))
 
   val remoteNodeId: Array[Byte] = remoteNodeKey.getPublic.asInstanceOf[ECPublicKeyParameters].toNodeId
   val remoteUri = new URI(s"enode://${Hex.toHexString(remoteNodeId)}@127.0.0.1:30303")
@@ -80,7 +86,7 @@ class AuthHandshakerSpec extends AnyFlatSpec with Matchers with SecureRandomBuil
     )
   )
 
-  val nonce = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
+  val nonce: ByteString = ByteString(Array.fill[Byte](AuthHandshaker.NonceSize)(1.toByte))
 
   "AuthHandshaker" should "handle init response" in {
     val (_, authHandshaker) = AuthHandshaker(nodeKey, nonce, ephemeralKey, secureRandom).initiate(remoteUri)

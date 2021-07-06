@@ -14,7 +14,7 @@ object PeerStat {
 
   private def mergeOpt[A, B](x: A, y: A)(f: A => Option[B])(g: (B, B) => B): Option[B] = {
     val (mx, my) = (f(x), f(y))
-    (mx, my).mapN(g) orElse mx orElse my
+    (mx, my).mapN(g).orElse(mx).orElse(my)
   }
 
   implicit val monoid: Monoid[PeerStat] =

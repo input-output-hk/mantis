@@ -14,7 +14,7 @@ object ByteStringUtils {
     ByteString(Hex.decode(hash))
 
   implicit class Padding(val bs: ByteString) extends AnyVal {
-    def padToByteString(length: Int, b: Byte): ByteString = {
+    def padToByteString(length: Int, b: Byte): ByteString =
       if (length <= bs.length) bs
       else {
         val len = Math.max(bs.length, length)
@@ -27,7 +27,6 @@ object ByteStringUtils {
         }
         ByteString.fromArray(result)
       }
-    }
   }
 
   implicit class ByteStringOps(val bytes: ByteString) extends AnyVal {
@@ -54,9 +53,8 @@ object ByteStringUtils {
     def asByteArray: Array[Byte] = Array(b)
   }
 
-  implicit val byteStringOrdering: Ordering[ByteString] = {
+  implicit val byteStringOrdering: Ordering[ByteString] =
     Ordering.by[ByteString, Seq[Byte]](_.toSeq)
-  }
 
   def concatByteStrings(head: ByteStringElement, tail: ByteStringElement*): ByteString = {
     val it = Iterator.single(head) ++ tail.iterator

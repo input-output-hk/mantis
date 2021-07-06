@@ -1,27 +1,33 @@
 package io.iohk.ethereum.jsonrpc
 
+import java.time.Duration
+import java.util.Date
+import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
-import akka.util.{ByteString, Timeout}
+import akka.util.ByteString
+import akka.util.Timeout
+
+import monix.eval.Task
+
+import scala.collection.concurrent.TrieMap
+import scala.collection.concurrent.{Map => ConcurrentMap}
+import scala.concurrent.duration.FiniteDuration
+
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{Address, BlockHeader, Blockchain}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.ommers.OmmersPool
-import monix.eval.Task
-
-import java.time.Duration
-import java.util.Date
-import java.util.concurrent.atomic.AtomicReference
-import scala.collection.concurrent.{TrieMap, Map => ConcurrentMap}
-import scala.concurrent.duration.FiniteDuration
-import scala.language.existentials
 import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.consensus.Consensus
 
 object EthMiningService {
 
@@ -65,19 +71,17 @@ class EthMiningService(
 
   def getMining(req: GetMiningRequest): ServiceResponse[GetMiningResponse] =
     ifEthash(req) { _ =>
-      val isMining = lastActive
-        .updateAndGet((e: Option[Date]) => {
-          e.filter { time =>
-            Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
-          }
-        })
-        .isDefined
+      val isMining = lastActive.updateAndGet { (e: Option[Date]) =>
+        e.filter { time =>
+          Duration.between(time.toInstant, (new Date).toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
+        }
+      }.isDefined
 
       GetMiningResponse(isMining)
     }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    consensus.ifEthash(ethash => {
+    consensus.ifEthash { ethash =>
       reportActive()
       blockchain.getBestBlock() match {
         case Some(block) =>
@@ -103,10 +107,10 @@ class EthMiningService(
           log.error("Getting current best block failed")
           Task.now(Left(JsonRpcError.InternalError))
       }
-    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
+    }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
-    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]](ethash => {
+    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]] { ethash =>
       reportActive()
       Task {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
@@ -120,7 +124,7 @@ class EthMiningService(
             Right(SubmitWorkResponse(false))
         }
       }
-    })(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
+    }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
     Task.now(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
@@ -142,11 +146,10 @@ class EthMiningService(
     }
 
   // NOTE This is called from places that guarantee we are running Ethash consensus.
-  private def removeObsoleteHashrates(now: Date): Unit = {
+  private def removeObsoleteHashrates(now: Date): Unit =
     hashRate.filterInPlace { case (_, (_, reported)) =>
       Duration.between(reported.toInstant, now.toInstant).toMillis < jsonRpcConfig.minerActiveTimeout.toMillis
     }
-  }
 
   private def reportActive(): Option[Date] = {
     val now = new Date()
@@ -154,7 +157,7 @@ class EthMiningService(
   }
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
-    consensus.ifEthash(ethash => {
+    consensus.ifEthash { ethash =>
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
@@ -164,11 +167,10 @@ class EthMiningService(
           log.error("failed to get ommer, mining block with empty ommers list", ex)
           OmmersPool.Ommers(Nil)
         }
-    })(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
+    }(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
-  private[jsonrpc] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] = {
+  private[jsonrpc] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] =
     consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
       Task.now(Left(JsonRpcError.ConsensusIsNotEthash))
     )
-  }
 }

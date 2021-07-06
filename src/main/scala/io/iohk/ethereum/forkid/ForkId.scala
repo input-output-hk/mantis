@@ -1,14 +1,14 @@
 package io.iohk.ethereum.forkid
 
 import java.util.zip.CRC32
-import java.nio.ByteBuffer
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.BlockchainConfig
+
+import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils._
 import io.iohk.ethereum.utils.Hex
-import io.iohk.ethereum.rlp._
 
 import RLPImplicitConversions._
 
@@ -30,7 +30,7 @@ object ForkId {
     new ForkId(crc.getValue(), next)
   }
 
-  val noFork = BigInt("1000000000000000000")
+  val noFork: BigInt = BigInt("1000000000000000000")
 
   def gatherForks(config: BlockchainConfig): List[BigInt] = {
     val maybeDaoBlock: Option[BigInt] = config.daoForkConfig.flatMap { daoConf =>
@@ -56,13 +56,12 @@ object ForkId {
 
   }
 
-  implicit val forkIdEnc = new RLPDecoder[ForkId] {
+  implicit val forkIdEnc: RLPDecoder[ForkId] = new RLPDecoder[ForkId] {
 
     def decode(rlp: RLPEncodeable): ForkId = rlp match {
-      case RLPList(hash, next) => {
+      case RLPList(hash, next) =>
         val i = bigIntFromEncodeable(next)
         ForkId(bigIntFromEncodeable(hash), if (i == 0) None else Some(i))
-      }
       case _ => throw new RuntimeException("Error when decoding ForkId")
     }
   }

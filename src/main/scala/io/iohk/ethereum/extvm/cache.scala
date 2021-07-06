@@ -1,11 +1,14 @@
 package io.iohk.ethereum.extvm
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.extvm.Implicits._
 
 import scala.collection.mutable
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.extvm.Implicits._
+import io.iohk.ethereum.utils.Logger
 
 class AccountCache(messageHandler: MessageHandler) extends Logger {
   private val cache = mutable.Map[Address, Option[Account]]()

@@ -1,7 +1,8 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.healthcheck.HealthcheckResult
 import monix.eval.Task
+
+import io.iohk.ethereum.healthcheck.HealthcheckResult
 
 final case class JsonRpcHealthcheck[Response](
     name: String,
@@ -9,13 +10,12 @@ final case class JsonRpcHealthcheck[Response](
     info: Option[String] = None
 ) {
 
-  def toResult: HealthcheckResult = {
+  def toResult: HealthcheckResult =
     healthCheck
       .fold(
         HealthcheckResult.error(name, _),
         result => HealthcheckResult.ok(name, info)
       )
-  }
 
   def withPredicate(message: String)(predicate: Response => Boolean): JsonRpcHealthcheck[Response] =
     copy(healthCheck = healthCheck.filterOrElse(predicate, message))

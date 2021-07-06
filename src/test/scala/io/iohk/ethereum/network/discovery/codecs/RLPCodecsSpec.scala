@@ -1,32 +1,42 @@
 package io.iohk.ethereum.network.discovery.codecs
 
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.flatspec.AnyFlatSpec
+import java.net.InetAddress
+
+import scala.reflect.ClassTag
+import scala.util.Random
+
+import _root_.io.iohk.ethereum.rlp.RLPException
 import io.iohk.scalanet.discovery.crypto.PublicKey
+import io.iohk.scalanet.discovery.ethereum.EthereumNodeRecord
+import io.iohk.scalanet.discovery.ethereum.Node
+import io.iohk.scalanet.discovery.ethereum.v4.Packet
+import io.iohk.scalanet.discovery.ethereum.v4.Payload
 import io.iohk.scalanet.discovery.hash.Hash
-import io.iohk.scalanet.discovery.ethereum.{Node, EthereumNodeRecord}
-import io.iohk.scalanet.discovery.ethereum.v4.{Packet, Payload}
-import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
-import io.iohk.ethereum.rlp.{RLPList, RLPEncoder, RLPDecoder, RLPValue, RLPEncodeable}
+import org.scalactic.Equality
+import org.scalatest.Assertion
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 import scodec.Codec
 import scodec.bits.BitVector
-import java.net.InetAddress
-import scala.util.Random
-import org.scalactic.Equality
-import scala.reflect.ClassTag
-import _root_.io.iohk.ethereum.rlp.RLPException
+
+import io.iohk.ethereum.network.discovery.Secp256k1SigAlg
+import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPEncoder
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPValue
 
 class RLPCodecsSpec extends AnyFlatSpec with Matchers {
   import io.iohk.ethereum.rlp.RLPImplicitConversions._
   import io.iohk.ethereum.rlp.RLPImplicits._
   import RLPCodecs._
 
-  implicit val sigalg = new Secp256k1SigAlg()
+  implicit val sigalg: Secp256k1SigAlg = new Secp256k1SigAlg()
 
   implicit val packetCodec: Codec[Packet] =
     Packet.packetCodec(allowDecodeOverMaxPacketSize = false)
 
-  val localhost = InetAddress.getByName("127.0.0.1")
+  val localhost: InetAddress = InetAddress.getByName("127.0.0.1")
 
   def randomBytes(n: Int): BitVector = {
     val size = Random.nextInt(n)
@@ -35,7 +45,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     BitVector(bytes)
   }
 
-  behavior of "RLPCodecs"
+  behavior.of("RLPCodecs")
 
   it should "encode a Ping with an ENR as 5 items" in {
     val ping = Payload.Ping(
@@ -113,7 +123,7 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
     // Structrual equality checker for RLPEncodeable.
     // It has different wrappers for items based on whether it was hand crafted or generated
     // by codecs, and the RLPValue has mutable arrays inside.
-    implicit val eqRLPList = new Equality[RLPEncodeable] {
+    implicit val eqRLPList: Equality[RLPEncodeable] = new Equality[RLPEncodeable] {
       override def areEqual(a: RLPEncodeable, b: Any): Boolean =
         (a, b) match {
           case (a: RLPList, b: RLPList) =>
@@ -127,16 +137,16 @@ class RLPCodecsSpec extends AnyFlatSpec with Matchers {
         }
     }
 
-    def name = implicitly[ClassTag[T]].runtimeClass.getSimpleName
+    def name: String = implicitly[ClassTag[T]].runtimeClass.getSimpleName
 
     def p: T
     def e: RLPEncodeable
 
-    def testEncode = RLPEncoder.encode(p) should equal(e)
-    def testDecode = RLPDecoder.decode[T](e) should equal(p)
+    def testEncode: Assertion = RLPEncoder.encode(p) should equal(e)
+    def testDecode: Assertion = RLPDecoder.decode[T](e) should equal(p)
   }
 
-  val examples = List(
+  val examples: List[RLPFixture[_ <: Payload]] = List(
     new RLPFixture[Payload.Ping] {
       override val p = Payload.Ping(
         version = 4,

@@ -1,19 +1,25 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.actor.ActorRef
-import io.iohk.ethereum.blockchain.sync.PeersClient
-import io.iohk.ethereum.blockchain.sync.PeersClient.{BlacklistPeer, NoSuitablePeer, Request, RequestFailed}
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.utils.Config.SyncConfig
-import monix.eval.Task
-import org.slf4j.Logger
 import akka.pattern.ask
 import akka.util.Timeout
-import io.iohk.ethereum.utils.FunctorOps._
+
+import monix.eval.Task
 
 import scala.concurrent.duration._
 import scala.util.Failure
+
+import org.slf4j.Logger
+
+import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
+import io.iohk.ethereum.blockchain.sync.PeersClient.NoSuitablePeer
+import io.iohk.ethereum.blockchain.sync.PeersClient.Request
+import io.iohk.ethereum.blockchain.sync.PeersClient.RequestFailed
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.FunctorOps._
 
 trait FetchRequest[A] {
   val peersClient: ActorRef
@@ -36,10 +42,10 @@ trait FetchRequest[A] {
 
   def blacklistPeerOnFailedRequest(msg: Any): Unit = msg match {
     case RequestFailed(peer, reason) => peersClient ! BlacklistPeer(peer.id, reason)
-    case _ => ()
+    case _                           => ()
   }
 
-  def handleRequestResult(fallback: A)(msg: Any): Task[A] = {
+  def handleRequestResult(fallback: A)(msg: Any): Task[A] =
     msg match {
       case failed: RequestFailed =>
         log.debug("Request failed due to {}", failed)
@@ -52,5 +58,4 @@ trait FetchRequest[A] {
       case PeersClient.Response(peer, msg) =>
         Task.now(makeAdaptedMessage(peer, msg))
     }
-  }
 }

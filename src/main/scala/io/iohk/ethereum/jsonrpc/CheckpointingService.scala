@@ -2,13 +2,19 @@ package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+
+import monix.eval.Task
+
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Block, Blockchain, BlockchainReader, Checkpoint}
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
-import monix.eval.Task
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 
 class CheckpointingService(
     blockchain: Blockchain,

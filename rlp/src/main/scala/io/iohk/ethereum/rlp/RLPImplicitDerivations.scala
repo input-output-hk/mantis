@@ -1,9 +1,17 @@
 package io.iohk.ethereum.rlp
 
-import shapeless.{HList, HNil, Lazy, ::, LabelledGeneric, <:!<, Witness}
-import shapeless.labelled.{FieldType, field}
-import scala.util.control.NonFatal
 import scala.reflect.ClassTag
+import scala.util.control.NonFatal
+
+import shapeless.::
+import shapeless.<:!<
+import shapeless.HList
+import shapeless.HNil
+import shapeless.LabelledGeneric
+import shapeless.Lazy
+import shapeless.Witness
+import shapeless.labelled.FieldType
+import shapeless.labelled.field
 
 /** Automatically derive RLP codecs for case classes. */
 object RLPImplicitDerivations {
@@ -15,7 +23,7 @@ object RLPImplicitDerivations {
       omitTrailingOptionals: Boolean
   )
   object DerivationPolicy {
-    val default = DerivationPolicy(omitTrailingOptionals = false)
+    val default: DerivationPolicy = DerivationPolicy(omitTrailingOptionals = false)
   }
 
   /** Support introspecting on what happened during encoding the tail. */
@@ -135,7 +143,7 @@ object RLPImplicitDerivations {
       policy: DerivationPolicy = DerivationPolicy.default
   ): RLPListDecoder[HNil] =
     RLPListDecoder {
-      case Nil => HNil -> Nil
+      case Nil                               => HNil -> Nil
       case _ if policy.omitTrailingOptionals => HNil -> Nil
       case items =>
         throw RLPException(
@@ -179,9 +187,8 @@ object RLPImplicitDerivations {
           tryDecode(subject, rlps.head) { rlp =>
             if (policy.omitTrailingOptionals && tInfos.forall(_.isOptional)) {
               // Expect that it's a value. We have a decoder for optional fields, so we have to wrap it into a list.
-              try {
-                hDecoder.value.decode(RLPList(rlp))
-              } catch {
+              try hDecoder.value.decode(RLPList(rlp))
+              catch {
                 case NonFatal(_) =>
                   // The trailing fields can be followed in the RLP list by additional items
                   // and random data which we cannot decode.

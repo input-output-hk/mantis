@@ -1,16 +1,23 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.{crypto, rlp}
-import io.iohk.ethereum.rlp.{RLPDecoder, RLPEncodeable, RLPList, RLPSerializable, rawDecode, encode => rlpEncode}
-import BlockHeaderImplicits._
-import io.iohk.ethereum.utils.ByteStringUtils
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 
-/**
-  * @param extraFields contains the new fields added in ECIPs 1097 and 1098 and can contain values:
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
+import io.iohk.ethereum.rlp
+import io.iohk.ethereum.rlp.RLPDecoder
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPSerializable
+import io.iohk.ethereum.rlp.rawDecode
+import io.iohk.ethereum.rlp.{encode => rlpEncode}
+import io.iohk.ethereum.utils.ByteStringUtils
+
+import BlockHeaderImplicits._
+
+/** @param extraFields contains the new fields added in ECIPs 1097 and 1098 and can contain values:
   *  - HefPreECIP1098: represents the ETC blocks without checkpointing nor treasury enabled
   *  - HefPostECIP1098: represents the ETC blocks with treasury enabled but not checkpointing
   *  - HefPostECIP1097: represents the ETC blocks with both checkpointing and treasury enabled
@@ -42,7 +49,7 @@ case class BlockHeader(
 
   val checkpoint: Option[Checkpoint] = extraFields match {
     case HefPostEcip1097(maybeCheckpoint) => maybeCheckpoint
-    case _ => None
+    case _                                => None
   }
 
   val hasCheckpoint: Boolean = checkpoint.isDefined
@@ -79,8 +86,7 @@ case class BlockHeader(
       s"}"
   }
 
-  /**
-    * calculates blockHash for given block header
+  /** calculates blockHash for given block header
     * @return - hash that can be used to get block bodies / receipts
     */
   lazy val hash: ByteString = ByteString(kec256(this.toBytes: Array[Byte]))
@@ -102,8 +108,7 @@ object BlockHeader {
 
   val EmptyOmmers: ByteString = ByteString(crypto.kec256(rlp.encode(RLPList())))
 
-  /**
-    * Given a block header, returns it's rlp encoded bytes without nonce and mix hash
+  /** Given a block header, returns it's rlp encoded bytes without nonce and mix hash
     *
     * @param blockHeader to be encoded without PoW fields
     * @return rlp.encode( [blockHeader.parentHash, ..., blockHeader.extraData] + extra fields )
@@ -115,7 +120,7 @@ object BlockHeader {
     val numberOfPowFields = 2
     val numberOfExtraFields = blockHeader.extraFields match {
       case HefPostEcip1097(_) => 1
-      case HefEmpty => 0
+      case HefEmpty           => 0
     }
 
     val preECIP1098Fields = rlpList.items.dropRight(numberOfPowFields + numberOfExtraFields)

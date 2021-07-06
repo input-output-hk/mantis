@@ -3,15 +3,23 @@ package io.iohk.ethereum.keystore
 import java.util.UUID
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.keystore.EncryptedKey._
-import org.json4s.JsonAST.{JObject, JString, JValue}
-import org.json4s.JsonDSL._
-import org.json4s.native.JsonMethods._
-import org.json4s.{CustomSerializer, DefaultFormats, Extraction, JField}
-import org.bouncycastle.util.encoders.Hex
 
 import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+import org.json4s.CustomSerializer
+import org.json4s.DefaultFormats
+import org.json4s.Extraction
+import org.json4s.Formats
+import org.json4s.JField
+import org.json4s.JsonAST.JObject
+import org.json4s.JsonAST.JString
+import org.json4s.JsonAST.JValue
+import org.json4s.JsonDSL._
+import org.json4s.native.JsonMethods._
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.keystore.EncryptedKey._
 
 object EncryptedKeyJsonCodec {
 
@@ -22,7 +30,7 @@ object EncryptedKeyJsonCodec {
     )
   )
 
-  private implicit val formats = DefaultFormats + byteStringSerializer
+  implicit private val formats: Formats = DefaultFormats + byteStringSerializer
 
   private def asHex(bs: ByteString): String =
     Hex.toHexString(bs.toArray)
@@ -67,11 +75,11 @@ object EncryptedKeyJsonCodec {
 
   private def encodeKdf(kdfParams: KdfParams): JObject =
     kdfParams match {
-      case ScryptParams(salt, n, r, p, dklen) =>
+      case ScryptParams(_, _, _, _, _) =>
         ("kdf" -> Scrypt) ~
           ("kdfparams" -> Extraction.decompose(kdfParams))
 
-      case Pbkdf2Params(salt, prf, c, dklen) =>
+      case Pbkdf2Params(_, _, _, _) =>
         ("kdf" -> Pbkdf2) ~
           ("kdfparams" -> Extraction.decompose(kdfParams))
     }

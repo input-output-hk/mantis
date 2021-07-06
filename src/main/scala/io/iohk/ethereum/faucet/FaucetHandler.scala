@@ -1,23 +1,26 @@
 package io.iohk.ethereum.faucet
 
-import akka.actor.{Actor, ActorLogging, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.Props
 import akka.util.ByteString
+
+import monix.execution.Scheduler.Implicits.global
+
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.faucet.FaucetHandler.WalletException
 import io.iohk.ethereum.faucet.FaucetStatus.WalletAvailable
 import io.iohk.ethereum.faucet.jsonrpc.WalletService
 import io.iohk.ethereum.keystore.KeyStore.KeyStoreError
 import io.iohk.ethereum.keystore.Wallet
-import monix.execution.Scheduler.Implicits.global
 
 class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends Actor with ActorLogging {
 
   import FaucetHandler.FaucetHandlerMsg._
   import FaucetHandler.FaucetHandlerResponse._
 
-  override def preStart(): Unit = {
+  override def preStart(): Unit =
     self ! Initialization
-  }
 
   override def receive: Receive = unavailable()
 
@@ -25,7 +28,7 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
     case Status =>
       sender() ! StatusResponse(FaucetStatus.FaucetUnavailable)
 
-    case Initialization => {
+    case Initialization =>
       log.info("Initialization called (faucet unavailable)")
       walletService.getWallet.runSyncUnsafe() match {
         case Left(error) =>
@@ -33,9 +36,8 @@ class FaucetHandler(walletService: WalletService, config: FaucetConfig) extends 
           throw new WalletException(error)
         case Right(wallet) =>
           log.info("Faucet initialization succeeded")
-          context become available(wallet)
+          context.become(available(wallet))
       }
-    }
     case SendFunds(addressTo: Address) =>
       log.info(
         s"SendFunds called, to: $addressTo, value: ${config.txValue}, gas price: ${config.txGasPrice}," +

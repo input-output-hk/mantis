@@ -1,21 +1,26 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-import io.iohk.ethereum.crypto._
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.utils.ByteUtils
-import io.iohk.ethereum.vm.MockWorldState._
-import Fixtures.blockchainConfig
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.crypto._
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.utils.ByteUtils
+import io.iohk.ethereum.vm.MockWorldState._
+
+import Fixtures.blockchainConfig
 
 // scalastyle:off object.name
 // scalastyle:off file.size.limit
 class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
 
-  val config = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
-  val startState = MockWorldState(touchedAccounts = Set.empty)
+  val config: EvmConfig = EvmConfig.ByzantiumConfigBuilder(blockchainConfig)
+  val startState: MockWorldState = MockWorldState(touchedAccounts = Set.empty)
   import config.feeSchedule._
 
   val fxt = new CallOpFixture(config, startState)
@@ -256,8 +261,7 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
 
       def callVarMemCost(config: EvmConfig): fxt.CallResult = {
 
-        /**
-          * Amount of memory which causes the improper OOG exception, if we don take memcost into account
+        /** Amount of memory which causes the improper OOG exception, if we don take memcost into account
           * during calculation of post EIP150 CALLOp gasCap: gasCap(state, gas, gExtra + memCost)
           */
         val gasFailingBeforeEIP150Fix = 141072
@@ -675,8 +679,7 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
     }
   }
 
-  /**
-    * This test should result in an OutOfGas error as (following the equations. on the DELEGATECALL opcode in the YP):
+  /** This test should result in an OutOfGas error as (following the equations. on the DELEGATECALL opcode in the YP):
     * DELEGATECALL cost = memoryCost + C_extra + C_gascap
     * and
     * memoryCost = 0 (result written were input was)
@@ -687,7 +690,6 @@ class CallOpcodesSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyC
     */
   "gas cost bigger than available gas DELEGATECALL" should {
 
-    val memCost = 0
     val c_extra = config.feeSchedule.G_call
     val startGas = c_extra - 1
     val gas = UInt256.MaxValue - c_extra + 1 //u_s[0]

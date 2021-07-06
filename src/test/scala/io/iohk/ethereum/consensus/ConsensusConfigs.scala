@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.domain.Address
@@ -9,7 +10,7 @@ import io.iohk.ethereum.domain.Address
 object ConsensusConfigs {
   final val blockCacheSize = 30
   final val coinbaseAddressNum = 42
-  final val coinbase = Address(coinbaseAddressNum)
+  final val coinbase: Address = Address(coinbaseAddressNum)
 
   //noinspection ScalaStyle
   final val ethashConfig = new EthashConfig(
@@ -27,5 +28,5 @@ object ConsensusConfigs {
     miningEnabled = false
   )
 
-  final val fullConsensusConfig = FullConsensusConfig(consensusConfig, ethashConfig)
+  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(consensusConfig, ethashConfig)
 }

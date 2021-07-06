@@ -1,8 +1,9 @@
 package io.iohk.ethereum.utils
 
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
   def byteArrayOfNItemsGen(n: Int): Gen[Array[Byte]] =
@@ -12,7 +13,7 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
     forAll(byteArrayOfNItemsGen(32)) { bytes =>
       val toInts = ByteUtils.bytesToInts(bytes, bigEndian = false)
       val asBytes = ByteUtils.intsToBytes(toInts, bigEndian = false)
-      assert(asBytes sameElements bytes)
+      assert(asBytes.sameElements(bytes))
     }
   }
 
@@ -20,7 +21,7 @@ class ByteUtilsSpec extends AnyFunSuite with ScalaCheckPropertyChecks {
     forAll(byteArrayOfNItemsGen(32)) { bytes =>
       val toInts = ByteUtils.bytesToInts(bytes, bigEndian = true)
       val asBytes = ByteUtils.intsToBytes(toInts, bigEndian = true)
-      assert(asBytes sameElements bytes)
+      assert(asBytes.sameElements(bytes))
     }
   }
 }

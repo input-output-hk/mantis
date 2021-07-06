@@ -1,8 +1,10 @@
 package io.iohk.ethereum
 
 import akka.util.ByteString
+
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+
 import io.iohk.ethereum.utils.Hex
 
 package object rlp {
@@ -82,19 +84,16 @@ package object rlp {
 
   def rawDecode(input: Array[Byte]): RLPEncodeable = RLP.rawDecode(input)
 
-  def tryDecode[T](subject: => String, encodeable: RLPEncodeable)(f: RLPEncodeable => T): T = {
-    try {
-      f(encodeable)
-    } catch {
+  def tryDecode[T](subject: => String, encodeable: RLPEncodeable)(f: RLPEncodeable => T): T =
+    try f(encodeable)
+    catch {
       case RLPException(message, encodeables) =>
         RLPException.decodeError(subject, message, encodeable :: encodeables)
       case NonFatal(ex) =>
         RLPException.decodeError(subject, ex.getMessage, List(encodeable))
     }
-  }
 
-  /**
-    * This function calculates the next element item based on a previous element starting position. It's meant to be
+  /** This function calculates the next element item based on a previous element starting position. It's meant to be
     * used while decoding a stream of RLPEncoded Items.
     *
     * @param data Data with encoded items

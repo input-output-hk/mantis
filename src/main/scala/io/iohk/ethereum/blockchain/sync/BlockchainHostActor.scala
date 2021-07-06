@@ -1,22 +1,34 @@
 package io.iohk.ethereum.blockchain.sync
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{BlockHeader, Blockchain, BlockchainReader}
-import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializable}
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockBodies, BlockHeaders, GetBlockBodies, GetBlockHeaders}
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, GetReceipts, NodeData, Receipts}
-import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
-import io.iohk.ethereum.network.EtcPeerManagerActor
-import io.iohk.ethereum.network.p2p.messages.Codes
 
-/**
-  * BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerManagerActor.PeerConfiguration
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockBodies
+import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts
+import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders._
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
+
+/** BlockchainHost actor is in charge of replying to the peer's requests for blockchain data, which includes both
   * node and block data.
   */
 class BlockchainHostActor(
@@ -33,14 +45,13 @@ class BlockchainHostActor(
   peerEventBusActor ! Subscribe(MessageClassifier(requestMsgsCodes, PeerSelector.AllPeers))
 
   override def receive: Receive = { case MessageFromPeer(message, peerId) =>
-    val responseOpt = handleBlockFastDownload(message) orElse handleEvmCodeMptFastDownload(message)
+    val responseOpt = handleBlockFastDownload(message).orElse(handleEvmCodeMptFastDownload(message))
     responseOpt.foreach { response =>
       etcPeerManagerActor ! EtcPeerManagerActor.SendMessage(response, peerId)
     }
   }
 
-  /**
-    * Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
+  /** Handles requests for node data, which includes both mpt nodes and evm code (both requested by hash).
     * Both types of node data are requested by the same GetNodeData message
     *
     * @param message to be processed
@@ -64,8 +75,7 @@ class BlockchainHostActor(
     case _ => None
   }
 
-  /**
-    * Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
+  /** Handles request for block data, which includes receipts, block bodies and headers (all requested by hash)
     *
     * @param message to be processed
     * @return message response if message is a request for block data or None if not
@@ -91,7 +101,7 @@ class BlockchainHostActor(
       blockNumber match {
         case Some(startBlockNumber) if startBlockNumber >= 0 && request.maxHeaders >= 0 && request.skip >= 0 =>
           val headersCount: BigInt =
-            request.maxHeaders min peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage
+            request.maxHeaders.min(peerConfiguration.fastSyncHostConfiguration.maxBlocksHeadersPerMessage)
 
           val range = if (request.reverse) {
             startBlockNumber to (startBlockNumber - (request.skip + 1) * headersCount + 1) by -(request.skip + 1)

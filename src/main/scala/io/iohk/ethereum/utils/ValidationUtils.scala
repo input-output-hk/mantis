@@ -2,8 +2,7 @@ package io.iohk.ethereum.utils
 
 object ValidationUtils {
 
-  /**
-    * This function combines multiple validations on object.
+  /** This function combines multiple validations on object.
     *
     * @param obj object to return if all validations pass .
     * @param eithers list of required validations.

@@ -1,20 +1,25 @@
 package io.iohk.ethereum.testmode
 
-import io.iohk.ethereum.domain.{Block, BlockHeader, Blockchain, BlockchainReader, SignedTransaction, UInt256}
-import io.iohk.ethereum.jsonrpc.EthBlocksService.{BlockByBlockHashResponse, BlockByNumberResponse}
-import io.iohk.ethereum.jsonrpc.{
-  BaseBlockResponse,
-  BaseTransactionResponse,
-  EthBlocksService,
-  JsonRpcError,
-  ServiceResponse,
-  TransactionData
-}
-import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.ByteStringUtils._
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.BaseBlockResponse
+import io.iohk.ethereum.jsonrpc.BaseTransactionResponse
+import io.iohk.ethereum.jsonrpc.EthBlocksService
+import io.iohk.ethereum.jsonrpc.EthBlocksService.BlockByBlockHashResponse
+import io.iohk.ethereum.jsonrpc.EthBlocksService.BlockByNumberResponse
+import io.iohk.ethereum.jsonrpc.JsonRpcError
+import io.iohk.ethereum.jsonrpc.ServiceResponse
+import io.iohk.ethereum.jsonrpc.TransactionData
 import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.utils.Logger
 
 class TestEthBlockServiceWrapper(
     blockchain: Blockchain,
@@ -24,8 +29,7 @@ class TestEthBlockServiceWrapper(
 ) extends EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
     with Logger {
 
-  /**
-    * Implements the eth_getBlockByHash method that fetches a requested block.
+  /** Implements the eth_getBlockByHash method that fetches a requested block.
     *
     * @param request with the hash of the block requested
     * @return the block requested or None if the client doesn't have the block
@@ -46,7 +50,7 @@ class TestEthBlockServiceWrapper(
         case BlockByBlockHashResponse(Some(baseBlockResponse)) =>
           val ethResponseOpt = for {
             hash <- baseBlockResponse.hash
-            fullBlock <- blockchainReader.getBlockByHash(hash) orElse blockQueue.getBlockByHash(hash)
+            fullBlock <- blockchainReader.getBlockByHash(hash).orElse(blockQueue.getBlockByHash(hash))
           } yield toEthResponse(fullBlock, baseBlockResponse)
 
           ethResponseOpt match {
@@ -60,8 +64,7 @@ class TestEthBlockServiceWrapper(
       }
     )
 
-  /**
-    * Implements the eth_getBlockByNumber method that fetches a requested block.
+  /** Implements the eth_getBlockByNumber method that fetches a requested block.
     *
     * @param request with the block requested (by it's number or by tag)
     * @return the block requested or None if the client doesn't have the block
@@ -71,10 +74,10 @@ class TestEthBlockServiceWrapper(
   ): ServiceResponse[EthBlocksService.BlockByNumberResponse] = super
     .getBlockByNumber(request)
     .map(
-      _.map(blockByBlockResponse => {
+      _.map { blockByBlockResponse =>
         val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
-      })
+      }
     )
 
   private def toEthResponse(block: Block, response: BaseBlockResponse) = EthBlockResponse(
@@ -103,11 +106,11 @@ class TestEthBlockServiceWrapper(
   private def toEthTransaction(
       block: Block,
       responseTransactions: Either[Seq[ByteString], Seq[BaseTransactionResponse]]
-  ): Either[Seq[ByteString], Seq[BaseTransactionResponse]] = responseTransactions.map(_ => {
+  ): Either[Seq[ByteString], Seq[BaseTransactionResponse]] = responseTransactions.map { _ =>
     block.body.transactionList.zipWithIndex.map { case (stx, transactionIndex) =>
       EthTransactionResponse(tx = TransactionData(stx, Some(block.header), Some(transactionIndex)))
     }
-  })
+  }
 }
 
 case class EthBlockResponse(

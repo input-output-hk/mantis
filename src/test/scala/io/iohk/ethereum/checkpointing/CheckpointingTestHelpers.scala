@@ -1,9 +1,11 @@
 package io.iohk.ethereum.checkpointing
 
 import akka.util.ByteString
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 object CheckpointingTestHelpers {
 

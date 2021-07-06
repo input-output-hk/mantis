@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.typed.ActorRef
 import akka.util.ByteString
+
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.domain.Block
 

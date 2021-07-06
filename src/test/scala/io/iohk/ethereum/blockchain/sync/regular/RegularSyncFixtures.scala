@@ -2,42 +2,54 @@ package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
 
-import akka.actor.{ActorRef, ActorSystem, PoisonPill}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.PoisonPill
 import akka.pattern.ask
 import akka.testkit.TestActor.AutoPilot
-import akka.testkit.{TestKitBase, TestProbe}
-import akka.util.{ByteString, Timeout}
+import akka.testkit.TestKitBase
+import akka.testkit.TestProbe
+import akka.util.ByteString
+import akka.util.Timeout
+
 import cats.Eq
+import cats.data.NonEmptyList
 import cats.implicits._
+
+import monix.eval.Task
+import monix.execution.Scheduler
+import monix.reactive.Observable
+import monix.reactive.subjects.ReplaySubject
+
+import scala.collection.mutable
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+import scala.math.BigInt
+import scala.reflect.ClassTag
+
+import org.scalamock.scalatest.AsyncMockFactory
+import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.ledger._
-import io.iohk.ethereum.network.EtcPeerManagerActor.{PeerInfo, RemoteStatus}
+import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
+import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ETH63.{GetNodeData, NodeData}
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.network.{Peer, PeerId}
+import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
-import monix.eval.Task
-import monix.execution.Scheduler
-import monix.reactive.Observable
-import monix.reactive.subjects.ReplaySubject
-import org.scalamock.scalatest.AsyncMockFactory
-import org.scalatest.matchers.should.Matchers
-
-import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.math.BigInt
-import scala.reflect.ClassTag
-import cats.data.NonEmptyList
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
@@ -148,20 +160,21 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val getSyncStatus: Task[SyncProtocol.Status] =
       Task.deferFuture((regularSync ? SyncProtocol.GetStatus).mapTo[SyncProtocol.Status])
 
-    def pollForStatus(predicate: SyncProtocol.Status => Boolean) = Observable
+    def pollForStatus(predicate: SyncProtocol.Status => Boolean): Task[SyncProtocol.Status] = Observable
       .repeatEvalF(getSyncStatus.delayExecution(10.millis))
-      .takeWhileInclusive(predicate andThen (!_))
+      .takeWhileInclusive(predicate.andThen(!_))
       .lastL
       .timeout(remainingOrDefault)
 
-    def fishForStatus[B](picker: PartialFunction[SyncProtocol.Status, B]) = Observable
+    def fishForStatus[B](picker: PartialFunction[SyncProtocol.Status, B]): Task[B] = Observable
       .repeatEvalF(getSyncStatus.delayExecution(10.millis))
       .collect(picker)
       .firstL
       .timeout(remainingOrDefault)
 
-    protected val results = mutable.Map[ByteString, Task[BlockImportResult]]()
-    protected val importedBlocksSet = mutable.Set[Block]()
+    protected val results: mutable.Map[ByteString, Task[BlockImportResult]] =
+      mutable.Map[ByteString, Task[BlockImportResult]]()
+    protected val importedBlocksSet: mutable.Set[Block] = mutable.Set[Block]()
     private val importedBlocksSubject = ReplaySubject[Block]()
     val importedBlocks: Observable[Block] = importedBlocksSubject
 
@@ -202,10 +215,10 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
         case PeersClient.Request(GetBlockHeaders(Left(minBlock), amount, _, _), _, _) =>
           val maxBlock = minBlock + amount
           val matchingHeaders = blocks
-            .filter(b => {
+            .filter { b =>
               val nr = b.number
               minBlock <= nr && nr < maxBlock
-            })
+            }
             .map(_.header)
             .sortBy(_.number)
           sender ! PeersClient.Response(defaultPeer, BlockHeaders(matchingHeaders))
@@ -346,7 +359,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     (blockImport
       .importBlock(_: Block)(_: Scheduler))
       .when(*, *)
-      .onCall((block, _) => {
+      .onCall { (block, _) =>
         if (block == newBlock) {
           importedNewBlock = true
           Task.now(
@@ -358,7 +371,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           }
           Task.now(BlockImportedToTop(Nil))
         }
-      })
+      }
 
     peersClient.setAutoPilot(new PeersClientAutoPilot)
 

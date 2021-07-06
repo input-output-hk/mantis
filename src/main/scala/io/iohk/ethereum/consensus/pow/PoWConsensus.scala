@@ -2,32 +2,40 @@ package io.iohk.ethereum
 package consensus
 package pow
 
-import akka.util.Timeout
-import akka.actor.typed.{ActorRef, DispatcherSelector}
+import akka.actor.typed.ActorRef
+import akka.actor.typed.DispatcherSelector
 import akka.actor.typed.scaladsl.adapter._
-import io.iohk.ethereum.consensus.Protocol._
-import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
-import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGenerator, PoWBlockGeneratorImpl, RestrictedPoWBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.{MockedMinerProtocol, MockedMinerResponse}
-import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
-import io.iohk.ethereum.consensus.pow.miners.{MinerProtocol, MockedMiner}
-import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.consensus.validators.Validators
-import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Blockchain, BlockchainReader, BlockchainImpl}
-import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
-import io.iohk.ethereum.ledger.BlockPreparator
-import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.{BlockchainConfig, Logger}
+import akka.util.Timeout
+
 import monix.eval.Task
 
 import scala.concurrent.duration._
 
-/**
-  * Implements standard Ethereum consensus (Proof of Work).
+import io.iohk.ethereum.consensus.Protocol._
+import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
+import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
+import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
+import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotExist
+import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
+import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.Node
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Logger
+
+/** Implements standard Ethereum consensus (Proof of Work).
   */
 class PoWConsensus private (
     val vm: VMImpl,
@@ -44,7 +52,7 @@ class PoWConsensus private (
 
   type Config = EthashConfig
 
-  private[this] final val _blockPreparator = new BlockPreparator(
+  final private[this] val _blockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
@@ -57,7 +65,7 @@ class PoWConsensus private (
   @volatile private[pow] var mockedMinerRef: Option[akka.actor.ActorRef] = None
 
   final val BlockForgerDispatcherId = "mantis.async.dispatchers.block-forger"
-  private implicit val timeout: Timeout = 5.seconds
+  implicit private val timeout: Timeout = 5.seconds
 
   override def sendMiner(msg: MinerProtocol): Unit =
     msg match {
@@ -72,11 +80,10 @@ class PoWConsensus private (
     }
 
   // no interactions are done with minerCoordinatorRef using the ask pattern
-  override def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse] = {
+  override def askMiner(msg: MockedMinerProtocol): Task[MockedMinerResponse] =
     mockedMinerRef
       .map(_.askFor[MockedMinerResponse](msg))
       .getOrElse(Task.now(MinerNotExist))
-  }
 
   private[this] val mutex = new Object
 
@@ -86,7 +93,7 @@ class PoWConsensus private (
    *
    * TODO further refactors should focus on extracting two types - one with a miner, one without - based on the config
    */
-  private[this] def startMiningProcess(node: Node, blockCreator: PoWBlockCreator): Unit = {
+  private[this] def startMiningProcess(node: Node, blockCreator: PoWBlockCreator): Unit =
     mutex.synchronized {
       if (minerCoordinatorRef.isEmpty && mockedMinerRef.isEmpty) {
         config.generic.protocol match {
@@ -112,21 +119,17 @@ class PoWConsensus private (
         sendMiner(MinerProtocol.StartMining)
       }
     }
-  }
 
-  private[this] def stopMiningProcess(): Unit = {
+  private[this] def stopMiningProcess(): Unit =
     sendMiner(MinerProtocol.StopMining)
-  }
 
-  /**
-    * This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+  /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
-  /**
-    * Starts the consensus protocol on the current `node`.
+  /** Starts the consensus protocol on the current `node`.
     */
-  def startProtocol(node: Node): Unit = {
+  def startProtocol(node: Node): Unit =
     if (config.miningEnabled) {
       log.info("Mining is enabled. Will try to start configured miner actor")
       val blockCreator = node.consensus match {
@@ -142,18 +145,16 @@ class PoWConsensus private (
 
       startMiningProcess(node, blockCreator)
     } else log.info("Not starting any miner actor because mining is disabled")
-  }
 
-  def stopProtocol(): Unit = {
+  def stopProtocol(): Unit =
     if (config.miningEnabled) {
       stopMiningProcess()
     }
-  }
 
   def protocol: Protocol = Protocol.PoW
 
   /** Internal API, used for testing */
-  protected def newBlockGenerator(validators: Validators): PoWBlockGenerator = {
+  protected def newBlockGenerator(validators: Validators): PoWBlockGenerator =
     validators match {
       case _validators: ValidatorsExecutor =>
         val blockPreparator = new BlockPreparator(
@@ -178,10 +179,9 @@ class PoWConsensus private (
       case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
-  }
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): PoWConsensus = {
+  def withValidators(validators: Validators): PoWConsensus =
     validators match {
       case _validators: ValidatorsExecutor =>
         val blockGenerator = newBlockGenerator(validators)
@@ -201,7 +201,6 @@ class PoWConsensus private (
       case _ =>
         wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
-  }
 
   def withVM(vm: VMImpl): PoWConsensus =
     new PoWConsensus(

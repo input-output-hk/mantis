@@ -3,19 +3,24 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.util.ByteString
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, _}
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.jsonrpc.EthUserService._
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils._
+
 import monix.execution.Scheduler.Implicits.global
+
 import org.scalactic.TypeCheckedTripleEquals
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.OptionValues
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum._
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.jsonrpc.EthUserService._
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.utils._
 
 class EthUserServiceSpec
     extends TestKit(ActorSystem("EthServiceSpec_ActorSystem"))
@@ -142,7 +147,7 @@ class EthUserServiceSpec
       storagesInstance.storages.evmCodeStorage,
       blockchainConfig
     )
-    val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
+    val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
   }
 
 }

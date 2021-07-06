@@ -1,18 +1,26 @@
 package io.iohk.ethereum.consensus.pow.miners
 
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
-import io.iohk.ethereum.Timeouts
-import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.{MiningSuccessful, MiningUnsuccessful}
-import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.{EthashUtils, MinerSpecSetup, PoWBlockCreator}
-import io.iohk.ethereum.consensus.validators.BlockHeaderValid
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.jsonrpc.EthInfoService
-import io.iohk.ethereum.utils.Config
+
+import scala.concurrent.duration.Duration
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.{Duration, FiniteDuration, _}
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.consensus.pow.EthashUtils
+import io.iohk.ethereum.consensus.pow.MinerSpecSetup
+import io.iohk.ethereum.consensus.pow.PoWBlockCreator
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.MiningSuccessful
+import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.MiningUnsuccessful
+import io.iohk.ethereum.consensus.pow.validators.PoWBlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValid
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.jsonrpc.EthInfoService
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 class KeccakMinerSpec extends AnyFlatSpec with Matchers {
   "KeccakMiner actor" should "mine valid blocks" in new TestSetup {
@@ -43,9 +51,9 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
   }
 
   trait TestSetup extends ScalaTestWithActorTestKit with MinerSpecSetup {
-    private implicit val durationTimeout: Duration = Timeouts.miningTimeout
+    implicit private val durationTimeout: Duration = Timeouts.miningTimeout
 
-    override lazy val blockchainConfig = Config.blockchains.blockchainConfig
+    override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
       .withUpdatedForkBlocks(_.copy(ecip1049BlockNumber = Some(0)))
     val powBlockHeaderValidator = new PoWBlockHeaderValidator(blockchainConfig)
 
@@ -67,16 +75,15 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
       checkAssertions(minedBlock, parentBlock)
     }
 
-    def startMining(parentBlock: Block): Block = {
+    def startMining(parentBlock: Block): Block =
       eventually {
         miner.processMining(parentBlock).map {
-          case MiningSuccessful => true
+          case MiningSuccessful   => true
           case MiningUnsuccessful => startMining(parentBlock)
         }
         val minedBlock = waitForMinedBlock
         minedBlock
       }
-    }
 
     private def checkAssertions(minedBlock: Block, parentBlock: Block): Unit = {
       minedBlock.body.transactionList shouldBe Seq(txToMine)

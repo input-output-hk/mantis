@@ -1,8 +1,14 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import akka.actor.{Actor, ActorLogging, ActorRef, Props, Scheduler}
+import akka.actor.Actor
+import akka.actor.ActorLogging
+import akka.actor.ActorRef
+import akka.actor.Props
+import akka.actor.Scheduler
+
+import io.iohk.ethereum.blockchain.sync.Blacklist
+import io.iohk.ethereum.blockchain.sync.PeerListSupportNg
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
-import io.iohk.ethereum.blockchain.sync.{Blacklist, PeerListSupportNg}
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class BlockBroadcasterActor(
@@ -17,11 +23,11 @@ class BlockBroadcasterActor(
     with PeerListSupportNg {
   import BlockBroadcasterActor._
 
-  override def receive: Receive = handlePeerListMessages orElse handleBroadcastMessages
+  override def receive: Receive = handlePeerListMessages.orElse(handleBroadcastMessages)
 
   private def handleBroadcastMessages: Receive = {
     case BroadcastBlock(newBlock) => broadcast.broadcastBlock(newBlock, handshakedPeers)
-    case BroadcastBlocks(blocks) => blocks.foreach(broadcast.broadcastBlock(_, handshakedPeers))
+    case BroadcastBlocks(blocks)  => blocks.foreach(broadcast.broadcastBlock(_, handshakedPeers))
   }
 }
 object BlockBroadcasterActor {

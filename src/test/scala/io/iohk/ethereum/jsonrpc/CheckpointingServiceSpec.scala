@@ -1,19 +1,29 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
-import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockchainImpl, BlockchainReader, Checkpoint}
-import io.iohk.ethereum.jsonrpc.CheckpointingService._
-import io.iohk.ethereum.{Fixtures, NormalPatience, WithActorSystemShutDown}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
+
 import monix.execution.Scheduler.Implicits.global
+
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Checkpoint
+import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.BlockQueue
 
 class CheckpointingServiceSpec
@@ -173,10 +183,10 @@ class CheckpointingServiceSpec
   }
 
   trait TestSetup {
-    val blockchain = mock[BlockchainImpl]
-    val blockchainReader = mock[BlockchainReader]
-    val blockQueue = mock[BlockQueue]
-    val syncController = TestProbe()
+    val blockchain: BlockchainImpl = mock[BlockchainImpl]
+    val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    val blockQueue: BlockQueue = mock[BlockQueue]
+    val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val service =
       new CheckpointingService(blockchain, blockchainReader, blockQueue, checkpointBlockGenerator, syncController.ref)

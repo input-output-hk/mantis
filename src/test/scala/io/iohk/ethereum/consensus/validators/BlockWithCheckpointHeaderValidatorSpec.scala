@@ -1,24 +1,32 @@
 package io.iohk.ethereum.consensus.validators
 
 import akka.util.ByteString
-import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
-import io.iohk.ethereum.consensus.validators.BlockHeaderError._
-import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
-import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.ledger.BloomFilter
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils}
-import io.iohk.ethereum.{Fixtures, ObjectGenerators, crypto}
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.Assertion
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.validators.BlockHeaderError._
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.ECDSASignatureImplicits.ECDSASignatureOrdering
+import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BloomFilter
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
+
 import ByteStringUtils.byteStringOrdering
 
 class BlockWithCheckpointHeaderValidatorSpec
@@ -94,7 +102,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if created based on invalid timestamp" in new TestSetup {
-    forAll(longGen suchThat (_ != validBlockParentHeader.unixTimestamp + 1)) { timestamp =>
+    forAll(longGen.suchThat(_ != validBlockParentHeader.unixTimestamp + 1)) { timestamp =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(unixTimestamp = timestamp)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderTimestampError))
@@ -102,7 +110,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if difficulty is different than parent difficulty" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParentHeader.difficulty)) { difficulty =>
+    forAll(bigIntGen.suchThat(_ != validBlockParentHeader.difficulty)) { difficulty =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(difficulty = difficulty)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(
@@ -112,7 +120,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if gas used is not zero" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != UInt256.Zero.toBigInt)) { gasUsed =>
+    forAll(bigIntGen.suchThat(_ != UInt256.Zero.toBigInt)) { gasUsed =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasUsed = gasUsed)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(validateResult == Left(HeaderGasUsedError))
@@ -120,7 +128,7 @@ class BlockWithCheckpointHeaderValidatorSpec
   }
 
   it should "return failure if gas limit is different than parent gas limit" in new TestSetup {
-    forAll(bigIntGen suchThat (_ != validBlockParentHeader.gasLimit)) { gasLimit =>
+    forAll(bigIntGen.suchThat(_ != validBlockParentHeader.gasLimit)) { gasLimit =>
       val blockHeader = validBlockHeaderWithCheckpoint.copy(gasLimit = gasLimit)
       val validateResult = blockHeaderValidator.validate(blockHeader, validBlockParentHeader)
       assert(
@@ -131,7 +139,7 @@ class BlockWithCheckpointHeaderValidatorSpec
 
   it should "return failure if created based on invalid number" in new TestSetup {
     forAll(
-      longGen suchThat (num =>
+      longGen.suchThat(num =>
         num != validBlockParentHeader.number + 1 && num >= config.forkBlockNumbers.ecip1097BlockNumber
       )
     ) { number =>
@@ -206,7 +214,6 @@ class BlockWithCheckpointHeaderValidatorSpec
     val invalidCheckpoint = Checkpoint((sameSignerSig +: validCheckpoint.signatures).sorted)
 
     // verify that we have 2 signatures from the same signer
-    import Ordering.Implicits._
     val actualSigners = invalidCheckpoint.signatures.flatMap(_.publicKey(validBlockParent.hash)).sortBy(_.toSeq)
     val duplicatedSigner = ByteString(crypto.pubKeyFromKeyPair(keys.head))
     val expectedSigners = (keys.map(kp => ByteString(crypto.pubKeyFromKeyPair(kp))) :+ duplicatedSigner).sorted
@@ -245,7 +252,7 @@ class BlockWithCheckpointHeaderValidatorSpec
     val validBlockParent = Fixtures.Blocks.ValidBlock.block
     val validBlockParentHeader = validBlockParent.header
 
-    final val checkpointPubKeys =
+    final val checkpointPubKeys: Set[ByteString] =
       Set(
         // prv ee4fd3a153f6d66918d7a54e33b8fbafcb6a786551306d1248e62bef76e8fe52
         ByteStringUtils.string2hash(
@@ -272,7 +279,7 @@ class BlockWithCheckpointHeaderValidatorSpec
         checkpointPubKeys = checkpointPubKeys
       )
 
-    val keys = Seq(
+    val keys: Seq[AsymmetricCipherKeyPair] = Seq(
       crypto.keyPairFromPrvKey(
         ByteStringUtils.string2hash("ee4fd3a153f6d66918d7a54e33b8fbafcb6a786551306d1248e62bef76e8fe52").toArray
       ),
@@ -281,7 +288,7 @@ class BlockWithCheckpointHeaderValidatorSpec
       )
     )
 
-    val validCheckpoint = Checkpoint(
+    val validCheckpoint: Checkpoint = Checkpoint(
       CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockParentHeader.hash)
     )
 
@@ -294,11 +301,11 @@ class BlockWithCheckpointHeaderValidatorSpec
           Right(BlockHeaderValid)
       }
 
-    val blockHeaderValidator = blockHeaderValidatorBuilder(config)
+    val blockHeaderValidator: BlockHeaderValidatorSkeleton = blockHeaderValidatorBuilder(config)
 
     val checkpointBlockGenerator = new CheckpointBlockGenerator
 
-    val validBlockHeaderWithCheckpoint =
+    val validBlockHeaderWithCheckpoint: BlockHeader =
       checkpointBlockGenerator
         .generate(
           validBlockParent,
@@ -306,19 +313,21 @@ class BlockWithCheckpointHeaderValidatorSpec
         )
         .header
 
-    val randomSizeByteStringGenerator = randomSizeByteStringGen(0, 32)
+    val randomSizeByteStringGenerator: Gen[ByteString] = randomSizeByteStringGen(0, 32)
 
     def getBlockHeaderByHashMock(blockHeaders: Seq[BlockHeader])(hash: ByteString): Option[BlockHeader] =
       blockHeaders.find(_.hash == hash)
-    val getBlockHeaderWithParent = getBlockHeaderByHashMock(Seq(validBlockParentHeader)) _
-    val getBlockHeaderWithNone = getBlockHeaderByHashMock(Nil) _
+    val getBlockHeaderWithParent: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(
+      Seq(validBlockParentHeader)
+    ) _
+    val getBlockHeaderWithNone: ByteString => Option[BlockHeader] = getBlockHeaderByHashMock(Nil) _
 
     def testOfEmptyByteString(
         invalidBlockHeaderCreator: ByteString => BlockHeader,
         fieldName: String,
         emptyValue: ByteString = ByteString.empty
-    ): Assertion = {
-      forAll(randomSizeByteStringGenerator suchThat (_ != emptyValue)) { byteString =>
+    ): Assertion =
+      forAll(randomSizeByteStringGenerator.suchThat(_ != emptyValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator
@@ -327,14 +336,13 @@ class BlockWithCheckpointHeaderValidatorSpec
           )
         )
       }
-    }
 
     def testOfTheSameValueAsParent(
         invalidBlockHeaderCreator: ByteString => BlockHeader,
         fieldName: String,
         filteredValue: ByteString
-    ): Assertion = {
-      forAll(randomSizeByteStringGenerator suchThat (_ != filteredValue)) { byteString =>
+    ): Assertion =
+      forAll(randomSizeByteStringGenerator.suchThat(_ != filteredValue)) { byteString =>
         val invalidBlockHeader = invalidBlockHeaderCreator(byteString)
         assert(
           blockHeaderValidator
@@ -343,7 +351,6 @@ class BlockWithCheckpointHeaderValidatorSpec
           )
         )
       }
-    }
 
   }
 

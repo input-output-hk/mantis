@@ -2,8 +2,9 @@ package io.iohk.ethereum.db.dataSource
 
 import java.nio.file.Files
 
-import io.iohk.ethereum.db.storage.Namespaces
 import org.scalatest.flatspec.AnyFlatSpec
+
+import io.iohk.ethereum.db.storage.Namespaces
 
 class RocksDbDataSourceTest extends AnyFlatSpec with DataSourceTestBehavior {
 
@@ -26,5 +27,5 @@ class RocksDbDataSourceTest extends AnyFlatSpec with DataSourceTestBehavior {
     )
   }
 
-  it should behave like dataSource(createDataSource)
+  (it should behave).like(dataSource(createDataSource))
 }

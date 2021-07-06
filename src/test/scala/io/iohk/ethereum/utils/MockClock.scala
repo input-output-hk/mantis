@@ -1,6 +1,8 @@
 package io.iohk.ethereum.utils
 
-import java.time.{Clock, Instant, ZoneId}
+import java.time.Clock
+import java.time.Instant
+import java.time.ZoneId
 
 class MockClock(
     private var currentTimeMillis: Long = System.currentTimeMillis,

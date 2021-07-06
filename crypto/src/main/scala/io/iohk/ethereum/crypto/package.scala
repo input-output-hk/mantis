@@ -4,14 +4,20 @@ import java.nio.charset.StandardCharsets
 import java.security.SecureRandom
 
 import akka.util.ByteString
-import io.iohk.ethereum.utils.ByteUtils
+
 import org.bouncycastle.asn1.sec.SECNamedCurves
 import org.bouncycastle.asn1.x9.X9ECParameters
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import org.bouncycastle.crypto.digests.{KeccakDigest, RIPEMD160Digest, SHA256Digest}
-import org.bouncycastle.crypto.generators.{ECKeyPairGenerator, PKCS5S2ParametersGenerator, SCrypt}
+import org.bouncycastle.crypto.digests.KeccakDigest
+import org.bouncycastle.crypto.digests.RIPEMD160Digest
+import org.bouncycastle.crypto.digests.SHA256Digest
+import org.bouncycastle.crypto.generators.ECKeyPairGenerator
+import org.bouncycastle.crypto.generators.PKCS5S2ParametersGenerator
+import org.bouncycastle.crypto.generators.SCrypt
 import org.bouncycastle.crypto.params._
 import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.utils.ByteUtils
 
 package object crypto {
 

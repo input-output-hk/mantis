@@ -1,11 +1,14 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
-import org.bouncycastle.util.encoders.Hex
 
 object ETH61 {
 
@@ -22,7 +25,7 @@ object ETH61 {
     implicit class NewBlockHashesDec(val bytes: Array[Byte]) extends AnyVal {
       def toNewBlockHashes: NewBlockHashes = rawDecode(bytes) match {
         case rlpList: RLPList => NewBlockHashes(rlpList.items.map(e => ByteString(e: Array[Byte])))
-        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
+        case _                => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
 
     }
@@ -47,7 +50,7 @@ object ETH61 {
     implicit class BlockHashesFromNumberDec(val bytes: Array[Byte]) extends AnyVal {
       def toBlockHashesFromNumber: BlockHashesFromNumber = rawDecode(bytes) match {
         case RLPList(number, maxBlocks) => BlockHashesFromNumber(number, maxBlocks)
-        case _ => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
+        case _                          => throw new RuntimeException("Cannot decode BlockHashesFromNumber")
       }
     }
   }

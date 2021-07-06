@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
 import org.bouncycastle.util.encoders.Hex
 
 object Transaction {

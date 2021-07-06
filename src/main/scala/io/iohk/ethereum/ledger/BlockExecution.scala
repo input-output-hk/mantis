@@ -1,15 +1,18 @@
 package io.iohk.ethereum.ledger
 
+import cats.implicits._
+
+import scala.annotation.tailrec
+
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockExecutionError.MissingParentError
 import io.iohk.ethereum.ledger.BlockResult
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, DaoForkConfig, Logger}
-import io.iohk.ethereum.vm.EvmConfig
-
-import scala.annotation.tailrec
-import cats.implicits._
-import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.DaoForkConfig
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.vm.EvmConfig
 
 class BlockExecution(
     blockchain: BlockchainImpl,
@@ -58,7 +61,7 @@ class BlockExecution(
   }
 
   /** Executes a block (executes transactions and pays rewards) */
-  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] = {
+  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] =
     for {
       parentHeader <- blockchainReader
         .getBlockHeaderByHash(block.header.parentHash)
@@ -71,9 +74,8 @@ class BlockExecution(
       // State root hash needs to be up-to-date for validateBlockAfterExecution
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
-  }
 
-  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader): InMemoryWorldStateProxy = {
+  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       blockchain.getBackingMptStorage(block.header.number),
@@ -83,7 +85,6 @@ class BlockExecution(
       noEmptyAccounts = EvmConfig.forBlock(parentHeader.number, blockchainConfig).noEmptyAccounts,
       ethCompatibleStorage = blockchainConfig.ethCompatibleStorage
     )
-  }
 
   /** This function runs transactions
     *
@@ -131,7 +132,7 @@ class BlockExecution(
   private def drainDaoForkAccounts(
       worldState: InMemoryWorldStateProxy,
       daoForkConfig: DaoForkConfig
-  ): InMemoryWorldStateProxy = {
+  ): InMemoryWorldStateProxy =
     daoForkConfig.refundContract match {
       case Some(refundContractAddress) =>
         daoForkConfig.drainList.foldLeft(worldState) { (ws, address) =>
@@ -141,7 +142,6 @@ class BlockExecution(
         }
       case None => worldState
     }
-  }
 
   /** Executes and validates a list of blocks, storing the results in the blockchain.
     *
@@ -161,7 +161,7 @@ class BlockExecution(
         remainingBlocksIncOrder: List[Block],
         parentWeight: ChainWeight,
         error: Option[BlockExecutionError]
-    ): (List[BlockData], Option[BlockExecutionError]) = {
+    ): (List[BlockData], Option[BlockExecutionError]) =
       if (remainingBlocksIncOrder.isEmpty) {
         (executedBlocksDecOrder.reverse, None)
       } else {
@@ -176,7 +176,6 @@ class BlockExecution(
             (executedBlocksDecOrder.reverse, Some(executionError))
         }
       }
-    }
 
     go(List.empty[BlockData], blocks, parentChainWeight, None)
   }

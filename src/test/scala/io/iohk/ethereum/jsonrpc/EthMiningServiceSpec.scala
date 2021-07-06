@@ -1,35 +1,51 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.blocks.{PendingBlock, PendingBlockAndState}
-import io.iohk.ethereum.consensus.pow.blocks.{PoWBlockGenerator, RestrictedPoWBlockGeneratorImpl}
-import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
-import io.iohk.ethereum.consensus.{ConsensusConfigs, TestConsensus}
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.db.storage.AppStateStorage
-import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight, UInt256}
-import io.iohk.ethereum.jsonrpc.EthMiningService._
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
-import io.iohk.ethereum.ledger.{InMemoryWorldStateProxy, StxLedger}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.nodebuilder.ApisBuilder
-import io.iohk.ethereum.ommers.OmmersPool
-import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.{ByteStringUtils, Config}
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
+
 import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration.DurationInt
+import scala.concurrent.duration.FiniteDuration
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.blocks.PendingBlock
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
+import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
+import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.EthMiningService._
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.nodebuilder.ApisBuilder
+import io.iohk.ethereum.ommers.OmmersPool
+import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Config
 
 class EthMiningServiceSpec
     extends TestKit(ActorSystem("EthMiningServiceSpec_ActorSystem"))
@@ -215,19 +231,19 @@ class EthMiningServiceSpec
 
   // NOTE TestSetup uses Ethash consensus; check `consensusConfig`.
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
-    val blockGenerator = mock[PoWBlockGenerator]
-    val appStateStorage = mock[AppStateStorage]
+    val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
+    val appStateStorage: AppStateStorage = mock[AppStateStorage]
     override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
-    val syncingController = TestProbe()
-    val pendingTransactionsManager = TestProbe()
-    val ommersPool = TestProbe()
+    val syncingController: TestProbe = TestProbe()
+    val pendingTransactionsManager: TestProbe = TestProbe()
+    val ommersPool: TestProbe = TestProbe()
 
     val minerActiveTimeout: FiniteDuration = 5.seconds
     val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
-    lazy val minerKey = crypto.keyPairFromPrvKey(
+    lazy val minerKey: AsymmetricCipherKeyPair = crypto.keyPairFromPrvKey(
       ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
     )
 
@@ -244,7 +260,7 @@ class EthMiningServiceSpec
       minerKey
     )
 
-    val jsonRpcConfig = JsonRpcConfig(Config.config, available)
+    val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     lazy val ethMiningService = new EthMiningService(
       blockchain,
@@ -258,7 +274,7 @@ class EthMiningServiceSpec
     )
 
     val difficulty = 131072
-    val parentBlock = Block(
+    val parentBlock: Block = Block(
       header = BlockHeader(
         parentHash = ByteString.empty,
         ommersHash = ByteString.empty,
@@ -278,7 +294,7 @@ class EthMiningServiceSpec
       ),
       body = BlockBody.empty
     )
-    val block = Block(
+    val block: Block = Block(
       header = BlockHeader(
         parentHash = parentBlock.header.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
@@ -298,11 +314,11 @@ class EthMiningServiceSpec
       ),
       body = BlockBody.empty
     )
-    val seedHash = ByteString(Hex.decode("00" * 32))
-    val powHash = ByteString(kec256(getEncodedWithoutNonce(block.header)))
-    val target = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
+    val seedHash: ByteString = ByteString(Hex.decode("00" * 32))
+    val powHash: ByteString = ByteString(kec256(getEncodedWithoutNonce(block.header)))
+    val target: ByteString = ByteString((BigInt(2).pow(256) / difficulty).toByteArray)
 
-    val fakeWorld = InMemoryWorldStateProxy(
+    val fakeWorld: InMemoryWorldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
       blockchain.getReadOnlyMptStorage(),
       (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),

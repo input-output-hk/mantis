@@ -1,14 +1,16 @@
 package io.iohk.ethereum.jsonrpc.client
 
 import akka.util.ByteString
+
+import scala.util.Try
+
 import io.circe._
 import io.circe.syntax._
+import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.NumericUtils._
 import io.iohk.ethereum.utils.StringUtils
-import org.bouncycastle.util.encoders.Hex
-
-import scala.util.Try
 
 object CommonJsonCodecs {
   implicit val decodeBigInt: Decoder[BigInt] = { (c: HCursor) =>

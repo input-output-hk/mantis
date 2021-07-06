@@ -1,29 +1,36 @@
 package io.iohk.ethereum.mpt
 
 import java.nio.ByteBuffer
-import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.{DataSourceUpdate, EphemDataSource}
-import io.iohk.ethereum.db.storage._
-import io.iohk.ethereum.db.storage.pruning.BasicPruning
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.{MPTException, defaultByteArraySerializable}
-import io.iohk.ethereum.proof.MptProofVerifier
-import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
-import org.scalacheck.{Arbitrary, Gen}
-import org.bouncycastle.util.encoders.Hex
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-import scala.util.{Random, Try}
-import org.scalatest.funsuite.AnyFunSuite
+import akka.util.ByteString
 
 import scala.collection.immutable.ArraySeq
+import scala.util.Random
+import scala.util.Try
+
+import org.bouncycastle.util.encoders.Hex
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
+import org.scalatest.funsuite.AnyFunSuite
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.dataSource.DataSourceUpdate
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage._
+import io.iohk.ethereum.db.storage.pruning.BasicPruning
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.defaultByteArraySerializable
+import io.iohk.ethereum.proof.MptProofVerifier
+import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val dataSource: EphemDataSource = EphemDataSource()
   val (stateStorage, emptyNodeStorage, _) = StateStorage.createTestStateStorage(dataSource)
-  val emptyEphemNodeStorage = stateStorage.getBackingStorage(0)
-  val emptyMpt = MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
+  val emptyEphemNodeStorage: MptStorage = stateStorage.getBackingStorage(0)
+  val emptyMpt: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
+    MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
 
   implicit val intByteArraySerializable: ByteArraySerializable[Int] = new ByteArraySerializable[Int] {
     override def toBytes(input: Int): Array[Byte] = {
@@ -52,7 +59,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val collapsed = MptTraversals.collapseTrie(unfoldedTrie)
 
       // then rootHash
-      assert(collapsed._1.hashNode sameElements trie.getRootHash)
+      assert(collapsed._1.hashNode.sameElements(trie.getRootHash))
 
       // then can recreate MPT
       val newTrie = MerklePatriciaTrie[Int, Int](collapsed._1.hashNode, emptyEphemNodeStorage)
@@ -69,7 +76,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val encoded = MptTraversals.encodeNode(unfoldedTrieNode)
       val decoded = MptTraversals.decodeNode(encoded)
 
-      assert(unfoldedTrieNode.hash sameElements decoded.hash)
+      assert(unfoldedTrieNode.hash.sameElements(decoded.hash))
     }
   }
 
@@ -87,7 +94,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       assertNotHave(trieAfterDelete, keyValueToDelete)
 
       val trieWithKeyValueLeft = addEveryKeyValuePair(keyValueLeft)
-      assert(trieAfterDelete.getRootHash sameElements trieWithKeyValueLeft.getRootHash)
+      assert(trieAfterDelete.getRootHash.sameElements(trieWithKeyValueLeft.getRootHash))
     }
   }
 
@@ -98,7 +105,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val keyValueListShuffle = Random.shuffle(keyValueList)
       val trieShuffled = addEveryKeyValuePair(keyValueListShuffle)
 
-      assert(trie.getRootHash sameElements trieShuffled.getRootHash)
+      assert(trie.getRootHash.sameElements(trieShuffled.getRootHash))
     }
   }
 
@@ -106,7 +113,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
   test("Remove key from an empty tree") {
     val emptyTrie = MerklePatriciaTrie[Int, Int](emptyEphemNodeStorage)
     val afterDeleteTrie = emptyTrie.remove(1)
-    assert(afterDeleteTrie.getRootHash sameElements emptyTrie.getRootHash)
+    assert(afterDeleteTrie.getRootHash.sameElements(emptyTrie.getRootHash))
   }
 
   test("Remove a key that does not exist") {
@@ -139,10 +146,10 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val trieWithTwoElements = trieWithOneElement.put(key2, val1)
     val obtained1 = trieWithTwoElements.get(key1)
     assert(obtained1.isDefined)
-    assert(obtained1.get sameElements val1)
+    assert(obtained1.get.sameElements(val1))
     val obtained2 = trieWithTwoElements.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val1)
+    assert(obtained2.get.sameElements(val1))
   }
 
   test("Insert two (key, value) pairs with one hex or more in common") {
@@ -153,10 +160,10 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val trieWithTwoElements = trieWithOneElement.put(key2, val1)
     val obtained1 = trieWithTwoElements.get(key1)
     assert(obtained1.isDefined)
-    assert(obtained1.get sameElements val1)
+    assert(obtained1.get.sameElements(val1))
     val obtained2 = trieWithTwoElements.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val1)
+    assert(obtained2.get.sameElements(val1))
   }
 
   test("Insert two (key, value) pairs with the same key") {
@@ -167,7 +174,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val trieAfterSecondInsert = trieWithOneElement.put(key1, val2)
     val obtained2 = trieAfterSecondInsert.get(key1)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
+    assert(obtained2.get.sameElements(val2))
   }
 
   test("Insert 3 (key, value) pairs with different first hex") {
@@ -182,20 +189,20 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val trieWithThreeElement = trieWithTwoElement.put(key3, val3)
     val obtained1 = trieWithThreeElement.get(key1)
     assert(obtained1.isDefined)
-    assert(obtained1.get sameElements val1)
+    assert(obtained1.get.sameElements(val1))
     val obtained2 = trieWithThreeElement.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
+    assert(obtained2.get.sameElements(val2))
     val obtained3 = trieWithThreeElement.get(key3)
     assert(obtained3.isDefined)
-    assert(obtained3.get sameElements val3)
+    assert(obtained3.get.sameElements(val3))
   }
 
   test("Multiple insertions") {
     val keys = List("123456", "234567", "123467", "12346789", "0123").map(Hex.decode)
     val vals = List("01", "02", "03", "04", "05").map(Hex.decode)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     assertCanGetEveryKeyValues(trie, keysWithVal)
   }
@@ -207,10 +214,10 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       )
     val vals = List("01", "02", "03", "04", "05", "06", "07", "08", "09", "10").map(Hex.decode)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     val (keysWithValToDelete, keysWithValLeft) = keysWithVal.splitAt(3)
-    val trieAfterDelete = keysWithValToDelete.foldLeft(trie) { (recTrie, elem) => recTrie.remove(elem._1) }
+    val trieAfterDelete = keysWithValToDelete.foldLeft(trie)((recTrie, elem) => recTrie.remove(elem._1))
     assertCanGetEveryKeyValues(trieAfterDelete, keysWithValLeft)
     assertNotHave(trieAfterDelete, keysWithValToDelete)
     trieAfterDelete.get(Hex.decode("01"))
@@ -224,7 +231,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val keys = List(key1, key2, key3)
     val vals = List(val1, val1, val1)
     val keysWithVal = keys.zip(vals)
-    val trie = keysWithVal.foldLeft(emptyMpt) { (recTrie, elem) => recTrie.put(elem._1, elem._2) }
+    val trie = keysWithVal.foldLeft(emptyMpt)((recTrie, elem) => recTrie.put(elem._1, elem._2))
 
     assertCanGetEveryKeyValues(trie, keysWithVal)
   }
@@ -240,7 +247,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(obtained1.isEmpty)
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
+    assert(obtained2.get.sameElements(val2))
   }
 
   test("Insert 2 (key-value) pairs with more than one hex in common and then delete one of them") {
@@ -254,7 +261,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(obtained1.isEmpty)
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
+    assert(obtained2.get.sameElements(val2))
   }
 
   test(
@@ -270,8 +277,8 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(obtained1.isEmpty)
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
-    assert(trieAfterDelete.getRootHash sameElements emptyMpt.put(key2, val2).getRootHash)
+    assert(obtained2.get.sameElements(val2))
+    assert(trieAfterDelete.getRootHash.sameElements(emptyMpt.put(key2, val2).getRootHash))
   }
 
   test(
@@ -287,8 +294,8 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(obtained1.isEmpty)
     val obtained2 = trieAfterDelete.get(key2)
     assert(obtained2.isDefined)
-    assert(obtained2.get sameElements val2)
-    assert(trieAfterDelete.getRootHash sameElements emptyMpt.put(key2, val2).getRootHash)
+    assert(obtained2.get.sameElements(val2))
+    assert(trieAfterDelete.getRootHash.sameElements(emptyMpt.put(key2, val2).getRootHash))
   }
 
   test("Remove of a trie with an extension whose next is not on source") {
@@ -331,9 +338,9 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val key1Get = trie.get(key1)
     val key2Get = trie.get(key2)
     val key3Get = trie.get(key3)
-    assert(key1Get.isDefined && (key1Get.get sameElements key1))
-    assert(key2Get.isDefined && (key2Get.get sameElements key2))
-    assert(key3Get.isDefined && (key3Get.get sameElements val3))
+    assert(key1Get.isDefined && (key1Get.get.sameElements(key1)))
+    assert(key2Get.isDefined && (key2Get.get.sameElements(key2)))
+    assert(key3Get.isDefined && (key3Get.get.sameElements(val3)))
   }
 
   test("Remove of a key (not in trie) whose value should be in a branch node") {
@@ -341,7 +348,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val key2: Array[Byte] = Hex.decode("11f0")
     val trieWithBranch = emptyMpt.put(key1, key1).put(key2, key2)
     val trieAfterDelete = trieWithBranch.remove(Hex.decode("11"))
-    assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
+    assert(trieAfterDelete.getRootHash.sameElements(trieWithBranch.getRootHash))
   }
 
   test("Remove of a key (not in trie) that should be in the child of a BranchNode that is not present") {
@@ -349,7 +356,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val key2: Array[Byte] = Hex.decode("11f0")
     val trieWithBranch = emptyMpt.put(key1, key1).put(key2, key2)
     val trieAfterDelete = trieWithBranch.remove(Hex.decode("11a0"))
-    assert(trieAfterDelete.getRootHash sameElements trieWithBranch.getRootHash)
+    assert(trieAfterDelete.getRootHash.sameElements(trieWithBranch.getRootHash))
   }
 
   test("Invalid root hash should return an error accordingly") {
@@ -439,8 +446,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
 
   }
 
-  /**
-    * The MPT tested in this example has duplicated nodes as the branch node has two children with the same node: LeafNode("a", value)
+  /** The MPT tested in this example has duplicated nodes as the branch node has two children with the same node: LeafNode("a", value)
     * When one of the key-value that uses one of this nodes is removed, this shouldn't affect the use of the other key-value
     * which shares the same LeafNode
     */
@@ -455,18 +461,17 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val trieAfterRemoval = trie.remove(key1)
 
     //Old trie still works
-    assert(trie.get(key1).getOrElse(Array.emptyByteArray) sameElements value)
-    assert(trie.get(key2).getOrElse(Array.emptyByteArray) sameElements value)
-    assert(trie.get(key3).getOrElse(Array.emptyByteArray) sameElements value)
+    assert(trie.get(key1).getOrElse(Array.emptyByteArray).sameElements(value))
+    assert(trie.get(key2).getOrElse(Array.emptyByteArray).sameElements(value))
+    assert(trie.get(key3).getOrElse(Array.emptyByteArray).sameElements(value))
 
     //New trie is consistent
     assert(trieAfterRemoval.get(key1).isEmpty)
-    assert(trieAfterRemoval.get(key2).getOrElse(Array.emptyByteArray) sameElements value)
-    assert(trieAfterRemoval.get(key3).getOrElse(Array.emptyByteArray) sameElements value)
+    assert(trieAfterRemoval.get(key2).getOrElse(Array.emptyByteArray).sameElements(value))
+    assert(trieAfterRemoval.get(key3).getOrElse(Array.emptyByteArray).sameElements(value))
   }
 
-  /**
-    * Tests whether the creation of a duplicated valid temporal extension node removes it's original copy.
+  /** Tests whether the creation of a duplicated valid temporal extension node removes it's original copy.
     * The creation of this temporal nodes happens in the case that an insertion is done on an extension node with a
     * partial match between the extension node key and the search key
     * Case tested:
@@ -507,8 +512,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     assert(trieAtBlock10.get(decodeHexString("aaaa")).contains(6))
   }
 
-  /**
-    * Tests whether the creation of a duplicated valid temporal leaf node removes it's original copy.
+  /** Tests whether the creation of a duplicated valid temporal leaf node removes it's original copy.
     * The creation of this temporal nodes happens in the case that an insertion is done on an leaf node with a
     * partial match between the leaf node key and the search key
     * Case tested:
@@ -568,7 +572,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
       val proof = trie.getProof(wrongKey)
       assert(proof.getOrElse(Vector.empty).toList match {
         case _ @HashNode(_) :: Nil => true
-        case _ => false
+        case _                     => false
       })
     }
   }
@@ -585,7 +589,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     val proof = emptyTrie.getProof(key = wrongKey)
     assert(proof.getOrElse(Vector.empty).toList match {
       case _ @HashNode(_) :: tail => tail.nonEmpty
-      case _ => false
+      case _                      => false
     })
   }
 
@@ -623,14 +627,14 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
           recTrie.put(key, value)
         }
 
-      input.toList.foreach(x => {
+      input.toList.foreach { x =>
         val keyToFind = x._1
         val proof = trie.getProof(keyToFind)
         assert(proof.isDefined)
         proof.map { p =>
           assert(verifyProof[Array[Byte], Array[Byte]](trie.getRootHash, keyToFind, p) == ValidProof)
         }
-      })
+      }
     }
   }
 
@@ -656,7 +660,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
     kvs.foreach { case (key, value) =>
       val obtained = trie.get(key)
       assert(obtained.isDefined)
-      assert(obtained.get sameElements value)
+      assert(obtained.get.sameElements(value))
     }
 
   private def assertNotHave[K, V](trie: MerklePatriciaTrie[K, V], kvs: List[(K, V)]): Unit =

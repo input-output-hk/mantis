@@ -1,12 +1,19 @@
 package io.iohk.ethereum.network.p2p
 
 import akka.util.ByteString
-import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.network.rlpx.{Frame, FrameCodec, Header}
-import io.iohk.ethereum.rlp.{RLPEncodeable, RLPList, RLPSerializable, rawDecode}
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.network.rlpx.Frame
+import io.iohk.ethereum.network.rlpx.FrameCodec
+import io.iohk.ethereum.network.rlpx.Header
+import io.iohk.ethereum.rlp.RLPEncodeable
+import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp.RLPSerializable
+import io.iohk.ethereum.rlp.rawDecode
 
 class FrameCodecSpec extends AnyFlatSpec with Matchers {
 
@@ -43,7 +50,7 @@ class FrameCodecSpec extends AnyFlatSpec with Matchers {
     implicit class DummyMsgDec(val bytes: Array[Byte]) {
       def toSample: DummyMsg = rawDecode(bytes) match {
         case RLPList(aField, anotherField) => DummyMsg(aField, anotherField)
-        case _ => throw new RuntimeException("Cannot decode Status")
+        case _                             => throw new RuntimeException("Cannot decode Status")
       }
     }
   }

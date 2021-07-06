@@ -1,29 +1,35 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks.{MockVM, MockValidatorsAlwaysSucceed, MockValidatorsFailOnSpecificBlockNumber}
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import org.scalatest.matchers.should.Matchers
+import org.scalatest.prop.TableFor2
+import org.scalatest.prop.TableFor3
+import org.scalatest.prop.TableFor4
+import org.scalatest.wordspec.AnyWordSpec
+import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.Mocks.MockValidatorsFailOnSpecificBlockNumber
+import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
+import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
+import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.consensus.validators.Validators
+import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
-import io.iohk.ethereum.vm.{EvmConfig, OutOfGas}
-import io.iohk.ethereum.{BlockHelpers, Mocks, ObjectGenerators}
-import org.scalatest.matchers.should.Matchers
-import org.scalatest.prop.TableFor4
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalatest.prop.TableFor2
-import io.iohk.ethereum.utils.Hex
-import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
-import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
-import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
-import org.scalatest.prop.TableFor3
-import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.utils.ByteStringUtils._
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+import io.iohk.ethereum.utils.Hex
+import io.iohk.ethereum.vm.OutOfGas
 
 // scalastyle:off magic.number
 class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {
@@ -465,7 +471,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         blockExecResult.left.forall {
           case e: BlockExecutionError.ValidationBeforeExecError => true
-          case _ => false
+          case _                                                => false
         }
       })
     }
@@ -519,7 +525,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         assert(blockExecResult match {
           case Left(_: BlockExecutionError.ValidationAfterExecError) => true
-          case _ => false
+          case _                                                     => false
         })
       }
     }

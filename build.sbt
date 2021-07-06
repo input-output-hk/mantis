@@ -45,6 +45,13 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
   organization := "io.iohk",
   scalaVersion := `scala-2.13`,
+  semanticdbEnabled := true, // enable SemanticDB
+  semanticdbVersion := scalafixSemanticdb.revision, // use Scalafix compatible version
+  ThisBuild / scalafixScalaBinaryVersion := CrossVersion.binaryScalaVersion(scalaVersion.value),
+  ThisBuild / scalafixDependencies ++= List(
+    "com.github.liancheng" %% "organize-imports" % "0.5.0",
+    "com.github.vovapolu" %% "scaluzzi" % "0.1.16"
+  ),
   // Scalanet snapshots are published to Sonatype after each build.
   resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
   testOptions in Test += Tests
@@ -53,7 +60,9 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-unchecked",
     "-deprecation",
     "-feature",
-    "-Xfatal-warnings",
+    //    "-Xfatal-warnings", // disabled until unused are removed
+    "-Ywarn-unused",
+    "-Xlint",
     "-encoding",
     "utf-8"
   ),
@@ -86,6 +95,7 @@ lazy val bytes = {
     .in(file("bytes"))
     .configs(Integration)
     .settings(commonSettings("mantis-bytes"))
+    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
     .settings(publishSettings)
     .settings(
       libraryDependencies ++=
@@ -102,6 +112,7 @@ lazy val crypto = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-crypto"))
+    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
     .settings(publishSettings)
     .settings(
       libraryDependencies ++=
@@ -119,6 +130,7 @@ lazy val rlp = {
     .configs(Integration)
     .dependsOn(bytes)
     .settings(commonSettings("mantis-rlp"))
+    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
     .settings(publishSettings)
     .settings(
       libraryDependencies ++=
@@ -176,8 +188,6 @@ lazy val node = {
   (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
   (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
 
-  val sep = java.io.File.separator
-
   val node = project
     .in(file("."))
     .configs(Integration, Benchmark, Evm, Rpc)
@@ -201,6 +211,9 @@ lazy val node = {
       buildInfoOptions in Compile += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)
+    .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
+    .settings(inConfig(Evm)(scalafixConfigSettings(Evm)))
+    .settings(inConfig(Rpc)(scalafixConfigSettings(Rpc)))
     .settings(
       libraryDependencies ++= dep
     )
@@ -287,6 +300,36 @@ addCommandAlias(
     |;rlp/test
     |;testQuick
     |;it:test
+    |""".stripMargin
+)
+
+// format all modules
+addCommandAlias(
+  "formatAll",
+  """;compile-all
+    |;bytes/scalafixAll
+    |;bytes/scalafmtAll
+    |;crypto/scalafixAll
+    |;crypto/scalafmtAll
+    |;rlp/scalafixAll
+    |;rlp/scalafmtAll
+    |;scalafixAll
+    |;scalafmtAll
+    |""".stripMargin
+)
+
+// check modules formatting
+addCommandAlias(
+  "formatCheck",
+  """;compile-all
+    |;bytes/scalafixAll --check
+    |;bytes/scalafmtCheckAll
+    |;crypto/scalafixAll --check
+    |;crypto/scalafmtCheckAll
+    |;rlp/scalafixAll --check
+    |;rlp/scalafmtCheckAll
+    |;scalafixAll --check
+    |;scalafmtCheckAll
     |""".stripMargin
 )
 

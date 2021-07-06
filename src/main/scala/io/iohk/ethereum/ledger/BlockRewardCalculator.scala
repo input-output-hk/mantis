@@ -2,8 +2,7 @@ package io.iohk.ethereum.ledger
 
 import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
-/**
-  * Calculates rewards for mining blocks and ommers.
+/** Calculates rewards for mining blocks and ommers.
   * https://github.com/ethereumproject/ECIPs/blob/master/ECIPs/ECIP-1039.md completely specifies eventual rounding issues.
   */
 class BlockRewardCalculator(
@@ -56,8 +55,7 @@ class BlockRewardCalculator(
     */
   val firstEraOmmerMiningRewardDenom: BigInt = 8
 
-  /**
-    * Calculates the miner reward for the block, that is, without considering the ommers included
+  /** Calculates the miner reward for the block, that is, without considering the ommers included
     *
     * @param blockNumber of the mined block
     * @return miner reward for the block
@@ -69,8 +67,7 @@ class BlockRewardCalculator(
     newBlockReward(blockNumber) * eraMultiplier / eraDivisor
   }
 
-  /**
-    * Calculates the miner reward for the ommers included on the block
+  /** Calculates the miner reward for the ommers included on the block
     *
     * @param blockNumber of the mined block
     * @param ommersCount the number of ommers on the block
@@ -79,8 +76,7 @@ class BlockRewardCalculator(
   def calculateMiningRewardForOmmers(blockNumber: BigInt, ommersCount: Int): BigInt =
     calculateMiningRewardPerOmmer(blockNumber) * ommersCount
 
-  /**
-    * Calculates the ommers reward for the ommers included on the block
+  /** Calculates the ommers reward for the ommers included on the block
     *
     * @param blockNumber of the mined block
     * @param ommerNumber the block number of the ommer
@@ -96,15 +92,13 @@ class BlockRewardCalculator(
       calculateMiningRewardForBlock(blockNumber) * ommerMiningRewardNumer / ommerMiningRewardDenom
   }
 
-  /**
-    * Calculates reward given to the miner for each ommer included in the block
+  /** Calculates reward given to the miner for each ommer included in the block
     *
     * @param blockNumber mined block
     * @return reward given to the miner for each ommer included
     */
-  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt = {
+  private def calculateMiningRewardPerOmmer(blockNumber: BigInt): BigInt =
     calculateMiningRewardForBlock(blockNumber) * ommerInclusionRewardNumer / ommerInclusionRewardDenom
-  }
 
   /** era number counting from 0 */
   private def eraNumber(blockNumber: BigInt): Int =

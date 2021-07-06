@@ -1,9 +1,12 @@
 package io.iohk.ethereum.faucet
 
-import com.typesafe.config.{Config, ConfigFactory}
-import io.iohk.ethereum.domain.Address
+import scala.concurrent.duration.FiniteDuration
+import scala.concurrent.duration._
 
-import scala.concurrent.duration.{FiniteDuration, _}
+import com.typesafe.config.Config
+import com.typesafe.config.ConfigFactory
+
+import io.iohk.ethereum.domain.Address
 
 trait FaucetConfigBuilder {
   lazy val rawConfig: Config = ConfigFactory.load()
@@ -17,13 +20,11 @@ case class RpcClientConfig(
 )
 
 object RpcClientConfig {
-  def apply(rpcClientConfig: Config): RpcClientConfig = {
-
+  def apply(rpcClientConfig: Config): RpcClientConfig =
     RpcClientConfig(
       address = rpcClientConfig.getString("rpc-address"),
       timeout = rpcClientConfig.getDuration("timeout").toMillis.millis
     )
-  }
 }
 
 case class FaucetConfig(

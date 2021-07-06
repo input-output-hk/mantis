@@ -1,13 +1,14 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import com.typesafe.config.{Config => TypesafeConfig}
+
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
-/**
-  * Provides generic consensus configuration. Each consensus protocol implementation
+/** Provides generic consensus configuration. Each consensus protocol implementation
   * will use its own specific configuration as well.
   *
   * @param protocol Designates the consensus protocol.
@@ -32,13 +33,13 @@ object ConsensusConfig extends Logger {
     final val MiningEnabled = "mining-enabled"
   }
 
-  final val AllowedProtocols = Set(
+  final val AllowedProtocols: Set[String] = Set(
     Protocol.Names.PoW,
     Protocol.Names.MockedPow,
     Protocol.Names.RestrictedPoW
   )
 
-  final val AllowedProtocolsError = (s: String) =>
+  final val AllowedProtocolsError: String => String = (s: String) =>
     Keys.Consensus +
       " is configured as '" + s + "'" +
       " but it should be one of " +

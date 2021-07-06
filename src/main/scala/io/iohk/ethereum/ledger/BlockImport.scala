@@ -1,18 +1,23 @@
 package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockExecutionError.{MPTError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.utils.{ByteStringUtils, Logger}
+
 import monix.eval.Task
 import monix.execution.Scheduler
-import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
 import scala.concurrent.ExecutionContext
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 
 class BlockImport(
     blockchain: BlockchainImpl,
@@ -34,7 +39,7 @@ class BlockImport(
     *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
     blockchain.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
@@ -67,7 +72,6 @@ class BlockImport(
         log.error("Getting current best block failed")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
-  }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
@@ -79,7 +83,7 @@ class BlockImport(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  private def measureBlockMetrics(importResult: BlockImportResult): Unit = {
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit =
     importResult match {
       case BlockImportedToTop(blockImportData) =>
         blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchainReader.getBlockByHash))
@@ -87,7 +91,6 @@ class BlockImport(
         newBranch.foreach(block => BlockMetrics.measure(block, blockchainReader.getBlockByHash))
       case _ => ()
     }
-  }
 
   private def importToTop(
       block: Block,
@@ -192,7 +195,7 @@ class BlockImport(
       .validateBlockBeforeExecution(block)
       .fold(
         error => handleBlockValidationError(error, block),
-        _ => {
+        _ =>
           blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
             case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
               log.debug("Found a better chain, about to reorganise")
@@ -201,7 +204,6 @@ class BlockImport(
             case _ =>
               BlockEnqueued
           }
-        }
       )
   }
 
@@ -237,7 +239,7 @@ class BlockImport(
         execResult.fold(
           {
             case MPTError(reason: MissingNodeException) => BlockImportFailedDueToMissingNode(reason)
-            case err => BlockImportFailed(s"Error while trying to reorganise chain: $err")
+            case err                                    => BlockImportFailed(s"Error while trying to reorganise chain: $err")
           },
           ChainReorganised.tupled
         )
@@ -255,7 +257,7 @@ class BlockImport(
     val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
     maybeError match {
       case None =>
-        Right(oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight))
+        Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))
 
       case Some(error) =>
         revertChainReorganisation(newBranch, oldBlocksData, executedBlocks)
@@ -305,7 +307,7 @@ class BlockImport(
     */
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
-    def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] = {
+    def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] =
       blockchainReader.getBlockByNumber(fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
@@ -326,7 +328,6 @@ class BlockImport(
           log.error(s"Unexpected missing block number: $fromNumber")
           acc
       }
-    }
 
     removeBlocksUntil(parent, fromNumber, Nil)
   }

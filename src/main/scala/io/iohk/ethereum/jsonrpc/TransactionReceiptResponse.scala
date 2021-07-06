@@ -1,25 +1,23 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.domain.{
-  Address,
-  BlockHeader,
-  FailureOutcome,
-  HashOutcome,
-  Receipt,
-  SignedTransaction,
-  SuccessOutcome,
-  UInt256
-}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.FailureOutcome
+import io.iohk.ethereum.domain.HashOutcome
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.SuccessOutcome
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.FilterManager.TxLog
 import io.iohk.ethereum.rlp
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.UInt256RLPImplicits._
 
-/**
-  *  Params docs copied from - https://eth.wiki/json-rpc/API
+/**  Params docs copied from - https://eth.wiki/json-rpc/API
   *
   *  @param transactionHash DATA, 32 Bytes - hash of the transaction.
   *  @param transactionIndex QUANTITY - integer of the transactions index position in the block.
@@ -82,8 +80,8 @@ object TransactionReceiptResponse {
     }
 
     val (root, status) = receipt.postTransactionStateHash match {
-      case FailureOutcome => (None, Some(BigInt(0)))
-      case SuccessOutcome => (None, Some(BigInt(1)))
+      case FailureOutcome         => (None, Some(BigInt(0)))
+      case SuccessOutcome         => (None, Some(BigInt(1)))
       case HashOutcome(stateHash) => (Some(stateHash), None)
     }
 

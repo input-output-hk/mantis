@@ -2,16 +2,20 @@ package io.iohk.ethereum.consensus.pow
 
 import akka.actor.ActorRef
 import akka.util.ByteString
+
+import monix.eval.Task
+
+import scala.concurrent.duration.FiniteDuration
+
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
-import io.iohk.ethereum.domain.{Address, Block}
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.transactions.TransactionPicker
-import monix.eval.Task
-import scala.concurrent.duration.FiniteDuration
 
 class PoWBlockCreator(
     val pendingTransactionsManager: ActorRef,
@@ -44,13 +48,12 @@ class PoWBlockCreator(
     }
   }
 
-  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] = {
+  private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
     ommersPool
       .askFor[OmmersPool.Ommers](OmmersPool.GetOmmers(parentBlockHash))
       .onErrorHandle { ex =>
         log.error("Failed to get ommers, mining block with empty ommers list", ex)
         OmmersPool.Ommers(Nil)
       }
-  }
 
 }

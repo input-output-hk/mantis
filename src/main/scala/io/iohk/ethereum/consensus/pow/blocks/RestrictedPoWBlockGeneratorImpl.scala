@@ -1,16 +1,23 @@
 package io.iohk.ethereum.consensus.pow.blocks
 
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.blocks.{BlockTimestampProvider, DefaultBlockTimestampProvider, PendingBlockAndState}
+import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
+import io.iohk.ethereum.consensus.blocks.DefaultBlockTimestampProvider
+import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
-import io.iohk.ethereum.domain.{Address, Block, BlockchainReader, SignedTransaction}
-import io.iohk.ethereum.ledger.{BlockPreparator, InMemoryWorldStateProxy}
-import io.iohk.ethereum.utils.BlockchainConfig
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.ledger.BlockPreparator
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class RestrictedPoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
@@ -46,7 +53,7 @@ class RestrictedPoWBlockGeneratorImpl(
 
     val validatedOmmers =
       validators.ommersValidator.validate(parentHash, blockNumber, ommers, blockchainReader) match {
-        case Left(_) => emptyX
+        case Left(_)  => emptyX
         case Right(_) => ommers
       }
     val prepared = prepareBlock(

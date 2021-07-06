@@ -4,11 +4,16 @@ import java.io.File
 import java.nio.file.Files
 
 import akka.util.ByteString
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.{DataSource, DataSourceUpdate}
-import io.iohk.ethereum.db.dataSource.DataSource.{Key, Namespace, Value}
+
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSource.Key
+import io.iohk.ethereum.db.dataSource.DataSource.Namespace
+import io.iohk.ethereum.db.dataSource.DataSource.Value
+import io.iohk.ethereum.db.dataSource.DataSourceUpdate
 import io.iohk.ethereum.utils.ByteStringUtils._
 
 trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with ObjectGenerators {
@@ -25,9 +30,8 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
 
   def withDir(testCode: String => Any): Unit = {
     val path = Files.createTempDirectory("testdb").getFileName.toString
-    try {
-      testCode(path)
-    } finally {
+    try testCode(path)
+    finally {
       val dir = new File(path)
       assert(!dir.exists() || dir.delete(), "File deletion failed")
     }
@@ -43,11 +47,10 @@ trait DataSourceIntegrationTestBehavior extends ScalaCheckPropertyChecks with Ob
   def updateInSeparateCalls(
       dataSource: DataSource,
       toUpsert: Seq[(ByteString, ByteString)]
-  ): Unit = {
+  ): Unit =
     toUpsert.foreach { keyValuePair =>
       dataSource.update(prepareUpdate(toUpsert = Seq(keyValuePair)))
     }
-  }
 
   // scalastyle:off
   def dataSource(createDataSource: => String => DataSource): Unit = {

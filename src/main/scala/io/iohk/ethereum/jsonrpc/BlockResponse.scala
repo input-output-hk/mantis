@@ -1,10 +1,15 @@
 package io.iohk.ethereum.jsonrpc
 
 import akka.util.ByteString
+
 import cats.implicits._
+
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.ByteStringUtils
 
 case class CheckpointResponse(signatures: Seq[ECDSASignature], signers: Seq[ByteString])

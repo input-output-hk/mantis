@@ -1,19 +1,23 @@
 package io.iohk.ethereum.jsonrpc.server.http
 
-import akka.actor.ActorSystem
-import akka.http.scaladsl.{ConnectionContext, Http}
-import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
-import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
-import io.iohk.ethereum.security.SSLError
-import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
 import java.security.SecureRandom
-
-import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
-import io.iohk.ethereum.utils.Logger
 import javax.net.ssl.SSLContext
 
+import akka.actor.ActorSystem
+import akka.http.scaladsl.ConnectionContext
+import akka.http.scaladsl.Http
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import scala.util.{Failure, Success}
+import scala.util.Failure
+import scala.util.Success
+
+import ch.megard.akka.http.cors.scaladsl.model.HttpOriginMatcher
+
+import io.iohk.ethereum.jsonrpc.JsonRpcHealthChecker
+import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController
+import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer.JsonRpcHttpServerConfig
+import io.iohk.ethereum.security.SSLError
+import io.iohk.ethereum.utils.Logger
 
 class SecureJsonRpcHttpServer(
     val jsonRpcController: JsonRpcBaseController,
@@ -32,9 +36,9 @@ class SecureJsonRpcHttpServer(
       case Right(httpsContext) =>
         val bindingResultF = Http().newServerAt(config.interface, config.port).enableHttps(httpsContext).bind(route)
 
-        bindingResultF onComplete {
+        bindingResultF.onComplete {
           case Success(serverBinding) => log.info(s"JSON RPC HTTPS server listening on ${serverBinding.localAddress}")
-          case Failure(ex) => log.error("Cannot start JSON HTTPS RPC server", ex)
+          case Failure(ex)            => log.error("Cannot start JSON HTTPS RPC server", ex)
         }
       case Left(error) =>
         log.error(s"Cannot start JSON HTTPS RPC server due to: $error")

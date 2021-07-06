@@ -1,19 +1,28 @@
 package io.iohk.ethereum.jsonrpc
 
-import akka.actor.{Actor, ActorRef, Cancellable, Props, Scheduler}
-import akka.util.{ByteString, Timeout}
+import akka.actor.Actor
+import akka.actor.ActorRef
+import akka.actor.Cancellable
+import akka.actor.Props
+import akka.actor.Scheduler
+import akka.util.ByteString
+import akka.util.Timeout
+
+import monix.eval.Task
+import monix.execution
+
+import scala.annotation.tailrec
+import scala.util.Random
+
 import io.iohk.ethereum.consensus.blocks.BlockGenerator
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.ledger.BloomFilter
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
-import io.iohk.ethereum.utils.{FilterConfig, TxPoolConfig}
-import monix.eval.Task
-import scala.annotation.tailrec
-import scala.util.Random
+import io.iohk.ethereum.utils.FilterConfig
+import io.iohk.ethereum.utils.TxPoolConfig
 
 class FilterManager(
     blockchain: Blockchain,
@@ -30,8 +39,8 @@ class FilterManager(
   import akka.pattern.pipe
   import context.system
 
-  def scheduler: Scheduler = externalSchedulerOpt getOrElse system.scheduler
-  private implicit val executionContext = monix.execution.Scheduler(system.dispatcher)
+  def scheduler: Scheduler = externalSchedulerOpt.getOrElse(system.scheduler)
+  implicit private val executionContext: execution.Scheduler = monix.execution.Scheduler(system.dispatcher)
 
   val maxBlockHashesChanges = 256
 
@@ -43,17 +52,17 @@ class FilterManager(
 
   var filterTimeouts: Map[BigInt, Cancellable] = Map.empty
 
-  implicit val timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
+  implicit val timeout: Timeout = Timeout(txPoolConfig.pendingTxManagerQueryTimeout)
 
   override def receive: Receive = {
     case NewLogFilter(fromBlock, toBlock, address, topics) =>
       addFilterAndSendResponse(LogFilter(generateId(), fromBlock, toBlock, address, topics))
-    case NewBlockFilter => addFilterAndSendResponse(BlockFilter(generateId()))
+    case NewBlockFilter              => addFilterAndSendResponse(BlockFilter(generateId()))
     case NewPendingTransactionFilter => addFilterAndSendResponse(PendingTransactionFilter(generateId()))
-    case UninstallFilter(id) => uninstallFilter(id)
-    case GetFilterLogs(id) => getFilterLogs(id)
-    case GetFilterChanges(id) => getFilterChanges(id)
-    case FilterTimeout(id) => uninstallFilter(id)
+    case UninstallFilter(id)         => uninstallFilter(id)
+    case GetFilterLogs(id)           => getFilterLogs(id)
+    case GetFilterChanges(id)        => getFilterChanges(id)
+    case FilterTimeout(id)           => uninstallFilter(id)
     case gl: GetLogs =>
       val filter = LogFilter(0, gl.fromBlock, gl.toBlock, gl.address, gl.topics)
       sender() ! LogFilterLogs(getLogs(filter, None))
@@ -116,7 +125,7 @@ class FilterManager(
     val bytesToCheckInBloomFilter = filter.address.map(a => Seq(a.bytes)).getOrElse(Nil) ++ filter.topics.flatten
 
     @tailrec
-    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] = {
+    def recur(currentBlockNumber: BigInt, toBlockNumber: BigInt, logsSoFar: Seq[TxLog]): Seq[TxLog] =
       if (currentBlockNumber > toBlockNumber) {
         logsSoFar
       } else {
@@ -140,10 +149,9 @@ class FilterManager(
               case None => logsSoFar
             }
           case Some(_) => recur(currentBlockNumber + 1, toBlockNumber, logsSoFar)
-          case None => logsSoFar
+          case None    => logsSoFar
         }
       }
-    }
 
     val bestBlockNumber = blockchain.getBestBlockNumber()
 
@@ -224,52 +232,48 @@ class FilterManager(
     }
   }
 
-  private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean = {
+  private def topicsMatch(logTopics: Seq[ByteString], filterTopics: Seq[Seq[ByteString]]): Boolean =
     logTopics.size >= filterTopics.size &&
-    (filterTopics zip logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
-  }
+      filterTopics.zip(logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
     val bestBlock = blockchain.getBestBlockNumber()
 
     @tailrec
-    def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] = {
+    def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] =
       if (currentBlockNumber > bestBlock) {
         hashesSoFar
       } else
         blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match {
           case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
-          case None => hashesSoFar
+          case None         => hashesSoFar
         }
-    }
 
     recur(blockNumber + 1, Nil)
   }
 
-  private def getPendingTransactions(): Task[Seq[PendingTransaction]] = {
+  private def getPendingTransactions(): Task[Seq[PendingTransaction]] =
     pendingTransactionsManager
       .askFor[PendingTransactionsManager.PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .flatMap { response =>
         keyStore.listAccounts() match {
           case Right(accounts) =>
             Task.now(
-              response.pendingTransactions.filter { pt => accounts.contains(pt.stx.senderAddress) }
+              response.pendingTransactions.filter(pt => accounts.contains(pt.stx.senderAddress))
             )
           case Left(_) => Task.raiseError(new RuntimeException("Cannot get account list"))
         }
       }
-  }
 
   private def generateId(): BigInt = BigInt(Random.nextLong()).abs
 
-  private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt = {
+  private def resolveBlockNumber(blockParam: BlockParam, bestBlockNumber: BigInt): BigInt =
     blockParam match {
       case BlockParam.WithNumber(blockNumber) => blockNumber
-      case BlockParam.Earliest => 0
-      case BlockParam.Latest => bestBlockNumber
-      case BlockParam.Pending => bestBlockNumber
+      case BlockParam.Earliest                => 0
+      case BlockParam.Latest                  => bestBlockNumber
+      case BlockParam.Pending                 => bestBlockNumber
     }
-  }
 }
 
 object FilterManager {

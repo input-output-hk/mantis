@@ -2,26 +2,39 @@ package io.iohk.ethereum.faucet
 
 import java.security.SecureRandom
 
-import akka.actor.{ActorSystem, Props}
+import akka.actor.ActorRef
+import akka.actor.ActorSystem
+import akka.actor.Props
 import akka.pattern.gracefulStop
-import akka.testkit.{ImplicitSender, TestKit, TestProbe}
+import akka.testkit.ImplicitSender
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
-import io.iohk.ethereum.crypto.{generateKeyPair, keyPairToByteStrings}
-import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.faucet.FaucetHandler.{FaucetHandlerMsg, FaucetHandlerResponse}
-import io.iohk.ethereum.faucet.jsonrpc.WalletService
-import io.iohk.ethereum.jsonrpc.client.RpcClient.{ParserError, RpcClientError}
-import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
-import io.iohk.ethereum.keystore.Wallet
-import io.iohk.ethereum.{NormalPatience, WithActorSystemShutDown, crypto}
+
 import monix.eval.Task
+
+import scala.concurrent.ExecutionContext
+
+import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.freespec.AnyFreeSpecLike
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.ExecutionContext
+import io.iohk.ethereum.NormalPatience
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.crypto.keyPairToByteStrings
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerMsg
+import io.iohk.ethereum.faucet.FaucetHandler.FaucetHandlerResponse
+import io.iohk.ethereum.faucet.jsonrpc.WalletService
+import io.iohk.ethereum.jsonrpc.client.RpcClient.ParserError
+import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcClientError
+import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
+import io.iohk.ethereum.keystore.Wallet
 
 class FaucetHandlerSpec
     extends TestKit(ActorSystem("ActorSystem_DebugFaucetHandlerSpec"))
@@ -110,13 +123,13 @@ class FaucetHandlerSpec
     val walletService: WalletService = mock[WalletService]
     val paymentAddress: Address = Address("0x99")
 
-    val faucetHandler = system.actorOf(FaucetHandlerFake.props(walletService, faucetConfig))
+    val faucetHandler: ActorRef = system.actorOf(FaucetHandlerFake.props(walletService, faucetConfig))
 
-    val walletKeyPair = generateKeyPair(new SecureRandom)
+    val walletKeyPair: AsymmetricCipherKeyPair = generateKeyPair(new SecureRandom)
     val (prvKey, pubKey) = keyPairToByteStrings(walletKeyPair)
-    val wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
+    val wallet: Wallet = Wallet(Address(crypto.kec256(pubKey)), prvKey)
 
-    val sender = TestProbe()
+    val sender: TestProbe = TestProbe()
 
     def withUnavailableFaucet(behaviour: => Unit): Unit = {
       (() => walletService.getWallet).expects().returning(Task.pure(Left(DecryptionFailed)))
@@ -139,9 +152,8 @@ class FaucetHandlerSpec
       stopController()
     }
 
-    def stopController(): Unit = {
+    def stopController(): Unit =
       awaitCond(gracefulStop(faucetHandler, actorAskTimeout.duration).futureValue)
-    }
   }
 }
 

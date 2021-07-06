@@ -4,35 +4,42 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorSystem
 import akka.actor.testkit.typed.scaladsl.ScalaTestWithActorTestKit
+import akka.actor.typed.ActorRef
 import akka.actor.typed.scaladsl.adapter._
 import akka.testkit.TestProbe
-import com.miguno.akka.testing.VirtualTime
-import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
-import io.iohk.ethereum.Mocks.{MockValidatorsAlwaysSucceed, MockValidatorsFailingOnBlockBodies}
-import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
-import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.{
-  AdaptedMessageFromEventBus,
-  InternalLastBlockImport,
-  InvalidateBlocksFrom,
-  PickBlocks
-}
-import io.iohk.ethereum.blockchain.sync.{PeersClient, TestSyncConfig}
-import io.iohk.ethereum.domain.{Block, HeadersSeq}
-import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
-import io.iohk.ethereum.network.PeerEventBusActor.{PeerSelector, Subscribe}
-import io.iohk.ethereum.network.p2p.messages.Codes
-import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
-import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.{BlockHelpers, Timeouts}
-import org.scalatest.freespec.AnyFreeSpecLike
-import org.scalatest.matchers.should.Matchers
-
-import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+
+import com.miguno.akka.testing.VirtualTime
+import org.scalatest.freespec.AnyFreeSpecLike
+import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.Fixtures.{Blocks => FixtureBlocks}
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.Mocks.MockValidatorsFailingOnBlockBodies
+import io.iohk.ethereum.Timeouts
+import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
+import io.iohk.ethereum.blockchain.sync.PeersClient
+import io.iohk.ethereum.blockchain.sync.PeersClient.BlacklistPeer
+import io.iohk.ethereum.blockchain.sync.TestSyncConfig
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.AdaptedMessageFromEventBus
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockImport
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InvalidateBlocksFrom
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.PickBlocks
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.HeadersSeq
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
+import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
+import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
 
 class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike with Matchers with SecureRandomBuilder {
 
@@ -269,14 +276,14 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
 
     val time = new VirtualTime
 
-    val peersClient = TestProbe()(as)
-    val peerEventBus = TestProbe()(as)
-    val importer = TestProbe()(as)
-    val regularSync = TestProbe()(as)
+    val peersClient: TestProbe = TestProbe()(as)
+    val peerEventBus: TestProbe = TestProbe()(as)
+    val importer: TestProbe = TestProbe()(as)
+    val regularSync: TestProbe = TestProbe()(as)
 
     lazy val validators = new MockValidatorsAlwaysSucceed
 
-    override lazy val syncConfig = defaultSyncConfig.copy(
+    override lazy val syncConfig: Config.SyncConfig = defaultSyncConfig.copy(
       // Same request size was selected for simplification purposes of the flow
       blockHeadersPerRequest = 10,
       blockBodiesPerRequest = 10,
@@ -286,9 +293,9 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
     )
 
     val fakePeerActor: TestProbe = TestProbe()(as)
-    val fakePeer = Peer(PeerId("fakePeer"), new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
+    val fakePeer: Peer = Peer(PeerId("fakePeer"), new InetSocketAddress("127.0.0.1", 9000), fakePeerActor.ref, false)
 
-    lazy val blockFetcher = spawn(
+    lazy val blockFetcher: ActorRef[BlockFetcher.FetchCommand] = spawn(
       BlockFetcher(
         peersClient.ref,
         peerEventBus.ref,
@@ -321,13 +328,14 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
       blockFetcher ! AdaptedMessageFromEventBus(NewBlock(farAwayBlock, farAwayBlockTotalDifficulty), fakePeer.id)
     }
 
-    val firstBlocksBatch = BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
+    val firstBlocksBatch: List[Block] =
+      BlockHelpers.generateChain(syncConfig.blockHeadersPerRequest, FixtureBlocks.Genesis.block)
 
     // Fetcher request for headers
-    val firstGetBlockHeadersRequest =
+    val firstGetBlockHeadersRequest: GetBlockHeaders =
       GetBlockHeaders(Left(1), syncConfig.blockHeadersPerRequest, skip = 0, reverse = false)
 
-    def handleFirstBlockBatchHeaders() = {
+    def handleFirstBlockBatchHeaders(): Unit = {
       peersClient.expectMsgPF() { case PeersClient.Request(`firstGetBlockHeadersRequest`, _, _) => () }
 
       // Respond first headers request
@@ -336,8 +344,8 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
     }
 
     // First bodies request
-    val firstGetBlockBodiesRequest = GetBlockBodies(firstBlocksBatch.map(_.hash))
-    def handleFirstBlockBatchBodies() = {
+    val firstGetBlockBodiesRequest: GetBlockBodies = GetBlockBodies(firstBlocksBatch.map(_.hash))
+    def handleFirstBlockBatchBodies(): Unit = {
       peersClient.expectMsgPF() { case PeersClient.Request(`firstGetBlockBodiesRequest`, _, _) => () }
 
       // First bodies response
@@ -345,7 +353,7 @@ class BlockFetcherSpec extends ScalaTestWithActorTestKit() with AnyFreeSpecLike 
       peersClient.reply(PeersClient.Response(fakePeer, firstGetBlockBodiesResponse))
     }
 
-    def handleFirstBlockBatch() = {
+    def handleFirstBlockBatch(): Unit = {
       handleFirstBlockBatchHeaders()
       handleFirstBlockBatchBodies()
     }

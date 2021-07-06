@@ -1,7 +1,9 @@
 package io.iohk.ethereum.rpcTest
 
 import akka.util.ByteString
+
 import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.rpcTest.TestData.firstAccount
 
 object TestContracts {
@@ -13,11 +15,11 @@ object TestContracts {
 
   // https://github.com/ethereum/wiki/wiki/JSON-RPC#example-14
   val storageContract = "0x60606040525b6104d260006000508190555061162e600160005060003373ffffffffffffffffffffffffffffffffffffffff168152602001908152602001600020600050819055505b600a8060546000396000f360606040526008565b00"
-  val pos0 = BigInt(1234)
-  val mapPos = "000000000000000000000000" + firstAccount.address.drop(2) + "0000000000000000000000000000000000000000000000000000000000000001"
-  val decoded = Hex.decode(mapPos)
-  val shaPos = BigInt(kec256(decoded))
-  val mapResult  = BigInt(5678)
+  val pos0: BigInt = BigInt(1234)
+  val mapPos: String = "000000000000000000000000" + firstAccount.address.drop(2) + "0000000000000000000000000000000000000000000000000000000000000001"
+  val decoded: Array[Byte] = Hex.decode(mapPos)
+  val shaPos: BigInt = BigInt(kec256(decoded))
+  val mapResult: BigInt  = BigInt(5678)
   val StorageCodeRuntimeRepresentation = "0x60606040526008565b00"
 
 
@@ -37,7 +39,7 @@ object TestContracts {
   *
   * */
   val counterEventContract = "0x6060604052600060006000505560d68060186000396000f360606040526000357c01000000000000000000000000000000000000000000000000000000009004806306661abd1460415780637cf5dab014606257603f565b005b604c600480505060cd565b6040518082815260200191505060405180910390f35b607660048080359060200190919050506078565b005b803373ffffffffffffffffffffffffffffffffffffffff167fb182275171042022ff972a26edbd0171bccc74463bd22e56dbbeba4e93b7a66860405180905060405180910390a3806000600050819055505b50565b6000600050548156"
-  val readEventContract = "06661abd" + "0000000000000000000000000000000000000000000000000000000000000000"
+  val readEventContract: String = "06661abd" + "0000000000000000000000000000000000000000000000000000000000000000"
   val incrementEventContract = "7cf5dab0"
   val counterContractEventHash = "0xb182275171042022ff972a26edbd0171bccc74463bd22e56dbbeba4e93b7a668"
 

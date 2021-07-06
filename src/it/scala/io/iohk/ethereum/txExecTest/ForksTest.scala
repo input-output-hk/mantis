@@ -1,17 +1,26 @@
 package io.iohk.ethereum.txExecTest
 
-import java.util.concurrent.Executors
-import io.iohk.ethereum.domain.{Address, BlockchainImpl, BlockchainReader, Receipt, UInt256}
-import io.iohk.ethereum.ledger.{BlockExecution, BlockQueue, BlockValidation}
-import io.iohk.ethereum.txExecTest.util.FixtureProvider
-import io.iohk.ethereum.utils.{BlockchainConfig, ForkBlockNumbers, MonetaryPolicyConfig}
 import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.dsl.ResultOfATypeInvocation
 import org.scalatest.matchers.should.Matchers
+
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.Receipt
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.txExecTest.util.FixtureProvider
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ForkBlockNumbers
+import io.iohk.ethereum.utils.MonetaryPolicyConfig
 
 class ForksTest extends AnyFlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
+    override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 3,
@@ -49,7 +58,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       ethCompatibleStorage = true,
       treasuryAddress = Address(0)
     )
-    val noErrors = a[Right[_, Seq[Receipt]]]
+    val noErrors: ResultOfATypeInvocation[Right[_, Seq[Receipt]]] = a[Right[_, Seq[Receipt]]]
   }
 
   "Ledger" should "execute blocks with respect to forks" in new TestSetup {
@@ -60,7 +69,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
 
     protected val testBlockchainStorages = FixtureProvider.prepareStorages(endBlock, fixtures)
 
-    (startBlock to endBlock) foreach { blockToExecute =>
+    (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
       val blockchainReader = BlockchainReader(storages)
       val blockchain = BlockchainImpl(storages, blockchainReader)

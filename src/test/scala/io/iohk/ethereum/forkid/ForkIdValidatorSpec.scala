@@ -1,16 +1,17 @@
 package io.iohk.ethereum.forkid
 
 import akka.util.ByteString
-import io.iohk.ethereum.forkid.ForkId._
-import io.iohk.ethereum.utils.Config._
-import io.iohk.ethereum.utils.ForkBlockNumbers
+
 import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
+
+import scala.concurrent.duration._
+
 import org.bouncycastle.util.encoders.Hex
 import org.scalatest.matchers.should._
 import org.scalatest.wordspec.AnyWordSpec
 
-import scala.concurrent.duration._
+import io.iohk.ethereum.utils.Config._
 
 import ForkIdValidator._
 
@@ -18,7 +19,9 @@ class ForkIdValidatorSpec extends AnyWordSpec with Matchers {
 
   val config = blockchains
 
-  val ethGenesisHash = ByteString(Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3"))
+  val ethGenesisHash: ByteString = ByteString(
+    Hex.decode("d4e56740f876aef8c010b86a40d5f56745a118d0906a34e69aec8c0db1cb8fa3")
+  )
 
   "ForkIdValidator" must {
     "correctly validate ETH peers" in {

@@ -1,16 +1,14 @@
 package io.iohk.ethereum.forkid
 
 import akka.util.ByteString
-import io.iohk.ethereum.forkid.ForkId._
-import io.iohk.ethereum.utils.ForkBlockNumbers
-import io.iohk.ethereum.utils.Config._
 
-import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.matchers.should._
 import org.bouncycastle.util.encoders.Hex
+import org.scalatest.matchers.should._
+import org.scalatest.wordspec.AnyWordSpec
 
+import io.iohk.ethereum.forkid.ForkId._
 import io.iohk.ethereum.rlp._
-import io.iohk.ethereum.rlp.RLPImplicits._
+import io.iohk.ethereum.utils.Config._
 
 class ForkIdSpec extends AnyWordSpec with Matchers {
 

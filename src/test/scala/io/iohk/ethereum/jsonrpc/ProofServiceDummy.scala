@@ -1,8 +1,13 @@
 package io.iohk.ethereum.jsonrpc
 
-import io.iohk.ethereum.domain.{Account, Address, UInt256}
-import io.iohk.ethereum.jsonrpc.ProofService.{GetProofRequest, GetProofResponse, ProofAccount}
 import monix.eval.Task
+
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofRequest
+import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
+import io.iohk.ethereum.jsonrpc.ProofService.ProofAccount
 
 object ProofServiceDummy extends ProofService {
 
@@ -18,7 +23,6 @@ object ProofServiceDummy extends ProofService {
   )
   val EmptyProofResponse: GetProofResponse = GetProofResponse(EmptyProofAccount)
 
-  override def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] = {
+  override def getProof(req: GetProofRequest): ServiceResponse[GetProofResponse] =
     Task.now(Right(EmptyProofResponse))
-  }
 }

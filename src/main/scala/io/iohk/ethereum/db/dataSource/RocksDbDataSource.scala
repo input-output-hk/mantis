@@ -2,18 +2,21 @@ package io.iohk.ethereum.db.dataSource
 
 import java.util.concurrent.locks.ReentrantReadWriteLock
 
-import io.iohk.ethereum.utils.Logger
 import cats.effect.Resource
-import io.iohk.ethereum.db.dataSource.DataSource._
-import io.iohk.ethereum.db.dataSource.RocksDbDataSource._
-import io.iohk.ethereum.utils.TryWithResources.withResources
+
 import monix.eval.Task
 import monix.reactive.Observable
-import org.rocksdb._
 
 import scala.collection.immutable.ArraySeq
 import scala.collection.mutable
 import scala.util.control.NonFatal
+
+import org.rocksdb._
+
+import io.iohk.ethereum.db.dataSource.DataSource._
+import io.iohk.ethereum.db.dataSource.RocksDbDataSource._
+import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.TryWithResources.withResources
 
 class RocksDbDataSource(
     private var db: RocksDB,
@@ -29,8 +32,7 @@ class RocksDbDataSource(
   @volatile
   private var isClosed = false
 
-  /**
-    * This function obtains the associated value to a key, if there exists one.
+  /** This function obtains the associated value to a key, if there exists one.
     *
     * @param namespace which will be searched for the key.
     * @param key       the key retrieve the value.
@@ -50,13 +52,10 @@ class RocksDbDataSource(
           s"Not found associated value to a namespace: $namespace and a key: $key",
           error
         )
-    } finally {
-      dbLock.readLock().unlock()
-    }
+    } finally dbLock.readLock().unlock()
   }
 
-  /**
-    * This function obtains the associated value to a key, if there exists one. It assumes that
+  /** This function obtains the associated value to a key, if there exists one. It assumes that
     * caller already properly serialized key. Useful when caller knows some pattern in data to
     * avoid generic serialization.
     *
@@ -73,9 +72,7 @@ class RocksDbDataSource(
         throw error
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"Not found associated value to a key: $key", error)
-    } finally {
-      dbLock.readLock().unlock()
-    }
+    } finally dbLock.readLock().unlock()
   }
 
   override def update(dataSourceUpdates: Seq[DataUpdate]): Unit = {
@@ -105,45 +102,37 @@ class RocksDbDataSource(
         throw error
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"DataSource not updated", error)
-    } finally {
-      dbLock.writeLock().unlock()
-    }
+    } finally dbLock.writeLock().unlock()
   }
 
-  private def dbIterator: Resource[Task, RocksIterator] = {
+  private def dbIterator: Resource[Task, RocksIterator] =
     Resource.fromAutoCloseable(Task(db.newIterator()))
-  }
 
-  private def namespaceIterator(namespace: Namespace): Resource[Task, RocksIterator] = {
+  private def namespaceIterator(namespace: Namespace): Resource[Task, RocksIterator] =
     Resource.fromAutoCloseable(Task(db.newIterator(handles(namespace))))
-  }
 
-  private def moveIterator(it: RocksIterator): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+  private def moveIterator(it: RocksIterator): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] =
     Observable
       .fromTask(Task(it.seekToFirst()))
       .flatMap { _ =>
         Observable.repeatEvalF(for {
           isValid <- Task(it.isValid)
-          item <- if (isValid) Task(Right(it.key(), it.value())) else Task.raiseError(IterationFinished)
+          item <- if (isValid) Task(Right((it.key(), it.value()))) else Task.raiseError(IterationFinished)
           _ <- Task(it.next())
         } yield item)
       }
       .onErrorHandleWith {
         case IterationFinished => Observable.empty
-        case ex => Observable(Left(IterationError(ex)))
+        case ex                => Observable(Left(IterationError(ex)))
       }
-  }
 
-  def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+  def iterate(): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] =
     Observable.fromResource(dbIterator).flatMap(it => moveIterator(it))
-  }
 
-  def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] = {
+  def iterate(namespace: Namespace): Observable[Either[IterationError, (Array[Byte], Array[Byte])]] =
     Observable.fromResource(namespaceIterator(namespace)).flatMap(it => moveIterator(it))
-  }
 
-  /**
-    * This function is used only for tests.
+  /** This function is used only for tests.
     * This function updates the DataSource by deleting all the (key-value) pairs in it.
     */
   override def clear(): Unit = {
@@ -161,8 +150,7 @@ class RocksDbDataSource(
     this.isClosed = false
   }
 
-  /**
-    * This function closes the DataSource, without deleting the files used by it.
+  /** This function closes the DataSource, without deleting the files used by it.
     */
   override def close(): Unit = {
     log.info(s"About to close DataSource in path: ${rocksDbConfig.path}")
@@ -186,26 +174,18 @@ class RocksDbDataSource(
         throw error
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"Not closed the DataSource properly", error)
-    } finally {
-      dbLock.writeLock().unlock()
-    }
+    } finally dbLock.writeLock().unlock()
   }
 
-  /**
-    * This function is used only for tests.
+  /** This function is used only for tests.
     * This function closes the DataSource, if it is not yet closed, and deletes all the files used by it.
     */
-  override def destroy(): Unit = {
-    try {
-      if (!isClosed) {
-        close()
-      }
-    } finally {
-      destroyDB()
-    }
-  }
+  override def destroy(): Unit =
+    try if (!isClosed) {
+      close()
+    } finally destroyDB()
 
-  protected def destroyDB(): Unit = {
+  protected def destroyDB(): Unit =
     try {
       import rocksDbConfig._
       val tableCfg = new BlockBasedTableConfig()
@@ -232,13 +212,11 @@ class RocksDbDataSource(
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"Not destroyed the DataSource properly", error)
     }
-  }
 
-  private def assureNotClosed(): Unit = {
+  private def assureNotClosed(): Unit =
     if (isClosed) {
       throw RocksDbDataSourceClosedException(s"This ${getClass.getSimpleName} has been closed")
     }
-  }
 
 }
 
@@ -261,8 +239,7 @@ object RocksDbDataSource {
   case class RocksDbDataSourceClosedException(message: String) extends IllegalStateException(message)
   case class RocksDbDataSourceException(message: String, cause: Throwable) extends RuntimeException(message, cause)
 
-  /**
-    * The rocksdb implementation acquires a lock from the operating system to prevent misuse
+  /** The rocksdb implementation acquires a lock from the operating system to prevent misuse
     */
   private val dbLock = new ReentrantReadWriteLock()
 
@@ -318,9 +295,7 @@ object RocksDbDataSource {
     } catch {
       case NonFatal(error) =>
         throw RocksDbDataSourceException(s"Not created the DataSource properly", error)
-    } finally {
-      RocksDbDataSource.dbLock.writeLock().unlock()
-    }
+    } finally RocksDbDataSource.dbLock.writeLock().unlock()
   }
 
   def apply(rocksDbConfig: RocksDbConfig, namespaces: Seq[Namespace]): RocksDbDataSource = {

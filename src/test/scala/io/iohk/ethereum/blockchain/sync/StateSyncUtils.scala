@@ -1,12 +1,18 @@
 package io.iohk.ethereum.blockchain.sync
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{Account, Address, Blockchain, BlockchainImpl, BlockchainReader}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteUtils}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteUtils
 
 object StateSyncUtils extends EphemBlockchainTestSetup {
 
@@ -23,18 +29,17 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       evmCodeStorage: EvmCodeStorage,
       blockchainConfig: BlockchainConfig
   ) {
-    def getNodes(hashes: List[ByteString]) = {
+    def getNodes(hashes: List[ByteString]): List[SyncResponse] =
       hashes.map { hash =>
         val maybeResult = blockchainReader.getMptNodeByHash(hash) match {
           case Some(value) => Some(ByteString(value.encode))
-          case None => evmCodeStorage.get(hash)
+          case None        => evmCodeStorage.get(hash)
         }
         maybeResult match {
           case Some(result) => SyncResponse(hash, result)
-          case None => throw new RuntimeException("Missing expected data in storage")
+          case None         => throw new RuntimeException("Missing expected data in storage")
         }
       }
-    }
 
     def buildWorld(accountData: Seq[MptNodeData], existingTree: Option[ByteString] = None): ByteString = {
       val init = InMemoryWorldStateProxy(
@@ -82,7 +87,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
     }
   }
 
-  def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int): Seq[MptNodeData] = {
+  def createNodeDataStartingFrom(initialNumber: Int, lastNumber: Int, storageOffset: Int): Seq[MptNodeData] =
     (initialNumber until lastNumber).map { i =>
       val address = Address(i)
       val codeBytes = ByteString(BigInt(i).toByteArray)
@@ -90,7 +95,6 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       val balance = i
       MptNodeData(address, Some(codeBytes), storage, balance)
     }
-  }
 
   def checkAllDataExists(
       nodeData: List[MptNodeData],
@@ -98,7 +102,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
       evmCodeStorage: EvmCodeStorage,
       blNumber: BigInt
   ): Boolean = {
-    def go(remaining: List[MptNodeData]): Boolean = {
+    def go(remaining: List[MptNodeData]): Boolean =
       if (remaining.isEmpty) {
         true
       } else {
@@ -117,7 +121,6 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
           false
         }
       }
-    }
 
     go(nodeData)
   }

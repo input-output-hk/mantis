@@ -1,25 +1,30 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.net.InetSocketAddress
+
+import akka.actor.ActorRef
 import akka.actor.ActorSystem
-import akka.testkit.{TestKit, TestProbe}
+import akka.testkit.TestKit
+import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
-import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.{
-  NoUsefulDataInResponse,
-  ResponseProcessingResult,
-  UnrequestedResponse,
-  UsefulData
-}
-import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
-import io.iohk.ethereum.crypto.kec256
-import io.iohk.ethereum.network.{Peer, PeerId}
-import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.must.Matchers
+
+import io.iohk.ethereum.WithActorSystemShutDown
+import io.iohk.ethereum.blockchain.sync.fast.DownloaderState
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.NoUsefulDataInResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.ResponseProcessingResult
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.UnrequestedResponse
+import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.UsefulData
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 
 class SyncStateDownloaderStateSpec
     extends TestKit(ActorSystem("SyncStateDownloaderStateSpec_System"))
@@ -113,9 +118,9 @@ class SyncStateDownloaderStateSpec
     assert(handlingResult == UnrequestedResponse)
     // check that all requests are unchanged
     assert(newState2.activeRequests.size == 3)
-    assert(requests.forall({ req =>
+    assert(requests.forall { req =>
       req.nodes.forall(h => newState2.nodesToGet(h).contains(req.peer.id))
-    }))
+    })
   }
 
   it should "handle empty responses from from peers" in new TestSetup {
@@ -222,28 +227,27 @@ class SyncStateDownloaderStateSpec
   }
 
   trait TestSetup {
-    def expectUsefulData(result: ResponseProcessingResult): UsefulData = {
+    def expectUsefulData(result: ResponseProcessingResult): UsefulData =
       result match {
-        case UnrequestedResponse => fail()
+        case UnrequestedResponse    => fail()
         case NoUsefulDataInResponse => fail()
-        case data @ UsefulData(_) => data
+        case data @ UsefulData(_)   => data
       }
-    }
 
-    val ref1 = TestProbe().ref
-    val ref2 = TestProbe().ref
-    val ref3 = TestProbe().ref
-    val ref4 = TestProbe().ref
+    val ref1: ActorRef = TestProbe().ref
+    val ref2: ActorRef = TestProbe().ref
+    val ref3: ActorRef = TestProbe().ref
+    val ref4: ActorRef = TestProbe().ref
 
-    val initialState = DownloaderState(Map.empty, Map.empty)
-    val peer1 = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
-    val peer2 = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
-    val peer3 = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
-    val notKnownPeer = Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
-    val peers = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
-    val potentialNodes = (1 to 100).map(i => ByteString(i)).toList
-    val potentialNodesHashes = potentialNodes.map(node => kec256(node))
-    val hashNodeMap = potentialNodesHashes.zip(potentialNodes).toMap
+    val initialState: DownloaderState = DownloaderState(Map.empty, Map.empty)
+    val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), ref1, incomingConnection = false)
+    val peer2: Peer = Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), ref2, incomingConnection = false)
+    val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), ref3, incomingConnection = false)
+    val notKnownPeer: Peer = Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), ref4, incomingConnection = false)
+    val peers: NonEmptyList[Peer] = NonEmptyList.fromListUnsafe(List(peer1, peer2, peer3))
+    val potentialNodes: List[ByteString] = (1 to 100).map(i => ByteString(i)).toList
+    val potentialNodesHashes: List[ByteString] = potentialNodes.map(node => kec256(node))
+    val hashNodeMap: Map[ByteString, ByteString] = potentialNodesHashes.zip(potentialNodes).toMap
   }
 
 }

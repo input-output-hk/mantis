@@ -1,14 +1,19 @@
 package io.iohk.ethereum.network.p2p.messages
 
 import akka.util.ByteString
-import io.iohk.ethereum.domain.{BlockHeader, BlockBody}
-import io.iohk.ethereum.domain.BlockHeaderImplicits._
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockBody._
-import io.iohk.ethereum.network.p2p.{Message, MessageSerializableImplicit}
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockHeaderImplicits._
+import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
-import io.iohk.ethereum.rlp.{RLPList, _}
-import org.bouncycastle.util.encoders.Hex
+import io.iohk.ethereum.rlp.RLPList
+import io.iohk.ethereum.rlp._
 
 object ETH62 {
   object BlockHash {
@@ -24,7 +29,7 @@ object ETH62 {
     implicit class BlockHashRLPEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toBlockHash: BlockHash = rlpEncodeable match {
         case RLPList(hash, number) => BlockHash(hash, number)
-        case _ => throw new RuntimeException("Cannot decode BlockHash")
+        case _                     => throw new RuntimeException("Cannot decode BlockHash")
       }
     }
   }
@@ -53,7 +58,7 @@ object ETH62 {
       import BlockHash._
       def toNewBlockHashes: NewBlockHashes = rawDecode(bytes) match {
         case rlpList: RLPList => NewBlockHashes(rlpList.items.map(_.toBlockHash))
-        case _ => throw new RuntimeException("Cannot decode NewBlockHashes")
+        case _                => throw new RuntimeException("Cannot decode NewBlockHashes")
       }
     }
   }
@@ -78,7 +83,7 @@ object ETH62 {
         import msg._
         block match {
           case Left(blockNumber) => RLPList(blockNumber, maxHeaders, skip, if (reverse) 1 else 0)
-          case Right(blockHash) => RLPList(blockHash, maxHeaders, skip, if (reverse) 1 else 0)
+          case Right(blockHash)  => RLPList(blockHash, maxHeaders, skip, if (reverse) 1 else 0)
         }
       }
     }
@@ -123,7 +128,7 @@ object ETH62 {
     implicit class BlockBodiesDec(val bytes: Array[Byte]) extends AnyVal {
       def toBlockBodies: BlockBodies = rawDecode(bytes) match {
         case rlpList: RLPList => BlockBodies(rlpList.items.map(_.toBlockBody))
-        case _ => throw new RuntimeException("Cannot decode BlockBodies")
+        case _                => throw new RuntimeException("Cannot decode BlockBodies")
       }
     }
   }
