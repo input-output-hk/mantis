@@ -21,6 +21,7 @@ import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.domain
@@ -133,6 +134,7 @@ class TestService(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
+    evmCodeStorage: EvmCodeStorage,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
@@ -243,7 +245,7 @@ class TestService(
   private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
     accounts
       .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
-      .foreach(code => blockchain.storeEvmCode(kec256(code), code).commit())
+      .foreach(code => evmCodeStorage.put(kec256(code), code).commit())
 
   private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
     val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(

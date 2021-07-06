@@ -441,6 +441,7 @@ trait TestServiceBuilder {
       blockchain,
       blockchainReader,
       storagesInstance.storages.stateStorage,
+      storagesInstance.storages.evmCodeStorage,
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,

@@ -111,8 +111,6 @@ trait Blockchain {
 
   def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate
 
-  def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate
-
   def storeChainWeight(blockhash: ByteString, weight: ChainWeight): DataSourceBatchUpdate
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
@@ -137,7 +135,6 @@ class BlockchainImpl(
     protected val blockBodiesStorage: BlockBodiesStorage,
     protected val blockNumberMappingStorage: BlockNumberMappingStorage,
     protected val receiptStorage: ReceiptStorage,
-    protected val evmCodeStorage: EvmCodeStorage,
     protected val chainWeightStorage: ChainWeightStorage,
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
@@ -305,9 +302,6 @@ class BlockchainImpl(
   override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate =
     receiptStorage.put(blockHash, receipts)
 
-  override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate =
-    evmCodeStorage.put(hash, evmCode)
-
   override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit =
     latestCheckpointNumber match {
       case Some(number) =>
@@ -463,7 +457,6 @@ trait BlockchainStorages {
   val chainWeightStorage: ChainWeightStorage
   val transactionMappingStorage: TransactionMappingStorage
   val appStateStorage: AppStateStorage
-  val cachedNodeStorage: CachedNodeStorage
   val stateStorage: StateStorage
 }
 
@@ -474,7 +467,6 @@ object BlockchainImpl {
       blockBodiesStorage = storages.blockBodiesStorage,
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
-      evmCodeStorage = storages.evmCodeStorage,
       chainWeightStorage = storages.chainWeightStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,

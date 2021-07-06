@@ -298,7 +298,6 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           storagesInstance.storages.nodeStorage
           storagesInstance.storages.pruningMode
           val appStateStorage = storagesInstance.storages.appStateStorage
-          val cachedNodeStorage = storagesInstance.storages.cachedNodeStorage
           val stateStorage = stubStateStorage
         }
         override val blockchainReaderWithStubPersisting = BlockchainReader(blockchainStoragesWithStubPersisting)
