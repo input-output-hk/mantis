@@ -11,14 +11,16 @@ import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class StxLedger(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
-    blockchainConfig: BlockchainConfig,
-    blockPreparator: BlockPreparator
+    blockPreparator: BlockPreparator,
+    node: BlockchainConfigBuilder
 ) {
+  import node._
 
   def simulateTransaction(
       stx: SignedTransactionWithSender,

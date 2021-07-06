@@ -4,7 +4,6 @@ import monix.execution.Scheduler
 
 import io.iohk.ethereum.consensus.ConsensusBuilder
 import io.iohk.ethereum.consensus.ConsensusConfigBuilder
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.ActorSystemBuilder
 import io.iohk.ethereum.nodebuilder._
@@ -30,8 +29,8 @@ trait TestModeServiceBuilder extends StxLedgerBuilder {
       syncConfig,
       scheduler,
       consensusConfig,
-      DifficultyCalculator(blockchainConfig),
-      vm
+      vm,
+      this
     )
 
   override lazy val blockQueue: BlockQueue = testModeComponentsProvider.blockQueue();

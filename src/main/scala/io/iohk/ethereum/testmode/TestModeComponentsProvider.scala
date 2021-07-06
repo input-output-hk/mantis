@@ -18,6 +18,7 @@ import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
@@ -27,8 +28,8 @@ class TestModeComponentsProvider(
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
     consensusConfig: ConsensusConfig,
-    difficultyCalculator: DifficultyCalculator,
-    vm: VMImpl
+    vm: VMImpl,
+    node: BlockchainConfigBuilder
 ) {
 
 //  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
@@ -76,8 +77,8 @@ class TestModeComponentsProvider(
       blockchain,
       blockchainReader,
       evmCodeStorage,
-      blockchainConfig,
-      consensus(blockchainConfig, sealEngine).blockPreparator
+      consensus(blockchainConfig, sealEngine).blockPreparator,
+      node
     )
   def consensus(
       blockchainConfig: BlockchainConfig,
@@ -91,7 +92,7 @@ class TestModeComponentsProvider(
       blockchainReader,
       blockchainConfig,
       consensusConfig,
-      difficultyCalculator,
+      DifficultyCalculator(blockchainConfig),
       sealEngine,
       blockTimestamp
     )

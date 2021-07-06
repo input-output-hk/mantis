@@ -749,8 +749,8 @@ trait StxLedgerBuilder {
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig,
-      consensus.blockPreparator
+      consensus.blockPreparator,
+      this
     )
 }
 

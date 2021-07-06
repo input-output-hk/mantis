@@ -164,8 +164,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig,
-      consensus.blockPreparator
+      consensus.blockPreparator,
+      this
     )
 
   val emptyWorld: InMemoryWorldStateProxy =
