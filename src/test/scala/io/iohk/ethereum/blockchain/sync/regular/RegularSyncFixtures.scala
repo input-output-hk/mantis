@@ -49,8 +49,8 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>

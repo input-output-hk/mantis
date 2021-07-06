@@ -18,8 +18,8 @@ import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
-import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncController(
     appStateStorage: AppStateStorage,

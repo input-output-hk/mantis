@@ -16,9 +16,9 @@ import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(

@@ -33,18 +33,16 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.testmode.SealEngineType
 import io.iohk.ethereum.testmode.TestModeComponentsProvider
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ForkBlockNumbers
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.nodebuilder.TestNode
 
 object TestService {
   case class GenesisParams(

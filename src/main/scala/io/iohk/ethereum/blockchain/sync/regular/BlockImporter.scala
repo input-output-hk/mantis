@@ -25,6 +25,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddUncheckedTransactions
@@ -32,7 +33,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.RemoveTransactio
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class BlockImporter(
     fetcher: ActorRef,

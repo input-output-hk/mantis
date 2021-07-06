@@ -24,9 +24,9 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class RegularSync(
     peersClient: ActorRef,

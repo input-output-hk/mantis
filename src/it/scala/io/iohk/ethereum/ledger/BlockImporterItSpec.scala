@@ -36,9 +36,9 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockImporterItSpec
     extends MockFactory

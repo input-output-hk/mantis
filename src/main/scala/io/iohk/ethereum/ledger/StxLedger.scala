@@ -9,9 +9,8 @@ import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.ledger.TxResult
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.vm.EvmConfig
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.vm.EvmConfig
 
 class StxLedger(
     blockchain: BlockchainImpl,

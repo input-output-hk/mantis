@@ -25,10 +25,9 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.TransactionPicker
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object EthMiningService {
 

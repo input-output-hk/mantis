@@ -36,12 +36,12 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.KeyStore.IOError
 import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ForkBlockNumbers
 import io.iohk.ethereum.utils.MonetaryPolicyConfig
 import io.iohk.ethereum.utils.TxPoolConfig
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class PersonalServiceSpec
     extends TestKit(ActorSystem("JsonRpcControllerEthSpec_System"))
@@ -411,8 +411,8 @@ class PersonalServiceSpec
     val nonce = 7
     val txValue = 128000
 
-    val chainId = 0x03.toByte
-    val forkBlockNumbers = ForkBlockNumbers(
+    val chainId: Byte = 0x03.toByte
+    val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers(
       eip155BlockNumber = 12345,
       eip161BlockNumber = 0,
       frontierBlockNumber = 0,

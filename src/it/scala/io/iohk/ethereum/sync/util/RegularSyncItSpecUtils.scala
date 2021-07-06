@@ -46,7 +46,6 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.def
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
-import io.iohk.ethereum.nodebuilder.BlockchainBuilder
 object RegularSyncItSpecUtils {
 
   class ValidatorsExecutorAlwaysSucceed extends MockValidatorsAlwaysSucceed {

@@ -60,8 +60,8 @@ import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
-import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 class RegularSyncSpec
     extends WordSpecBase

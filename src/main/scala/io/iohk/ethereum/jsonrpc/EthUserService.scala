@@ -9,7 +9,6 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object EthUserService {

@@ -16,9 +16,9 @@ import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockImport(
     blockchain: BlockchainImpl,

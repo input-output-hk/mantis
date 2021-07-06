@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import java.util.concurrent.atomic.AtomicReference
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Failure
@@ -16,9 +18,8 @@ import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
-import java.util.concurrent.atomic.AtomicReference
+import io.iohk.ethereum.utils.Config
 
 /** A standard node is everything Ethereum prescribes except the consensus algorithm,
   * which is plugged in dynamically.
@@ -122,5 +123,5 @@ class TestNode
 
   implicit override def blockchainConfig: BlockchainConfig = currentBlockchainConfig.get()
 
-  def setBlockchainConfig(config: BlockchainConfig) = currentBlockchainConfig.set(config)
+  def setBlockchainConfig(config: BlockchainConfig): Unit = currentBlockchainConfig.set(config)
 }
