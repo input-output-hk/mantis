@@ -192,8 +192,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with fork id when peer supports ETH64" in new LocalPeerETH64Setup
-    with RemotePeerETH64Setup {
+  it should "send status with fork id when peer supports ETH64" in new LocalPeerETH64Setup with RemotePeerETH64Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
