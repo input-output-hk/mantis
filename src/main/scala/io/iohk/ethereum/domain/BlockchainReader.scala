@@ -50,30 +50,11 @@ class BlockchainReader(
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  /** Returns a block hash given a block number
-    *
-    * @param number Number of the searchead block
-    * @return Block hash if found
-    */
-  def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
-
   def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
     for {
       hash <- getHashByBlockNumber(number)
       header <- getBlockHeaderByHash(hash)
     } yield header
-
-  /** Allows to query for a block based on it's number
-    *
-    * @param number Block number
-    * @return Block if it exists
-    */
-  def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- getBlockByHash(hash)
-    } yield block
 
   /** Returns MPT node searched by it's hash
     * @param hash Node Hash
@@ -124,7 +105,26 @@ class BlockchainReader(
     getBlockHeaderByNumber(0).get
 
   def genesisBlock: Block =
-    getBlockByNumber(0).get
+    getBestBranch().getBlockByNumber(0).get
+
+  /** Allows to query for a block based on it's number
+    *
+    * @param number Block number
+    * @return Block if it exists
+    */
+  private def getBlockByNumber(number: BigInt): Option[Block] =
+    for {
+      hash <- getHashByBlockNumber(number)
+      block <- getBlockByHash(hash)
+    } yield block
+
+  /** Returns a block hash given a block number
+    *
+    * @param number Number of the searchead block
+    * @return Block hash if found
+    */
+  private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
+    blockNumberMappingStorage.get(number)
 }
 
 object BlockchainReader {

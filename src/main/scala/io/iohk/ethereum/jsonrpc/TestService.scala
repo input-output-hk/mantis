@@ -372,7 +372,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBlockByNumber(number),
+        number => blockchainReader.getBestBranch.getBlockByNumber(number),
         blockHash => blockchainReader.getBlockByHash(blockHash)
       )
 
@@ -411,7 +411,10 @@ class TestService(
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchainReader.getBlockByNumber(number), hash => blockchainReader.getBlockByHash(hash))
+      .fold(
+        number => blockchainReader.getBestBranch.getBlockByNumber(number),
+        hash => blockchainReader.getBlockByHash(hash)
+      )
 
     (for {
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
