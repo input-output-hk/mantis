@@ -18,6 +18,7 @@ import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockImport(
     blockchain: BlockchainImpl,
@@ -39,7 +40,9 @@ class BlockImport(
     *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
     *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] =
+  def importBlock(
+      block: Block
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
     blockchain.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
@@ -83,7 +86,7 @@ class BlockImport(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  private def measureBlockMetrics(importResult: BlockImportResult): Unit =
+  private def measureBlockMetrics(importResult: BlockImportResult)(implicit blockchainConfig: BlockchainConfig): Unit =
     importResult match {
       case BlockImportedToTop(blockImportData) =>
         blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchainReader.getBlockByHash))
@@ -96,7 +99,7 @@ class BlockImport(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
     val validationResult =
       Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
     val importResult =
@@ -115,7 +118,9 @@ class BlockImport(
     }
   }
 
-  private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight): BlockImportResult = {
+  private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight)(implicit
+      blockchainConfig: BlockchainConfig
+  ): BlockImportResult = {
     val executionResult = for {
       topBlock <- blockQueue.enqueueBlock(block, bestBlockNumber)
       topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
@@ -190,22 +195,23 @@ class BlockImport(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionContext: ExecutionContext): Task[BlockImportResult] = Task.evalOnce {
-    blockValidation
-      .validateBlockBeforeExecution(block)
-      .fold(
-        error => handleBlockValidationError(error, block),
-        _ =>
-          blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
-            case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
-              log.debug("Found a better chain, about to reorganise")
-              reorganiseChainFromQueue(leafHash)
+  )(implicit blockExecutionContext: ExecutionContext, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+    Task.evalOnce {
+      blockValidation
+        .validateBlockBeforeExecution(block)
+        .fold(
+          error => handleBlockValidationError(error, block),
+          _ =>
+            blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
+              case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
+                log.debug("Found a better chain, about to reorganise")
+                reorganiseChainFromQueue(leafHash)
 
-            case _ =>
-              BlockEnqueued
-          }
-      )
-  }
+              case _ =>
+                BlockEnqueued
+            }
+        )
+    }
 
   /** Once a better branch was found this attempts to reorganise the chain
     *
@@ -214,7 +220,9 @@ class BlockImport(
     * @return [[BlockExecutionError]] if one of the blocks in the new branch failed to execute, otherwise:
     *        (oldBranch, newBranch) as lists of blocks
     */
-  private def reorganiseChainFromQueue(queuedLeaf: ByteString): BlockImportResult = {
+  private def reorganiseChainFromQueue(
+      queuedLeaf: ByteString
+  )(implicit blockchainConfig: BlockchainConfig): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchain.getBestBlockNumber()
@@ -253,6 +261,8 @@ class BlockImport(
       newBranch: List[Block],
       parentWeight: ChainWeight,
       oldBlocksData: List[BlockData]
+  )(implicit
+      blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError, (List[Block], List[Block], List[ChainWeight])] = {
     val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
     maybeError match {

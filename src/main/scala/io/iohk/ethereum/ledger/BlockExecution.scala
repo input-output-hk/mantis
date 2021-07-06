@@ -18,7 +18,6 @@ class BlockExecution(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
-    blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
     blockValidation: BlockValidation
 ) extends Logger {
@@ -31,7 +30,7 @@ class BlockExecution(
   def executeAndValidateBlock(
       block: Block,
       alreadyValidated: Boolean = false
-  ): Either[BlockExecutionError, Seq[Receipt]] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] = {
     val preExecValidationResult =
       if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
 
@@ -61,7 +60,9 @@ class BlockExecution(
   }
 
   /** Executes a block (executes transactions and pays rewards) */
-  private def executeBlock(block: Block): Either[BlockExecutionError, BlockResult] =
+  private def executeBlock(
+      block: Block
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
     for {
       parentHeader <- blockchainReader
         .getBlockHeaderByHash(block.header.parentHash)
@@ -75,7 +76,9 @@ class BlockExecution(
       worldPersisted = InMemoryWorldStateProxy.persistState(worldToPersist)
     } yield execResult.copy(worldState = worldPersisted)
 
-  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader): InMemoryWorldStateProxy =
+  protected def buildInitialWorld(block: Block, parentHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): InMemoryWorldStateProxy =
     InMemoryWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       blockchain.getBackingMptStorage(block.header.number),
@@ -93,7 +96,7 @@ class BlockExecution(
   protected[ledger] def executeBlockTransactions(
       block: Block,
       initialWorld: InMemoryWorldStateProxy
-  ): Either[BlockExecutionError, BlockResult] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] = {
     val blockHeaderNumber = block.header.number
     executeBlockTransactions(block, blockHeaderNumber, initialWorld)
   }
@@ -102,7 +105,7 @@ class BlockExecution(
       block: Block,
       blockHeaderNumber: BigInt,
       initialWorld: InMemoryWorldStateProxy
-  ): Either[BlockExecutionError.TxsExecutionError, BlockResult] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError.TxsExecutionError, BlockResult] = {
     val inputWorld = blockchainConfig.daoForkConfig match {
       case Some(daoForkConfig) if daoForkConfig.isDaoForkBlock(blockHeaderNumber) =>
         drainDaoForkAccounts(initialWorld, daoForkConfig)
@@ -154,7 +157,7 @@ class BlockExecution(
   def executeAndValidateBlocks(
       blocks: List[Block],
       parentChainWeight: ChainWeight
-  ): (List[BlockData], Option[BlockExecutionError]) = {
+  )(implicit blockchainConfig: BlockchainConfig): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
         executedBlocksDecOrder: List[BlockData],

@@ -89,7 +89,6 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
           blockchain,
           blockchainReader,
           storagesInstance.storages.evmCodeStorage,
-          blockchainConfig,
           consensuz.blockPreparator,
           blockValidation
         )

@@ -69,7 +69,7 @@ import io.iohk.ethereum.utils._
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
   protected lazy val initBlockchainConfig = Config.blockchains.blockchainConfig
-  def blockchainConfig: BlockchainConfig = initBlockchainConfig
+  implicit def blockchainConfig: BlockchainConfig = initBlockchainConfig
 }
 
 trait VmConfigBuilder {
@@ -187,12 +187,7 @@ trait BlockQueueBuilder {
 }
 
 trait BlockImportBuilder {
-  self: BlockchainBuilder
-    with BlockQueueBuilder
-    with ConsensusBuilder
-    with BlockchainConfigBuilder
-    with ActorSystemBuilder
-    with StorageBuilder =>
+  self: BlockchainBuilder with BlockQueueBuilder with ConsensusBuilder with ActorSystemBuilder with StorageBuilder =>
 
   lazy val blockImport: BlockImport = {
     val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
@@ -205,7 +200,6 @@ trait BlockImportBuilder {
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       ),
@@ -446,8 +440,9 @@ trait TestServiceBuilder {
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,
-      storagesInstance.storages.transactionMappingStorage
-    )(scheduler, this)
+      storagesInstance.storages.transactionMappingStorage,
+      this
+    )(scheduler)
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
@@ -768,6 +763,7 @@ trait SyncControllerBuilder {
   self: ActorSystemBuilder
     with ServerActorBuilder
     with BlockchainBuilder
+    with BlockchainConfigBuilder
     with BlockImportBuilder
     with NodeStatusBuilder
     with StorageBuilder
@@ -796,7 +792,8 @@ trait SyncControllerBuilder {
       ommersPool,
       etcPeerManager,
       blacklist,
-      syncConfig
+      syncConfig,
+      this
     ),
     "sync-controller"
   )

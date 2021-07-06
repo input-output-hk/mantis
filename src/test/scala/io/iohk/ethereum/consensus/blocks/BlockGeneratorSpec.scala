@@ -210,7 +210,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
+    implicit override lazy val blockchainConfig = BlockchainConfig(
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
@@ -255,7 +255,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )
@@ -293,7 +292,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate correct block with (without empty accounts) after EIP-161" in new TestSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
+    implicit override lazy val blockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
@@ -338,7 +337,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )
@@ -712,7 +710,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ethCompatibleStorage = true,
       treasuryAddress = Address(0)
     )
-    override lazy val blockchainConfig = baseBlockchainConfig
+    implicit override lazy val blockchainConfig = baseBlockchainConfig
 
     val genesisDataLoader =
       new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
@@ -740,7 +738,6 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )

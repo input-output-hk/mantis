@@ -69,7 +69,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchain,
             blockchainReader,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newConsensus.blockPreparator,
             blockValidation
           )
@@ -111,7 +110,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchain,
             blockchainReader,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newConsensus.blockPreparator,
             blockValidation
           )
@@ -146,7 +144,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchain,
             blockchainReader,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newConsensus.blockPreparator,
             blockValidation
           )
@@ -173,7 +170,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchain,
             blockchainReader,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newConsensus.blockPreparator,
             blockValidation
           )
@@ -232,7 +228,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchain,
             blockchainReader,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newConsensus.blockPreparator,
             blockValidation
           )
@@ -307,7 +302,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
               blockchain,
               blockchainReader,
               blockchainStorages.evmCodeStorage,
-              blockchainConfig,
               newConsensus.blockPreparator,
               blockValidation
             )
@@ -671,7 +665,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         blockchain,
         blockchainReader,
         blockchainStorages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )

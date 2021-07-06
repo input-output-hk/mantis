@@ -555,6 +555,7 @@ class SyncControllerSpec
           etcPeerManager.ref,
           blacklist,
           syncConfig,
+          this,
           externalSchedulerOpt = Some(system.scheduler)
         )
       )

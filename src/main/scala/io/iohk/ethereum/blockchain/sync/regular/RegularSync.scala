@@ -26,6 +26,7 @@ import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class RegularSync(
     peersClient: ActorRef,
@@ -39,7 +40,8 @@ class RegularSync(
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
-    scheduler: Scheduler
+    scheduler: Scheduler,
+    node: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
 
@@ -67,7 +69,8 @@ class RegularSync(
         ommersPool,
         broadcaster,
         pendingTransactionsManager,
-        self
+        self,
+        node
       ),
       "block-importer"
     )
@@ -139,7 +142,8 @@ object RegularSync {
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
-      scheduler: Scheduler
+      scheduler: Scheduler,
+      node: BlockchainConfigBuilder
   ): Props =
     Props(
       new RegularSync(
@@ -154,7 +158,8 @@ object RegularSync {
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
-        scheduler
+        scheduler,
+        node
       )
     )
 

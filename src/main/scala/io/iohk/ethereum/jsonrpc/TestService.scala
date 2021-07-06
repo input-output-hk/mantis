@@ -138,11 +138,11 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
-    transactionMappingStorage: TransactionMappingStorage
-)(implicit
-    scheduler: Scheduler,
+    transactionMappingStorage: TransactionMappingStorage,
     node: TestNode
-) extends Logger {
+)(implicit scheduler: Scheduler)
+    extends Logger {
+  import node._
 
   import TestService._
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
@@ -260,7 +260,9 @@ class TestService(
     storagesToPersist.foreach(storage => emptyStorage.update(Nil, storage.toSeq.map(toBigInts)))
   }
 
-  def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
+  def mineBlocks(
+      request: MineBlocksRequest
+  ): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] =
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
@@ -282,7 +284,9 @@ class TestService(
     doNTimesF(request.num)(mineBlock()).as(Right(MineBlocksResponse()))
   }
 
-  def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
+  def modifyTimestamp(
+      request: ModifyTimestampRequest
+  ): ServiceResponse[ModifyTimestampResponse] = {
     blockTimestamp = request.timestamp
     ModifyTimestampResponse().rightNow
   }
@@ -295,7 +299,9 @@ class TestService(
     RewindToBlockResponse().rightNow
   }
 
-  def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] =
+  def importRawBlock(
+      request: ImportRawBlockRequest
+  ): ServiceResponse[ImportRawBlockResponse] =
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) =>
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))

@@ -20,7 +20,7 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 class ForksTest extends AnyFlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
+    implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 3,
@@ -80,7 +80,6 @@ class ForksTest extends AnyFlatSpec with Matchers {
           blockchain,
           blockchainReader,
           testBlockchainStorages.evmCodeStorage,
-          blockchainConfig,
           consensus.blockPreparator,
           blockValidation
         )

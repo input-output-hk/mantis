@@ -49,7 +49,6 @@ class TestModeComponentsProvider(
         blockchain,
         blockchainReader,
         evmCodeStorage,
-        blockchainConfig,
         consensuz.blockPreparator,
         blockValidation,
         (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)

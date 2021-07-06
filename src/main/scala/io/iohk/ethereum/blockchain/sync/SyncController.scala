@@ -19,6 +19,7 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class SyncController(
     appStateStorage: AppStateStorage,
@@ -35,6 +36,7 @@ class SyncController(
     etcPeerManager: ActorRef,
     blacklist: Blacklist,
     syncConfig: SyncConfig,
+    node: BlockchainConfigBuilder,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
     with ActorLogging {
@@ -123,7 +125,8 @@ class SyncController(
         syncConfig,
         ommersPool,
         pendingTransactionsManager,
-        scheduler
+        scheduler,
+        node
       ),
       "regular-sync"
     )
@@ -149,7 +152,8 @@ object SyncController {
       ommersPool: ActorRef,
       etcPeerManager: ActorRef,
       blacklist: Blacklist,
-      syncConfig: SyncConfig
+      syncConfig: SyncConfig,
+      node: BlockchainConfigBuilder
   ): Props =
     Props(
       new SyncController(
@@ -166,7 +170,8 @@ object SyncController {
         ommersPool,
         etcPeerManager,
         blacklist,
-        syncConfig
+        syncConfig,
+        node
       )
     )
 }

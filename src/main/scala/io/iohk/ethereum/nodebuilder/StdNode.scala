@@ -120,7 +120,7 @@ class TestNode
 
   private lazy val currentBlockchainConfig = new AtomicReference(initBlockchainConfig)
 
-  override def blockchainConfig: BlockchainConfig = currentBlockchainConfig.get()
+  implicit override def blockchainConfig: BlockchainConfig = currentBlockchainConfig.get()
 
   def setBlockchainConfig(config: BlockchainConfig) = currentBlockchainConfig.set(config)
 }

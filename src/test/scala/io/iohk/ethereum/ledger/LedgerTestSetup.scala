@@ -381,14 +381,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensuz.blockPreparator,
         blockValidation
       ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false
-        ): Either[BlockExecutionError, Seq[Receipt]] = {
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] = {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
             blockchain.getBackingMptStorage(-1),

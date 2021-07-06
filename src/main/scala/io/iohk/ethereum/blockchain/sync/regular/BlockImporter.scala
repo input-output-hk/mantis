@@ -32,6 +32,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.RemoveTransactio
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.FunctorOps._
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class BlockImporter(
     fetcher: ActorRef,
@@ -42,10 +43,12 @@ class BlockImporter(
     ommersPool: ActorRef,
     broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
-    supervisor: ActorRef
+    supervisor: ActorRef,
+    node: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
+  import node._
 
   implicit val ec: Scheduler = Scheduler(context.dispatcher)
 
@@ -331,7 +334,8 @@ object BlockImporter {
       ommersPool: ActorRef,
       broadcaster: ActorRef,
       pendingTransactionsManager: ActorRef,
-      supervisor: ActorRef
+      supervisor: ActorRef,
+      node: BlockchainConfigBuilder
   ): Props =
     Props(
       new BlockImporter(
@@ -343,7 +347,8 @@ object BlockImporter {
         ommersPool,
         broadcaster,
         pendingTransactionsManager,
-        supervisor
+        supervisor,
+        node
       )
     )
 

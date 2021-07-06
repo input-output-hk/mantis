@@ -28,7 +28,6 @@ class ContractTest extends AnyFlatSpec with Matchers {
         blockchain,
         blockchainReader,
         testBlockchainStorages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )

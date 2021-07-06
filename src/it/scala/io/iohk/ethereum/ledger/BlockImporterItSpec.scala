@@ -38,6 +38,7 @@ import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockImporterItSpec
     extends MockFactory
@@ -102,14 +103,13 @@ class BlockImporterItSpec
         blockchain,
         blockchainReader,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensus.blockPreparator,
         new BlockValidation(consensus, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false
-        ): Either[BlockExecutionError, Seq[Receipt]] =
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
           Right(BlockResult(emptyWorld).receipts)
       }
     )
@@ -126,7 +126,8 @@ class BlockImporterItSpec
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
       pendingTransactionsManagerProbe.ref,
-      supervisor.ref
+      supervisor.ref,
+      this
     )
   )
 
@@ -169,7 +170,8 @@ class BlockImporterItSpec
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
         pendingTransactionsManagerProbe.ref,
-        supervisor.ref
+        supervisor.ref,
+        this
       )
     )
 
@@ -281,7 +283,8 @@ class BlockImporterItSpec
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
         pendingTransactionsManagerProbe.ref,
-        supervisor.ref
+        supervisor.ref,
+        this
       )
     )
 

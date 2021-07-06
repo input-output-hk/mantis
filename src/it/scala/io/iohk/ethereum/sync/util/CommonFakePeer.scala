@@ -69,10 +69,12 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.utils.ServerStatus.Listening
 import io.iohk.ethereum.utils._
 import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
     extends SecureRandomBuilder
-    with TestSyncConfig {
+    with TestSyncConfig
+    with BlockchainConfigBuilder {
   implicit val akkaTimeout: Timeout = Timeout(5.second)
 
   val config = Config.config
@@ -119,7 +121,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       override lazy val dataSource: RocksDbDataSource =
         RocksDbDataSource(getRockDbTestConfig(tempDir.toAbsolutePath.toString), Namespaces.nsSeq)
     }
-  lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  implicit override lazy val blockchainConfig = Config.blockchains.blockchainConfig
   lazy val discoveryConfig: DiscoveryConfig = DiscoveryConfig(Config.config, blockchainConfig.bootstrapNodes)
 
   /** Default persist interval is 20s, which is too long for tests. As in all tests we treat peer as connected when

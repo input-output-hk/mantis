@@ -50,6 +50,7 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
+import io.iohk.ethereum.utils.BlockchainConfig
 
 // Fixture classes are wrapped in a trait due to problems with making mocks available inside of them
 trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
@@ -89,7 +90,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           syncConfig,
           ommersPool.ref,
           pendingTransactionsManager.ref,
-          system.scheduler
+          system.scheduler,
+          this
         )
         .withDispatcher("akka.actor.default-dispatcher")
     )
@@ -198,7 +200,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           stub[BlockExecution],
           stub[Scheduler]
         ) {
-      override def importBlock(block: Block)(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      override def importBlock(
+          block: Block
+      )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
         results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
       }
@@ -305,7 +309,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     class FakeImportBlock extends TestBlockImport {
       override def importBlock(
           block: Block
-      )(implicit blockExecutionScheduler: Scheduler): Task[BlockImportResult] = {
+      )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
         val result: BlockImportResult = if (didTryToImportBlock(block)) {
           DuplicateBlock
         } else {
@@ -357,9 +361,9 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
 
     (blockImport
-      .importBlock(_: Block)(_: Scheduler))
-      .when(*, *)
-      .onCall { (block, _) =>
+      .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+      .when(*, *, *)
+      .onCall { (block, _, _) =>
         if (block == newBlock) {
           importedNewBlock = true
           Task.now(
