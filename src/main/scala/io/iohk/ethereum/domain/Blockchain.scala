@@ -185,7 +185,12 @@ class BlockchainImpl(
   //returns the best known block if it's available in the storage, otherwise the best stored block
   override def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
-    log.debug("Trying to get best block with number {}", bestBlockNumber)
+    val bestStoredBlockNumber = appStateStorage.getBestBlockNumber()
+    log.info("Trying to get best block with number {}, fall back to {}", bestBlockNumber, bestStoredBlockNumber)
+    log.info(
+      "Testing getting block by best saved block number - {}",
+      blockchainReader.getBlockByNumber(bestStoredBlockNumber).map(_.header.number)
+    )
     blockchainReader
       .getBlockByNumber(bestBlockNumber)
       .orElse(
