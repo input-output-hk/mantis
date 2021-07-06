@@ -264,13 +264,13 @@ class EthMiningServiceSpec
 
     lazy val ethMiningService = new EthMiningService(
       blockchain,
-      blockchainConfig,
       consensus,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,
       pendingTransactionsManager.ref,
-      getTransactionFromPoolTimeout
+      getTransactionFromPoolTimeout,
+      this
     )
 
     val difficulty = 131072

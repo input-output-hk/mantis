@@ -497,13 +497,13 @@ trait EthMiningServiceBuilder {
 
   lazy val ethMiningService = new EthMiningService(
     blockchain,
-    blockchainConfig,
     consensus,
     jsonRpcConfig,
     ommersPool,
     syncController,
     pendingTransactionsManager,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    this
   )
 }
 trait EthTxServiceBuilder {

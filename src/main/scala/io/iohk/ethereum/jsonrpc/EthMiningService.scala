@@ -28,6 +28,7 @@ import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpc
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.TransactionPicker
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object EthMiningService {
 
@@ -52,13 +53,13 @@ object EthMiningService {
 
 class EthMiningService(
     blockchain: Blockchain,
-    blockchainConfig: BlockchainConfig,
     consensus: Consensus,
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
     syncingController: ActorRef,
     val pendingTransactionsManager: ActorRef,
-    val getTransactionFromPoolTimeout: FiniteDuration
+    val getTransactionFromPoolTimeout: FiniteDuration,
+    node: BlockchainConfigBuilder
 ) extends TransactionPicker {
 
   import EthMiningService._
@@ -98,7 +99,10 @@ class EthMiningService(
               GetWorkResponse(
                 powHeaderHash = ByteString(kec256(BlockHeader.getEncodedWithoutNonce(pb.block.header))),
                 dagSeed = EthashUtils
-                  .seed(pb.block.header.number.toLong, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong),
+                  .seed(
+                    pb.block.header.number.toLong,
+                    node.blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong
+                  ),
                 target = ByteString((BigInt(2).pow(256) / pb.block.header.difficulty).toByteArray)
               )
             )
