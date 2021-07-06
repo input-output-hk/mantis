@@ -23,7 +23,7 @@ object BlockHelpers extends SecureRandomBuilder {
     unixTimestamp = 0
   )
 
-  val defaultTx: Transaction = Transaction(
+  val defaultTx: LegacyTransaction = LegacyTransaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,

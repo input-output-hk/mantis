@@ -19,7 +19,7 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.SignedTransactionWithSender
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsRequest
 import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.nodebuilder.ApisBuilder
@@ -54,7 +54,7 @@ class MantisServiceSpec
     "should get account's transaction history" in {
       class TxHistoryFixture extends Fixture {
         val fakeTransaction = SignedTransactionWithSender(
-          Transaction(
+          LegacyTransaction(
             nonce = 0,
             gasPrice = 123,
             gasLimit = 123,

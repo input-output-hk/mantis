@@ -3,7 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.util.ByteString
 
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.utils.Config
 
 case class TransactionRequest(
@@ -19,8 +19,8 @@ case class TransactionRequest(
   private val defaultGasPrice: BigInt = 2 * BigInt(10).pow(10)
   private val defaultGasLimit: BigInt = 90000
 
-  def toTransaction(defaultNonce: BigInt): Transaction =
-    Transaction(
+  def toTransaction(defaultNonce: BigInt): LegacyTransaction =
+    LegacyTransaction(
       nonce = nonce.getOrElse(defaultNonce),
       gasPrice = gasPrice.getOrElse(defaultGasPrice),
       gasLimit = gasLimit.getOrElse(defaultGasLimit),

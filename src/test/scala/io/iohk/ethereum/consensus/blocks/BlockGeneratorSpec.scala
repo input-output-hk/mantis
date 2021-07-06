@@ -345,7 +345,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockValidation
       )
 
-    val transaction1 = Transaction(
+    val transaction1 = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = 1000000,
@@ -443,7 +443,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val privateKeyWithNoEthere =
       BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
 
-    val failingTransaction = Transaction(
+    val failingTransaction = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
@@ -657,7 +657,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val txGasLimit = 21000
     val txTransfer = 9000
-    val transaction: Transaction = Transaction(
+    val transaction: LegacyTransaction = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,

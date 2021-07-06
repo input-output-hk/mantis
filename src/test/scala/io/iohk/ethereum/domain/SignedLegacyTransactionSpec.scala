@@ -12,7 +12,11 @@ import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.vm.Generators
 
-class SignedTransactionSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
+class SignedLegacyTransactionSpec
+    extends AnyFlatSpec
+    with Matchers
+    with ScalaCheckPropertyChecks
+    with SecureRandomBuilder {
   "SignedTransaction" should "correctly set pointSign for chainId with chain specific signing schema" in {
     forAll(Generators.transactionGen(), Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
       (tx, key) =>

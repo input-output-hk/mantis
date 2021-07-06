@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
-object Transaction {
+object LegacyTransaction {
 
   val NonceLength = 32
   val GasLength = 32
@@ -17,12 +17,12 @@ object Transaction {
       receivingAddress: Address,
       value: BigInt,
       payload: ByteString
-  ): Transaction =
-    Transaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
+  ): LegacyTransaction =
+    LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
 
 }
 
-case class Transaction(
+case class LegacyTransaction(
     nonce: BigInt,
     gasPrice: BigInt,
     gasLimit: BigInt,
@@ -37,7 +37,7 @@ case class Transaction(
     val receivingAddressString =
       receivingAddress.map(addr => Hex.toHexString(addr.toArray)).getOrElse("[Contract creation]")
 
-    s"Transaction {" +
+    s"LegacyTransaction {" +
       s"nonce: $nonce " +
       s"gasPrice: $gasPrice " +
       s"gasLimit: $gasLimit " +

@@ -27,7 +27,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
       * parity and geth)
       */
 
-    val tx = Transaction(0, 0, lastBlockGasLimit, existingAddress, 0, sendData)
+    val tx = LegacyTransaction(0, 0, lastBlockGasLimit, existingAddress, 0, sendData)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature)
     val stxFromAddress = SignedTransactionWithSender(stx, fromAddress)
@@ -60,7 +60,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
   it should "correctly estimate gasLimit for value transfer transaction" in new ScenarioSetup {
     val transferValue = 2
 
-    val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
+    val tx = LegacyTransaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stx = SignedTransaction(tx, fakeSignature)
 
@@ -75,7 +75,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
   it should "correctly simulate transaction on pending block when supplied prepared world" in new ScenarioSetup {
     val transferValue = 2
 
-    val tx = Transaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
+    val tx = LegacyTransaction(0, 0, lastBlockGasLimit, existingEmptyAccountAddres, transferValue, ByteString.empty)
     val fakeSignature = ECDSASignature(0, 0, 0.toByte)
     val stxFromAddress = SignedTransactionWithSender(SignedTransaction(tx, fakeSignature), fromAddress)
 

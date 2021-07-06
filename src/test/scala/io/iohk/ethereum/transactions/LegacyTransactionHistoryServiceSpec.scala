@@ -21,7 +21,7 @@ import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionD
 import io.iohk.ethereum.transactions.testing.PendingTransactionsManagerAutoPilot
 import io.iohk.ethereum.{blockchain => _, _}
 
-class TransactionHistoryServiceSpec
+class LegacyTransactionHistoryServiceSpec
     extends TestKit(ActorSystem("TransactionHistoryServiceSpec-system"))
     with FreeSpecBase
     with SpecFixtures
@@ -44,9 +44,9 @@ class TransactionHistoryServiceSpec
 
     val keyPair = generateKeyPair(secureRandom)
 
-    val tx1 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
-    val tx2 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
-    val tx3 = SignedTransaction.sign(Transaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
+    val tx1 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
+    val tx2 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
+    val tx3 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
 
     val blockWithTx1 =
       Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
@@ -100,7 +100,7 @@ class TransactionHistoryServiceSpec
 
       val keyPair = generateKeyPair(secureRandom)
 
-      val tx = Transaction(0, 123, 456, None, 99, ByteString())
+      val tx = LegacyTransaction(0, 123, 456, None, 99, ByteString())
       val signedTx = SignedTransaction.sign(tx, keyPair, None)
 
       val expectedSent =
@@ -124,11 +124,11 @@ class TransactionHistoryServiceSpec
       val senderAddress = Address(keyPair)
       val checkpointKey = generateKeyPair(secureRandom)
 
-      val txToBeCheckpointed = Transaction(0, 123, 456, None, 99, ByteString())
+      val txToBeCheckpointed = LegacyTransaction(0, 123, 456, None, 99, ByteString())
       val signedTxToBeCheckpointed = SignedTransaction.sign(txToBeCheckpointed, keyPair, None)
 
       val txNotToBeCheckpointed =
-        Transaction(1, 123, 456, Address("ee4439beb5c71513b080bbf9393441697a29f478"), 99, ByteString())
+        LegacyTransaction(1, 123, 456, Address("ee4439beb5c71513b080bbf9393441697a29f478"), 99, ByteString())
       val signedTxNotToBeCheckpointed = SignedTransaction.sign(txNotToBeCheckpointed, keyPair, None)
 
       val block1 = BlockHelpers

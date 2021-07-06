@@ -39,7 +39,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     "correctly change the nonce" when {
       "executing a tx that results in contract creation" in new TestSetup {
 
-        val tx: Transaction =
+        val tx: LegacyTransaction =
           defaultTx.copy(
             gasPrice = defaultGasPrice,
             gasLimit = defaultGasLimit,
@@ -61,7 +61,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
       "executing a tx that results in a message call" in new TestSetup {
 
-        val tx: Transaction = defaultTx.copy(
+        val tx: LegacyTransaction = defaultTx.copy(
           gasPrice = defaultGasPrice,
           gasLimit = defaultGasLimit,
           receivingAddress = Some(originAddress),
@@ -84,7 +84,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     "properly assign stateRootHash" when {
       "before byzantium block (exclusive)" in new TestSetup {
 
-        val tx: Transaction = defaultTx.copy(
+        val tx: LegacyTransaction = defaultTx.copy(
           gasPrice = defaultGasPrice,
           gasLimit = defaultGasLimit,
           receivingAddress = None,
@@ -105,7 +105,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
       "after byzantium block (inclusive) if operation is a success" in new TestSetup {
 
-        val tx: Transaction = defaultTx.copy(
+        val tx: LegacyTransaction = defaultTx.copy(
           gasPrice = defaultGasPrice,
           gasLimit = defaultGasLimit,
           receivingAddress = None,
@@ -134,7 +134,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
         val testConsensus: Consensus = newTestConsensus(vm = mockVM)
 
-        val tx: Transaction = defaultTx.copy(
+        val tx: LegacyTransaction = defaultTx.copy(
           gasPrice = defaultGasLimit,
           gasLimit = defaultGasLimit,
           receivingAddress = None,
@@ -247,7 +247,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       createResult(pc, defaultGasLimit, defaultGasLimit, 0, None, returnData = ByteString("contract code"))
     )
 
-    val tx: Transaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
+    val tx: LegacyTransaction = defaultTx.copy(gasPrice = 0, receivingAddress = None, payload = inputData)
     val stx: SignedTransactionWithSender = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
@@ -279,10 +279,10 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         }
     }
 
-    val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val tx2: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
-    val tx3: Transaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
-    val tx4: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val tx1: LegacyTransaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val tx2: LegacyTransaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
+    val tx3: LegacyTransaction = defaultTx.copy(gasPrice = 43, receivingAddress = Some(Address(43)))
+    val tx4: LegacyTransaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val stx1: SignedTransactionWithSender =
       SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
     val stx2: SignedTransactionWithSender =
@@ -315,8 +315,8 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         }
     }
 
-    val tx1: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
-    val tx2: Transaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val tx1: LegacyTransaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
+    val tx2: LegacyTransaction = defaultTx.copy(gasPrice = 42, receivingAddress = Some(Address(42)))
     val stx1: SignedTransactionWithSender =
       SignedTransaction.sign(tx1, newAccountKeyPair, Some(blockchainConfig.chainId))
     val stx2: SignedTransactionWithSender =
@@ -331,7 +331,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
   // migrated from old LedgerSpec
   "properly assign stateRootHash before byzantium block (exclusive)" in new TestSetup {
 
-    val tx: Transaction = defaultTx.copy(
+    val tx: LegacyTransaction = defaultTx.copy(
       gasPrice = defaultGasPrice,
       gasLimit = defaultGasLimit,
       receivingAddress = None,
@@ -352,7 +352,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
   "properly assign stateRootHash after byzantium block (inclusive) if operation is a success" in new TestSetup {
 
-    val tx: Transaction = defaultTx.copy(
+    val tx: LegacyTransaction = defaultTx.copy(
       gasPrice = defaultGasPrice,
       gasLimit = defaultGasLimit,
       receivingAddress = None,
@@ -381,7 +381,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
     val testConsensus: Consensus = newTestConsensus(vm = mockVM)
 
-    val tx: Transaction = defaultTx.copy(
+    val tx: LegacyTransaction = defaultTx.copy(
       gasPrice = defaultGasLimit,
       gasLimit = defaultGasLimit,
       receivingAddress = None,

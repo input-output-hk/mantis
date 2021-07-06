@@ -7,7 +7,7 @@ import cats.data.EitherT
 import monix.eval.Task
 
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.jsonrpc.client.RpcClient.RpcError
 import io.iohk.ethereum.keystore.KeyStore
@@ -36,7 +36,7 @@ class WalletService(walletRpcClient: WalletRpcClient, keyStore: KeyStore, config
 
   private def prepareTx(wallet: Wallet, targetAddress: Address, nonce: BigInt): ByteString = {
     val transaction =
-      Transaction(nonce, config.txGasPrice, config.txGasLimit, Some(targetAddress), config.txValue, ByteString())
+      LegacyTransaction(nonce, config.txGasPrice, config.txGasLimit, Some(targetAddress), config.txValue, ByteString())
 
     val stx = wallet.signTx(transaction, None)
     ByteString(rlp.encode(stx.tx.toRLPEncodable))

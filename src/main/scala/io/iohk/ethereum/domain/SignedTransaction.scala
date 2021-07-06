@@ -50,7 +50,7 @@ object SignedTransaction {
   val valueForEmptyS = 0
 
   def apply(
-      tx: Transaction,
+      tx: LegacyTransaction,
       pointSign: Byte,
       signatureRandom: ByteString,
       signature: ByteString,
@@ -64,7 +64,12 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): SignedTransaction = {
+  def apply(
+      tx: LegacyTransaction,
+      pointSign: Byte,
+      signatureRandom: ByteString,
+      signature: ByteString
+  ): SignedTransaction = {
     val txSignature = ECDSASignature(
       r = new BigInteger(1, signatureRandom.toArray),
       s = new BigInteger(1, signature.toArray),
@@ -73,14 +78,18 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
+  def sign(
+      tx: LegacyTransaction,
+      keyPair: AsymmetricCipherKeyPair,
+      chainId: Option[Byte]
+  ): SignedTransactionWithSender = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
     val address = Address(keyPair)
     SignedTransactionWithSender(tx, sig, address)
   }
 
-  private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
+  private def bytesToSign(tx: LegacyTransaction, chainId: Option[Byte]): Array[Byte] =
     chainId match {
       case Some(id) =>
         chainSpecificTransactionBytes(tx, id)
@@ -125,12 +134,12 @@ object SignedTransaction {
   private def calculateAndCacheSender(stx: SignedTransaction) =
     calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
 
-  private def generalTransactionBytes(tx: Transaction): Array[Byte] = {
+  private def generalTransactionBytes(tx: LegacyTransaction): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     crypto.kec256(rlpEncode(RLPList(tx.nonce, tx.gasPrice, tx.gasLimit, receivingAddressAsArray, tx.value, tx.payload)))
   }
 
-  private def chainSpecificTransactionBytes(tx: Transaction, chainId: Byte): Array[Byte] = {
+  private def chainSpecificTransactionBytes(tx: LegacyTransaction, chainId: Byte): Array[Byte] = {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     crypto.kec256(
       rlpEncode(
@@ -157,7 +166,7 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
+case class SignedTransaction(tx: LegacyTransaction, signature: ECDSASignature) {
 
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
@@ -184,6 +193,6 @@ object SignedTransactionWithSender {
       sender.fold(acc)(addr => SignedTransactionWithSender(stx, addr) :: acc)
     }
 
-  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender =
+  def apply(transaction: LegacyTransaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender =
     SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
 }

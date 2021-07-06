@@ -21,7 +21,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.SignedTransactionWithSender
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked
@@ -216,11 +216,11 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
     val keyPair1: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     val keyPair2: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
 
-    val tx: Transaction = Transaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
+    val tx: LegacyTransaction = LegacyTransaction(1, 1, 1, Some(Address(42)), 10, ByteString(""))
 
     def newStx(
         nonce: BigInt = 0,
-        tx: Transaction = tx,
+        tx: LegacyTransaction = tx,
         keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     ): SignedTransactionWithSender =
       SignedTransaction.sign(tx, keyPair, Some(0x3d))
