@@ -43,6 +43,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ForkBlockNumbers
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.nodebuilder.TestNode
 
 object TestService {
   case class GenesisParams(
@@ -136,10 +138,10 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
-    initialConfig: BlockchainConfig,
     transactionMappingStorage: TransactionMappingStorage
 )(implicit
-    scheduler: Scheduler
+    scheduler: Scheduler,
+    node: TestNode
 ) extends Logger {
 
   import TestService._
@@ -147,14 +149,13 @@ class TestService(
 
   private var etherbase: Address = consensusConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
-  private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0
   private var sealEngine: SealEngineType = SealEngineType.NoReward
   private val preimageCache: collection.concurrent.Map[ByteString, UInt256] =
     new collection.concurrent.TrieMap[ByteString, UInt256]()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    currentConfig = buildNewConfig(request.chainParams.blockchainParams)
+    node.setBlockchainConfig(buildNewConfig(request.chainParams.blockchainParams))
 
     // clear ledger's cache on test start
     // setChainParams is expected to be the first remote call for each test
@@ -187,7 +188,7 @@ class TestService(
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, currentConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage, node.blockchainConfig)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -210,7 +211,7 @@ class TestService(
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
-    currentConfig.copy(
+    node.blockchainConfig.copy(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
@@ -264,7 +265,7 @@ class TestService(
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(currentConfig, preimageCache, sealEngine)
+            .blockImport(node.blockchainConfig, preimageCache, sealEngine)
             .importBlock(blockForMining.block)
         )
         .map { res =>
@@ -300,7 +301,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(currentConfig, preimageCache, sealEngine)
+          .blockImport(node.blockchainConfig, preimageCache, sealEngine)
           .importBlock(value)
           .flatMap(handleResult(value))
     }
@@ -342,7 +343,7 @@ class TestService(
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         testModeComponentsProvider
-          .consensus(currentConfig, sealEngine, blockTimestamp)
+          .consensus(node.blockchainConfig, sealEngine, blockTimestamp)
           .blockGenerator
           .generateBlock(
             parentBlock,

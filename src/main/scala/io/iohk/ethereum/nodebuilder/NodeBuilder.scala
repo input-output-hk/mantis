@@ -68,7 +68,8 @@ import io.iohk.ethereum.utils._
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
-  lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  protected lazy val initBlockchainConfig = Config.blockchains.blockchainConfig
+  def blockchainConfig: BlockchainConfig = initBlockchainConfig
 }
 
 trait VmConfigBuilder {
@@ -427,7 +428,8 @@ trait DebugServiceBuilder {
 }
 
 trait TestServiceBuilder {
-  self: TestBlockchainBuilder
+  self: TestNode
+    with TestBlockchainBuilder
     with PendingTransactionsManagerBuilder
     with ConsensusConfigBuilder
     with BlockchainConfigBuilder
@@ -444,9 +446,8 @@ trait TestServiceBuilder {
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,
-      blockchainConfig,
       storagesInstance.storages.transactionMappingStorage
-    )(scheduler)
+    )(scheduler, this)
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {

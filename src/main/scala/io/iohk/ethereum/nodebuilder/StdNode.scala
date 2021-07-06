@@ -17,6 +17,8 @@ import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
+import java.util.concurrent.atomic.AtomicReference
 
 /** A standard node is everything Ethereum prescribes except the consensus algorithm,
   * which is plugged in dynamically.
@@ -114,4 +116,11 @@ class TestNode
     with TestmodeConsensusBuilder
     with TestServiceBuilder
     with TestEthBlockServiceBuilder
-    with TestBlockchainBuilder
+    with TestBlockchainBuilder {
+
+  private lazy val currentBlockchainConfig = new AtomicReference(initBlockchainConfig)
+
+  override def blockchainConfig: BlockchainConfig = currentBlockchainConfig.get()
+
+  def setBlockchainConfig(config: BlockchainConfig) = currentBlockchainConfig.set(config)
+}
