@@ -33,7 +33,7 @@ trait ResolveBlock {
     }
 
   private def getBlock(number: BigInt): Either[JsonRpcError, Block] =
-    blockchainReader
+    blockchainReader.getBestBranch
       .getBlockByNumber(number)
       .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 

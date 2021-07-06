@@ -204,7 +204,7 @@ class EthProofService(
 
   private def resolveBlock(blockParam: BlockParam): Either[JsonRpcError, ResolvedBlock] = {
     def getBlock(number: BigInt): Either[JsonRpcError, Block] =
-      blockchainReader
+      blockchainReader.getBestBranch
         .getBlockByNumber(number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
