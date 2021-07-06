@@ -36,7 +36,7 @@ class CheckpointingService(
       req.parentCheckpoint.forall(blockchainReader.getBlockHeaderByHash(_).exists(_.number < blockToReturnNum))
 
     Task {
-      blockchainReader.getBestBranch.getBlockByNumber(blockToReturnNum)
+      blockchainReader.getBestBranch().flatMap(_.getBlockByNumber(blockToReturnNum))
     }.flatMap {
       case Some(b) if isValidParent =>
         Task.now(Right(GetLatestBlockResponse(Some(BlockInfo(b.hash, b.number)))))

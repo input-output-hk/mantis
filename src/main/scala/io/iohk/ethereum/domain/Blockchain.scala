@@ -107,7 +107,8 @@ class BlockchainImpl(
   override def isInChain(hash: ByteString): Boolean =
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
-      hash <- blockchainReader.getBestBranch().getHashByBlockNumber(header.number)
+      bestBranch <- blockchainReader.getBestBranch()
+      hash <- bestBranch.getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
@@ -230,7 +231,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (blockchainReader.getBestBranch().getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getBestBranch().flatMap(_.getHashByBlockNumber(block.number)).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -299,7 +300,7 @@ class BlockchainImpl(
   ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- blockchainReader.getBestBranch.getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBestBranch().flatMap(_.getBlockByNumber(blockNumberToCheck))
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number

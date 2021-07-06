@@ -175,6 +175,7 @@ class JsonRpcControllerEthSpec
       .storeBlock(blockToRequest)
       .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
+    blockchain.saveBestKnownBlocks(blockToRequest.number)
 
     val request = newJsonRpcRequest(
       "eth_getBlockByNumber",
@@ -196,6 +197,7 @@ class JsonRpcControllerEthSpec
       .storeBlock(blockToRequest)
       .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
+    blockchain.saveBestKnownBlocks(blockToRequest.number)
 
     val request = newJsonRpcRequest(
       "eth_getBlockByNumber",
@@ -217,6 +219,7 @@ class JsonRpcControllerEthSpec
       .storeBlock(blockToRequest)
       .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
+    blockchain.saveBestKnownBlocks(blockToRequest.number)
 
     val request = newJsonRpcRequest(
       "eth_getBlockByNumber",
@@ -260,6 +263,7 @@ class JsonRpcControllerEthSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
     blockchainWriter.storeBlock(blockToRequest).commit()
+    blockchain.saveBestKnownBlocks(blockToRequest.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getUncleByBlockNumberAndIndex",
