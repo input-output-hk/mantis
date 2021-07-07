@@ -144,6 +144,7 @@ class PeerActor[R <: HandshakeResult](
         case RLPxConnectionHandler.MessageReceived(msg) =>
           // Processes the received message, cancels the timeout and processes a new message but only if the handshaker
           // handles the received message
+          log.debug("Message received: {} from peer {}", msg, peerAddress)
           handshaker.applyMessage(msg).foreach { newHandshaker =>
             timeout.cancel()
             processHandshakerNextMessage(newHandshaker, remoteNodeId, rlpxConnection, numRetries)
