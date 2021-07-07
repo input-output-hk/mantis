@@ -27,7 +27,7 @@ object NetworkMessageDecoder extends MessageDecoder {
       case Ping.code       => payload.toPing
       case Pong.code       => payload.toPong
       case Hello.code      => payload.toHello
-      case _               => throw new RuntimeException(s"Unknown message type: $msgCode")
+      case _               => throw new RuntimeException(s"Unknown network message type: $msgCode")
     }
 
 }
@@ -51,7 +51,7 @@ object ETC64MessageDecoder extends MessageDecoder {
       case Codes.BlockBodiesCode           => payload.toBlockBodies
       case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
       case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown message type: $msgCode")
+      case _                               => throw new RuntimeException(s"Unknown etc/64 message type: $msgCode")
     }
 }
 
@@ -74,7 +74,7 @@ object ETH64MessageDecoder extends MessageDecoder {
       case Codes.StatusCode                => payload.toStatus
       case Codes.NewBlockCode              => payload.toNewBlock
       case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown message type: $msgCode")
+      case _                               => throw new RuntimeException(s"Unknown eth/64 message type: $msgCode")
     }
 }
 
@@ -97,7 +97,7 @@ object ETH63MessageDecoder extends MessageDecoder {
       case Codes.StatusCode                => payload.toStatus
       case Codes.NewBlockCode              => payload.toNewBlock
       case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown message type: $msgCode")
+      case _                               => throw new RuntimeException(s"Unknown eth/63 message type: $msgCode")
     }
 }
 
