@@ -13,6 +13,12 @@ sealed trait Transaction {
   def payload: ByteString
 
   def isContractInit: Boolean = receivingAddress.isEmpty
+
+  protected def receivingAddressString: String =
+    receivingAddress.map(_.toString).getOrElse("[Contract creation]")
+
+  protected def payloadString: String =
+    s"${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])}"
 }
 
 object Transaction {
@@ -49,19 +55,15 @@ case class LegacyTransaction(
     value: BigInt,
     payload: ByteString
 ) extends Transaction {
-  override def toString: String = {
-    val receivingAddressString =
-      receivingAddress.map(addr => Hex.toHexString(addr.toArray)).getOrElse("[Contract creation]")
-
+  override def toString: String =
     s"LegacyTransaction {" +
       s"nonce: $nonce " +
       s"gasPrice: $gasPrice " +
       s"gasLimit: $gasLimit " +
       s"receivingAddress: $receivingAddressString " +
       s"value: $value wei " +
-      s"payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])} " +
+      s"payload: $payloadString " +
       s"}"
-  }
 }
 
 case class TransactionWithAccessList(
@@ -73,20 +75,16 @@ case class TransactionWithAccessList(
     payload: ByteString,
     accessList: List[AccessListItem]
 ) extends TypedTransaction {
-  override def toString: String = {
-    val receivingAddressString =
-      receivingAddress.map(addr => Hex.toHexString(addr.toArray)).getOrElse("[Contract creation]")
-
+  override def toString: String =
     s"TransactionWithAccessList {" +
       s"nonce: $nonce " +
       s"gasPrice: $gasPrice " +
       s"gasLimit: $gasLimit " +
       s"receivingAddress: $receivingAddressString " +
       s"value: $value wei " +
-      s"payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])} " +
+      s"payload: $payloadString " +
       s"accessList: $accessList" +
       s"}"
-  }
 }
 
 case class AccessListItem(address: Address, storageKeys: List[BigInt]) // bytes32
