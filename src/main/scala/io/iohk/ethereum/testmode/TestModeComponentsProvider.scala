@@ -38,12 +38,11 @@ class TestModeComponentsProvider(
   def blockQueue(): BlockQueue = internalBlockQueue
 
   def blockImport(
-      blockchainConfig: BlockchainConfig,
       preimageCache: collection.concurrent.Map[ByteString, UInt256],
       sealEngine: SealEngineType
   ): BlockImport = {
 //    val blockQueue = BlockQueue(blockchain, syncConfig)
-    val consensuz = consensus(blockchainConfig, sealEngine)
+    val consensuz = consensus(sealEngine)
     val blockValidation = new BlockValidation(consensuz, blockchainReader, internalBlockQueue)
     val blockExecution =
       new TestModeBlockExecution(
@@ -72,16 +71,15 @@ class TestModeComponentsProvider(
 //    cache = cache.empty
     internalBlockQueue.clear()
 
-  def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
+  def stxLedger(sealEngine: SealEngineType): StxLedger =
     new StxLedger(
       blockchain,
       blockchainReader,
       evmCodeStorage,
-      consensus(blockchainConfig, sealEngine).blockPreparator,
+      consensus(sealEngine).blockPreparator,
       node
     )
   def consensus(
-      blockchainConfig: BlockchainConfig,
       sealEngine: SealEngineType,
       blockTimestamp: Long = 0
   ): TestmodeConsensus =

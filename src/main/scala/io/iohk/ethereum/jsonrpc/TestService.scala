@@ -265,7 +265,7 @@ class TestService(
       getBlockForMining(blockchain.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(node.blockchainConfig, preimageCache, sealEngine)
+            .blockImport(preimageCache, sealEngine)
             .importBlock(blockForMining.block)
         )
         .map { res =>
@@ -305,7 +305,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(node.blockchainConfig, preimageCache, sealEngine)
+          .blockImport(preimageCache, sealEngine)
           .importBlock(value)
           .flatMap(handleResult(value))
     }
@@ -347,7 +347,7 @@ class TestService(
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         testModeComponentsProvider
-          .consensus(node.blockchainConfig, sealEngine, blockTimestamp)
+          .consensus(sealEngine, blockTimestamp)
           .blockGenerator
           .generateBlock(
             parentBlock,
