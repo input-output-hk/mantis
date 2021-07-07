@@ -27,7 +27,6 @@ import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
@@ -125,9 +124,9 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
+    (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -146,9 +145,9 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
+    (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -179,9 +178,9 @@ class PersonalServiceSpec
 
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
 
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
+    (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req).runToFuture
@@ -338,9 +337,9 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
+    (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchain.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -357,10 +356,10 @@ class PersonalServiceSpec
       .expects(address, passphrase)
       .returning(Right(wallet))
 
-    (blockchain.getBestBlockNumber _).expects().returning(1234)
+    (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (blockchain.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -454,14 +453,14 @@ class PersonalServiceSpec
     val keyStore: KeyStore = mock[KeyStore]
 
     val txPool: TestProbe = TestProbe()
-    val appStateStorage: AppStateStorage = mock[AppStateStorage]
+    val blockchainReader: BlockchainReader = mock[BlockchainReader]
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val personal =
       new PersonalService(
         keyStore,
         blockchain,
+        blockchainReader,
         txPool.ref,
-        appStateStorage,
         txPoolConfig,
         new BlockchainConfigBuilder {
           override def blockchainConfig = BlockchainConfig(

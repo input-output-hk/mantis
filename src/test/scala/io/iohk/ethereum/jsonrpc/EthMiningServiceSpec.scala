@@ -62,7 +62,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
+    blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
 
     val response = ethMiningService.getMining(GetMiningRequest())
@@ -100,7 +100,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.storeBlock(parentBlock).commit()
+    blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
 
     Thread.sleep(minerActiveTimeout.toMillis)
@@ -115,7 +115,7 @@ class EthMiningServiceSpec
     (blockGenerator.generateBlock _)
       .expects(parentBlock, Nil, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -140,7 +140,7 @@ class EthMiningServiceSpec
     )
     override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
 
-    blockchain.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
     val response = ethMiningService.getWork(GetWorkRequest()).runSyncUnsafe()
     pendingTransactionsManager.expectMsg(PendingTransactionsManager.GetPendingTransactions)
@@ -261,7 +261,7 @@ class EthMiningServiceSpec
     val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     lazy val ethMiningService = new EthMiningService(
-      blockchain,
+      blockchainReader,
       consensus,
       jsonRpcConfig,
       ommersPool.ref,

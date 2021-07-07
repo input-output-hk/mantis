@@ -25,7 +25,6 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.BlockRewardCalculatorOps._
 import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.utils.Hex
@@ -63,11 +62,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block1.header.number)
         val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
         val blockValidation =
-          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newConsensus.blockPreparator,
             blockValidation
@@ -104,11 +104,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block2.header.number)
         val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
         val blockValidation =
-          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newConsensus.blockPreparator,
             blockValidation
@@ -138,11 +139,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(chain.last.number)
         val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
         val blockValidation =
-          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newConsensus.blockPreparator,
             blockValidation
@@ -164,11 +166,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val mockValidators = MockValidatorsAlwaysSucceed
         val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
         val blockValidation =
-          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newConsensus.blockPreparator,
             blockValidation
@@ -222,11 +225,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val newConsensus: TestConsensus = consensus.withVM(mockVm)
 
         val blockValidation =
-          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+          new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
+            blockchainWriter,
             blockchainStorages.evmCodeStorage,
             newConsensus.blockPreparator,
             blockValidation
@@ -296,11 +300,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
           val newConsensus = consensus.withValidators(mockValidators).withVM(mockVm)
           val blockValidation =
-            new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+            new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
           val blockExecution =
             new BlockExecution(
               blockchain,
               blockchainReader,
+              blockchainWriter,
               blockchainStorages.evmCodeStorage,
               newConsensus.blockPreparator,
               blockValidation
@@ -659,11 +664,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
   trait BlockExecutionTestSetup extends BlockchainSetup {
 
     val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     val blockExecution =
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         blockchainStorages.evmCodeStorage,
         consensus.blockPreparator,
         blockValidation

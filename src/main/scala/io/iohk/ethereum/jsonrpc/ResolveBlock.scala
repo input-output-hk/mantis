@@ -38,7 +38,7 @@ trait ResolveBlock {
       .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
   private def getLatestBlock(): Either[JsonRpcError, Block] =
-    blockchain
+    blockchainReader
       .getBestBlock()
       .toRight(JsonRpcError.InvalidParams("Latest block not found"))
 }

@@ -7,6 +7,7 @@ import scala.jdk.CollectionConverters._
 
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.ledger.BlockQueue.QueuedBlock
@@ -16,12 +17,21 @@ object BlockQueue {
   case class QueuedBlock(block: Block, weight: Option[ChainWeight])
   case class Leaf(hash: ByteString, weight: ChainWeight)
 
-  def apply(blockchain: Blockchain, syncConfig: SyncConfig): BlockQueue =
-    new BlockQueue(blockchain, syncConfig.maxQueuedBlockNumberAhead, syncConfig.maxQueuedBlockNumberBehind)
+  def apply(blockchain: Blockchain, blockchainReader: BlockchainReader, syncConfig: SyncConfig): BlockQueue =
+    new BlockQueue(
+      blockchain,
+      blockchainReader,
+      syncConfig.maxQueuedBlockNumberAhead,
+      syncConfig.maxQueuedBlockNumberBehind
+    )
 }
 
-class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val maxQueuedBlockNumberBehind: Int)
-    extends Logger {
+class BlockQueue(
+    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
+    val maxQueuedBlockNumberAhead: Int,
+    val maxQueuedBlockNumberBehind: Int
+) extends Logger {
 
   // note these two maps make this class thread-unsafe
   private val blocks = new java.util.concurrent.ConcurrentHashMap[ByteString, QueuedBlock].asScala
@@ -39,7 +49,7 @@ class BlockQueue(blockchain: Blockchain, val maxQueuedBlockNumberAhead: Int, val
     * @return if the newly enqueued block is part of a known branch (rooted somewhere on the main chain), return
     *         the leaf hash and its total difficulty, otherwise None
     */
-  def enqueueBlock(block: Block, bestBlockNumber: BigInt = blockchain.getBestBlockNumber()): Option[Leaf] = {
+  def enqueueBlock(block: Block, bestBlockNumber: BigInt = blockchainReader.getBestBlockNumber()): Option[Leaf] = {
     import block.header._
 
     cleanUp(bestBlockNumber)

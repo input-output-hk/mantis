@@ -81,11 +81,11 @@ class TransactionHistoryServiceSpec
 
     for {
       _ <- Task {
-        blockchain
+        blockchainWriter
           .storeBlock(blockWithTx1)
-          .and(blockchain.storeReceipts(blockWithTx1.hash, blockTx1Receipts))
-          .and(blockchain.storeBlock(blockWithTxs2and3))
-          .and(blockchain.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
+          .and(blockchainWriter.storeReceipts(blockWithTx1.hash, blockTx1Receipts))
+          .and(blockchainWriter.storeBlock(blockWithTxs2and3))
+          .and(blockchainWriter.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
           .commit()
       }
       response <- transactionHistoryService.getAccountTransactions(address, BigInt(3125360) to BigInt(3125370))
@@ -107,7 +107,7 @@ class TransactionHistoryServiceSpec
         Seq(ExtendedTransactionData(signedTx.tx, isOutgoing = true, None))
 
       for {
-        _ <- Task(blockchain.storeBlock(blockWithTx).commit())
+        _ <- Task(blockchainWriter.storeBlock(blockWithTx).commit())
         _ <- Task(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(signedTx))
         response <- transactionHistoryService.getAccountTransactions(
           signedTx.senderAddress,
@@ -161,9 +161,13 @@ class TransactionHistoryServiceSpec
         block.body.transactionList.map(tx => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
 
       for {
-        _ <- Task(blockchain.save(block1, makeReceipts(block1), ChainWeight(0, block1.header.difficulty), true))
-        _ <- Task(blockchain.save(block2, Nil, ChainWeight(2, block1.header.difficulty), true))
-        _ <- Task(blockchain.save(block3, makeReceipts(block3), ChainWeight(2, block1.header.difficulty * 2), true))
+        _ <- Task {
+          blockchainWriter.save(block1, makeReceipts(block1), ChainWeight(0, block1.header.difficulty), true)
+        }
+        _ <- Task(blockchainWriter.save(block2, Nil, ChainWeight(2, block1.header.difficulty), true))
+        _ <- Task {
+          blockchainWriter.save(block3, makeReceipts(block3), ChainWeight(2, block1.header.difficulty * 2), true)
+        }
         lastCheckpoint <- Task(blockchain.getLatestCheckpointBlockNumber())
         response <- transactionHistoryService.getAccountTransactions(
           senderAddress,

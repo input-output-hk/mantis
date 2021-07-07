@@ -53,7 +53,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
@@ -76,7 +76,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
@@ -136,7 +136,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
@@ -160,7 +160,7 @@ class JsonRpcControllerEthTransactionSpec
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockNumberAndIndex",
@@ -182,7 +182,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getTransactionByBlockNumberAndIndex",
@@ -205,7 +205,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest(
@@ -231,7 +231,7 @@ class JsonRpcControllerEthTransactionSpec
       Block(Fixtures.Blocks.Block3125369.header.copy(number = BigInt(0xc005)), Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockNumberAndIndex",
@@ -254,7 +254,7 @@ class JsonRpcControllerEthTransactionSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val txIndex = 1
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getRawTransactionByBlockNumberAndIndex",
@@ -331,7 +331,7 @@ class JsonRpcControllerEthTransactionSpec
   it should "handle eth_getBlockTransactionCountByHash request" in new JsonRpcControllerFixture {
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val rpcRequest = newJsonRpcRequest(
       "eth_getBlockTransactionCountByHash",

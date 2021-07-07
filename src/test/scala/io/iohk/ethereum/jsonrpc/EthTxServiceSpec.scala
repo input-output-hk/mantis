@@ -50,7 +50,7 @@ class EthTxServiceSpec
   }
 
   it should "answer eth_getTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
@@ -64,7 +64,7 @@ class EthTxServiceSpec
   }
 
   it should "answer eth_getTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
@@ -89,7 +89,7 @@ class EthTxServiceSpec
 
   it should "answer eth_getRawTransactionByBlockHashAndIndex with None when there is no tx in requested index" in new TestSetup {
     // given
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val invalidTxIndex = blockToRequest.body.transactionList.size
     val requestWithInvalidIndex = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, invalidTxIndex)
@@ -107,7 +107,7 @@ class EthTxServiceSpec
 
   it should "answer eth_getRawTransactionByBlockHashAndIndex with the transaction response correctly when the requested index has one" in new TestSetup {
     // given
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     val txIndexToRequest = blockToRequest.body.transactionList.size / 2
     val request = GetTransactionByBlockHashAndIndexRequest(blockToRequest.header.hash, txIndexToRequest)
 
@@ -153,7 +153,7 @@ class EthTxServiceSpec
     // given
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    blockchain.storeBlock(blockWithTx).commit()
+    blockchainWriter.storeBlock(blockWithTx).commit()
     val request = GetTransactionByHashRequest(txToRequestHash)
 
     // when
@@ -175,7 +175,7 @@ class EthTxServiceSpec
 
   it should "return average gas price" in new TestSetup {
     blockchain.saveBestKnownBlocks(42)
-    blockchain
+    blockchainWriter
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
 
@@ -184,7 +184,7 @@ class EthTxServiceSpec
   }
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txIndex: Int = 1
@@ -197,7 +197,7 @@ class EthTxServiceSpec
   }
 
   it should "getTransactionByBlockNumberAndIndexRequest return empty response if transaction does not exists when getting by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
@@ -208,7 +208,7 @@ class EthTxServiceSpec
   }
 
   it should "getTransactionByBlockNumberAndIndex return empty response if block does not exists when getting by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = 1
     val request =
@@ -219,7 +219,7 @@ class EthTxServiceSpec
   }
 
   it should "getRawTransactionByBlockNumberAndIndex return transaction by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
     blockchain.saveBestKnownBlocks(blockToRequest.header.number)
 
     val txIndex: Int = 1
@@ -231,7 +231,7 @@ class EthTxServiceSpec
   }
 
   it should "getRawTransactionByBlockNumberAndIndex return empty response if transaction does not exists when getting by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = blockToRequest.body.transactionList.length + 42
     val request =
@@ -242,7 +242,7 @@ class EthTxServiceSpec
   }
 
   it should "getRawTransactionByBlockNumberAndIndex return empty response if block does not exists when getting by index" in new TestSetup {
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val txIndex: Int = 1
     val request =
@@ -279,7 +279,7 @@ class EthTxServiceSpec
   it should "handle get transaction by hash if the tx was already executed" in new TestSetup {
 
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    blockchain.storeBlock(blockWithTx).commit()
+    blockchainWriter.storeBlock(blockWithTx).commit()
 
     val request = GetTransactionByHashRequest(txToRequestHash)
     val response = ethTxService.getTransactionByHash(request).runSyncUnsafe()
@@ -296,10 +296,10 @@ class EthTxServiceSpec
     val body = BlockBody(Seq(Fixtures.Blocks.Block3125369.body.transactionList.head, contractCreatingTransaction), Nil)
     val blockWithTx = Block(Fixtures.Blocks.Block3125369.header, body)
     val gasUsedByTx = 4242
-    blockchain
+    blockchainWriter
       .storeBlock(blockWithTx)
       .and(
-        blockchain.storeReceipts(
+        blockchainWriter.storeReceipts(
           Fixtures.Blocks.Block3125369.header.hash,
           Seq(fakeReceipt, fakeReceipt.copy(cumulativeGasUsed = fakeReceipt.cumulativeGasUsed + gasUsedByTx))
         )

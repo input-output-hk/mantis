@@ -9,6 +9,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockQueue
@@ -22,6 +23,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
@@ -31,7 +33,7 @@ class TestModeComponentsProvider(
 ) {
 
 //  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
-  private val internalBlockQueue = BlockQueue(blockchain, syncConfig)
+  private val internalBlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 
   def blockQueue(): BlockQueue = internalBlockQueue
 
@@ -46,6 +48,7 @@ class TestModeComponentsProvider(
       new TestModeBlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         consensuz.blockPreparator,
         blockValidation,
@@ -55,6 +58,7 @@ class TestModeComponentsProvider(
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       internalBlockQueue,
       blockValidation,
       blockExecution,
@@ -65,8 +69,6 @@ class TestModeComponentsProvider(
   /** Clear the internal builder state
     */
   def clearState(): Unit =
-//    blockQueue = BlockQueue(blockchain, syncConfig)
-//    cache = cache.empty
     internalBlockQueue.clear()
 
   def stxLedger(sealEngine: SealEngineType): StxLedger =
@@ -77,6 +79,7 @@ class TestModeComponentsProvider(
       consensus(sealEngine).blockPreparator,
       node
     )
+
   def consensus(
       sealEngine: SealEngineType,
       blockTimestamp: Long = 0

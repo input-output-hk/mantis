@@ -2,20 +2,24 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 
+import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.utils.Logger
 
 class BlockchainReader(
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
     blockNumberMappingStorage: BlockNumberMappingStorage,
     stateStorage: StateStorage,
-    receiptStorage: ReceiptStorage
-) {
+    receiptStorage: ReceiptStorage,
+    appStateStorage: AppStateStorage,
+    blockchainMetadata: BlockchainMetadata
+) extends Logger {
 
   /** Allows to query a blockHeader by block hash
     *
@@ -81,16 +85,52 @@ class BlockchainReader(
     * @return Receipts if found
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
+
+  def getBestBlockNumber(): BigInt = {
+    val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
+    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    log.debug(
+      "Current best saved block number {}. Current best known block number {}",
+      bestSavedBlockNumber,
+      bestKnownBlockNumber
+    )
+
+    // The cached best block number should always be more up-to-date than the one on disk, we are keeping access to disk
+    // above only for logging purposes
+    bestKnownBlockNumber
+  }
+
+  //returns the best known block if it's available in the storage, otherwise the best stored block
+  def getBestBlock(): Option[Block] = {
+    val bestBlockNumber = getBestBlockNumber()
+    log.debug("Trying to get best block with number {}", bestBlockNumber)
+    getBlockByNumber(bestBlockNumber).orElse(
+      getBlockByNumber(
+        appStateStorage.getBestBlockNumber()
+      )
+    )
+  }
+
+  def genesisHeader: BlockHeader =
+    getBlockHeaderByNumber(0).get
+
+  def genesisBlock: Block =
+    getBlockByNumber(0).get
 }
 
 object BlockchainReader {
 
-  def apply(storages: BlockchainStorages): BlockchainReader = new BlockchainReader(
+  def apply(
+      storages: BlockchainStorages,
+      blockchainMetadata: BlockchainMetadata
+  ): BlockchainReader = new BlockchainReader(
     storages.blockHeadersStorage,
     storages.blockBodiesStorage,
     storages.blockNumberMappingStorage,
     storages.stateStorage,
-    storages.receiptStorage
+    storages.receiptStorage,
+    storages.appStateStorage,
+    blockchainMetadata
   )
 
 }

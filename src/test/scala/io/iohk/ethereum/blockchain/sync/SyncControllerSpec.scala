@@ -96,7 +96,7 @@ class SyncControllerSpec
         val children = syncController.children
         assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
         assert(children.exists(ref => ref.path.name == "regular-sync"))
-        assert(blockchain.getBestBlockNumber() == defaultPivotBlockHeader.number)
+        assert(blockchainReader.getBestBlockNumber() == defaultPivotBlockHeader.number)
       }
   }
 
@@ -127,7 +127,7 @@ class SyncControllerSpec
       //switch to regular download
       val children = syncController.children
       assert(children.exists(ref => ref.path.name == "regular-sync"))
-      assert(blockchain.getBestBlockNumber() == defaultPivotBlockHeader.number)
+      assert(blockchainReader.getBestBlockNumber() == defaultPivotBlockHeader.number)
     }
   }
 
@@ -402,7 +402,7 @@ class SyncControllerSpec
       //switch to regular download
       val children = syncController.children
       assert(children.exists(ref => ref.path.name == "regular-sync"))
-      assert(blockchain.getBestBlockNumber() == freshHeader1.number)
+      assert(blockchainReader.getBestBlockNumber() == freshHeader1.number)
     }
   }
 
@@ -434,7 +434,7 @@ class SyncControllerSpec
       //switch to regular download
       val children = syncController.children
       assert(children.exists(ref => ref.path.name == "regular-sync"))
-      assert(blockchain.getBestBlockNumber() == defaultPivotBlockHeader.number)
+      assert(blockchainReader.getBestBlockNumber() == defaultPivotBlockHeader.number)
     }
   }
 
@@ -495,7 +495,7 @@ class SyncControllerSpec
       val children = syncController.children
       assert(storagesInstance.storages.appStateStorage.isFastSyncDone())
       assert(children.exists(ref => ref.path.name == "regular-sync"))
-      assert(blockchain.getBestBlockNumber() == newPivot.number)
+      assert(blockchainReader.getBestBlockNumber() == newPivot.number)
     }
   }
 
@@ -551,6 +551,7 @@ class SyncControllerSpec
           storagesInstance.storages.appStateStorage,
           blockchain,
           blockchainReader,
+          blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
@@ -571,7 +572,7 @@ class SyncControllerSpec
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
+    blockchainWriter.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],

@@ -82,12 +82,14 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       blockExecutionOpt.getOrElse(
         new BlockExecution(
           blockchain,
           blockchainReader,
+          blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
           consensuz.blockPreparator,
           blockValidation

@@ -6,7 +6,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 
 import org.bouncycastle.util.encoders.Hex
 
@@ -23,6 +22,7 @@ import io.iohk.ethereum.utils.Logger
 class BlockImport(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     private[ledger] val blockExecution: BlockExecution,
@@ -43,7 +43,7 @@ class BlockImport(
   def importBlock(
       block: Block
   )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
-    blockchain.getBestBlock() match {
+    blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
           Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
@@ -66,7 +66,7 @@ class BlockImport(
               )
               Task.now(
                 BlockImportFailed(
-                  "Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+                  s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
                 )
               )
           }
@@ -195,7 +195,7 @@ class BlockImport(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionContext: ExecutionContext, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+  )(implicit blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
     Task.evalOnce {
       blockValidation
         .validateBlockBeforeExecution(block)
@@ -225,7 +225,7 @@ class BlockImport(
   )(implicit blockchainConfig: BlockchainConfig): BlockImportResult = {
     log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
-    val bestNumber = blockchain.getBestBlockNumber()
+    val bestNumber = blockchainReader.getBestBlockNumber()
 
     val reorgResult = for {
       parent <- newBranch.headOption
@@ -291,7 +291,7 @@ class BlockImport(
     }
 
     oldBranch.foreach { case BlockData(block, receipts, weight) =>
-      blockchain.save(block, receipts, weight, saveAsBestBlock = false)
+      blockchainWriter.save(block, receipts, weight, saveAsBestBlock = false)
     }
 
     import cats.implicits._

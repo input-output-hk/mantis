@@ -113,7 +113,10 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = peer1Info.maxBlockNumber + 2)
 
     //when
-    peersInfoHolder ! MessageFromPeer(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peer1.id)
+    peersInfoHolder ! MessageFromPeer(
+      BlockHeaders(Seq(firstHeader, secondHeader, blockchainReader.genesisHeader)),
+      peer1.id
+    )
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))
@@ -292,7 +295,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
   trait TestSetup extends EphemBlockchainTestSetup {
     implicit override lazy val system: ActorSystem = ActorSystem("PeersInfoHolderSpec_System")
 
-    blockchain.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
+    blockchainWriter.storeBlockHeader(Fixtures.Blocks.Genesis.header).commit()
 
     override lazy val blockchainConfig = Config.blockchains.blockchainConfig
     val forkResolver = new ForkResolver.EtcForkResolver(blockchainConfig.daoForkConfig.get)

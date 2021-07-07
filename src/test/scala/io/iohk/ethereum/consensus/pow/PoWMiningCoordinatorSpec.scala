@@ -60,7 +60,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
       "MineNext starts EthashMiner if mineWithKeccak is false" in new TestSetup(
         "EthashMining"
       ) {
-        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        (blockchainReader.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
         LoggingTestKit.debug("Mining with Ethash").expect {
           coordinator ! SetMiningMode(RecurrentMining)
@@ -77,18 +77,18 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             sync.ref,
             ethMiningService,
             blockCreator,
-            blockchain,
+            blockchainReader,
             Some(0),
             this
           ),
           "KeccakMining"
         )
-        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        (blockchainReader.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
 
         LoggingTestKit
           .debug("Mining with Keccak")
-          .withCustom { case msg: LoggingEvent =>
+          .withCustom { _: LoggingEvent =>
             coordinator ! StopMining
             true
           }
@@ -105,14 +105,14 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             sync.ref,
             ethMiningService,
             blockCreator,
-            blockchain,
+            blockchainReader,
             Some(0),
             this
           ),
           "AutomaticMining"
         )
 
-        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        (blockchainReader.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
         coordinator ! SetMiningMode(RecurrentMining)
 
@@ -123,7 +123,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
         coordinator ! StopMining
       }
 
-      "Continue to attempt to mine if blockchain.getBestBlock() return None" in new TestSetup(
+      "Continue to attempt to mine if blockchainReader.getBestBlock() return None" in new TestSetup(
         "AlwaysMine"
       ) {
         override val coordinator = testKit.spawn(
@@ -131,15 +131,15 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             sync.ref,
             ethMiningService,
             blockCreator,
-            blockchain,
+            blockchainReader,
             Some(0),
             this
           ),
           "AlwaysAttemptToMine"
         )
 
-        (blockchain.getBestBlock _).expects().returns(None).twice()
-        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        (blockchainReader.getBestBlock _).expects().returns(None).twice()
+        (blockchainReader.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
 
         setBlockForMining(parentBlock)
         coordinator ! SetMiningMode(RecurrentMining)
@@ -158,7 +158,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             sync.ref,
             ethMiningService,
             blockCreator,
-            blockchain,
+            blockchainReader,
             Some(0),
             this
           ),
@@ -166,7 +166,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
         )
         probe.watch(coordinator.ref.toClassic)
 
-        (blockchain.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
+        (blockchainReader.getBestBlock _).expects().returns(Some(parentBlock)).anyNumberOfTimes()
         setBlockForMining(parentBlock)
         coordinator ! SetMiningMode(RecurrentMining)
         coordinator ! StopMining
@@ -206,7 +206,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
         sync.ref,
         ethMiningService,
         blockCreator,
-        blockchain,
+        blockchainReader,
         None,
         this
       ),

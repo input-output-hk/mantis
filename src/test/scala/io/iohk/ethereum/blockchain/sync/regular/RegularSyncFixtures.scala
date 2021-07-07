@@ -84,6 +84,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peerEventBus.ref,
           blockImport,
           blockchain,
+          blockchainReader,
           branchResolution,
           validators.blockValidator,
           blacklist,
@@ -103,7 +104,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     override lazy val blockImport: BlockImport = new TestBlockImport()
 
-    blockchain.save(
+    blockchainWriter.save(
       block = BlockHelpers.genesis,
       receipts = Nil,
       weight = ChainWeight.totalDifficultyOnly(10000),
@@ -195,6 +196,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
         extends BlockImport(
           stub[BlockchainImpl],
           stub[BlockchainReader],
+          stub[BlockchainWriter],
           stub[BlockQueue],
           stub[BlockValidation],
           stub[BlockExecution],

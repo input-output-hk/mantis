@@ -29,7 +29,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   "Blockchain" should "be able to store a block and return it if queried by hash" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.storeBlock(validBlock).commit()
+    blockchainWriter.storeBlock(validBlock).commit()
     val block = blockchainReader.getBlockByHash(validBlock.header.hash)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
@@ -43,7 +43,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.storeBlock(validBlock).commit()
+    blockchainWriter.storeBlock(validBlock).commit()
     val block = blockchainReader.getBlockByNumber(validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
@@ -51,7 +51,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
-    blockchain.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
     blockchain.isInChain(validBlock.hash) === false
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
@@ -60,7 +60,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
     val validHeader = Fixtures.Blocks.ValidBlock.header
-    blockchain.storeBlockHeader(validHeader).commit()
+    blockchainWriter.storeBlockHeader(validHeader).commit()
     val header = blockchainReader.getBlockHeaderByNumber(validHeader.number)
     header.isDefined should ===(true)
     validHeader should ===(header.get)
@@ -73,23 +73,23 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {
     val parent = Fixtures.Blocks.Genesis.block
-    blockchain.storeBlock(parent)
+    blockchainWriter.storeBlock(parent)
 
     val validBlock = new CheckpointBlockGenerator().generate(parent, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     val retrievedBlock = blockchainReader.getBlockByHash(validBlock.header.hash)
     retrievedBlock.isDefined should ===(true)
     validBlock should ===(retrievedBlock.get)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
-    blockchain.getBestBlockNumber() should ===(validBlock.number)
+    blockchainReader.getBestBlockNumber() should ===(validBlock.number)
   }
 
   it should "be able to rollback block with checkpoint and store the previous existed checkpoint" in new EphemBlockchainTestSetup {
     val genesis = Fixtures.Blocks.Genesis.block
-    blockchain.storeBlock(genesis)
+    blockchainWriter.storeBlock(genesis)
 
     def nextBlock(parent: Block, body: BlockBody = BlockBody.empty): Block =
       Block(
@@ -105,28 +105,28 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val secondBlock = nextBlock(firstBlock)
     val thirdBlock = checkpointBlockGenerator.generate(secondBlock, checkpoint)
 
-    blockchain.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
-    blockchain.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
-    blockchain.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(thirdBlock.hash, withState = true)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
-    blockchain.getBestBlockNumber() should ===(secondBlock.number)
+    blockchainReader.getBestBlockNumber() should ===(secondBlock.number)
   }
 
   it should "be able to rollback block with last checkpoint in the chain" in new EphemBlockchainTestSetup {
     val genesis = Fixtures.Blocks.Genesis.block
-    blockchain.storeBlock(genesis)
+    blockchainWriter.storeBlock(genesis)
 
     val validBlock = checkpointBlockGenerator.generate(genesis, checkpoint)
 
-    blockchain.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
+    blockchainWriter.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
     blockchain.removeBlock(validBlock.hash, withState = true)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
-    blockchain.getBestBlockNumber() should ===(genesis.number)
+    blockchainReader.getBestBlockNumber() should ===(genesis.number)
   }
 
   it should "return an account given an address and a block number" in new EphemBlockchainTestSetup {
@@ -142,7 +142,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val mptWithAcc = emptyMpt.put(address, account)
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
-    blockchain.storeBlockHeader(headerWithAcc).commit()
+    blockchainWriter.storeBlockHeader(headerWithAcc).commit()
 
     val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
@@ -161,7 +161,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
-    blockchain.storeBlockHeader(headerWithAcc).commit()
+    blockchainWriter.storeBlockHeader(headerWithAcc).commit()
 
     //unhappy path
     val wrongAddress = Address(666)
@@ -187,7 +187,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
-    blockchain.storeBlockHeader(headerWithAcc).commit()
+    blockchainWriter.storeBlockHeader(headerWithAcc).commit()
 
     val wrongAddress = Address(666)
     val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
@@ -217,10 +217,10 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         }
 
       blocksToImport.foreach { block =>
-        blockchainWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
+        blockchainWriterWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
       }
 
-      blockchainWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
       blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe blockImportToPersist.fold(
         0: BigInt
       )(_.number)
@@ -249,7 +249,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockRollbackToPersist.map(_.number),
         blocksToRollback.map(_.number)
       )
-      blockchainWithStubPersisting.getBestBlockNumber() shouldBe expectedMemoryBestBlock
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe expectedMemoryBestBlock
       blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe expectedPersistedBestBlock
     }
   }
@@ -281,6 +281,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       def stubStateStorage: StateStorage
       def blockchainStoragesWithStubPersisting: BlockchainStorages
       def blockchainReaderWithStubPersisting: BlockchainReader
+      def blockchainWriterWithStubPersisting: BlockchainWriter
       def blockchainWithStubPersisting: BlockchainImpl
     }
 
@@ -295,17 +296,22 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val evmCodeStorage = storagesInstance.storages.evmCodeStorage
           val chainWeightStorage = storagesInstance.storages.chainWeightStorage
           val transactionMappingStorage = storagesInstance.storages.transactionMappingStorage
-          storagesInstance.storages.nodeStorage
-          storagesInstance.storages.pruningMode
           val appStateStorage = storagesInstance.storages.appStateStorage
-          val cachedNodeStorage = storagesInstance.storages.cachedNodeStorage
           val stateStorage = stubStateStorage
         }
-        override val blockchainReaderWithStubPersisting = BlockchainReader(blockchainStoragesWithStubPersisting)
+        val freshBlockchainMetadata = getNewBlockchainMetadata
+        override val blockchainReaderWithStubPersisting =
+          BlockchainReader(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
+        override val blockchainWriterWithStubPersisting =
+          BlockchainWriter(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
         override val blockchainWithStubPersisting =
-          BlockchainImpl(blockchainStoragesWithStubPersisting, blockchainReaderWithStubPersisting)
+          BlockchainImpl(
+            blockchainStoragesWithStubPersisting,
+            blockchainReaderWithStubPersisting,
+            freshBlockchainMetadata
+          )
 
-        blockchainWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
+        blockchainWriterWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)
       }
 
   }

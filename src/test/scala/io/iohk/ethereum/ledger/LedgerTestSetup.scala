@@ -196,9 +196,9 @@ trait BlockchainSetup extends TestSetup {
   )
   val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
-  blockchain
+  blockchainWriter
     .storeBlockHeader(validBlockParentHeader)
-    .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
+    .and(blockchainWriter.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
     .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
     .and(storagesInstance.storages.chainWeightStorage.put(validBlockParentHeader.hash, ChainWeight.zero))
     .commit()
@@ -380,11 +380,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         consensuz.blockPreparator,
         blockValidation
@@ -413,10 +415,11 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
+  override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
-  class MockBlockQueue extends BlockQueue(null, 10, 10)
+  class MockBlockQueue extends BlockQueue(null, null, 10, 10)
   override lazy val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
@@ -428,12 +431,12 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   }
 
   def setBestBlock(block: Block): CallHandler0[BigInt] = {
-    (blockchain.getBestBlock _).expects().returning(Some(block))
-    (blockchain.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
+    (blockchainReader.getBestBlock _).expects().returning(Some(block))
+    (blockchainReader.getBestBlockNumber _).expects().anyNumberOfTimes().returning(block.header.number)
   }
 
   def setBestBlockNumber(num: BigInt): CallHandler0[BigInt] =
-    (blockchain.getBestBlockNumber _).expects().returning(num)
+    (blockchainReader.getBestBlockNumber _).expects().returning(num)
 
   def setChainWeightForBlock(block: Block, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
     setChainWeightByHash(block.hash, weight)
@@ -447,7 +450,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       weight: ChainWeight,
       saveAsBestBlock: Boolean
   ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] =
-    (blockchain
+    (blockchainWriter
       .save(_: Block, _: Seq[Receipt], _: ChainWeight, _: Boolean))
       .expects(block, receipts, weight, saveAsBestBlock)
       .once()
@@ -459,11 +462,11 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchainReader.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
-    (() => blockchain.genesisHeader).expects().returning(header)
+    (() => blockchainReader.genesisHeader).expects().returning(header)
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, SyncConfig(Config.config))
+  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
 
   lazy val blockImportWithMockedBlockExecution: BlockImport =
     mkBlockImport(blockExecutionOpt = Some(mock[BlockExecution]))

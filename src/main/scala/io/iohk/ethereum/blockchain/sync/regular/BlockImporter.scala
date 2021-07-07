@@ -38,6 +38,7 @@ class BlockImporter(
     fetcher: ActorRef,
     blockImport: BlockImport,
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     branchResolution: BranchResolution,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
@@ -314,7 +315,7 @@ class BlockImporter(
         Right(Nil)
     }
 
-  private def bestKnownBlockNumber: BigInt = blockchain.getBestBlockNumber()
+  private def bestKnownBlockNumber: BigInt = blockchainReader.getBestBlockNumber()
 
   private def getBehavior(newBehavior: NewBehavior, blockImportType: BlockImportType): Behavior = newBehavior match {
     case Running                             => running
@@ -329,6 +330,7 @@ object BlockImporter {
       fetcher: ActorRef,
       blockImport: BlockImport,
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       branchResolution: BranchResolution,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
@@ -342,6 +344,7 @@ object BlockImporter {
         fetcher,
         blockImport,
         blockchain,
+        blockchainReader,
         branchResolution,
         syncConfig,
         ommersPool,

@@ -16,6 +16,7 @@ import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -25,6 +26,7 @@ class SyncController(
     appStateStorage: AppStateStorage,
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
@@ -94,6 +96,7 @@ class SyncController(
         appStateStorage,
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         nodeStorage,
         validators,
@@ -120,6 +123,7 @@ class SyncController(
         peerEventBus,
         blockImport,
         blockchain,
+        blockchainReader,
         new BranchResolution(blockchain, blockchainReader),
         validators.blockValidator,
         blacklist,
@@ -143,6 +147,7 @@ object SyncController {
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
+      blockchainWriter: BlockchainWriter,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
@@ -161,6 +166,7 @@ object SyncController {
         appStateStorage,
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         nodeStorage,
         syncStateStorage,

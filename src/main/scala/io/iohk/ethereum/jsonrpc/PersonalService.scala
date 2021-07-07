@@ -12,10 +12,10 @@ import scala.util.Try
 
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
-import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
 import io.iohk.ethereum.jsonrpc.PersonalService._
@@ -32,6 +32,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransacti
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.TxPoolConfig
+import io.iohk.ethereum.utils.BlockchainConfig
 
 object PersonalService {
 
@@ -78,8 +79,8 @@ object PersonalService {
 class PersonalService(
     keyStore: KeyStore,
     blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     txPool: ActorRef,
-    appStateStorage: AppStateStorage,
     txPoolConfig: TxPoolConfig,
     node: BlockchainConfigBuilder
 ) extends Logger {
@@ -217,7 +218,7 @@ class PersonalService(
       val maybeNextTxNonce = maybeLatestPendingTxNonce.map(_ + 1).orElse(maybeCurrentNonce)
       val tx = request.toTransaction(maybeNextTxNonce.getOrElse(blockchainConfig.accountStartNonce))
 
-      val stx = if (blockchain.getBestBlockNumber() >= blockchainConfig.forkBlockNumbers.eip155BlockNumber) {
+      val stx = if (blockchainReader.getBestBlockNumber() >= blockchainConfig.forkBlockNumbers.eip155BlockNumber) {
         wallet.signTx(tx, Some(blockchainConfig.chainId))
       } else {
         wallet.signTx(tx, None)
@@ -231,7 +232,7 @@ class PersonalService(
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getAccount(address, blockchain.getBestBlockNumber())
+    blockchain.getAccount(address, blockchainReader.getBestBlockNumber())
 
   private def getMessageToSign(message: ByteString) = {
     val prefixed: Array[Byte] =

@@ -39,7 +39,9 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -137,8 +139,13 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
-  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
-  val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
+  val blockchainMetadata = new BlockchainMetadata(
+    storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+    storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
+  )
+  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
+  val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
+  val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
   val genesis: Block = Block(
@@ -147,7 +154,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
   val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesis.header)
 
-  bl.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
+  blockchainWriter.save(genesis, Seq(), genesisWeight, saveAsBestBlock = true)
 
   lazy val nh = nodeStatusHolder
 
@@ -280,7 +287,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     broadcasterActor ! BroadcastBlock(BlockToBroadcast(block, weight))
 
   def getCurrentState(): BlockchainState = {
-    val bestBlock = bl.getBestBlock().get
+    val bestBlock = blockchainReader.getBestBlock().get
     val currentWorldState = getMptForBlock(bestBlock)
     val currentWeight = bl.getChainWeightByHash(bestBlock.hash).get
     BlockchainState(bestBlock, currentWorldState, currentWeight)
@@ -348,7 +355,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       val newWeight = ChainWeight.totalDifficultyOnly(1)
 
       broadcastBlock(childBlock, newWeight)
-      bl.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
+      blockchainWriter.save(childBlock, Seq(), newWeight, saveAsBestBlock = true)
     }
 
   private def generateValidBlock(
@@ -359,14 +366,14 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       val currentWorld = getMptForBlock(currentBestBlock)
       val (newBlock, newWeight, _) =
         createChildBlock(currentBestBlock, currentWeight, currentWorld)(updateWorldForBlock)
-      bl.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
+      blockchainWriter.save(newBlock, Seq(), newWeight, saveAsBestBlock = true)
       broadcastBlock(newBlock, newWeight)
     }
 
   def importBlocksUntil(
       n: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= n) {
         Task(())
       } else {
@@ -378,7 +385,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {
@@ -397,7 +404,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       from: BigInt,
       to: BigInt
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
-    Task(bl.getBestBlock()).flatMap { block =>
+    Task(blockchainReader.getBestBlock()).flatMap { block =>
       if (block.get.number >= to) {
         Task(())
       } else if (block.get.number >= from) {

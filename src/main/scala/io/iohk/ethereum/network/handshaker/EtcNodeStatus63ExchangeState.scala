@@ -27,7 +27,7 @@ case class EtcNodeStatus63ExchangeState(
       networkId = peerConfiguration.networkId,
       totalDifficulty = chainWeight.totalDifficulty,
       bestHash = bestBlockHeader.hash,
-      genesisHash = blockchain.genesisHeader.hash
+      genesisHash = blockchainReader.genesisHeader.hash
     )
 
     log.debug(s"sending status $status")

@@ -76,7 +76,7 @@ class FilterManager(
 
   private def addFilterAndSendResponse(filter: Filter): Unit = {
     filters += (filter.id -> filter)
-    lastCheckBlocks += (filter.id -> blockchain.getBestBlockNumber())
+    lastCheckBlocks += (filter.id -> blockchainReader.getBestBlockNumber())
     lastCheckTimestamps += (filter.id -> System.currentTimeMillis())
     resetTimeout(filter.id)
     sender() ! NewFilterResponse(filter.id)
@@ -94,7 +94,7 @@ class FilterManager(
   private def getFilterLogs(id: BigInt): Unit = {
     val filterOpt = filters.get(id)
     filterOpt.foreach { _ =>
-      lastCheckBlocks += (id -> blockchain.getBestBlockNumber())
+      lastCheckBlocks += (id -> blockchainReader.getBestBlockNumber())
       lastCheckTimestamps += (id -> System.currentTimeMillis())
     }
     resetTimeout(id)
@@ -153,7 +153,7 @@ class FilterManager(
         }
       }
 
-    val bestBlockNumber = blockchain.getBestBlockNumber()
+    val bestBlockNumber = blockchainReader.getBestBlockNumber()
 
     val fromBlockNumber =
       startingBlockNumber.getOrElse(resolveBlockNumber(filter.fromBlock.getOrElse(BlockParam.Latest), bestBlockNumber))
@@ -169,7 +169,7 @@ class FilterManager(
   }
 
   private def getFilterChanges(id: BigInt): Unit = {
-    val bestBlockNumber = blockchain.getBestBlockNumber()
+    val bestBlockNumber = blockchainReader.getBestBlockNumber()
     val lastCheckBlock = lastCheckBlocks.getOrElse(id, bestBlockNumber)
     val lastCheckTimestamp = lastCheckTimestamps.getOrElse(id, System.currentTimeMillis())
 
@@ -237,7 +237,7 @@ class FilterManager(
       filterTopics.zip(logTopics).forall { case (filter, log) => filter.isEmpty || filter.contains(log) }
 
   private def getBlockHashesAfter(blockNumber: BigInt): Seq[ByteString] = {
-    val bestBlock = blockchain.getBestBlockNumber()
+    val bestBlock = blockchainReader.getBestBlockNumber()
 
     @tailrec
     def recur(currentBlockNumber: BigInt, hashesSoFar: Seq[ByteString]): Seq[ByteString] =

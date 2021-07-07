@@ -55,6 +55,7 @@ class FastSync(
     val appStateStorage: AppStateStorage,
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     nodeStorage: NodeStorage,
     val validators: Validators,
@@ -591,9 +592,9 @@ class FastSync(
     }
 
     private def updateSyncState(header: BlockHeader, parentWeight: ChainWeight): Unit = {
-      blockchain
+      blockchainWriter
         .storeBlockHeader(header)
-        .and(blockchain.storeChainWeight(header.hash, parentWeight.increase(header)))
+        .and(blockchainWriter.storeChainWeight(header.hash, parentWeight.increase(header)))
         .commit()
 
       if (header.number > syncState.bestBlockHeaderNumber) {
@@ -712,7 +713,7 @@ class FastSync(
           case ReceiptsValidationResult.Valid(blockHashesWithReceipts) =>
             blockHashesWithReceipts
               .map { case (hash, receiptsForBlock) =>
-                blockchain.storeReceipts(hash, receiptsForBlock)
+                blockchainWriter.storeReceipts(hash, receiptsForBlock)
               }
               .reduce(_.and(_))
               .commit()
@@ -801,7 +802,7 @@ class FastSync(
       requestedHashes
         .zip(blockBodies)
         .map { case (hash, body) =>
-          blockchain.storeBlockBody(hash, body)
+          blockchainWriter.storeBlockBody(hash, body)
         }
         .reduce(_.and(_))
         .commit()
@@ -946,7 +947,7 @@ class FastSync(
         requestBlockBodies(peer)
       } else if (blockHeadersQueue.nonEmpty) {
         requestBlockHeaders(peer)
-      } else if (shouldRequestNewSkeleton(peerInfo)) {
+      } else if (shouldRequestNewSkeleton()) {
         requestSkeletonHeaders(peer)
       } else {
         log.debug(
@@ -957,7 +958,7 @@ class FastSync(
       }
     }
 
-    private def shouldRequestNewSkeleton(peerInfo: PeerInfo): Boolean =
+    private def shouldRequestNewSkeleton(): Boolean =
       currentSkeletonState.isEmpty &&
         skeletonHandler.isEmpty &&
         syncState.bestBlockHeaderNumber < syncState.safeDownloadTarget
@@ -1150,6 +1151,7 @@ object FastSync {
       appStateStorage: AppStateStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
+      blockchainWriter: BlockchainWriter,
       evmCodeStorage: EvmCodeStorage,
       nodeStorage: NodeStorage,
       validators: Validators,
@@ -1166,6 +1168,7 @@ object FastSync {
         appStateStorage,
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         nodeStorage,
         validators,

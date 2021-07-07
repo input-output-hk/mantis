@@ -108,9 +108,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -129,9 +129,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = blockWithCheckpoint
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -150,9 +150,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = blockWithTreasuryOptOut
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -171,9 +171,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -192,9 +192,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = blockWithTreasuryOptOut
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -213,9 +213,9 @@ class JsonRpcControllerEthSpec
     val blockToRequest = blockWithCheckpoint
     val blockWeight = ChainWeight.zero.increase(blockToRequest.header)
 
-    blockchain
+    blockchainWriter
       .storeBlock(blockToRequest)
-      .and(blockchain.storeChainWeight(blockToRequest.header.hash, blockWeight))
+      .and(blockchainWriter.storeChainWeight(blockToRequest.header.hash, blockWeight))
       .commit()
 
     val request = newJsonRpcRequest(
@@ -234,7 +234,7 @@ class JsonRpcControllerEthSpec
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getUncleByBlockHashAndIndex",
@@ -259,7 +259,7 @@ class JsonRpcControllerEthSpec
     val uncle = Fixtures.Blocks.DaoForkBlock.header
     val blockToRequest = Block(Fixtures.Blocks.Block3125369.header, BlockBody(Nil, Seq(uncle)))
 
-    blockchain.storeBlock(blockToRequest).commit()
+    blockchainWriter.storeBlock(blockToRequest).commit()
 
     val request: JsonRpcRequest = newJsonRpcRequest(
       "eth_getUncleByBlockNumberAndIndex",
@@ -286,7 +286,7 @@ class JsonRpcControllerEthSpec
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    blockchain.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returns(PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld))
@@ -318,7 +318,7 @@ class JsonRpcControllerEthSpec
     val target = "0x1999999999999999999999999999999999999999999999999999999999999999"
     val headerPowHash = s"0x${Hex.toHexString(kec256(BlockHeader.getEncodedWithoutNonce(blockHeader)))}"
 
-    blockchain.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
+    blockchainWriter.save(parentBlock, Nil, ChainWeight.zero.increase(parentBlock.header), true)
     (blockGenerator.generateBlock _)
       .expects(parentBlock, *, *, *, *)
       .returns(PendingBlockAndState(PendingBlock(Block(blockHeader, BlockBody(Nil, Nil)), Nil), fakeWorld))
@@ -393,7 +393,7 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_gasPrice" in new JsonRpcControllerFixture {
-    blockchain
+    blockchainWriter
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
     blockchain.saveBestKnownBlocks(42)

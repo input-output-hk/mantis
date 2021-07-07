@@ -5,6 +5,7 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockPreparator
@@ -16,6 +17,7 @@ import io.iohk.ethereum.vm.EvmConfig
 class TestModeBlockExecution(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     blockPreparator: BlockPreparator,
     blockValidation: BlockValidation,
@@ -23,6 +25,7 @@ class TestModeBlockExecution(
 ) extends BlockExecution(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       evmCodeStorage,
       blockPreparator,
       blockValidation

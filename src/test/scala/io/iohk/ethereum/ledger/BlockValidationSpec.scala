@@ -8,6 +8,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -43,7 +44,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
   // scalastyle:off magic.number
   object BlockValidationTestSetup {
-    private val setup = new io.iohk.ethereum.blockchain.sync.ScenarioSetup {
+    private val setup = new EphemBlockchainTestSetup {
       override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
       override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
 
@@ -58,7 +59,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       new BlockValidation(
         setup.consensus,
         setup.blockchainReader,
-        BlockQueue(setup.blockchain, setup.syncConfig)
+        BlockQueue(setup.blockchain, setup.blockchainReader, setup.syncConfig)
       )
 
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))

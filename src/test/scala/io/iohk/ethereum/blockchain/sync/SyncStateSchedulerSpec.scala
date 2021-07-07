@@ -24,6 +24,7 @@ import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.vm.Generators.genMultipleNodeData
 
 class SyncStateSchedulerSpec
@@ -35,7 +36,7 @@ class SyncStateSchedulerSpec
   "SyncStateScheduler" should "sync with mptTrie with one account (1 leaf node)" in new TestSetup {
     val prov = getTrieProvider
     val worldHash = prov.buildWorld(Seq(MptNodeData(Address(1), None, Seq(), 20)))
-    val (syncStateScheduler, _, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, schedulerDb) = buildScheduler()
     val initialState = syncStateScheduler.initState(worldHash).get
     val (missingNodes, newState) = syncStateScheduler.getMissingNodes(initialState, 1)
     val responses = prov.getNodes(missingNodes)
@@ -56,7 +57,7 @@ class SyncStateSchedulerSpec
     val worldHash = prov.buildWorld(
       Seq(MptNodeData(Address(1), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20))
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, schedulerDb) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
     val state2 = exchangeSingleNode(state1, syncStateScheduler, prov).value
@@ -79,7 +80,7 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, _) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     val stateAfterExchange = exchangeAllNodes(initState, syncStateScheduler, prov)
     assert(stateAfterExchange.numberOfPendingRequests == 0)
@@ -111,7 +112,7 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3, 4)), Seq((2, 2)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, schedulerDb) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     assert(schedulerDb.dataSource.storage.isEmpty)
     val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
@@ -155,7 +156,7 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, schedulerDb) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     val state1 = exchangeSingleNode(initState, syncStateScheduler, prov).value
     val (allMissingNodes1, state2) = syncStateScheduler.getAllMissingNodes(state1)
@@ -187,9 +188,9 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, _) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
-    val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
+    val (_, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val result1 = syncStateScheduler.processResponse(state1, SyncResponse(ByteString(1), ByteString(2)))
     assert(result1.isLeft)
     assert(result1.left.value == NotRequestedItem)
@@ -204,7 +205,7 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, _) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val firstMissingResponse = prov.getNodes(firstMissing)
@@ -226,7 +227,7 @@ class SyncStateSchedulerSpec
         MptNodeData(Address(2), Some(ByteString(1, 2, 3)), Seq((1, 1)), 20)
       )
     )
-    val (syncStateScheduler, schedulerBlockchain, schedulerDb) = buildScheduler()
+    val (syncStateScheduler, _, _, _) = buildScheduler()
     val initState = syncStateScheduler.initState(worldHash).get
     val (firstMissing, state1) = syncStateScheduler.getMissingNodes(initState, 1)
     val firstMissingResponse = prov.getNodes(firstMissing)
@@ -247,9 +248,9 @@ class SyncStateSchedulerSpec
     forAll(nodeDataGen) { nodeData =>
       val prov = getTrieProvider
       val worldHash = prov.buildWorld(nodeData)
-      val (scheduler, schedulerBlockchain, allStorages) = buildScheduler()
+      val (scheduler, schedulerBlockchain, schedulerBlockchainWriter, allStorages) = buildScheduler()
       val header = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = worldHash, number = 1)
-      schedulerBlockchain.storeBlockHeader(header).commit()
+      schedulerBlockchainWriter.storeBlockHeader(header).commit()
       var state = scheduler.initState(worldHash).get
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)
@@ -269,8 +270,9 @@ class SyncStateSchedulerSpec
   trait TestSetup extends EphemBlockchainTestSetup {
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
-      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
+      val freshBlockchainMetadata = getNewBlockchainMetadata
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
       new TrieProvider(freshBlockchain, freshBlockchainReader, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
     val bloomFilterSize = 1000
@@ -293,11 +295,14 @@ class SyncStateSchedulerSpec
     def buildScheduler(): (
         SyncStateScheduler,
         BlockchainImpl,
+        BlockchainWriter,
         EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
     ) = {
       val freshStorage = getNewStorages
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
-      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
+      val freshBlockchainMetadata = getNewBlockchainMetadata
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
+      val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, freshBlockchainMetadata)
       (
         SyncStateScheduler(
           freshBlockchain,
@@ -307,6 +312,7 @@ class SyncStateSchedulerSpec
           bloomFilterSize
         ),
         freshBlockchain,
+        freshBlockchainWriter,
         freshStorage
       )
     }

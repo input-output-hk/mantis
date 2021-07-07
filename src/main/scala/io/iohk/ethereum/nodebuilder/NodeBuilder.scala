@@ -31,6 +31,7 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
@@ -57,7 +58,6 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
@@ -176,14 +176,20 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
-  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
+  private lazy val blockchainMetadata: BlockchainMetadata =
+    new BlockchainMetadata(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
+    )
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
+  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
 
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
-  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
+  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 }
 
 trait BlockImportBuilder {
@@ -194,11 +200,13 @@ trait BlockImportBuilder {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         consensus.blockPreparator,
         blockValidation
@@ -423,7 +431,7 @@ trait DebugServiceBuilder {
 
 trait TestServiceBuilder {
   self: TestNode
-    with TestBlockchainBuilder
+    with BlockchainBuilder
     with PendingTransactionsManagerBuilder
     with ConsensusConfigBuilder
     with BlockchainConfigBuilder
@@ -436,7 +444,9 @@ trait TestServiceBuilder {
     new TestService(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.stateStorage,
+      storagesInstance.storages.evmCodeStorage,
       pendingTransactionsManager,
       consensusConfig,
       testModeComponentsProvider,
@@ -446,7 +456,7 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
   override lazy val ethBlocksService =
     new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
 }
@@ -496,7 +506,7 @@ trait EthMiningServiceBuilder {
     with TxPoolConfigBuilder =>
 
   lazy val ethMiningService = new EthMiningService(
-    blockchain,
+    blockchainReader,
     consensus,
     jsonRpcConfig,
     ommersPool,
@@ -561,8 +571,8 @@ trait PersonalServiceBuilder {
   lazy val personalService = new PersonalService(
     keyStore,
     blockchain,
+    blockchainReader,
     pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage,
     txPoolConfig,
     this
   )
@@ -578,7 +588,6 @@ trait QaServiceBuilder {
   lazy val qaService =
     new QAService(
       consensus,
-      blockchain,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,
@@ -782,6 +791,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.appStateStorage,
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
@@ -856,7 +866,12 @@ trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder =>
 
   lazy val genesisDataLoader =
-    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage)
+    new GenesisDataLoader(
+      blockchainReader,
+      blockchainWriter,
+      storagesInstance.storages.stateStorage
+    )
+
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

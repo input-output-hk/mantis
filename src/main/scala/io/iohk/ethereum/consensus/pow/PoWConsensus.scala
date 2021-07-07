@@ -102,7 +102,7 @@ class PoWConsensus private (
                   node.syncController,
                   node.ethMiningService,
                   blockCreator,
-                  blockchain,
+                  blockchainReader,
                   node.blockchainConfig.forkBlockNumbers.ecip1049BlockNumber,
                   node
                 ),

@@ -7,6 +7,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockExecution
@@ -71,14 +72,17 @@ class ForksTest extends AnyFlatSpec with Matchers {
 
     (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
-      val blockchainReader = BlockchainReader(storages)
-      val blockchain = BlockchainImpl(storages, blockchainReader)
+      val blockchainMetadata = getNewBlockchainMetadata
+      val blockchainReader = BlockchainReader(storages, blockchainMetadata)
+      val blockchainWriter = BlockchainWriter(storages, blockchainMetadata)
+      val blockchain = BlockchainImpl(storages, blockchainReader, blockchainMetadata)
       val blockValidation =
-        new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+        new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
       val blockExecution =
         new BlockExecution(
           blockchain,
           blockchainReader,
+          blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
           consensus.blockPreparator,
           blockValidation

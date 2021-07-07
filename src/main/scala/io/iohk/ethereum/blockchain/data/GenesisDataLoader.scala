@@ -36,8 +36,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 
 class GenesisDataLoader(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     stateStorage: StateStorage
 ) extends Logger {
 
@@ -120,7 +120,7 @@ class GenesisDataLoader(
       case None =>
         storage.persist()
         stateStorage.forcePersist(GenesisDataLoad)
-        blockchain.save(
+        blockchainWriter.save(
           Block(header, BlockBody(Nil, Nil)),
           Nil,
           ChainWeight.totalDifficultyOnly(header.difficulty),
@@ -162,8 +162,8 @@ class GenesisDataLoader(
     )
 
     val storageTrie = storage.foldLeft(emptyTrie) {
-      case (trie, (key, UInt256.Zero)) => trie
-      case (trie, (key, value))        => trie.put(key, value)
+      case (trie, (_, UInt256.Zero)) => trie
+      case (trie, (key, value))      => trie.put(key, value)
     }
 
     ByteString(storageTrie.getRootHash)
@@ -210,7 +210,7 @@ object GenesisDataLoader {
     }
 
     object ByteStringJsonSerializer
-        extends CustomSerializer[ByteString](formats =>
+        extends CustomSerializer[ByteString](_ =>
           (
             { case jv => deserializeByteString(jv) },
             PartialFunction.empty

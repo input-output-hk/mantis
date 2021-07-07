@@ -18,7 +18,6 @@ import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.db.components.RocksDbDataSourceComponent
 import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
-import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
@@ -150,7 +149,7 @@ object DumpChainApp
   )
   peerManager ! PeerManagerActor.StartConnecting
 
-  actorSystem.actorOf(DumpChainActor.props(peerManager, peerMessageBus, startBlock, maxBlocks, node), "dumper")
+  actorSystem.actorOf(DumpChainActor.props(peerManager, peerMessageBus, maxBlocks, node), "dumper")
 }
 
 class BlockchainMock(genesisHash: ByteString) extends Blockchain {
@@ -185,16 +184,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
-  override def storeBlockHeader(blockHeader: BlockHeader): DataSourceBatchUpdate = ???
-
-  override def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate = ???
-
-  override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate = ???
-
-  override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate = ???
-
-  override def storeChainWeight(blockhash: ByteString, chainWeight: ChainWeight): DataSourceBatchUpdate = ???
-
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
   override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
@@ -217,15 +206,9 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   def getBestBlock(): Option[Block] = ???
 
-  override def save(block: Block, receipts: Seq[Receipt], weight: ChainWeight, saveAsBestBlock: Boolean): Unit = ???
-
   override def getLatestCheckpointBlockNumber(): BigInt = ???
 
   override def isInChain(hash: NodeHash): Boolean = ???
-
-  override def genesisHeader: BlockHeader = ???
-
-  override def genesisBlock: Block = ???
 
   override def getBackingMptStorage(blockNumber: BigInt): MptStorage = ???
 

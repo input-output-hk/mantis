@@ -138,7 +138,7 @@ class TestmodeConsensus(
 }
 
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with TestBlockchainBuilder with ConsensusConfigBuilder with StorageBuilder =>
+  self: VmBuilder with BlockchainBuilder with ConsensusConfigBuilder with StorageBuilder =>
 
   override lazy val consensus = new TestmodeConsensus(
     vm,

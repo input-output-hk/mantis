@@ -91,18 +91,27 @@ object RegularSyncItSpecUtils {
 
     lazy val consensus: PoWConsensus = buildEthashConsensus()
 
-    lazy val blockQueue: BlockQueue = BlockQueue(bl, syncConfig)
+    lazy val blockQueue: BlockQueue = BlockQueue(bl, blockchainReader, syncConfig)
     lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
     lazy val blockExecution =
       new BlockExecution(
         bl,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         consensus.blockPreparator,
         blockValidation
       )
     lazy val blockImport: BlockImport =
-      new BlockImport(bl, blockchainReader, blockQueue, blockValidation, blockExecution, Scheduler.global)
+      new BlockImport(
+        bl,
+        blockchainReader,
+        blockchainWriter,
+        blockQueue,
+        blockValidation,
+        blockExecution,
+        Scheduler.global
+      )
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 
@@ -137,6 +146,7 @@ object RegularSyncItSpecUtils {
         fetcher.toClassic,
         blockImport,
         bl,
+        blockchainReader,
         new BranchResolution(bl, blockchainReader),
         syncConfig,
         ommersPool,
@@ -154,6 +164,7 @@ object RegularSyncItSpecUtils {
         peerEventBus,
         blockImport,
         bl,
+        blockchainReader,
         new BranchResolution(bl, blockchainReader),
         validators.blockValidator,
         blacklist,
@@ -177,7 +188,7 @@ object RegularSyncItSpecUtils {
           blockchainReader
             .getBlockByNumber(bNumber)
             .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
-        case None => bl.getBestBlock().get
+        case None => blockchainReader.getBestBlock().get
       }).flatMap { block =>
         Task {
           val currentWeight = bl
@@ -190,12 +201,12 @@ object RegularSyncItSpecUtils {
       }
 
     def waitForRegularSyncLoadLastBlock(blockNumber: BigInt): Task[Boolean] =
-      retryUntilWithDelay(Task(bl.getBestBlockNumber() == blockNumber), 1.second, 90)(isDone => isDone)
+      retryUntilWithDelay(Task(blockchainReader.getBestBlockNumber() == blockNumber), 1.second, 90)(isDone => isDone)
 
     def mineNewBlock(
         plusDifficulty: BigInt = 0
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
-      val block: Block = bl.getBestBlock().get
+      val block: Block = blockchainReader.getBestBlock().get
       val currentWeight = bl
         .getChainWeightByHash(block.hash)
         .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))

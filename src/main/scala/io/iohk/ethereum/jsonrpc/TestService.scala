@@ -21,6 +21,7 @@ import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.domain
@@ -30,6 +31,7 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Block._
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
 import io.iohk.ethereum.ledger._
@@ -132,7 +134,9 @@ object TestService {
 class TestService(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     stateStorage: StateStorage,
+    evmCodeStorage: EvmCodeStorage,
     pendingTransactionsManager: ActorRef,
     consensusConfig: ConsensusConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
@@ -180,13 +184,13 @@ class TestService(
     resetPreimages(genesisData)
 
     // remove current genesis (Try because it may not exist)
-    Try(blockchain.removeBlock(blockchain.genesisHeader.hash, withState = false))
+    Try(blockchain.removeBlock(blockchainReader.genesisHeader.hash, withState = false))
     // TODO clear the storage ? When relaunching some tests on the same running test mantis client,
     // we end up with duplicate blocks because they are still present in the storage layer
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
-    val genesisDataLoader = new GenesisDataLoader(blockchain, blockchainReader, stateStorage)
+    val genesisDataLoader = new GenesisDataLoader(blockchainReader, blockchainWriter, stateStorage)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -242,7 +246,7 @@ class TestService(
   private def storeGenesisAccountCodes(accounts: Map[String, GenesisAccount]): Unit =
     accounts
       .collect { case (_, GenesisAccount(_, _, Some(code), _, _)) => code }
-      .foreach(code => blockchain.storeEvmCode(kec256(code), code).commit())
+      .foreach(code => evmCodeStorage.put(kec256(code), code).commit())
 
   private def storeGenesisAccountStorageData(accounts: Map[String, GenesisAccount]): Unit = {
     val emptyStorage = domain.EthereumUInt256Mpt.storageMpt(
@@ -262,7 +266,7 @@ class TestService(
       request: MineBlocksRequest
   ): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] =
-      getBlockForMining(blockchain.getBestBlock().get)
+      getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
             .blockImport(preimageCache, sealEngine)
@@ -291,7 +295,7 @@ class TestService(
 
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
-    (blockchain.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
+    (blockchainReader.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
       blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
     }
     RewindToBlockResponse().rightNow

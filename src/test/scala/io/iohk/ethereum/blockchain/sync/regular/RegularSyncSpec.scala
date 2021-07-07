@@ -289,7 +289,8 @@ class RegularSyncSpec
       "go back to earlier block in order to find a common parent with new branch" in sync(
         new Fixture(testSystem) {
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-          (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
+          override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
+          (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
           override lazy val blockImport: BlockImport = new FakeImportBlock()
           override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
@@ -343,8 +344,9 @@ class RegularSyncSpec
 
     "go back to earlier positive block in order to resolve a fork when branch smaller than branch resolution size" in sync(
       new Fixture(testSystem) {
+        override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-        (blockchain.getBestBlockNumber _).when().onCall(() => bestBlock.number)
+        (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
         override lazy val blockImport: BlockImport = new FakeImportBlock()
         override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
@@ -480,7 +482,7 @@ class RegularSyncSpec
 
         var saveNodeWasCalled: Boolean = false
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
-        (blockchain.getBestBlockNumber _).when().returns(0)
+        (blockchainReader.getBestBlockNumber _).when().returns(0)
         (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
         (blockchain.saveNode _)
           .when(*, *, *)
@@ -780,7 +782,7 @@ class RegularSyncSpec
           _ <- testBlocks
             .take(5)
             .traverse(block =>
-              Task(blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
+              Task(blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
             )
           _ <- Task {
             regularSync ! SyncProtocol.Start

@@ -27,7 +27,7 @@ class CheckpointingService(
   import CheckpointingService._
 
   def getLatestBlock(req: GetLatestBlockRequest): ServiceResponse[GetLatestBlockResponse] = {
-    lazy val bestBlockNum = blockchain.getBestBlockNumber()
+    lazy val bestBlockNum = blockchainReader.getBestBlockNumber()
     lazy val blockToReturnNum =
       if (req.checkpointingInterval != 0)
         bestBlockNum - bestBlockNum % req.checkpointingInterval

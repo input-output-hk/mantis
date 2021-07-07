@@ -132,10 +132,8 @@ class SyncStateScheduler(
     nodes.foreach { case (hash, (data, reqType)) =>
       bloomFilter.put(hash)
       reqType match {
-        case _: CodeRequest =>
-          blockchain.storeEvmCode(hash, data).commit()
-        case _: NodeRequest =>
-          blockchain.saveNode(hash, data.toArray, targetBlockNumber)
+        case _: CodeRequest => evmCodeStorage.put(hash, data).commit()
+        case _: NodeRequest => blockchain.saveNode(hash, data.toArray, targetBlockNumber)
       }
     }
     newState

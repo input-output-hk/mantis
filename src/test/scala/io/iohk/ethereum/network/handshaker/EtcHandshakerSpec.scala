@@ -72,7 +72,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
-    blockchain.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
+    blockchainWriter.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
 
     val newLocalStatusMsg =
       localStatusMsg.copy(totalDifficulty = newChainWeight.totalDifficulty, bestHash = firstBlock.header.hash)
@@ -98,7 +98,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
-    blockchain.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
+    blockchainWriter.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
 
     val newLocalStatusMsg =
       localStatusMsg
@@ -269,7 +269,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     val forkBlockHeader = Fixtures.Blocks.DaoForkBlock.header
 
-    blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
+    blockchainWriter.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val nodeStatus: NodeStatus = NodeStatus(
       key = generateKeyPair(secureRandom),

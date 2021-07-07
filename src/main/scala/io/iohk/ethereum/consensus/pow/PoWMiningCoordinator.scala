@@ -17,7 +17,7 @@ import io.iohk.ethereum.consensus.pow.miners.EthashMiner
 import io.iohk.ethereum.consensus.pow.miners.KeccakMiner
 import io.iohk.ethereum.consensus.pow.miners.Miner
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
@@ -54,7 +54,7 @@ object PoWMiningCoordinator {
       syncController: ClassicActorRef,
       ethMiningService: EthMiningService,
       blockCreator: PoWBlockCreator,
-      blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       ecip1049BlockNumber: Option[BigInt],
       node: BlockchainConfigBuilder
   ): Behavior[CoordinatorProtocol] =
@@ -65,7 +65,7 @@ object PoWMiningCoordinator {
           syncController,
           ethMiningService,
           blockCreator,
-          blockchain,
+          blockchainReader,
           ecip1049BlockNumber,
           node
         )
@@ -77,7 +77,7 @@ class PoWMiningCoordinator private (
     syncController: ClassicActorRef,
     ethMiningService: EthMiningService,
     blockCreator: PoWBlockCreator,
-    blockchain: Blockchain,
+    blockchainReader: BlockchainReader,
     ecip1049BlockNumber: Option[BigInt],
     node: BlockchainConfigBuilder
 ) extends AbstractBehavior[CoordinatorProtocol](context) {
@@ -103,10 +103,10 @@ class PoWMiningCoordinator private (
 
     case MineNext =>
       log.debug("Received message MineNext")
-      blockchain
+      blockchainReader
         .getBestBlock()
         .fold {
-          log.error("Unable to get block for mining: blockchain.getBestBlock() returned None")
+          log.error("Unable to get block for mining: blockchainReader.getBestBlock() returned None")
           context.self ! MineNext
         } { block =>
           getMiningAlgorithm(block.header.number) match {
