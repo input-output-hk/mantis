@@ -37,8 +37,11 @@ updateOptions := updateOptions.value.withGigahorse(false)
 // artifact name will include scala version
 crossPaths := true
 
-val `scala-2.12` = "2.12.10"
-val `scala-2.13` = "2.13.4"
+// patch for error on 'early-semver' problems
+ThisBuild / evictionErrorLevel := Level.Info
+
+val `scala-2.12` = "2.12.13"
+val `scala-2.13` = "2.13.6"
 val supportedScalaVersions = List(`scala-2.12`, `scala-2.13`)
 
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
@@ -53,8 +56,8 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "com.github.vovapolu" %% "scaluzzi" % "0.1.16"
   ),
   // Scalanet snapshots are published to Sonatype after each build.
-  resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots",
-  testOptions in Test += Tests
+  resolvers += "Sonatype OSS Snapshots".at("https://oss.sonatype.org/content/repositories/snapshots"),
+  (Test / testOptions) += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
   scalacOptions := Seq(
     "-unchecked",
@@ -67,7 +70,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "utf-8"
   ),
   scalacOptions ++= (if (mantisDev) Seq.empty else compilerOptimizationsForProd),
-  scalacOptions in (Compile, console) ~= (_.filterNot(
+  (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(
       "-Ywarn-unused-import",
       "-Xfatal-warnings"
@@ -75,10 +78,10 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   )),
   scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options),
   Test / parallelExecution := true,
-  testOptions in Test += Tests.Argument("-oDG"),
-  (scalastyleConfig in Test) := file("scalastyle-test-config.xml"),
+  (Test / testOptions) += Tests.Argument("-oDG"),
+  (Test / scalastyleConfig) := file("scalastyle-test-config.xml"),
   // Only publish selected libraries.
-  skip in publish := true
+  (publish / skip) := true
 )
 
 val publishSettings = Seq(
@@ -88,7 +91,7 @@ val publishSettings = Seq(
 
 // Adding an "it" config because in `Dependencies.scala` some are declared with `% "it,test"`
 // which would fail if the project didn't have configuration to add to.
-val Integration = config("it") extend Test
+val Integration = config("it").extend(Test)
 
 lazy val bytes = {
   val bytes = project
@@ -143,11 +146,11 @@ lazy val rlp = {
 }
 
 lazy val node = {
-  val Benchmark = config("benchmark") extend Test
+  val Benchmark = config("benchmark").extend(Test)
 
-  val Evm = config("evm") extend Test
+  val Evm = config("evm").extend(Test)
 
-  val Rpc = config("rpcTest") extend Test
+  val Rpc = config("rpcTest").extend(Test)
 
   val malletDeps = Seq(
     Dependencies.scopt
@@ -183,10 +186,10 @@ lazy val node = {
     ).flatten ++ malletDeps
   }
 
-  scalastyleSources in Test ++= { (unmanagedSourceDirectories in Integration).value }
+  (Test / scalastyleSources) ++= (Integration / unmanagedSourceDirectories).value
 
-  (test in Evm) := (test in Evm).dependsOn(solidityCompile).value
-  (sourceDirectory in Evm) := baseDirectory.value / "src" / "evmTest"
+  (Evm / test) := (Evm / test).dependsOn(solidityCompile).value
+  (Evm / sourceDirectory) := baseDirectory.value / "src" / "evmTest"
 
   val node = project
     .in(file("."))
@@ -204,11 +207,11 @@ lazy val node = {
         gitCurrentTags,
         gitDescribedVersion,
         gitUncommittedChanges,
-        libraryDependencies in Compile
+        (Compile / libraryDependencies)
       ),
       buildInfoPackage := "io.iohk.ethereum.utils",
-      fork in Test := true,
-      buildInfoOptions in Compile += BuildInfoOption.ToMap
+      (Test / fork) := true,
+      (Compile / buildInfoOptions) += BuildInfoOption.ToMap
     )
     .settings(commonSettings("mantis"): _*)
     .settings(inConfig(Integration)(scalafixConfigSettings(Integration)))
@@ -232,19 +235,19 @@ lazy val node = {
     .settings(
       // protobuf compilation
       // Into a subdirectory of src_managed to avoid it deleting other generated files; see https://github.com/sbt/sbt-buildinfo/issues/149
-      PB.targets in Compile := Seq(
-        scalapb.gen() -> (sourceManaged in Compile).value / "protobuf"
+      (Compile / PB.targets) := Seq(
+        scalapb.gen() -> (Compile / sourceManaged).value / "protobuf"
       ),
       // have the protobuf API version file as a resource
-      unmanagedResourceDirectories in Compile += baseDirectory.value / "src" / "main" / "protobuf",
+      (Compile / unmanagedResourceDirectories) += baseDirectory.value / "src" / "main" / "protobuf",
       // Packaging
-      mainClass in Compile := Some("io.iohk.ethereum.App"),
-      discoveredMainClasses in Compile := Seq(),
+      (Compile / mainClass) := Some("io.iohk.ethereum.App"),
+      (Compile / discoveredMainClasses) := Seq(),
       // Requires the 'ant-javafx.jar' that comes with Oracle JDK
       // Enables creating an executable with the configuration files, has to be run on the OS corresponding to the desired version
       ThisBuild / jdkPackagerType := "image",
-      mappings in Universal ++= directory((resourceDirectory in Compile).value / "conf"),
-      mappings in Universal += (resourceDirectory in Compile).value / "logback.xml" -> "conf/logback.xml",
+      (Universal / mappings) ++= directory((Compile / resourceDirectory).value / "conf"),
+      (Universal / mappings) += (Compile / resourceDirectory).value / "logback.xml" -> "conf/logback.xml",
       bashScriptExtraDefines += """addJava "-Dconfig.file=${app_home}/../conf/app.conf"""",
       bashScriptExtraDefines += """addJava "-Dlogback.configurationFile=${app_home}/../conf/logback.xml"""",
       batScriptExtraDefines += """call :add_java "-Dconfig.file=%APP_HOME%\conf\app.conf"""",
@@ -258,7 +261,7 @@ lazy val node = {
     node
   else
     //node.settings(PB.protocExecutable := file("protoc"))
-    node.settings(PB.runProtoc in Compile := (args => Process("protoc", args) !))
+    node.settings((Compile / PB.runProtoc) := (args => Process("protoc", args) !))
 
 }
 
@@ -345,7 +348,5 @@ addCommandAlias(
     |""".stripMargin
 )
 
-// Scala 2.12 only has up to 1.4.5, while 2.13 only from 1.4.7
-// In theory we should be able to switch on `scalaVersion.value` but it doesn't seem to work.
-scapegoatVersion in ThisBuild := (sys.env.getOrElse("SCAPEGOAT_VERSION", "1.4.7"))
+(ThisBuild / scapegoatVersion) := "1.4.9"
 scapegoatReports := Seq("xml")
