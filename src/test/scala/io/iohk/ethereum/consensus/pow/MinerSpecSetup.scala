@@ -35,8 +35,8 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()

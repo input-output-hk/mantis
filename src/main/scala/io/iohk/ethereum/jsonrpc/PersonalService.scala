@@ -32,7 +32,6 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransacti
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.TxPoolConfig
-import io.iohk.ethereum.utils.BlockchainConfig
 
 object PersonalService {
 

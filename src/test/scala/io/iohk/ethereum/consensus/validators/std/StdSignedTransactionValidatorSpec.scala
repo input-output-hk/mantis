@@ -17,9 +17,9 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValid
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
