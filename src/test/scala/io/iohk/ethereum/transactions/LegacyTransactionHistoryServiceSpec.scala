@@ -44,9 +44,9 @@ class LegacyTransactionHistoryServiceSpec
 
     val keyPair = generateKeyPair(secureRandom)
 
-    val tx1 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None).tx
-    val tx2 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None).tx
-    val tx3 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None).tx
+    val tx1 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 1, ByteString()), keyPair, None)
+    val tx2 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 2, ByteString()), keyPair, None)
+    val tx3 = SignedTransaction.sign(LegacyTransaction(0, 123, 456, Some(address), 3, ByteString()), keyPair, None)
 
     val blockWithTx1 =
       Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
@@ -102,15 +102,16 @@ class LegacyTransactionHistoryServiceSpec
 
       val tx = LegacyTransaction(0, 123, 456, None, 99, ByteString())
       val signedTx = SignedTransaction.sign(tx, keyPair, None)
+      val txWithSender = SignedTransactionWithSender(signedTx, Address(keyPair))
 
       val expectedSent =
-        Seq(ExtendedTransactionData(signedTx.tx, isOutgoing = true, None))
+        Seq(ExtendedTransactionData(signedTx, isOutgoing = true, None))
 
       for {
         _ <- Task(blockchainWriter.storeBlock(blockWithTx).commit())
-        _ <- Task(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(signedTx))
+        _ <- Task(pendingTransactionManager.ref ! PendingTransactionsManager.AddTransactions(txWithSender))
         response <- transactionHistoryService.getAccountTransactions(
-          signedTx.senderAddress,
+          txWithSender.senderAddress,
           BigInt(3125371) to BigInt(3125381)
         )
       } yield assert(response === expectedSent)
@@ -132,7 +133,7 @@ class LegacyTransactionHistoryServiceSpec
       val signedTxNotToBeCheckpointed = SignedTransaction.sign(txNotToBeCheckpointed, keyPair, None)
 
       val block1 = BlockHelpers
-        .generateBlock(BlockHelpers.genesis) |> (BlockHelpers.withTransactions(_, List(signedTxToBeCheckpointed.tx)))
+        .generateBlock(BlockHelpers.genesis) |> (BlockHelpers.withTransactions(_, List(signedTxToBeCheckpointed)))
       val block2 = BlockHelpers.generateBlock(block1) |> (
         BlockHelpers.updateHeader(
           _,
@@ -144,15 +145,15 @@ class LegacyTransactionHistoryServiceSpec
         )
       )
       val block3 =
-        BlockHelpers.generateBlock(block2) |> (BlockHelpers.withTransactions(_, List(signedTxNotToBeCheckpointed.tx)))
+        BlockHelpers.generateBlock(block2) |> (BlockHelpers.withTransactions(_, List(signedTxNotToBeCheckpointed)))
 
       val expectedCheckpointedTxData = ExtendedTransactionData(
-        signedTxToBeCheckpointed.tx,
+        signedTxToBeCheckpointed,
         isOutgoing = true,
         Some(MinedTransactionData(block1.header, 0, 21000, isCheckpointed = true))
       )
       val expectedNonCheckpointedTxData = ExtendedTransactionData(
-        signedTxNotToBeCheckpointed.tx,
+        signedTxNotToBeCheckpointed,
         isOutgoing = true,
         Some(MinedTransactionData(block3.header, 0, 21000, isCheckpointed = false))
       )

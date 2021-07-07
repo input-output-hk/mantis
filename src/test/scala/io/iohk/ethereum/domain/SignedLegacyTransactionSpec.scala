@@ -28,7 +28,8 @@ class SignedLegacyTransactionSpec
             .kec256(key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
             .drop(FirstByteOfAddress)
         )
-        val result = SignedTransaction.sign(tx, key, Some(chainId))
+        val signedTransaction = SignedTransaction.sign(tx, key, Some(chainId))
+        val result = SignedTransactionWithSender(signedTransaction, Address(key))
 
         allowedPointSigns should contain(result.tx.signature.v)
         address shouldEqual result.senderAddress

@@ -209,7 +209,7 @@ trait BlockchainSetup extends TestSetup {
     gasLimit = defaultGasLimit,
     value = defaultValue
   )
-  val validStxSignedByOrigin: SignedTransactionWithSender =
+  val validStxSignedByOrigin: SignedTransaction =
     SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
 }
 

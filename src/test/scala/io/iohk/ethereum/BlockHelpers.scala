@@ -62,7 +62,7 @@ object BlockHelpers extends SecureRandomBuilder {
     val tx = defaultTx.copy(payload = randomHash())
     val stx = SignedTransaction.sign(tx, keyPair, None)
 
-    Block(header, BlockBody(List(stx.tx), List(ommer)))
+    Block(header, BlockBody(List(stx), List(ommer)))
   }
 
   def updateHeader(block: Block, updater: BlockHeader => BlockHeader): Block =

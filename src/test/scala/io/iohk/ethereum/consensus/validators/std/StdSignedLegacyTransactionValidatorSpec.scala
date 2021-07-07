@@ -239,7 +239,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx.tx,
+      stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead,
       upfrontGasCost = upfrontGasCost,
@@ -254,7 +254,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx.tx,
+      stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.forkBlockNumbers.eip155BlockNumber),
       upfrontGasCost = upfrontGasCost,

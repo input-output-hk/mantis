@@ -223,7 +223,7 @@ class PendingTransactionsManagerSpec extends AnyFlatSpec with Matchers with Scal
         tx: LegacyTransaction = tx,
         keyPair: AsymmetricCipherKeyPair = crypto.generateKeyPair(secureRandom)
     ): SignedTransactionWithSender =
-      SignedTransaction.sign(tx, keyPair, Some(0x3d))
+      SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, Some(0x3d)), Address(keyPair))
 
     val peer1TestProbe: TestProbe = TestProbe()
     val peer1: Peer = Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 9000), peer1TestProbe.ref, false)

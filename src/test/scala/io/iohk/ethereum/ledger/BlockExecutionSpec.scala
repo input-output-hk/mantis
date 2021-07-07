@@ -42,7 +42,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val block1BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
         val block2BodyWithTxs: BlockBody =
-          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
+          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin))
         val block2 = Block(
           validBlockHeader.copy(parentHash = validBlockHeader.hash, number = validBlockHeader.number + 1),
           block2BodyWithTxs
@@ -84,7 +84,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       "two blocks with txs (that last one has invalid tx)" in new BlockchainSetup {
         val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val block1BodyWithTxs: BlockBody =
-          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
+          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin))
         val block1 = Block(validBlockHeader, block1BodyWithTxs)
         val block2BodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx))
         val block2 = Block(
@@ -211,7 +211,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
       "block with one tx (that produces OutOfGas)" in new BlockchainSetup {
 
-        val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx))
+        val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
         val mockVm = new MockVM(c =>
@@ -247,7 +247,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         txsExecResult.isRight shouldBe true
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
 
-        val transaction: LegacyTransaction = validStxSignedByOrigin.tx.tx
+        val transaction: LegacyTransaction = validStxSignedByOrigin.tx
         // Check valid world
         val minerPaymentForTxs = UInt256(transaction.gasLimit * transaction.gasPrice)
         val changes = Seq(
@@ -284,7 +284,10 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         forAll(table) { (gasLimit, logs, addressesToDelete, txValidAccordingToValidators) =>
           val tx = validTx.copy(gasLimit = gasLimit)
-          val stx = SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId))
+          val stx = SignedTransactionWithSender(
+            SignedTransaction.sign(tx, originKeyPair, Some(blockchainConfig.chainId)),
+            Address(originKeyPair)
+          )
 
           val blockHeader: BlockHeader = validBlockHeader.copy(gasLimit = gasLimit)
           val blockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx.tx))
@@ -351,7 +354,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       "last one wasn't executed correctly" in new BlockExecutionTestSetup {
         val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val blockBodyWithTxs: BlockBody =
-          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin.tx, invalidStx))
+          validBlockBodyWithNoTxs.copy(transactionList = Seq(validStxSignedByOrigin, invalidStx))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
@@ -363,7 +366,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       "first one wasn't executed correctly" in new BlockExecutionTestSetup {
         val invalidStx = SignedTransaction(validTx, ECDSASignature(1, 2, 3.toByte))
         val blockBodyWithTxs: BlockBody =
-          validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx, validStxSignedByOrigin.tx))
+          validBlockBodyWithNoTxs.copy(transactionList = Seq(invalidStx, validStxSignedByOrigin))
         val block = Block(validBlockHeader, blockBodyWithTxs)
 
         val txsExecResult: Either[BlockExecutionError, BlockResult] =
@@ -564,8 +567,14 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           gasLimit = defaultGasLimit * 2,
           nonce = validTx.nonce + (if (origin1Address == origin2Address) 1 else 0)
         )
-        val stx1 = SignedTransaction.sign(tx1, keyPair(origin1Address), Some(blockchainConfig.chainId))
-        val stx2 = SignedTransaction.sign(tx2, keyPair(origin2Address), Some(blockchainConfig.chainId))
+        val keyPair1 = keyPair(origin1Address)
+        val keyPair2 = keyPair(origin2Address)
+
+        val st1 = SignedTransaction.sign(tx1, keyPair1, Some(blockchainConfig.chainId))
+        val st2 = SignedTransaction.sign(tx2, keyPair2, Some(blockchainConfig.chainId))
+
+        val stx1 = SignedTransactionWithSender(st1, Address(keyPair1))
+        val stx2 = SignedTransactionWithSender(st2, Address(keyPair2))
 
         val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
         val block = Block(validBlockHeader, validBlockBodyWithTxs)
