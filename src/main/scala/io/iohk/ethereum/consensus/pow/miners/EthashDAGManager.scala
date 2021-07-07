@@ -15,9 +15,9 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.consensus.pow.PoWBlockCreator
 import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None

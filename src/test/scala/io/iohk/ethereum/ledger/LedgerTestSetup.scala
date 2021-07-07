@@ -20,7 +20,6 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
 import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator

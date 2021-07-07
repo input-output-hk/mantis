@@ -15,6 +15,7 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.validators.SignedTransactionError
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValid
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
@@ -23,6 +24,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.InvalidJump
 import io.iohk.ethereum.vm.InvalidOpCode
 import io.iohk.ethereum.vm.OutOfGas
@@ -30,8 +32,6 @@ import io.iohk.ethereum.vm.ProgramError
 import io.iohk.ethereum.vm.RevertOccurs
 import io.iohk.ethereum.vm.StackOverflow
 import io.iohk.ethereum.vm.StackUnderflow
-import io.iohk.ethereum.consensus.validators.SignedTransactionError
-import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off magic.number
 class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPropertyChecks {

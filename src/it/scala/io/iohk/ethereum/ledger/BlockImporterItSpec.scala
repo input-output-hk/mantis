@@ -26,8 +26,6 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator

@@ -10,8 +10,8 @@ import org.scalatest.wordspec.AnyWordSpec
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.utils.ByteStringUtils._
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils._
 
 class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
   import BlockValidationTestSetup._

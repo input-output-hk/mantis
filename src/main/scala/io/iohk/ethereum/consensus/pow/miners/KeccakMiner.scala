@@ -20,9 +20,9 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.utils.BigIntExtensionMethods.BigIntAsUnsigned
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.BlockchainConfig
 
 class KeccakMiner(
     blockCreator: PoWBlockCreator,

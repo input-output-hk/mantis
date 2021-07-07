@@ -23,8 +23,8 @@ import io.iohk.ethereum.network.handshaker.ConnectedState
 import io.iohk.ethereum.network.handshaker.DisconnectedState
 import io.iohk.ethereum.network.handshaker.Handshaker
 import io.iohk.ethereum.network.handshaker.HandshakerState
-import io.iohk.ethereum.vm._
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.vm._
 
 object Mocks {
   private val defaultProgramResult: PC => PR = context =>

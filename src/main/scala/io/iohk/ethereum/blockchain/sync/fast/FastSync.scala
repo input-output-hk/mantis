@@ -45,9 +45,9 @@ import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63._
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 // scalastyle:off file.size.limit
 class FastSync(

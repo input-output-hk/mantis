@@ -19,10 +19,11 @@ import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
-  implicit val blockchainConfig = Config.blockchains.blockchainConfig
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   val signedTransactionValidator = new StdSignedTransactionValidator()
 

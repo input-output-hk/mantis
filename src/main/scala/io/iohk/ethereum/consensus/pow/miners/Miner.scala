@@ -13,9 +13,9 @@ import io.iohk.ethereum.consensus.pow.miners.MinerProtocol.MiningSuccessful
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateRequest
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.utils.BlockchainConfig
 
 trait Miner extends Logger {
   def processMining(bestBlock: Block)(implicit

@@ -32,10 +32,11 @@ import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
@@ -73,7 +74,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
   )
 
   lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
-  implicit override lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  implicit override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
   lazy val difficultyCalc = new EthashDifficultyCalculator()
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
 

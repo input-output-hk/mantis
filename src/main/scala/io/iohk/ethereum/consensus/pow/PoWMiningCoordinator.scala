@@ -19,7 +19,6 @@ import io.iohk.ethereum.consensus.pow.miners.Miner
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.jsonrpc.EthMiningService
-import io.iohk.ethereum.nodebuilder.BlockchainBuilder
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object PoWMiningCoordinator {

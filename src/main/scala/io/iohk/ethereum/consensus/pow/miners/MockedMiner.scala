@@ -28,10 +28,10 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 class MockedMiner(
     blockchain: Blockchain,

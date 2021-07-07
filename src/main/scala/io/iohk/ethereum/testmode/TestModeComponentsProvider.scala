@@ -5,7 +5,6 @@ import akka.util.ByteString
 import monix.execution.Scheduler
 
 import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -17,7 +16,6 @@ import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */

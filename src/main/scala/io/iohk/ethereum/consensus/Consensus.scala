@@ -12,7 +12,6 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.BlockchainConfig
 
 /** Abstraction for a consensus protocol implementation.
   *

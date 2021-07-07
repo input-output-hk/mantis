@@ -32,9 +32,7 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 /** Implements standard Ethereum consensus (Proof of Work).
   */

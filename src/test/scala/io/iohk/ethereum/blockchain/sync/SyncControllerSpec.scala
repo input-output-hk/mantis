@@ -45,8 +45,8 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts.GetReceiptsEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
-import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 // scalastyle:off file.size.limit
 class SyncControllerSpec
