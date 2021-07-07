@@ -85,6 +85,7 @@ abstract class BlockGeneratorSkeleton(
       x: X
   )(implicit blockchainConfig: BlockchainConfig): BlockHeader
 
+  // scalastyle:off parameter.number
   protected def prepareBlock(
       evmCodeStorage: EvmCodeStorage,
       parent: Block,
