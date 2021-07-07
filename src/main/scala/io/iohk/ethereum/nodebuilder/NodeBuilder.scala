@@ -58,9 +58,6 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
-import io.iohk.ethereum.testmode.TestModeServiceBuilder
-import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -429,38 +426,6 @@ trait DebugServiceBuilder {
   lazy val debugService = new DebugService(peerManager, etcPeerManager)
 }
 
-trait TestServiceBuilder {
-  self: TestNode
-    with BlockchainBuilder
-    with PendingTransactionsManagerBuilder
-    with ConsensusConfigBuilder
-    with BlockchainConfigBuilder
-    with VmBuilder
-    with TestmodeConsensusBuilder
-    with TestModeServiceBuilder
-    with StorageBuilder =>
-
-  lazy val testService =
-    new TestService(
-      blockchain,
-      blockchainReader,
-      blockchainWriter,
-      storagesInstance.storages.stateStorage,
-      storagesInstance.storages.evmCodeStorage,
-      pendingTransactionsManager,
-      consensusConfig,
-      testModeComponentsProvider,
-      storagesInstance.storages.transactionMappingStorage,
-      this
-    )(scheduler)
-}
-
-trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
-  override lazy val ethBlocksService =
-    new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
-}
-
 trait EthProofServiceBuilder {
   self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
 
@@ -666,9 +631,7 @@ trait JSONRpcControllerBuilder {
     with CheckpointingServiceBuilder
     with MantisServiceBuilder =>
 
-  private lazy val testService =
-    if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
-    else None
+  protected def testService: Option[TestService] = None
 
   lazy val jsonRpcController =
     new JsonRpcController(

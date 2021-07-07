@@ -136,16 +136,3 @@ class TestmodeConsensus(
     */
   override def sendMiner(msg: MinerProtocol): Unit = {}
 }
-
-trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with BlockchainBuilder with ConsensusConfigBuilder with StorageBuilder =>
-
-  override lazy val consensus = new TestmodeConsensus(
-    vm,
-    storagesInstance.storages.evmCodeStorage,
-    blockchain,
-    blockchainReader,
-    consensusConfig,
-    SealEngineType.NoReward
-  )
-}
