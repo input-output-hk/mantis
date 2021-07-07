@@ -19,8 +19,8 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
 
 class MockedMinerSpec
     extends TestKit(ClassicSystem("MockedPowMinerSpec_System"))

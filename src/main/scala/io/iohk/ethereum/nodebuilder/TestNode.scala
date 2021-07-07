@@ -5,13 +5,11 @@ import java.util.concurrent.atomic.AtomicReference
 import monix.execution.Scheduler
 
 import io.iohk.ethereum.jsonrpc.TestService
-import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.testmode.SealEngineType
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeComponentsProvider
 import io.iohk.ethereum.testmode.TestmodeConsensus
 import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.ledger.BlockImport
 
 class TestNode extends BaseNode {
 

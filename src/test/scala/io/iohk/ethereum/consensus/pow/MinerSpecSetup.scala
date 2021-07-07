@@ -13,7 +13,7 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.handlers.CallHandler3
+import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
 
 import io.iohk.ethereum.Fixtures
@@ -37,7 +37,6 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
-import org.scalamock.handlers.CallHandler4
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()

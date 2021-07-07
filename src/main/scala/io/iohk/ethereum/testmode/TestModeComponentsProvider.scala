@@ -12,9 +12,7 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockImport
-import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockValidation
-import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.utils.Config.SyncConfig

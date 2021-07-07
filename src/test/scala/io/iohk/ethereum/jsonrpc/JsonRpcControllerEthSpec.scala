@@ -43,11 +43,11 @@ import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
 import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
+import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
 import io.iohk.ethereum.testing.ActorsTesting.simpleAutoPilot
 import io.iohk.ethereum.transactions.PendingTransactionsManager
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.utils.BlockchainConfig
 
 // scalastyle:off magic.number
