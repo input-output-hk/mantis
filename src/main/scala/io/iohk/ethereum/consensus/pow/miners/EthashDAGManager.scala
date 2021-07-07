@@ -17,18 +17,21 @@ import io.iohk.ethereum.consensus.pow.PoWBlockCreator
 import io.iohk.ethereum.consensus.pow.miners.EthashMiner.DagFilePrefix
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class EthashDAGManager(blockCreator: PoWBlockCreator) extends Logger {
   var currentEpoch: Option[Long] = None
   var currentEpochDagSize: Option[Long] = None
   var currentEpochDag: Option[Array[Array[Int]]] = None
 
-  def calculateDagSize(blockNumber: Long, epoch: Long): (Array[Array[Int]], Long) =
+  def calculateDagSize(blockNumber: Long, epoch: Long)(implicit
+      blockchainConfig: BlockchainConfig
+  ): (Array[Array[Int]], Long) =
     (currentEpoch, currentEpochDag, currentEpochDagSize) match {
       case (Some(`epoch`), Some(dag), Some(dagSize)) => (dag, dagSize)
       case _ =>
         val seed =
-          EthashUtils.seed(blockNumber, blockCreator.blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
+          EthashUtils.seed(blockNumber, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
         val dagSize = EthashUtils.dagSize(epoch)
         val dagNumHashes = (dagSize / EthashUtils.HASH_BYTES).toInt
         val dag =

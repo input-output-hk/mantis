@@ -30,7 +30,6 @@ class PoWBlockCreator(
   lazy val miningConfig = fullConsensusConfig.specific
   private lazy val coinbase: Address = consensusConfig.coinbase
   private lazy val blockGenerator: PoWBlockGenerator = consensus.blockGenerator
-  lazy val blockchainConfig = consensus.blockchainConfig
 
   def getBlockForMining(
       parentBlock: Block,

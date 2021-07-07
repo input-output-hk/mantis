@@ -94,7 +94,6 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConfig,
       validators,
       additionalPoWData

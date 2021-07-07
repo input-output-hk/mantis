@@ -75,7 +75,6 @@ object RegularSyncItSpecUtils {
           storagesInstance.storages.evmCodeStorage,
           bl,
           blockchainReader,
-          blockchainConfig,
           fullConfig,
           ValidatorsExecutorAlwaysSucceed,
           NoAdditionalPoWData

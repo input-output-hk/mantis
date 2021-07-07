@@ -36,7 +36,6 @@ class PoWConsensusSpec
       storagesInstance.storages.evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
       NoAdditionalPoWData
@@ -53,7 +52,6 @@ class PoWConsensusSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       ConsensusConfigs.fullConsensusConfig,
       validator,
       RestrictedPoWMinerData(key)
@@ -71,7 +69,6 @@ class PoWConsensusSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConsensusConfig,
       validator,
       NoAdditionalPoWData
@@ -91,7 +88,6 @@ class PoWConsensusSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConsensusConfig,
       validator,
       NoAdditionalPoWData
@@ -111,7 +107,6 @@ class PoWConsensusSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConsensusConfig,
       validator,
       NoAdditionalPoWData
@@ -131,7 +126,6 @@ class PoWConsensusSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConsensusConfig,
       validator,
       NoAdditionalPoWData
