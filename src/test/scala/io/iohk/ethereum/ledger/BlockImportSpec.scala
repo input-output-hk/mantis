@@ -250,8 +250,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setChainWeightForBlock(bestBlock, currentWeight)
 
     (validators.blockHeaderValidator
-      .validate(_: BlockHeader, _: GetBlockHeaderByHash))
-      .expects(newBlock.header, *)
+      .validate(_: BlockHeader, _: GetBlockHeaderByHash)(_: BlockchainConfig))
+      .expects(newBlock.header, *, *)
       .returning(Left(HeaderParentNotFoundError))
 
     whenReady(blockImport.importBlock(newBlock).runToFuture)(_ shouldEqual UnknownParent)
@@ -268,8 +268,8 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setChainWeightForBlock(bestBlock, currentWeight)
 
     (validators.blockHeaderValidator
-      .validate(_: BlockHeader, _: GetBlockHeaderByHash))
-      .expects(newBlock.header, *)
+      .validate(_: BlockHeader, _: GetBlockHeaderByHash)(_: BlockchainConfig))
+      .expects(newBlock.header, *, *)
       .returning(Left(HeaderDifficultyError))
 
     whenReady(blockImport.importBlock(newBlock).runToFuture) {

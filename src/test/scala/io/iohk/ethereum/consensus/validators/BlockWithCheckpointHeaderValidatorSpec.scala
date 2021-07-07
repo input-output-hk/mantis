@@ -267,7 +267,7 @@ class BlockWithCheckpointHeaderValidatorSpec
           "6848a3ab71918f57d3b9116b8e93c6fbc53e8a28dcd63e99c514dceee30fdd9741050fa7646bd196c9512e52f0d03097678c707996fff55587cd467801a1eee1"
         )
       )
-    val config: BlockchainConfig = blockchainConfig
+    implicit val config: BlockchainConfig = blockchainConfig
       .withUpdatedForkBlocks(
         _.copy(
           ecip1097BlockNumber = validBlockParentHeader.number,
@@ -292,7 +292,7 @@ class BlockWithCheckpointHeaderValidatorSpec
       CheckpointingTestHelpers.createCheckpointSignatures(keys, validBlockParentHeader.hash)
     )
 
-    def blockHeaderValidatorBuilder(config: BlockchainConfig): BlockHeaderValidatorSkeleton =
+    def blockHeaderValidatorBuilder(): BlockHeaderValidatorSkeleton =
       new BlockHeaderValidatorSkeleton() {
         override def difficulty: DifficultyCalculator =
           new DifficultyCalculator {
@@ -307,7 +307,7 @@ class BlockWithCheckpointHeaderValidatorSpec
           Right(BlockHeaderValid)
       }
 
-    val blockHeaderValidator: BlockHeaderValidatorSkeleton = blockHeaderValidatorBuilder(config)
+    val blockHeaderValidator: BlockHeaderValidatorSkeleton = blockHeaderValidatorBuilder()
 
     val checkpointBlockGenerator = new CheckpointBlockGenerator
 

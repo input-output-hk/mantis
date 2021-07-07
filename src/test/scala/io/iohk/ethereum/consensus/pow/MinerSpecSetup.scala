@@ -37,6 +37,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
+import org.scalamock.handlers.CallHandler4
 
 trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
@@ -125,8 +126,15 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
       BlockBody(transactions, Nil)
     )
 
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None)
+    (blockGenerator
+      .generateBlock(
+        _: Block,
+        _: Seq[SignedTransaction],
+        _: Address,
+        _: Seq[BlockHeader],
+        _: Option[InMemoryWorldStateProxy]
+      )(_: BlockchainConfig))
+      .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
       .atLeastOnce()
 
@@ -144,10 +152,10 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
       parentBlock: Block,
       withTransactions: Boolean,
       resultBlock: Block
-  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
+  ): CallHandler4[Block, Boolean, Option[InMemoryWorldStateProxy], BlockchainConfig, Task[PendingBlockAndState]] =
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
-      .expects(parentBlock, withTransactions, *)
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy])(_: BlockchainConfig))
+      .expects(parentBlock, withTransactions, *, *)
       .returning(
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
@@ -157,10 +165,10 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
       parentBlock: Block,
       withTransactions: Boolean,
       resultBlock: Block
-  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
+  ): CallHandler4[Block, Boolean, Option[InMemoryWorldStateProxy], BlockchainConfig, Task[PendingBlockAndState]] =
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
-      .expects(where { (parent, withTxs, _) =>
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy])(_: BlockchainConfig))
+      .expects(where { (parent, withTxs, _, _) =>
         parent == parentBlock && withTxs == withTransactions
       })
       .returning(
