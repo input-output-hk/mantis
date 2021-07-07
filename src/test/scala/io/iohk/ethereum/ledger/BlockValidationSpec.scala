@@ -56,7 +56,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       new BlockValidation(
         setup.consensus,
         setup.blockchainReader,
-        BlockQueue(setup.blockchain, setup.syncConfig)
+        BlockQueue(setup.blockchain, setup.blockchainReader, setup.syncConfig)
       )
 
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))

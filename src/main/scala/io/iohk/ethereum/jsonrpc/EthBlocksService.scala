@@ -53,7 +53,7 @@ class EthBlocksService(
     * @return Current block number the client is on.
     */
   def bestBlockNumber(req: BestBlockNumberRequest): ServiceResponse[BestBlockNumberResponse] = Task {
-    Right(BestBlockNumberResponse(blockchain.getBestBlockNumber()))
+    Right(BestBlockNumberResponse(blockchainReader.getBestBlockNumber()))
   }
 
   /** Implements the eth_getBlockTransactionCountByHash method that fetches the number of txs that a certain block has.

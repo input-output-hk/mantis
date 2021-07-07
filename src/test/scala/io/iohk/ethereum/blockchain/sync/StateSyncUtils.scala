@@ -8,7 +8,6 @@ import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -78,13 +77,10 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   object TrieProvider {
     def apply(): TrieProvider = {
       val freshStorage = getNewStorages
-      val blockchainMetadata = new BlockchainMetadata(
-        freshStorage.storages.appStateStorage.getBestBlockNumber(),
-        freshStorage.storages.appStateStorage.getLatestCheckpointBlockNumber()
-      )
-      val blockchainReader = BlockchainReader(freshStorage.storages)
+      val freshBlockchainMetadata = getNewBlockchainMetadata
+      val blockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
       new TrieProvider(
-        BlockchainImpl(freshStorage.storages, blockchainReader, blockchainMetadata),
+        BlockchainImpl(freshStorage.storages, blockchainReader, freshBlockchainMetadata),
         blockchainReader,
         freshStorage.storages.evmCodeStorage,
         blockchainConfig

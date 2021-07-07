@@ -14,6 +14,7 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.utils.Config
@@ -164,11 +165,12 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
   trait TestConfig {
     val syncConfig: SyncConfig =
       SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
+    val blockchainReader: BlockchainReader = mock[BlockchainReader]
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
-    val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
+    val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 
     def setBestBlockNumber(n: BigInt): CallHandler0[BigInt] =
-      (blockchain.getBestBlockNumber _).expects().returning(n)
+      (blockchainReader.getBestBlockNumber _).expects().returning(n)
 
     def setChainWeightForParent(
         block: Block,

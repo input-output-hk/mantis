@@ -39,7 +39,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
-        } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+        } yield assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
     }
 
     "given a previously mined blockchain" in customTestCaseResourceM(FakePeer.start2FakePeersRes()) {
@@ -52,7 +52,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
           _ <- peer2.startRegularSync()
           _ <- peer2.connectToPeers(Set(peer1.node))
           _ <- peer2.waitForRegularSyncLoadLastBlock(blockHeadersPerRequest + 1)
-        } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+        } yield assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
     }
   }
 
@@ -70,7 +70,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumer + 2)
       _ <- peer1.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 4)
-    } yield assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+    } yield assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
   }
 
   "peers should keep being synced on checkpoints" in customTestCaseResourceM(
@@ -83,10 +83,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.startRegularSync()
       _ <- peer2.connectToPeers(Set(peer1.node))
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
-      _ <- peer2.addCheckpointedBlock(peer2.bl.getBestBlock().get)
+      _ <- peer2.addCheckpointedBlock(peer2.blockchainReader.getBestBlock().get)
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumber + 1)
     } yield {
-      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
       assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }
@@ -103,14 +103,14 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber)
       _ <- peer2.mineNewBlocks(100.milliseconds, 2)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 2)
-      _ <- peer2.addCheckpointedBlock(peer2.bl.getBestBlock().get)
+      _ <- peer2.addCheckpointedBlock(peer2.blockchainReader.getBestBlock().get)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 3)
-      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
+      _ <- peer1.addCheckpointedBlock(peer1.blockchainReader.getBestBlock().get)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 4)
       _ <- peer1.mineNewBlocks(100.milliseconds, 1)(IdentityUpdate)
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 5)
     } yield {
-      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
+      assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
       assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }
@@ -129,13 +129,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.connectToPeers(Set(peer2.node))
       _ <- peer1.waitForRegularSyncLoadLastBlock(length)
     } yield {
-      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash)
-      assert(
-        peer1.bl.getBestBlock().get.number == peer2.bl.getBestBlock().get.number && peer1.bl
-          .getBestBlock()
-          .get
-          .number == length
-      )
+      assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
+      val peer1BestBlockNumber = peer1.blockchainReader.getBestBlock().get.number
+      val peer2BestBlockNumber = peer2.blockchainReader.getBestBlock().get.number
+      assert(peer1BestBlockNumber == peer2BestBlockNumber && peer1BestBlockNumber == length)
       assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
     }
   }
@@ -147,7 +144,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
     for {
       _ <- peer1.importBlocksUntil(8)(IdentityUpdate)
       _ <- peer1.startRegularSync()
-      _ <- peer1.addCheckpointedBlock(peer1.bl.getBestBlock().get)
+      _ <- peer1.addCheckpointedBlock(peer1.blockchainReader.getBestBlock().get)
       _ <- peer1.waitForRegularSyncLoadLastBlock(9)
       _ <- peer2.importBlocksUntil(20)(IdentityUpdate)
       _ <- peer2.startRegularSync()
@@ -157,7 +154,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.waitForRegularSyncLoadLastBlock(19)
     } yield assert(true)
   //these should pass
-//      assert(peer1.bl.getBestBlock().get.hash == peer2.bl.getBestBlock().get.hash )
+//      assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash )
 //      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
   }
 
@@ -179,8 +176,8 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumer + 3)
     } yield {
       assert(
-        peer1.bl.getChainWeightByHash(peer1.bl.getBestBlock().get.hash) == peer2.bl.getChainWeightByHash(
-          peer2.bl.getBestBlock().get.hash
+        peer1.bl.getChainWeightByHash(peer1.blockchainReader.getBestBlock().get.hash) == peer2.bl.getChainWeightByHash(
+          peer2.blockchainReader.getBestBlock().get.hash
         )
       )
       (

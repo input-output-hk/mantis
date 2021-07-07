@@ -13,7 +13,6 @@ import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
-import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
 import io.iohk.ethereum.utils.Config
@@ -114,4 +113,4 @@ class TestNode
     with TestmodeConsensusBuilder
     with TestServiceBuilder
     with TestEthBlockServiceBuilder
-    with TestBlockchainBuilder
+    with BlockchainBuilder

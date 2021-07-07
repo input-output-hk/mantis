@@ -79,7 +79,7 @@ class QAServiceSpec
       .returning(Some(block))
       .noMoreThanOnce()
 
-    (blockchain.getBestBlock _)
+    (blockchainReader.getBestBlock _)
       .expects()
       .returning(Some(block))
       .once()
@@ -115,7 +115,6 @@ class QAServiceSpec
 
     lazy val qaService = new QAService(
       testConsensus,
-      blockchain,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,

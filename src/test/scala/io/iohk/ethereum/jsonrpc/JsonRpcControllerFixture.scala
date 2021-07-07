@@ -106,7 +106,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   )
 
   val ethMiningService = new EthMiningService(
-    blockchain,
+    blockchainReader,
     blockchainConfig,
     consensus,
     config,

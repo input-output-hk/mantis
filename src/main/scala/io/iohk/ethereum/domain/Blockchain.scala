@@ -74,10 +74,6 @@ trait Blockchain {
     */
   def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight]
 
-  def getBestBlockNumber(): BigInt
-
-  def getBestBlock(): Option[Block]
-
   def getLatestCheckpointBlockNumber(): BigInt
 
   def removeBlock(hash: ByteString, withState: Boolean): Unit
@@ -85,10 +81,6 @@ trait Blockchain {
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
-
-  def genesisHeader: BlockHeader
-
-  def genesisBlock: Block
 
   /** Strict check if given block hash is in chain
     * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
@@ -114,41 +106,14 @@ class BlockchainImpl(
 
   override def isInChain(hash: ByteString): Boolean =
     (for {
-      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= getBestBlockNumber()
+      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
       hash <- blockchainReader.getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
-  override def getBestBlockNumber(): BigInt = {
-    val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
-    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
-    log.debug(
-      "Current best saved block number {}. Current best known block number {}",
-      bestSavedBlockNumber,
-      bestKnownBlockNumber
-    )
-
-    // The cached best block number should always be more up-to-date than the one on disk, we are keeping access to disk
-    // above only for logging purposes
-    bestKnownBlockNumber
-  }
-
   override def getLatestCheckpointBlockNumber(): BigInt =
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
-
-  //returns the best known block if it's available in the storage, otherwise the best stored block
-  override def getBestBlock(): Option[Block] = {
-    val bestBlockNumber = getBestBlockNumber()
-    log.debug("Trying to get best block with number {}", bestBlockNumber)
-    blockchainReader
-      .getBlockByNumber(bestBlockNumber)
-      .orElse(
-        blockchainReader.getBlockByNumber(
-          appStateStorage.getBestBlockNumber()
-        )
-      )
-  }
 
   override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
     getAccountMpt(blockNumber) >>= (_.get(address))
@@ -207,7 +172,7 @@ class BlockchainImpl(
   def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
   private def persistBestBlocksData(): Unit = {
-    val currentBestBlockNumber = getBestBlockNumber()
+    val currentBestBlockNumber = blockchainReader.getBestBlockNumber()
     val currentBestCheckpointNumber = getLatestCheckpointBlockNumber()
     log.debug(
       "Persisting app info data into database. Persisted block number is {}. " +
@@ -241,10 +206,6 @@ class BlockchainImpl(
   def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
     stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
 
-  def genesisHeader: BlockHeader = blockchainReader.getBlockHeaderByNumber(0).get
-
-  def genesisBlock: Block = blockchainReader.getBlockByNumber(0).get
-
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)
 
@@ -265,7 +226,7 @@ class BlockchainImpl(
     log.debug(s"Trying to remove block ${block.idTag}")
 
     val txList = block.body.transactionList
-    val bestBlockNumber = getBestBlockNumber()
+    val bestBlockNumber = blockchainReader.getBestBlockNumber()
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =

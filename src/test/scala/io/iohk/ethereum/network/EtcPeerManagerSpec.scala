@@ -113,7 +113,10 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     val secondHeader: BlockHeader = baseBlockHeader.copy(number = peer1Info.maxBlockNumber + 2)
 
     //when
-    peersInfoHolder ! MessageFromPeer(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peer1.id)
+    peersInfoHolder ! MessageFromPeer(
+      BlockHeaders(Seq(firstHeader, secondHeader, blockchainReader.genesisHeader)),
+      peer1.id
+    )
 
     //then
     requestSender.send(peersInfoHolder, PeerInfoRequest(peer1.id))

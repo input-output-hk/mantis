@@ -22,7 +22,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block only with ether transfers
     val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
+      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     val blockExecution =
       new BlockExecution(
         blockchain,

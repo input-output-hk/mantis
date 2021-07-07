@@ -236,7 +236,10 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
 
     //then
     etcPeerManager.expectMsg(
-      EtcPeerManagerActor.SendMessage(BlockHeaders(Seq(firstHeader, secondHeader, blockchain.genesisHeader)), peerId)
+      EtcPeerManagerActor.SendMessage(
+        BlockHeaders(Seq(firstHeader, secondHeader, blockchainReader.genesisHeader)),
+        peerId
+      )
     )
   }
 

@@ -105,7 +105,7 @@ class PoWConsensus private (
                   node.syncController,
                   node.ethMiningService,
                   blockCreator,
-                  blockchain,
+                  blockchainReader,
                   blockchainConfig.forkBlockNumbers.ecip1049BlockNumber
                 ),
                 "PoWMinerCoordinator",

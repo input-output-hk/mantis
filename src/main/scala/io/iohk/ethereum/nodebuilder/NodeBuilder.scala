@@ -58,7 +58,6 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.testmode.TestBlockchainBuilder
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
@@ -176,12 +175,12 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  lazy val blockchainMetadata: BlockchainMetadata =
+  private lazy val blockchainMetadata: BlockchainMetadata =
     new BlockchainMetadata(
       storagesInstance.storages.appStateStorage.getBestBlockNumber(),
       storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
     )
-  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
   lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
   lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
@@ -189,7 +188,7 @@ trait BlockchainBuilder {
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
-  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, syncConfig)
+  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 }
 
 trait BlockImportBuilder {
@@ -436,7 +435,7 @@ trait DebugServiceBuilder {
 }
 
 trait TestServiceBuilder {
-  self: TestBlockchainBuilder
+  self: BlockchainBuilder
     with PendingTransactionsManagerBuilder
     with ConsensusConfigBuilder
     with BlockchainConfigBuilder
@@ -461,7 +460,7 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: TestBlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
   override lazy val ethBlocksService =
     new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
 }
@@ -511,7 +510,7 @@ trait EthMiningServiceBuilder {
     with TxPoolConfigBuilder =>
 
   lazy val ethMiningService = new EthMiningService(
-    blockchain,
+    blockchainReader,
     blockchainConfig,
     consensus,
     jsonRpcConfig,
@@ -576,8 +575,8 @@ trait PersonalServiceBuilder {
   lazy val personalService = new PersonalService(
     keyStore,
     blockchain,
+    blockchainReader,
     pendingTransactionsManager,
-    storagesInstance.storages.appStateStorage,
     blockchainConfig,
     txPoolConfig
   )
@@ -593,7 +592,6 @@ trait QaServiceBuilder {
   lazy val qaService =
     new QAService(
       consensus,
-      blockchain,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,

@@ -263,7 +263,7 @@ class EthMiningServiceSpec
     val jsonRpcConfig: JsonRpcConfig = JsonRpcConfig(Config.config, available)
 
     lazy val ethMiningService = new EthMiningService(
-      blockchain,
+      blockchainReader,
       blockchainConfig,
       consensus,
       jsonRpcConfig,

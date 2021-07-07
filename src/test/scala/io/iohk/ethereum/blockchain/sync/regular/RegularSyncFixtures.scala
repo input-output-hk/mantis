@@ -83,6 +83,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peerEventBus.ref,
           blockImport,
           blockchain,
+          blockchainReader,
           branchResolution,
           validators.blockValidator,
           blacklist,
