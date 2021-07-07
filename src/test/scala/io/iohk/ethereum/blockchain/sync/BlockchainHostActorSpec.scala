@@ -245,7 +245,7 @@ class BlockchainHostActorSpec extends AnyFlatSpec with Matchers {
     val fakeEvmCode = ByteString(Hex.decode("ffddaaffddaaffddaaffddaaffddaa"))
     val evmCodeHash: ByteString = ByteString(crypto.kec256(fakeEvmCode.toArray[Byte]))
 
-    blockchain.storeEvmCode(evmCodeHash, fakeEvmCode).commit()
+    storagesInstance.storages.evmCodeStorage.put(evmCodeHash, fakeEvmCode).commit()
 
     //when
     blockchainHost ! MessageFromPeer(GetNodeData(Seq(evmCodeHash)), peerId)

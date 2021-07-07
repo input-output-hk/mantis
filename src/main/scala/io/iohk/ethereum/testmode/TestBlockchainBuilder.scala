@@ -14,7 +14,6 @@ trait TestBlockchainBuilder extends BlockchainBuilder {
       blockBodiesStorage = storages.blockBodiesStorage,
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
-      evmCodeStorage = storages.evmCodeStorage,
       chainWeightStorage = storages.chainWeightStorage,
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,

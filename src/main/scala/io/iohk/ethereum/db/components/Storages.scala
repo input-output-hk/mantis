@@ -31,7 +31,7 @@ object Storages {
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSource)
 
-      override val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
+      val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
 
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSource)
 

@@ -191,8 +191,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate = ???
 
-  override def storeEvmCode(hash: ByteString, evmCode: ByteString): DataSourceBatchUpdate = ???
-
   override def storeChainWeight(blockhash: ByteString, chainWeight: ChainWeight): DataSourceBatchUpdate = ???
 
   override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
