@@ -14,5 +14,5 @@ case class Wallet(address: Address, prvKey: ByteString) {
   lazy val keyPair: AsymmetricCipherKeyPair = keyPairFromPrvKey(prvKey.toArray)
 
   def signTx(tx: LegacyTransaction, chainId: Option[Byte]): SignedTransactionWithSender =
-    SignedTransaction.sign(tx, keyPair, chainId)
+    SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, chainId), Address(keyPair))
 }
