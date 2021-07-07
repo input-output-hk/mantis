@@ -6,7 +6,6 @@ import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.annotation.tailrec
-import scala.concurrent.ExecutionContext
 
 import org.bouncycastle.util.encoders.Hex
 
@@ -22,6 +21,7 @@ import io.iohk.ethereum.utils.Logger
 class BlockImport(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     private[ledger] val blockExecution: BlockExecution,
@@ -63,7 +63,7 @@ class BlockImport(
               )
               Task.now(
                 BlockImportFailed(
-                  "Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+                  s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
                 )
               )
           }
@@ -186,26 +186,23 @@ class BlockImport(
         BlockImportFailed(reason.toString)
     }
 
-  private def reorganise(
-      block: Block,
-      currentBestBlock: Block,
-      currentWeight: ChainWeight
-  )(implicit blockExecutionContext: ExecutionContext): Task[BlockImportResult] = Task.evalOnce {
-    blockValidation
-      .validateBlockBeforeExecution(block)
-      .fold(
-        error => handleBlockValidationError(error, block),
-        _ =>
-          blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
-            case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
-              log.debug("Found a better chain, about to reorganise")
-              reorganiseChainFromQueue(leafHash)
+  private def reorganise(block: Block, currentBestBlock: Block, currentWeight: ChainWeight): Task[BlockImportResult] =
+    Task.evalOnce {
+      blockValidation
+        .validateBlockBeforeExecution(block)
+        .fold(
+          error => handleBlockValidationError(error, block),
+          _ =>
+            blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
+              case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
+                log.debug("Found a better chain, about to reorganise")
+                reorganiseChainFromQueue(leafHash)
 
-            case _ =>
-              BlockEnqueued
-          }
-      )
-  }
+              case _ =>
+                BlockEnqueued
+            }
+        )
+    }
 
   /** Once a better branch was found this attempts to reorganise the chain
     *
@@ -281,7 +278,7 @@ class BlockImport(
     }
 
     oldBranch.foreach { case BlockData(block, receipts, weight) =>
-      blockchain.save(block, receipts, weight, saveAsBestBlock = false)
+      blockchainWriter.save(block, receipts, weight, saveAsBestBlock = false)
     }
 
     import cats.implicits._

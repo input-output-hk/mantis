@@ -301,7 +301,7 @@ class PeerActorSpec
         .copy(difficulty = daoForkBlockChainTotalDifficulty + 100000, number = 3000000)
     storagesInstance.storages.appStateStorage
       .putBestBlockNumber(3000000) // after the fork
-      .and(blockchain.storeBlockHeader(header))
+      .and(blockchainWriter.storeBlockHeader(header))
       .and(storagesInstance.storages.blockNumberMappingStorage.put(3000000, header.hash))
       .commit()
 
@@ -366,7 +366,7 @@ class PeerActorSpec
 
   it should "respond to fork block request during the handshake" in new TestSetup {
     //Save dao fork block
-    blockchain.storeBlockHeader(Fixtures.Blocks.DaoForkBlock.header).commit()
+    blockchainWriter.storeBlockHeader(Fixtures.Blocks.DaoForkBlock.header).commit()
 
     //Handshake till EtcForkBlockExchangeState
     peer ! PeerActor.ConnectTo(new URI("encode://localhost:9000"))
@@ -535,7 +535,7 @@ class PeerActorSpec
     val genesisBlock = Fixtures.Blocks.Genesis.block
     val genesisWeight: ChainWeight = ChainWeight.totalDifficultyOnly(genesisBlock.header.difficulty)
 
-    blockchain.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
+    blockchainWriter.save(genesisBlock, Nil, genesisWeight, saveAsBestBlock = true)
 
     val daoForkBlockNumber = 1920000
 

@@ -10,7 +10,6 @@ import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Block.BlockDec
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.utils._
@@ -238,9 +237,9 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
   val genesisWeight: ChainWeight = ChainWeight.zero.increase(genesisHeader)
   val lastBlockGasLimit: BigInt = genesisBlock.header.gasLimit
 
-  blockchain
+  blockchainWriter
     .storeBlock(genesisBlock)
-    .and(blockchain.storeReceipts(genesisHash, Nil))
-    .and(blockchain.storeChainWeight(genesisHash, genesisWeight))
+    .and(blockchainWriter.storeReceipts(genesisHash, Nil))
+    .and(blockchainWriter.storeChainWeight(genesisHash, genesisWeight))
     .commit()
 }

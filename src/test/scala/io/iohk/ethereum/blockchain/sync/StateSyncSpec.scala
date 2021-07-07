@@ -33,6 +33,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncSt
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor._
@@ -111,8 +112,12 @@ class StateSyncSpec
     override def buildBlockChain(): (BlockchainReader, BlockchainImpl) = {
       val storages = getNewStorages.storages
 
+      val blockchainMetadata = new BlockchainMetadata(
+        storages.appStateStorage.getBestBlockNumber(),
+        storages.appStateStorage.getLatestCheckpointBlockNumber()
+      )
       val blockchainReader = BlockchainReader(storages)
-      (blockchainReader, BlockchainImpl(storages, blockchainReader))
+      (blockchainReader, BlockchainImpl(storages, blockchainReader, blockchainMetadata))
     }
 
     val nodeData = (0 until 1000).map(i => MptNodeData(Address(i), None, Seq(), i))
@@ -233,7 +238,11 @@ class StateSyncSpec
         BlockchainReader(storages),
         BlockchainImpl(
           storages,
-          BlockchainReader(storages)
+          BlockchainReader(storages),
+          new BlockchainMetadata(
+            storages.appStateStorage.getBestBlockNumber(),
+            storages.appStateStorage.getLatestCheckpointBlockNumber()
+          )
         )
       )
     }

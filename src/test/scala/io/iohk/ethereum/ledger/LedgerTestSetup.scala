@@ -197,9 +197,9 @@ trait BlockchainSetup extends TestSetup {
   )
   val validBlockBodyWithNoTxs: BlockBody = BlockBody(Nil, Nil)
 
-  blockchain
+  blockchainWriter
     .storeBlockHeader(validBlockParentHeader)
-    .and(blockchain.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
+    .and(blockchainWriter.storeBlockBody(validBlockParentHeader.hash, validBlockBodyWithNoTxs))
     .and(storagesInstance.storages.appStateStorage.putBestBlockNumber(validBlockParentHeader.number))
     .and(storagesInstance.storages.chainWeightStorage.put(validBlockParentHeader.hash, ChainWeight.zero))
     .commit()
@@ -375,11 +375,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensuz.blockPreparator,
@@ -409,6 +411,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
+  override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -443,7 +446,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       weight: ChainWeight,
       saveAsBestBlock: Boolean
   ): CallHandler4[Block, Seq[Receipt], ChainWeight, Boolean, Unit] =
-    (blockchain
+    (blockchainWriter
       .save(_: Block, _: Seq[Receipt], _: ChainWeight, _: Boolean))
       .expects(block, receipts, weight, saveAsBestBlock)
       .once()

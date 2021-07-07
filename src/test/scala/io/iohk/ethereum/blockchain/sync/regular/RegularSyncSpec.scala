@@ -779,7 +779,7 @@ class RegularSyncSpec
           _ <- testBlocks
             .take(5)
             .traverse(block =>
-              Task(blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
+              Task(blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(10000), saveAsBestBlock = true))
             )
           _ <- Task {
             regularSync ! SyncProtocol.Start

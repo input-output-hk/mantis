@@ -96,13 +96,22 @@ object RegularSyncItSpecUtils {
       new BlockExecution(
         bl,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
         blockValidation
       )
     lazy val blockImport: BlockImport =
-      new BlockImport(bl, blockchainReader, blockQueue, blockValidation, blockExecution, Scheduler.global)
+      new BlockImport(
+        bl,
+        blockchainReader,
+        blockchainWriter,
+        blockQueue,
+        blockValidation,
+        blockExecution,
+        Scheduler.global
+      )
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 

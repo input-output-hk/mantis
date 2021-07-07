@@ -283,7 +283,9 @@ class FastSyncBranchResolverActorSpec
       (0 to 5).toList.map((peerId _).andThen(getPeer)).fproduct(getPeerInfo(_)).toMap
 
     def saveBlocks(blocks: List[Block]): Unit =
-      blocks.foreach(block => blockchain.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true))
+      blocks.foreach(block =>
+        blockchainWriter.save(block, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = true)
+      )
 
     def createEtcPeerManager(peers: Map[Peer, PeerInfo], blocks: Map[Int, List[Block]])(implicit
         scheduler: Scheduler

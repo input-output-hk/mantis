@@ -31,6 +31,7 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
@@ -175,8 +176,14 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
+  lazy val blockchainMetadata: BlockchainMetadata =
+    new BlockchainMetadata(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
+    )
   lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
-  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
+  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
 }
 
 trait BlockQueueBuilder {
@@ -198,11 +205,13 @@ trait BlockImportBuilder {
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       blockQueue,
       blockValidation,
       new BlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
         consensus.blockPreparator,
@@ -440,6 +449,7 @@ trait TestServiceBuilder {
     new TestService(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.evmCodeStorage,
       pendingTransactionsManager,
@@ -786,6 +796,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.appStateStorage,
       blockchain,
       blockchainReader,
+      blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
@@ -859,7 +870,12 @@ trait GenesisDataLoaderBuilder {
   self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
 
   lazy val genesisDataLoader =
-    new GenesisDataLoader(blockchain, blockchainReader, storagesInstance.storages.stateStorage, blockchainConfig)
+    new GenesisDataLoader(
+      blockchainReader,
+      blockchainWriter,
+      storagesInstance.storages.stateStorage,
+      blockchainConfig
+    )
 }
 
 /** Provides the basic functionality of a Node, except the consensus algorithm.

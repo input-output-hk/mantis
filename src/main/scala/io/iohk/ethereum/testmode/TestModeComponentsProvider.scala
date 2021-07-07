@@ -10,6 +10,7 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockQueue
@@ -23,6 +24,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
+    blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
@@ -41,13 +43,13 @@ class TestModeComponentsProvider(
       preimageCache: collection.concurrent.Map[ByteString, UInt256],
       sealEngine: SealEngineType
   ): BlockImport = {
-//    val blockQueue = BlockQueue(blockchain, syncConfig)
     val consensuz = consensus(blockchainConfig, sealEngine)
     val blockValidation = new BlockValidation(consensuz, blockchainReader, internalBlockQueue)
     val blockExecution =
       new TestModeBlockExecution(
         blockchain,
         blockchainReader,
+        blockchainWriter,
         evmCodeStorage,
         blockchainConfig,
         consensuz.blockPreparator,
@@ -58,6 +60,7 @@ class TestModeComponentsProvider(
     new BlockImport(
       blockchain,
       blockchainReader,
+      blockchainWriter,
       internalBlockQueue,
       blockValidation,
       blockExecution,
@@ -68,8 +71,6 @@ class TestModeComponentsProvider(
   /** Clear the internal builder state
     */
   def clearState(): Unit =
-//    blockQueue = BlockQueue(blockchain, syncConfig)
-//    cache = cache.empty
     internalBlockQueue.clear()
 
   def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
@@ -80,6 +81,7 @@ class TestModeComponentsProvider(
       blockchainConfig,
       consensus(blockchainConfig, sealEngine).blockPreparator
     )
+
   def consensus(
       blockchainConfig: BlockchainConfig,
       sealEngine: SealEngineType,

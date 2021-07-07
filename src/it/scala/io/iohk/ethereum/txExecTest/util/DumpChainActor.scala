@@ -48,7 +48,6 @@ import io.iohk.ethereum.txExecTest.util.DumpChainActor._
 class DumpChainActor(
     peerManager: ActorRef,
     peerMessageBus: ActorRef,
-    startBlock: BigInt,
     maxBlocks: BigInt,
     bootstrapNode: String
 ) extends Actor {
@@ -287,12 +286,11 @@ object DumpChainActor {
   def props(
       peerManager: ActorRef,
       peerMessageBus: ActorRef,
-      startBlock: BigInt,
       maxBlocks: BigInt,
       bootstrapNode: String
   ): Props =
     Props(
-      new DumpChainActor(peerManager, peerMessageBus: ActorRef, startBlock: BigInt, maxBlocks: BigInt, bootstrapNode)
+      new DumpChainActor(peerManager, peerMessageBus: ActorRef, maxBlocks: BigInt, bootstrapNode)
     )
   val emptyStorage: ByteString = ByteString(
     Hex.decode("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421")

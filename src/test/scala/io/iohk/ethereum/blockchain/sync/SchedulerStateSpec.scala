@@ -21,7 +21,7 @@ class SchedulerStateSpec extends AnyFlatSpec with Matchers {
     assert(stateWithRequests != schedulerState)
     val (allMissingElements, newState) = stateWithRequests.getAllMissingHashes
     assert(allMissingElements == reqestsInDepthOrder.map(_.nodeHash))
-    val (allMissingElements1, newState1) = newState.getAllMissingHashes
+    val (allMissingElements1, _) = newState.getAllMissingHashes
     assert(allMissingElements1.isEmpty)
   }
 
@@ -30,7 +30,7 @@ class SchedulerStateSpec extends AnyFlatSpec with Matchers {
     assert(stateWithRequests != schedulerState)
     val (twoMissingElements, newState) = stateWithRequests.getMissingHashes(2)
     assert(twoMissingElements == reqestsInDepthOrder.take(2).map(_.nodeHash))
-    val (allMissingElements1, newState1) = newState.getAllMissingHashes
+    val (allMissingElements1, _) = newState.getAllMissingHashes
     assert(allMissingElements1.size == 2)
   }
 

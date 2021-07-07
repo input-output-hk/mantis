@@ -6,7 +6,9 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockExecution
@@ -78,14 +80,20 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
 
     (startBlock to endBlock).foreach { blockToExecute =>
       val storages = FixtureProvider.prepareStorages(blockToExecute - 1, fixtures)
+      val blockchainMetadata = new BlockchainMetadata(
+        storages.appStateStorage.getBestBlockNumber(),
+        storages.appStateStorage.getLatestCheckpointBlockNumber()
+      )
       val blockchainReader = BlockchainReader(storages)
-      val blockchain = BlockchainImpl(storages, blockchainReader)
+      val blockchainWriter = BlockchainWriter(storages, blockchainMetadata)
+      val blockchain = BlockchainImpl(storages, blockchainReader, blockchainMetadata)
       val blockValidation =
         new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, syncConfig))
       val blockExecution =
         new BlockExecution(
           blockchain,
           blockchainReader,
+          blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
           blockchainConfig,
           consensus.blockPreparator,

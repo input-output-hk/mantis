@@ -544,6 +544,7 @@ class SyncControllerSpec
           storagesInstance.storages.appStateStorage,
           blockchain,
           blockchainReader,
+          blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
@@ -563,7 +564,7 @@ class SyncControllerSpec
     val EmptyTrieRootHash: ByteString = Account.EmptyStorageRootHash
     val baseBlockHeader = Fixtures.Blocks.Genesis.header
 
-    blockchain.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
+    blockchainWriter.storeChainWeight(baseBlockHeader.parentHash, ChainWeight.zero).commit()
 
     case class BlockchainData(
         headers: Map[BigInt, BlockHeader],
