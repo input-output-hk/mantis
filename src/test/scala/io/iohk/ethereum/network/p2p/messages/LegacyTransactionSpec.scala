@@ -9,8 +9,8 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.LegacyTransaction
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.utils.Config
 
 class LegacyTransactionSpec extends AnyFlatSpec with Matchers {

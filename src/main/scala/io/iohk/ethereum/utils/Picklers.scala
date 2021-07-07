@@ -12,8 +12,8 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.LegacyTransaction
+import io.iohk.ethereum.domain.SignedTransaction
 
 object Picklers {
   implicit val byteStringPickler: Pickler[ByteString] =

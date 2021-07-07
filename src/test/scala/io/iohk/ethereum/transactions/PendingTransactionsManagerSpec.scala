@@ -19,9 +19,9 @@ import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.SignedTransactionWithSender
-import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.network.EtcPeerManagerActor
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerActor.Status.Handshaked

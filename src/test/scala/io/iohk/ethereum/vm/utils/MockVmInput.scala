@@ -6,8 +6,8 @@ import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.LegacyTransaction
+import io.iohk.ethereum.domain.SignedTransaction
 
 object MockVmInput {
 
