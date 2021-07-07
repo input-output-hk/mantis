@@ -38,7 +38,7 @@ class TestmodeConsensus(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     consensusConfig: ConsensusConfig,
-    sealEngine: SealEngineType,
+    node: TestNode,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
@@ -103,7 +103,7 @@ class TestmodeConsensus(
     override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy)(implicit
         blockchainConfig: BlockchainConfig
     ): InMemoryWorldStateProxy =
-      sealEngine match {
+      node.sealEngine match {
         case SealEngineType.NoProof =>
           super.payBlockReward(block, worldStateProxy)
         case SealEngineType.NoReward =>

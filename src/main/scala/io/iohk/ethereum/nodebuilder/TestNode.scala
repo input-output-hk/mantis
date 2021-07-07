@@ -11,6 +11,7 @@ import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeComponentsProvider
 import io.iohk.ethereum.testmode.TestmodeConsensus
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.ledger.BlockImport
 
 class TestNode extends BaseNode {
 
@@ -32,17 +33,15 @@ class TestNode extends BaseNode {
   override lazy val ethBlocksService =
     new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
 
-  override lazy val stxLedger: StxLedger =
-    testModeComponentsProvider.stxLedger(SealEngineType.NoReward)
-
   override lazy val consensus = new TestmodeConsensus(
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,
     blockchainReader,
     consensusConfig,
-    SealEngineType.NoReward
+    this
   )
+
   override lazy val testService: Option[TestService] =
     Some(
       new TestService(
@@ -59,9 +58,10 @@ class TestNode extends BaseNode {
       )(scheduler)
     )
 
-  private lazy val currentBlockchainConfig = new AtomicReference(initBlockchainConfig)
-
+  lazy val currentBlockchainConfig: AtomicReference[BlockchainConfig] = new AtomicReference(initBlockchainConfig)
   implicit override def blockchainConfig: BlockchainConfig = currentBlockchainConfig.get()
 
-  def setBlockchainConfig(config: BlockchainConfig): Unit = currentBlockchainConfig.set(config)
+  val currentSealEngine: AtomicReference[SealEngineType] = new AtomicReference(SealEngineType.NoReward)
+  def sealEngine: SealEngineType = currentSealEngine.get()
+
 }

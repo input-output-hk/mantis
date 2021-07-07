@@ -16,7 +16,7 @@ import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
+import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
@@ -29,21 +29,14 @@ class TestModeComponentsProvider(
     validationExecutionContext: Scheduler,
     consensusConfig: ConsensusConfig,
     vm: VMImpl,
-    node: BlockchainConfigBuilder
+    node: TestNode
 ) {
 
-//  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
-  private val internalBlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
-
-  def blockQueue(): BlockQueue = internalBlockQueue
-
   def blockImport(
-      preimageCache: collection.concurrent.Map[ByteString, UInt256],
-      sealEngine: SealEngineType
+      preimageCache: collection.concurrent.Map[ByteString, UInt256]
   ): BlockImport = {
-//    val blockQueue = BlockQueue(blockchain, syncConfig)
-    val consensuz = consensus(sealEngine)
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, internalBlockQueue)
+    val consensuz = consensus()
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, node.blockQueue)
     val blockExecution =
       new TestModeBlockExecution(
         blockchain,
@@ -59,7 +52,7 @@ class TestModeComponentsProvider(
       blockchain,
       blockchainReader,
       blockchainWriter,
-      internalBlockQueue,
+      node.blockQueue,
       blockValidation,
       blockExecution,
       validationExecutionContext
@@ -69,19 +62,9 @@ class TestModeComponentsProvider(
   /** Clear the internal builder state
     */
   def clearState(): Unit =
-    internalBlockQueue.clear()
-
-  def stxLedger(sealEngine: SealEngineType): StxLedger =
-    new StxLedger(
-      blockchain,
-      blockchainReader,
-      evmCodeStorage,
-      consensus(sealEngine).blockPreparator,
-      node
-    )
+    node.blockQueue.clear()
 
   def consensus(
-      sealEngine: SealEngineType,
       blockTimestamp: Long = 0
   ): TestmodeConsensus =
     new TestmodeConsensus(
@@ -90,7 +73,7 @@ class TestModeComponentsProvider(
       blockchain,
       blockchainReader,
       consensusConfig,
-      sealEngine,
+      node,
       blockTimestamp
     )
 }

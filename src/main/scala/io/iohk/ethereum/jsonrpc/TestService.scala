@@ -152,12 +152,12 @@ class TestService(
   private var etherbase: Address = consensusConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
   private var blockTimestamp: Long = 0
-  private var sealEngine: SealEngineType = SealEngineType.NoReward
+
   private val preimageCache: collection.concurrent.Map[ByteString, UInt256] =
     new collection.concurrent.TrieMap[ByteString, UInt256]()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    node.setBlockchainConfig(buildNewConfig(request.chainParams.blockchainParams))
+    node.currentBlockchainConfig.set(buildNewConfig(request.chainParams.blockchainParams))
 
     // clear ledger's cache on test start
     // setChainParams is expected to be the first remote call for each test
@@ -179,7 +179,7 @@ class TestService(
     // set coinbase for blocks that will be tried to mine
     etherbase = Address(genesisData.coinbase)
 
-    sealEngine = request.chainParams.sealEngine
+    node.currentSealEngine.set(request.chainParams.sealEngine)
 
     resetPreimages(genesisData)
 
@@ -269,7 +269,7 @@ class TestService(
       getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(preimageCache, sealEngine)
+            .blockImport(preimageCache)
             .importBlock(blockForMining.block)
         )
         .map { res =>
@@ -309,7 +309,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(preimageCache, sealEngine)
+          .blockImport(preimageCache)
           .importBlock(value)
           .flatMap(handleResult(value))
     }
@@ -351,7 +351,7 @@ class TestService(
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         testModeComponentsProvider
-          .consensus(sealEngine, blockTimestamp)
+          .consensus(blockTimestamp)
           .blockGenerator
           .generateBlock(
             parentBlock,
