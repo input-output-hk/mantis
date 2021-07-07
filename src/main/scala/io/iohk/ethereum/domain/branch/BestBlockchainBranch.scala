@@ -17,12 +17,9 @@ class BestBlockchainBranch(
 ) extends BlockchainBranch {
 
   /* The following assumptions are made in this class :
-   *  - the whole branch exist in storage
+   *  - The whole branch exist in storage
    *  - The various metadata and index are consistent
-   *
-   * If those assumptions are found to be false, then the application is in an inconsistent
-   * state and the class will throw.
-   * */
+   */
 
   override def getBlockByNumber(number: BigInt): Option[Block] =
     if (tipBlockHeader.number >= number && number >= 0) {
