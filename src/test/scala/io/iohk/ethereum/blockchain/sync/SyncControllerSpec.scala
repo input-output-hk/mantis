@@ -546,6 +546,7 @@ class SyncControllerSpec
           blockchainReader,
           blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
+          storagesInstance.storages.stateStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
           blockImport,

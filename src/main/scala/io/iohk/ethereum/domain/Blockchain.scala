@@ -8,8 +8,6 @@ import cats.syntax.flatMap._
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
@@ -79,8 +77,6 @@ trait Blockchain {
   def removeBlock(hash: ByteString, withState: Boolean): Unit
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
-
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
 
   /** Strict check if given block hash is in chain
     * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
@@ -202,9 +198,6 @@ class BlockchainImpl(
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.set(
       BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
     )
-
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
-    stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
 
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)

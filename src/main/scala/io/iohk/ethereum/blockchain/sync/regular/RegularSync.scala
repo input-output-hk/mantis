@@ -20,6 +20,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
 import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
@@ -35,6 +36,7 @@ class RegularSync(
     blockImport: BlockImport,
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
+    stateStorage: StateStorage,
     branchResolution: BranchResolution,
     blockValidator: BlockValidator,
     blacklist: Blacklist,
@@ -65,6 +67,7 @@ class RegularSync(
         blockImport,
         blockchain,
         blockchainReader,
+        stateStorage,
         branchResolution,
         syncConfig,
         ommersPool,
@@ -137,6 +140,7 @@ object RegularSync {
       blockImport: BlockImport,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
+      stateStorage: StateStorage,
       branchResolution: BranchResolution,
       blockValidator: BlockValidator,
       blacklist: Blacklist,
@@ -153,6 +157,7 @@ object RegularSync {
         blockImport,
         blockchain,
         blockchainReader,
+        stateStorage,
         branchResolution,
         blockValidator,
         blacklist,

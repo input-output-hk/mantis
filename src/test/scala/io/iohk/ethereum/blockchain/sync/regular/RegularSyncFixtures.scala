@@ -33,6 +33,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -75,6 +76,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
     lazy val branchResolution = new BranchResolution(blockchain, blockchainReader)
 
+    val stateStorage: StateStorage = stub[StateStorage]
+
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
         .props(
@@ -84,6 +87,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           blockImport,
           blockchain,
           blockchainReader,
+          stateStorage,
           branchResolution,
           validators.blockValidator,
           blacklist,

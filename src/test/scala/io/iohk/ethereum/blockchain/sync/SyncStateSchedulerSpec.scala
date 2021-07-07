@@ -308,6 +308,7 @@ class SyncStateSchedulerSpec
           freshBlockchain,
           freshBlockchainReader,
           freshStorage.storages.evmCodeStorage,
+          freshStorage.storages.stateStorage,
           freshStorage.storages.nodeStorage,
           bloomFilterSize
         ),

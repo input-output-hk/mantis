@@ -257,6 +257,7 @@ class StateSyncSpec
             blockchain,
             blockchainReader,
             getNewStorages.storages.evmCodeStorage,
+            getNewStorages.storages.stateStorage,
             getNewStorages.storages.nodeStorage,
             syncConfig.stateSyncBloomFilterSize
           ),
