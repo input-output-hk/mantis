@@ -33,7 +33,7 @@ trait OmmersValidator {
     val getNBlocksBack: (ByteString, Int) => List[Block] =
       (_, n) =>
         ((blockNumber - n) until blockNumber).toList
-          .flatMap(nb => bestBranch.flatMap(_.getBlockByNumber(nb)))
+          .flatMap(nb => bestBranch.getBlockByNumber(nb))
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }

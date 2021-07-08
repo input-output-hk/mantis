@@ -185,7 +185,6 @@ object RegularSyncItSpecUtils {
         case Some(bNumber) =>
           blockchainReader
             .getBestBranch()
-            .get
             .getBlockByNumber(bNumber)
             .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => blockchainReader.getBestBlock().get
