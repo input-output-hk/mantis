@@ -10,7 +10,10 @@ import io.iohk.ethereum.utils.ByteStringUtils
   *
   * @param blockchainConfig
   */
-class BlockWithCheckpointHeaderValidator() {
+object BlockWithCheckpointHeaderValidator {
+  val NoCheckpointInHeaderError: BlockHeaderError = HeaderUnexpectedError(
+    "Attempted to validate a checkpoint on a block without a checkpoint"
+  )
 
   def validate(blockHeader: BlockHeader, parentHeader: BlockHeader)(implicit
       blockchainConfig: BlockchainConfig
@@ -158,10 +161,4 @@ class BlockWithCheckpointHeaderValidator() {
     if (blockHeader.unixTimestamp == parentHeader.unixTimestamp + 1) Right(BlockHeaderValid)
     else Left(HeaderTimestampError)
 
-}
-
-object BlockWithCheckpointHeaderValidator {
-  val NoCheckpointInHeaderError: BlockHeaderError = HeaderUnexpectedError(
-    "Attempted to validate a checkpoint on a block without a checkpoint"
-  )
 }

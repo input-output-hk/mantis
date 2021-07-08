@@ -19,16 +19,14 @@ import io.iohk.ethereum.utils.DaoForkConfig
   * The latter is treated polymorphically by directly using a difficulty
   * [[io.iohk.ethereum.consensus.difficulty.DifficultyCalculator calculator]].
   */
-abstract class BlockHeaderValidatorSkeleton() extends BlockHeaderValidator {
+trait BlockHeaderValidatorSkeleton extends BlockHeaderValidator {
 
   import BlockHeaderValidator._
-
-  private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator()
 
   /** The difficulty calculator. This is specific to the consensus protocol.
     */
 
-  protected def difficulty: DifficultyCalculator
+  protected def difficulty: DifficultyCalculator = DifficultyCalculator
 
   /** A hook where even more consensus-specific validation can take place.
     * For example, PoW validation is done here.
@@ -100,7 +98,7 @@ abstract class BlockHeaderValidatorSkeleton() extends BlockHeaderValidator {
       parentHeader: BlockHeader
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     for {
-      _ <- blockWithCheckpointHeaderValidator.validate(blockHeader, parentHeader)
+      _ <- BlockWithCheckpointHeaderValidator.validate(blockHeader, parentHeader)
       _ <- validateNumber(blockHeader, parentHeader)
       _ <- validateExtraFields(blockHeader)
     } yield BlockHeaderValid

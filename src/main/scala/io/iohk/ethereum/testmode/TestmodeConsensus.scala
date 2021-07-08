@@ -63,8 +63,7 @@ class TestmodeConsensus(
       ): Either[BlockHeaderError, BlockHeaderValid] =
         Right(BlockHeaderValid)
     }
-    override def signedTransactionValidator: SignedTransactionValidator =
-      new StdSignedTransactionValidator()
+    override def signedTransactionValidator: SignedTransactionValidator = StdSignedTransactionValidator
     override def validateBlockBeforeExecution(
         block: Block,
         getBlockHeaderByHash: GetBlockHeaderByHash,

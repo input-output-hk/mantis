@@ -4,7 +4,7 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class EthashDifficultyCalculator() extends DifficultyCalculator {
+object EthashDifficultyCalculator extends DifficultyCalculator {
   import DifficultyCalculator._
   private val ExpDifficultyPeriod: Int = 100000
   private val ByzantiumRelaxDifficulty: BigInt = 3000000

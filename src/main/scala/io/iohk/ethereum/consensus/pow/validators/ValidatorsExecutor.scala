@@ -54,15 +54,15 @@ trait ValidatorsExecutor extends Validators {
 object ValidatorsExecutor {
   def apply(protocol: Protocol): ValidatorsExecutor = {
     val blockHeaderValidator: BlockHeaderValidator = protocol match {
-      case Protocol.MockedPow     => new MockedPowBlockHeaderValidator()
-      case Protocol.PoW           => new PoWBlockHeaderValidator()
-      case Protocol.RestrictedPoW => new RestrictedEthashBlockHeaderValidator()
+      case Protocol.MockedPow     => MockedPowBlockHeaderValidator
+      case Protocol.PoW           => PoWBlockHeaderValidator
+      case Protocol.RestrictedPoW => RestrictedEthashBlockHeaderValidator
     }
 
     new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
-      new StdSignedTransactionValidator(),
+      StdSignedTransactionValidator,
       new StdOmmersValidator(blockHeaderValidator)
     )
   }
@@ -73,7 +73,7 @@ object ValidatorsExecutor {
     new StdValidatorsExecutor(
       StdBlockValidator,
       blockHeaderValidator,
-      new StdSignedTransactionValidator(),
+      StdSignedTransactionValidator,
       new StdOmmersValidator(blockHeaderValidator)
     )
 

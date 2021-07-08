@@ -15,8 +15,10 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 /** A block header validator for Ethash.
   */
-class EthashBlockHeaderValidator() {
-  import EthashBlockHeaderValidator._
+object EthashBlockHeaderValidator {
+  final val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
+
+  case class PowCacheData(epoch: Long, cache: Array[Int], dagSize: Long)
 
   // NOTE the below comment is from before PoW decoupling
   // we need atomic since validators can be used from multiple places
@@ -60,10 +62,4 @@ class EthashBlockHeaderValidator() {
       Right(BlockHeaderValid)
     else Left(HeaderPoWError)
   }
-}
-
-object EthashBlockHeaderValidator {
-  final val MaxPowCaches: Int = 2 // maximum number of epochs for which PoW cache is stored in memory
-
-  case class PowCacheData(epoch: Long, cache: Array[Int], dagSize: Long)
 }

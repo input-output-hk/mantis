@@ -7,7 +7,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.EvmConfig
 
-class StdSignedTransactionValidator() extends SignedTransactionValidator {
+object StdSignedTransactionValidator extends SignedTransactionValidator {
 
   val secp256k1n: BigInt = BigInt("115792089237316195423570985008687907852837564279074904382605163141518161494337")
 

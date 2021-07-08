@@ -18,7 +18,7 @@ object DifficultyCalculator extends DifficultyCalculator {
   ): BigInt =
     (blockchainConfig.powTargetTime match {
       case Some(targetTime) => new TargetTimeDifficultyCalculator(targetTime)
-      case None             => new EthashDifficultyCalculator()
+      case None             => EthashDifficultyCalculator
     }).calculateDifficulty(blockNumber, blockTimestamp, parent)
 
   val DifficultyBoundDivision: Int = 2048

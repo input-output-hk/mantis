@@ -159,7 +159,7 @@ class EthMiningServiceSpec
       blockchainReader = blockchainReader,
       consensusConfig = consensusConfig,
       blockPreparator = testConsensus.blockPreparator,
-      difficultyCalc,
+      EthashDifficultyCalculator,
       minerKey
     )
     override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
@@ -270,15 +270,13 @@ class EthMiningServiceSpec
       ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
     )
 
-    lazy val difficultyCalc = new EthashDifficultyCalculator()
-
     lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       consensusConfig = consensusConfig,
       blockPreparator = consensus.blockPreparator,
-      difficultyCalc,
+      EthashDifficultyCalculator,
       minerKey
     )
 

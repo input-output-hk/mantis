@@ -75,7 +75,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
 
   lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
   implicit override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
-  lazy val difficultyCalc = new EthashDifficultyCalculator()
+  lazy val difficultyCalc = EthashDifficultyCalculator
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
 
   protected def getParentBlock(parentBlockNumber: Int): Block =

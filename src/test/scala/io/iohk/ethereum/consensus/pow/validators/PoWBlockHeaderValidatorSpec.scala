@@ -17,21 +17,18 @@ class PoWBlockHeaderValidatorSpec extends AnyFlatSpecLike with Matchers {
 
   "PoWBlockHeaderValidator" should "call KeccakBlockHeaderValidator when chain is in Keccak" in {
     val keccakConfig = blockchainConfig.withUpdatedForkBlocks(_.copy(ecip1049BlockNumber = Some(10)))
-    val validatorForKeccak = new PoWBlockHeaderValidator()
 
-    validatorForKeccak.validateEvenMore(validKeccakBlockHeader)(keccakConfig) shouldBe Right(BlockHeaderValid)
+    PoWBlockHeaderValidator.validateEvenMore(validKeccakBlockHeader)(keccakConfig) shouldBe Right(BlockHeaderValid)
 
     // to show that indeed the right validator needs to be called
-    validatorForKeccak.validateEvenMore(validEthashBlockHeader)(keccakConfig) shouldBe Left(HeaderPoWError)
+    PoWBlockHeaderValidator.validateEvenMore(validEthashBlockHeader)(keccakConfig) shouldBe Left(HeaderPoWError)
   }
 
   it should "call EthashBlockHeaderValidator when chain is not in Keccak" in {
-    val validatorForKeccak = new PoWBlockHeaderValidator()
-
-    validatorForKeccak.validateEvenMore(validEthashBlockHeader)(blockchainConfig) shouldBe Right(BlockHeaderValid)
+    PoWBlockHeaderValidator.validateEvenMore(validEthashBlockHeader)(blockchainConfig) shouldBe Right(BlockHeaderValid)
 
     // to show that indeed the right validator needs to be called
-    validatorForKeccak.validateEvenMore(validKeccakBlockHeader)(blockchainConfig) shouldBe Left(HeaderPoWError)
+    PoWBlockHeaderValidator.validateEvenMore(validKeccakBlockHeader)(blockchainConfig) shouldBe Left(HeaderPoWError)
   }
 }
 
