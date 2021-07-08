@@ -42,7 +42,7 @@ class StdSignedTransactionValidator(blockchainConfig: BlockchainConfig) extends 
     * @return Either the validated transaction or TransactionSyntaxError if an error was detected
     */
   private def checkSyntacticValidity(stx: SignedTransaction): Either[SignedTransactionError, SignedTransactionValid] = {
-    import Transaction._
+    import LegacyTransaction._
     import stx._
     import stx.tx._
 

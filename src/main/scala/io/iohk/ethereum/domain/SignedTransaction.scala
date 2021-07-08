@@ -50,7 +50,7 @@ object SignedTransaction {
   val valueForEmptyS = 0
 
   def apply(
-      tx: Transaction,
+      tx: LegacyTransaction,
       pointSign: Byte,
       signatureRandom: ByteString,
       signature: ByteString,
@@ -64,7 +64,12 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def apply(tx: Transaction, pointSign: Byte, signatureRandom: ByteString, signature: ByteString): SignedTransaction = {
+  def apply(
+      tx: LegacyTransaction,
+      pointSign: Byte,
+      signatureRandom: ByteString,
+      signature: ByteString
+  ): SignedTransaction = {
     val txSignature = ECDSASignature(
       r = new BigInteger(1, signatureRandom.toArray),
       s = new BigInteger(1, signature.toArray),
@@ -73,11 +78,14 @@ object SignedTransaction {
     SignedTransaction(tx, txSignature)
   }
 
-  def sign(tx: Transaction, keyPair: AsymmetricCipherKeyPair, chainId: Option[Byte]): SignedTransactionWithSender = {
+  def sign(
+      tx: LegacyTransaction,
+      keyPair: AsymmetricCipherKeyPair,
+      chainId: Option[Byte]
+  ): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
     val sig = ECDSASignature.sign(bytes, keyPair, chainId)
-    val address = Address(keyPair)
-    SignedTransactionWithSender(tx, sig, address)
+    SignedTransaction(tx, sig)
   }
 
   private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
@@ -157,7 +165,7 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
+case class SignedTransaction(tx: LegacyTransaction, signature: ECDSASignature) {
 
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
@@ -184,6 +192,6 @@ object SignedTransactionWithSender {
       sender.fold(acc)(addr => SignedTransactionWithSender(stx, addr) :: acc)
     }
 
-  def apply(transaction: Transaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender =
+  def apply(transaction: LegacyTransaction, signature: ECDSASignature, sender: Address): SignedTransactionWithSender =
     SignedTransactionWithSender(SignedTransaction(transaction, signature), sender)
 }

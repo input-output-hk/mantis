@@ -64,7 +64,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "generate correct block with transactions" in new TestSetup {
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock.get, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -91,7 +91,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   it should "be possible to simulate transaction, on world returned with pending block" in new TestSetup {
     val pendingBlock =
       blockGenerator
-        .generateBlock(bestBlock.get, Seq(signedTransaction.tx), Address(testAddress), blockGenerator.emptyX, None)
+        .generateBlock(bestBlock.get, Seq(signedTransaction), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
     //mined with mantis + ethminer
@@ -114,7 +114,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(
       blockchainReader.getBestBlock().get,
-      Seq(signedTransaction.tx),
+      Seq(signedTransaction),
       Address(testAddress),
       blockGenerator.emptyX,
       None
@@ -122,12 +122,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     // Try to simulate transaction, on world with updated stateRootHash, but not updated storages
     assertThrows[MPTException] {
-      stxLedger.simulateTransaction(signedTransaction, pendBlockAndState.pendingBlock.block.header, None)
+      stxLedger.simulateTransaction(signedTransactionWithAddress, pendBlockAndState.pendingBlock.block.header, None)
     }
 
     // Try to simulate transaction, on world with all changes stored in caches
     val simulationResult = stxLedger.simulateTransaction(
-      signedTransaction,
+      signedTransactionWithAddress,
       pendBlockAndState.pendingBlock.block.header,
       Some(pendBlockAndState.worldState)
     )
@@ -141,7 +141,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockGenerator
         .generateBlock(
           bestBlock.get,
-          Seq(signedTransaction.tx, duplicatedSignedTransaction.tx),
+          Seq(signedTransaction, duplicatedSignedTransaction),
           Address(testAddress),
           blockGenerator.emptyX,
           None
@@ -167,20 +167,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     ) shouldBe Right(BlockHeaderValid)
 
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
   it should "filter out transactions exceeding block gas limit and include correct transactions" in new TestSetup {
     val txWitGasTooBigGasLimit = SignedTransaction
       .sign(
-        transaction.copy(gasLimit = BigInt(2).pow(100000), nonce = signedTransaction.tx.tx.nonce + 1),
+        transaction.copy(gasLimit = BigInt(2).pow(100000), nonce = signedTransaction.tx.nonce + 1),
         keyPair,
         Some(0x3d.toByte)
       )
-      .tx
 
-    val transactions = Seq(txWitGasTooBigGasLimit, signedTransaction.tx, duplicatedSignedTransaction.tx)
+    val transactions = Seq(txWitGasTooBigGasLimit, signedTransaction, duplicatedSignedTransaction)
     val pendingBlock =
       blockGenerator
         .generateBlock(bestBlock.get, transactions, Address(testAddress), blockGenerator.emptyX, None)
@@ -205,7 +204,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -261,9 +260,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockValidation
       )
 
-    val generalTx = SignedTransaction.sign(transaction, keyPair, None).tx
-    val specificTx =
-      SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte)).tx
+    val generalTx = SignedTransaction.sign(transaction, keyPair, None)
+    val specificTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, Some(0x3d.toByte))
 
     val pendingBlock =
       blockGenerator
@@ -345,7 +343,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockValidation
       )
 
-    val transaction1 = Transaction(
+    val transaction1 = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = 1000000,
@@ -353,7 +351,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       value = 0,
       payload = ByteString.empty
     )
-    val generalTx = SignedTransaction.sign(transaction1, keyPair, None).tx
+    val generalTx = SignedTransaction.sign(transaction1, keyPair, None)
 
     val generatedBlock =
       blockGenerator
@@ -364,13 +362,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
-    val generalTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None).tx
+    val generalTx = SignedTransaction.sign(transaction.copy(nonce = transaction.nonce + 1), keyPair, None)
 
     val pendingBlock =
       blockGenerator
         .generateBlock(
           bestBlock.get,
-          Seq(generalTx, signedTransaction.tx),
+          Seq(generalTx, signedTransaction),
           Address(testAddress),
           blockGenerator.emptyX,
           None
@@ -395,19 +393,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, generalTx)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction, generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
   it should "include consecutive transactions from single sender" in new TestSetup {
     val nextTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.tx.nonce + 1), keyPair, Some(0x3d.toByte)).tx
+      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
 
     val pendingBlock =
       blockGenerator
         .generateBlock(
           bestBlock.get,
-          Seq(nextTransaction, signedTransaction.tx),
+          Seq(nextTransaction, signedTransaction),
           Address(testAddress),
           blockGenerator.emptyX,
           None
@@ -432,18 +430,18 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
   it should "filter out failing transaction from the middle of tx list" in new TestSetup {
     val nextTransaction =
-      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.tx.nonce + 1), keyPair, Some(0x3d.toByte)).tx
+      SignedTransaction.sign(transaction.copy(nonce = signedTransaction.tx.nonce + 1), keyPair, Some(0x3d.toByte))
 
     val privateKeyWithNoEthere =
       BigInt(1, Hex.decode("584a31be275195585603ddd05a53d16fae9deafba67213b6060cec9f16e44cae"))
 
-    val failingTransaction = Transaction(
+    val failingTransaction = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
@@ -452,13 +450,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       payload = ByteString.empty
     )
     val signedFailingTransaction =
-      SignedTransaction.sign(failingTransaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte)).tx
+      SignedTransaction.sign(failingTransaction, keyPairFromPrvKey(privateKeyWithNoEthere), Some(0x3d.toByte))
 
     val pendingBlock =
       blockGenerator
         .generateBlock(
           bestBlock.get,
-          Seq(nextTransaction, signedFailingTransaction, signedTransaction.tx),
+          Seq(nextTransaction, signedFailingTransaction, signedTransaction),
           Address(testAddress),
           blockGenerator.emptyX,
           None
@@ -482,20 +480,19 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx, nextTransaction)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
   it should "include transaction with higher gas price if nonce is the same" in new TestSetup {
     val txWitSameNonceButLowerGasPrice = SignedTransaction
-      .sign(transaction.copy(gasPrice = signedTransaction.tx.tx.gasPrice - 1), keyPair, Some(0x3d.toByte))
-      .tx
+      .sign(transaction.copy(gasPrice = signedTransaction.tx.gasPrice - 1), keyPair, Some(0x3d.toByte))
 
     val pendingBlock =
       blockGenerator
         .generateBlock(
           bestBlock.get,
-          Seq(txWitSameNonceButLowerGasPrice, signedTransaction.tx),
+          Seq(txWitSameNonceButLowerGasPrice, signedTransaction),
           Address(testAddress),
           blockGenerator.emptyX,
           None
@@ -519,7 +516,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       BlockHeaderValid
     )
     blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
-    fullBlock.body.transactionList shouldBe Seq(signedTransaction.tx)
+    fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -657,7 +654,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     val txGasLimit = 21000
     val txTransfer = 9000
-    val transaction: Transaction = Transaction(
+    val transaction: LegacyTransaction = LegacyTransaction(
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,
@@ -670,10 +667,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     val treasuryAccount: Address = Address(0xeeeeee)
     val maliciousAccount: Address = Address(0x123)
 
-    lazy val signedTransaction: SignedTransactionWithSender =
+    lazy val signedTransaction: SignedTransaction =
       SignedTransaction.sign(transaction, keyPair, Some(0x3d.toByte))
-    lazy val duplicatedSignedTransaction: SignedTransactionWithSender =
+    lazy val duplicatedSignedTransaction: SignedTransaction =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
+
+    lazy val signedTransactionWithAddress: SignedTransactionWithSender =
+      SignedTransactionWithSender(signedTransaction, Address(keyPair))
 
     val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers(

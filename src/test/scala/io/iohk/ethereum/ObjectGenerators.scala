@@ -82,14 +82,14 @@ trait ObjectGenerators {
 
   def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
 
-  def transactionGen(): Gen[Transaction] = for {
+  def transactionGen(): Gen[LegacyTransaction] = for {
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
     receivingAddress <- addressGen
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
-  } yield Transaction(
+  } yield LegacyTransaction(
     nonce,
     gasPrice,
     gasLimit,
@@ -142,7 +142,7 @@ trait ObjectGenerators {
     val txsSeqGen = Gen.listOfN(length, transactionGen())
     txsSeqGen.map { txs =>
       txs.map { tx =>
-        SignedTransaction.sign(tx, senderKeys, chainId).tx
+        SignedTransaction.sign(tx, senderKeys, chainId)
       }
     }
   }

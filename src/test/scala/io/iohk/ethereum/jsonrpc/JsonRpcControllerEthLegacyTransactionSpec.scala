@@ -35,7 +35,7 @@ import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJso
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 
 // scalastyle:off magic.number
-class JsonRpcControllerEthTransactionSpec
+class JsonRpcControllerEthLegacyTransactionSpec
     extends TestKit(ActorSystem("JsonRpcControllerEthTransactionSpec_System"))
     with AnyFlatSpecLike
     with WithActorSystemShutDown
@@ -537,7 +537,7 @@ class JsonRpcControllerEthTransactionSpec
   it should "request pending transactions and return valid response when mempool has transactions" in new JsonRpcControllerFixture {
     val transactions = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
-        Transaction(
+        LegacyTransaction(
           nonce = 0,
           gasPrice = 123,
           gasLimit = 123,

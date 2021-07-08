@@ -18,7 +18,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.faucet.FaucetConfig
 import io.iohk.ethereum.faucet.RpcClientConfig
 import io.iohk.ethereum.faucet.SupervisorConfig
@@ -37,7 +37,14 @@ class WalletServiceSpec extends AnyFlatSpec with Matchers with MockFactory {
     val currentNonce = 2
 
     val tx = wallet.signTx(
-      Transaction(currentNonce, config.txGasPrice, config.txGasLimit, receivingAddress, config.txValue, ByteString()),
+      LegacyTransaction(
+        currentNonce,
+        config.txGasPrice,
+        config.txGasLimit,
+        receivingAddress,
+        config.txValue,
+        ByteString()
+      ),
       None
     )
 

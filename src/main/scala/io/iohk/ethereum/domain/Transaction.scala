@@ -4,7 +4,32 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
+sealed trait Transaction {
+  def nonce: BigInt
+  def gasPrice: BigInt
+  def gasLimit: BigInt
+  def receivingAddress: Option[Address]
+  def value: BigInt
+  def payload: ByteString
+
+  def isContractInit: Boolean = receivingAddress.isEmpty
+
+  protected def receivingAddressString: String =
+    receivingAddress.map(_.toString).getOrElse("[Contract creation]")
+
+  protected def payloadString: String =
+    s"${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])}"
+}
+
 object Transaction {
+  val Type01: Int = 1
+  val LegacyThresholdLowerBound: Int = 0xc0
+  val LegacyThresholdUpperBound: Int = 0xfe
+}
+
+sealed trait TypedTransaction extends Transaction
+
+object LegacyTransaction {
 
   val NonceLength = 32
   val GasLength = 32
@@ -17,33 +42,49 @@ object Transaction {
       receivingAddress: Address,
       value: BigInt,
       payload: ByteString
-  ): Transaction =
-    Transaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
+  ): LegacyTransaction =
+    LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
 
 }
 
-case class Transaction(
+case class LegacyTransaction(
     nonce: BigInt,
     gasPrice: BigInt,
     gasLimit: BigInt,
     receivingAddress: Option[Address],
     value: BigInt,
     payload: ByteString
-) {
-
-  def isContractInit: Boolean = receivingAddress.isEmpty
-
-  override def toString: String = {
-    val receivingAddressString =
-      receivingAddress.map(addr => Hex.toHexString(addr.toArray)).getOrElse("[Contract creation]")
-
-    s"Transaction {" +
+) extends Transaction {
+  override def toString: String =
+    s"LegacyTransaction {" +
       s"nonce: $nonce " +
       s"gasPrice: $gasPrice " +
       s"gasLimit: $gasLimit " +
       s"receivingAddress: $receivingAddressString " +
       s"value: $value wei " +
-      s"payload: ${if (isContractInit) "ContractInit: " else "TransactionData: "}${Hex.toHexString(payload.toArray[Byte])} " +
+      s"payload: $payloadString " +
       s"}"
-  }
 }
+
+case class TransactionWithAccessList(
+    nonce: BigInt,
+    gasPrice: BigInt,
+    gasLimit: BigInt,
+    receivingAddress: Option[Address],
+    value: BigInt,
+    payload: ByteString,
+    accessList: List[AccessListItem]
+) extends TypedTransaction {
+  override def toString: String =
+    s"TransactionWithAccessList {" +
+      s"nonce: $nonce " +
+      s"gasPrice: $gasPrice " +
+      s"gasLimit: $gasLimit " +
+      s"receivingAddress: $receivingAddressString " +
+      s"value: $value wei " +
+      s"payload: $payloadString " +
+      s"accessList: $accessList" +
+      s"}"
+}
+
+case class AccessListItem(address: Address, storageKeys: List[BigInt]) // bytes32

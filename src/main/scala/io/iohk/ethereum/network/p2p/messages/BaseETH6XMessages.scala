@@ -187,7 +187,7 @@ object BaseETH6XMessages {
             ) =>
           val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
-            Transaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
+            LegacyTransaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             (pointSign: Int).toByte,
             signatureRandom,
             signature,

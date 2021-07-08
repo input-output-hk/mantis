@@ -71,7 +71,7 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     unixTimestamp = 1486752441
   )
 
-  val defaultTx: Transaction = Transaction(
+  val defaultTx: LegacyTransaction = LegacyTransaction(
     nonce = 42,
     gasPrice = 1,
     gasLimit = 90000,
@@ -204,12 +204,12 @@ trait BlockchainSetup extends TestSetup {
     .and(storagesInstance.storages.chainWeightStorage.put(validBlockParentHeader.hash, ChainWeight.zero))
     .commit()
 
-  val validTx: Transaction = defaultTx.copy(
+  val validTx: LegacyTransaction = defaultTx.copy(
     nonce = initialOriginNonce,
     gasLimit = defaultGasLimit,
     value = defaultValue
   )
-  val validStxSignedByOrigin: SignedTransactionWithSender =
+  val validStxSignedByOrigin: SignedTransaction =
     SignedTransaction.sign(validTx, originKeyPair, Some(blockchainConfig.chainId))
 }
 

@@ -337,7 +337,7 @@ class EthTxServiceSpec
   it should "send message to pendingTransactionsManager and return GetPendingTransactionsResponse with two transactions" in new TestSetup {
     val transactions = (0 to 1).map { _ =>
       val fakeTransaction = SignedTransactionWithSender(
-        Transaction(
+        LegacyTransaction(
           nonce = 0,
           gasPrice = 123,
           gasLimit = 123,
@@ -411,7 +411,7 @@ class EthTxServiceSpec
 
     // //tx 0xb7b8cc9154896b25839ede4cd0c2ad193adf06489fdd9c0a9dfce05620c04ec1
     val contractCreatingTransaction: SignedTransaction = SignedTransaction(
-      Transaction(
+      LegacyTransaction(
         nonce = 2550,
         gasPrice = BigInt("20000000000"),
         gasLimit = 3000000,

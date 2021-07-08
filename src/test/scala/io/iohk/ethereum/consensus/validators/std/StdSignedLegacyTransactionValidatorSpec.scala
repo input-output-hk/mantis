@@ -20,14 +20,14 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
 
-class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
+class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
 
   val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
-  val txBeforeHomestead: Transaction = Transaction(
+  val txBeforeHomestead: LegacyTransaction = LegacyTransaction(
     nonce = 81,
     gasPrice = BigInt("60000000000"),
     gasLimit = 21000,
@@ -44,7 +44,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   )
 
   //From block 0xdc7874d8ea90b63aa0ba122055e514db8bb75c0e7d51a448abd12a31ca3370cf with number 1200003 (tx index 0)
-  val txAfterHomestead: Transaction = Transaction(
+  val txAfterHomestead: LegacyTransaction = LegacyTransaction(
     nonce = 1631,
     gasPrice = BigInt("30000000000"),
     gasLimit = 21000,
@@ -111,7 +111,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long nonce" in {
-    val invalidNonce = (0 until Transaction.NonceLength + 1).map(_ => 1.toByte).toArray
+    val invalidNonce = (0 until LegacyTransaction.NonceLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidNonce =
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(nonce = BigInt(invalidNonce)))
     validateStx(signedTxWithInvalidNonce, fromBeforeHomestead = true) match {
@@ -121,7 +121,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long gas limit" in {
-    val invalidGasLimit = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
+    val invalidGasLimit = (0 until LegacyTransaction.GasLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidGasLimit =
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasLimit = BigInt(invalidGasLimit)))
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = true) match {
@@ -131,7 +131,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long gas price" in {
-    val invalidGasPrice = (0 until Transaction.GasLength + 1).map(_ => 1.toByte).toArray
+    val invalidGasPrice = (0 until LegacyTransaction.GasLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidGasPrice =
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(gasPrice = BigInt(invalidGasPrice)))
     validateStx(signedTxWithInvalidGasPrice, fromBeforeHomestead = true) match {
@@ -141,7 +141,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "report as syntactic invalid a tx with long value" in {
-    val invalidValue = (0 until Transaction.ValueLength + 1).map(_ => 1.toByte).toArray
+    val invalidValue = (0 until LegacyTransaction.ValueLength + 1).map(_ => 1.toByte).toArray
     val signedTxWithInvalidValue =
       signedTxBeforeHomestead.copy(tx = txBeforeHomestead.copy(value = BigInt(invalidValue)))
     validateStx(signedTxWithInvalidValue, fromBeforeHomestead = true) match {
@@ -239,7 +239,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx.tx,
+      stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead,
       upfrontGasCost = upfrontGasCost,
@@ -254,7 +254,7 @@ class StdSignedTransactionValidatorSpec extends AnyFlatSpec with Matchers {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte))
     signedTransactionValidator.validate(
-      stx.tx,
+      stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.forkBlockNumbers.eip155BlockNumber),
       upfrontGasCost = upfrontGasCost,
