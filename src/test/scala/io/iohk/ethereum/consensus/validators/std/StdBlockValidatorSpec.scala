@@ -106,7 +106,7 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomB
   val validBlockBody: BlockBody = BlockBody(
     transactionList = Seq[SignedTransaction](
       SignedTransaction(
-        tx = Transaction(
+        tx = LegacyTransaction(
           nonce = BigInt("438550"),
           gasPrice = BigInt("20000000000"),
           gasLimit = BigInt("50000"),
@@ -120,7 +120,7 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomB
         chainId = 0x3d.toByte
       ),
       SignedTransaction(
-        tx = Transaction(
+        tx = LegacyTransaction(
           nonce = BigInt("438551"),
           gasPrice = BigInt("20000000000"),
           gasLimit = BigInt("50000"),
@@ -134,7 +134,7 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomB
         chainId = 0x3d.toByte
       ),
       SignedTransaction(
-        tx = Transaction(
+        tx = LegacyTransaction(
           nonce = BigInt("438552"),
           gasPrice = BigInt("20000000000"),
           gasLimit = BigInt("50000"),
@@ -148,7 +148,7 @@ class StdBlockValidatorSpec extends AnyFlatSpec with Matchers with SecureRandomB
         chainId = 0x3d.toByte
       ),
       SignedTransaction(
-        tx = Transaction(
+        tx = LegacyTransaction(
           nonce = BigInt("438553"),
           gasPrice = BigInt("20000000000"),
           gasLimit = BigInt("50000"),

@@ -11,8 +11,7 @@ import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.{ScalaCheckDrivenPropertyChecks, ScalaCheckPropertyChecks}
 
-/**
-  * Tests based on
+/** Tests based on
   *   - https://github.com/cryptape/ruby-rlp/blob/master/test/speed.rb
   *   - https://github.com/ethereum/pyrlp/blob/develop/tests/speed.py
   */
@@ -63,21 +62,21 @@ class RLPSpeedSuite
   }
 
   def doTestSerialize[T](toSerialize: T, encode: T => Array[Byte], rounds: Int): Array[Byte] = {
-    (1 until rounds).foreach(_ => {
+    (1 until rounds).foreach { _ =>
       encode(toSerialize)
-    })
+    }
     encode(toSerialize)
   }
 
   def doTestDeserialize[T](serialized: Array[Byte], decode: Array[Byte] => T, rounds: Int): T = {
-    (1 until rounds).foreach(_ => {
+    (1 until rounds).foreach { _ =>
       decode(serialized)
-    })
+    }
     decode(serialized)
   }
 
   val validTransaction = SignedTransaction(
-    Transaction(
+    LegacyTransaction(
       nonce = 172320,
       gasPrice = BigInt("50000000000"),
       gasLimit = 90000,

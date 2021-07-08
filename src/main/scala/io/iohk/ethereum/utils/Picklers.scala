@@ -12,8 +12,8 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.Checkpoint
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.Transaction
 
 object Picklers {
   implicit val byteStringPickler: Pickler[ByteString] =
@@ -30,9 +30,9 @@ object Picklers {
 
   implicit val addressPickler: Pickler[Address] =
     transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
-  implicit val transactionPickler: Pickler[Transaction] = generatePickler[Transaction]
+  implicit val transactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
   implicit val signedTransactionPickler: Pickler[SignedTransaction] =
-    transformPickler[SignedTransaction, (Transaction, ECDSASignature)] { case (tx, signature) =>
+    transformPickler[SignedTransaction, (LegacyTransaction, ECDSASignature)] { case (tx, signature) =>
       new SignedTransaction(tx, signature)
     }(stx => (stx.tx, stx.signature))
 

@@ -82,7 +82,7 @@ class FilterManagerSpec
     val bb2 = BlockBody(
       transactionList = Seq(
         SignedTransaction(
-          tx = Transaction(
+          tx = LegacyTransaction(
             nonce = 0,
             gasPrice = 123,
             gasLimit = 123,
@@ -160,7 +160,7 @@ class FilterManagerSpec
     val bb4 = BlockBody(
       transactionList = Seq(
         SignedTransaction(
-          tx = Transaction(
+          tx = LegacyTransaction(
             nonce = 0,
             gasPrice = 123,
             gasLimit = 123,
@@ -171,7 +171,7 @@ class FilterManagerSpec
           signature = ECDSASignature(0, 0, 0.toByte)
         ),
         SignedTransaction(
-          tx = Transaction(
+          tx = LegacyTransaction(
             nonce = 0,
             gasPrice = 123,
             gasLimit = 123,
@@ -246,7 +246,7 @@ class FilterManagerSpec
     val bb = BlockBody(
       transactionList = Seq(
         SignedTransaction(
-          tx = Transaction(
+          tx = LegacyTransaction(
             nonce = 0,
             gasPrice = 123,
             gasLimit = 123,
@@ -286,7 +286,7 @@ class FilterManagerSpec
     val bh2 = blockHeader.copy(number = 2, logsBloom = BloomFilter.create(logs2))
     val blockTransactions2 = Seq(
       SignedTransaction(
-        tx = Transaction(
+        tx = LegacyTransaction(
           nonce = 0,
           gasPrice = 321,
           gasLimit = 321,
@@ -392,7 +392,7 @@ class FilterManagerSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(3)
 
-    val tx = Transaction(
+    val tx = LegacyTransaction(
       nonce = 0,
       gasPrice = 123,
       gasLimit = 123,
@@ -401,7 +401,7 @@ class FilterManagerSpec
       payload = ByteString()
     )
 
-    val stx = SignedTransaction.sign(tx, keyPair, None)
+    val stx = SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, None), Address(keyPair))
     val pendingTxs = Seq(
       stx
     )
@@ -433,7 +433,7 @@ class FilterManagerSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(3)
 
-    val tx = Transaction(
+    val tx = LegacyTransaction(
       nonce = 0,
       gasPrice = 123,
       gasLimit = 123,
@@ -442,7 +442,7 @@ class FilterManagerSpec
       payload = ByteString()
     )
 
-    val stx = SignedTransaction.sign(tx, keyPair, None)
+    val stx = SignedTransactionWithSender(SignedTransaction.sign(tx, keyPair, None), Address(keyPair))
     val pendingTxs = Seq(stx)
 
     (keyStore.listAccounts _).expects().returning(Right(List(stx.senderAddress)))

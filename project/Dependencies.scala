@@ -4,13 +4,12 @@ object Dependencies {
 
   private val akkaVersion = "2.6.9"
 
-  val akkaUtil: Seq[ModuleID] = {
+  val akkaUtil: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion
     )
-  }
 
-  val akka: Seq[ModuleID] = {
+  val akka: Seq[ModuleID] =
     Seq(
       "com.typesafe.akka" %% "akka-actor" % akkaVersion,
       "com.typesafe.akka" %% "akka-actor-typed" % akkaVersion,
@@ -21,7 +20,6 @@ object Dependencies {
       "com.typesafe.akka" %% "akka-stream" % akkaVersion,
       "com.miguno.akka" %% "akka-mock-scheduler" % "0.5.5" % "it,test"
     )
-  }
 
   val akkaHttp: Seq[ModuleID] = {
     val akkaHttpVersion = "10.2.0"

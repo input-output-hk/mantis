@@ -6,13 +6,13 @@ import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.Transaction
 
 object MockVmInput {
 
   class MockTransaction(
-      tx: Transaction,
+      tx: LegacyTransaction,
       senderAddress: Address,
       pointSign: Byte = 0,
       signatureRandom: BigInt = 0,
@@ -33,7 +33,7 @@ object MockVmInput {
       receivingAddress: Option[Address] = None,
       nonce: BigInt = 0
   ): SignedTransaction =
-    new MockTransaction(Transaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)
+    new MockTransaction(LegacyTransaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload), senderAddress)
 
   def blockHeader: BlockHeader = BlockFixtures.ValidBlock.header
 

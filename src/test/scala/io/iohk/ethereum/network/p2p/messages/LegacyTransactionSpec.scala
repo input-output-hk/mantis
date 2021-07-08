@@ -9,11 +9,11 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
-import io.iohk.ethereum.domain.Transaction
 import io.iohk.ethereum.utils.Config
 
-class TransactionSpec extends AnyFlatSpec with Matchers {
+class LegacyTransactionSpec extends AnyFlatSpec with Matchers {
 
   val blockchainConfig = Config.blockchains.blockchainConfig
 
@@ -24,7 +24,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
   val publicKey: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKey)
   val address: Address = Address(crypto.kec256(rawPublicKey.tail).slice(12, 32))
 
-  val validTx: Transaction = Transaction(
+  val validTx: LegacyTransaction = LegacyTransaction(
     nonce = 172320,
     gasPrice = BigInt("50000000000"),
     gasLimit = 90000,
@@ -64,7 +64,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
   val publicKeyForNewSigningScheme: ECPoint = crypto.curve.getCurve.decodePoint(rawPublicKeyForNewSigningScheme)
   val addreesForNewSigningScheme: Address = Address(crypto.kec256(rawPublicKeyForNewSigningScheme.tail).slice(12, 32))
 
-  val validTransactionForNewSigningScheme: Transaction = Transaction(
+  val validTransactionForNewSigningScheme: LegacyTransaction = LegacyTransaction(
     nonce = 587440,
     gasPrice = BigInt("20000000000"),
     gasLimit = 90000,
@@ -111,7 +111,7 @@ class TransactionSpec extends AnyFlatSpec with Matchers {
 
   it should "recover the correct sender for tx in block 46147" in {
     val stx: SignedTransaction = SignedTransaction(
-      tx = Transaction(
+      tx = LegacyTransaction(
         nonce = BigInt(0),
         gasPrice = BigInt("50000000000000"),
         gasLimit = BigInt(21000),

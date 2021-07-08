@@ -20,7 +20,7 @@ let
   version =
     let
       versionSbt = builtins.readFile ../version.sbt;
-      captures = builtins.match ''.*version in ThisBuild := "([^"]+)".*'' versionSbt;
+      captures = builtins.match ''.* := "([^"]+)".*'' versionSbt;
     in
     builtins.elemAt captures 0;
 

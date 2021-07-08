@@ -64,7 +64,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
     def hash2ByteString(hash: String): ByteString = ByteString(Hex.decode(hash))
 
-    def mkTransaction(nonce: String, address: String, value: String): Transaction = Transaction(
+    def mkTransaction(nonce: String, address: String, value: String): LegacyTransaction = LegacyTransaction(
       nonce = BigInt(nonce),
       gasPrice = BigInt("20000000000"),
       gasLimit = BigInt("50000"),
@@ -73,7 +73,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       payload = ByteString.empty
     )
 
-    def mkStx(tx: Transaction, random: String, signature: String): SignedTransaction = SignedTransaction(
+    def mkStx(tx: LegacyTransaction, random: String, signature: String): SignedTransaction = SignedTransaction(
       tx = tx,
       pointSign = 0x9d.toByte,
       signatureRandom = hash2ByteString(random),

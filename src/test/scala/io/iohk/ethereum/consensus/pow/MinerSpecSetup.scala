@@ -59,7 +59,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory with Blockc
   lazy val vm: VMImpl = new VMImpl
 
   val txToMine: SignedTransaction = SignedTransaction(
-    tx = Transaction(
+    tx = LegacyTransaction(
       nonce = BigInt("438553"),
       gasPrice = BigInt("20000000000"),
       gasLimit = BigInt("50000"),
