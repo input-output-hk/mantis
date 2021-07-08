@@ -56,7 +56,7 @@ object PoWMiningCoordinator {
       blockCreator: PoWBlockCreator,
       blockchainReader: BlockchainReader,
       ecip1049BlockNumber: Option[BigInt],
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Behavior[CoordinatorProtocol] =
     Behaviors
       .setup[CoordinatorProtocol](context =>
@@ -67,7 +67,7 @@ object PoWMiningCoordinator {
           blockCreator,
           blockchainReader,
           ecip1049BlockNumber,
-          node
+          configBuilder
         )
       )
 }
@@ -79,10 +79,10 @@ class PoWMiningCoordinator private (
     blockCreator: PoWBlockCreator,
     blockchainReader: BlockchainReader,
     ecip1049BlockNumber: Option[BigInt],
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends AbstractBehavior[CoordinatorProtocol](context) {
 
-  import node._
+  import configBuilder._
   import PoWMiningCoordinator._
 
   implicit private val scheduler: Scheduler = Scheduler(context.executionContext)

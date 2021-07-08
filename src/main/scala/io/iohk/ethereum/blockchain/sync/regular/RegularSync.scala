@@ -43,7 +43,7 @@ class RegularSync(
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     scheduler: Scheduler,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
 
@@ -73,7 +73,7 @@ class RegularSync(
         broadcaster,
         pendingTransactionsManager,
         self,
-        node
+        configBuilder
       ),
       "block-importer"
     )
@@ -147,7 +147,7 @@ object RegularSync {
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
       scheduler: Scheduler,
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new RegularSync(
@@ -164,7 +164,7 @@ object RegularSync {
         ommersPool,
         pendingTransactionsManager,
         scheduler,
-        node
+        configBuilder
       )
     )
 

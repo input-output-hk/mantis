@@ -38,7 +38,7 @@ class SyncController(
     etcPeerManager: ActorRef,
     blacklist: Blacklist,
     syncConfig: SyncConfig,
-    node: BlockchainConfigBuilder,
+    configBuilder: BlockchainConfigBuilder,
     externalSchedulerOpt: Option[Scheduler] = None
 ) extends Actor
     with ActorLogging {
@@ -105,7 +105,7 @@ class SyncController(
         blacklist,
         syncConfig,
         scheduler,
-        node
+        configBuilder
       ),
       "fast-sync"
     )
@@ -131,7 +131,7 @@ class SyncController(
         ommersPool,
         pendingTransactionsManager,
         scheduler,
-        node
+        configBuilder
       ),
       "regular-sync"
     )
@@ -159,7 +159,7 @@ object SyncController {
       etcPeerManager: ActorRef,
       blacklist: Blacklist,
       syncConfig: SyncConfig,
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new SyncController(
@@ -178,7 +178,7 @@ object SyncController {
         etcPeerManager,
         blacklist,
         syncConfig,
-        node
+        configBuilder
       )
     )
 }

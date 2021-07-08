@@ -38,10 +38,10 @@ class MockedMiner(
     blockchainReader: BlockchainReader,
     blockCreator: PoWBlockCreator,
     syncEventListener: ActorRef,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
-  import node._
+  import configBuilder._
   import akka.pattern.pipe
   implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
@@ -126,7 +126,7 @@ object MockedMiner {
       blockchainReader: BlockchainReader,
       blockCreator: PoWBlockCreator,
       syncEventListener: ActorRef,
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new MockedMiner(
@@ -134,7 +134,7 @@ object MockedMiner {
         blockchainReader,
         blockCreator,
         syncEventListener,
-        node
+        configBuilder
       )
     ).withDispatcher(BlockForgerDispatcherId)
 
@@ -152,7 +152,7 @@ object MockedMiner {
           blockchainReader = node.blockchainReader,
           blockCreator = blockCreator,
           syncEventListener = node.syncController,
-          node = node
+          configBuilder = node
         )
         node.system.actorOf(minerProps)
       case consensus =>

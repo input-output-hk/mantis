@@ -17,9 +17,9 @@ class StxLedger(
     blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
     blockPreparator: BlockPreparator,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) {
-  import node._
+  import configBuilder._
 
   def simulateTransaction(
       stx: SignedTransactionWithSender,

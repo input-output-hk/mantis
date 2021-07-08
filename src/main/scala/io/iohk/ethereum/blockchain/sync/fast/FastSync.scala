@@ -64,14 +64,14 @@ class FastSync(
     val blacklist: Blacklist,
     val syncConfig: SyncConfig,
     implicit val scheduler: Scheduler,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging
     with PeerListSupportNg
     with ReceiptsValidator
     with SyncBlocksValidator {
 
-  import node._
+  import configBuilder._
   import FastSync._
   import syncConfig._
 
@@ -1160,7 +1160,7 @@ object FastSync {
       blacklist: Blacklist,
       syncConfig: SyncConfig,
       scheduler: Scheduler,
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new FastSync(
@@ -1177,7 +1177,7 @@ object FastSync {
         blacklist,
         syncConfig,
         scheduler,
-        node
+        configBuilder
       )
     )
 

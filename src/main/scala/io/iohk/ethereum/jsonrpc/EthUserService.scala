@@ -29,9 +29,9 @@ class EthUserService(
     val blockchainReader: BlockchainReader,
     val consensus: Consensus,
     evmCodeStorage: EvmCodeStorage,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends ResolveBlock {
-  import node._
+  import configBuilder._
   import EthUserService._
 
   def getCode(req: GetCodeRequest): ServiceResponse[GetCodeResponse] =

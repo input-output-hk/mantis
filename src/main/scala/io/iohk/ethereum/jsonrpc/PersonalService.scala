@@ -81,9 +81,9 @@ class PersonalService(
     blockchainReader: BlockchainReader,
     txPool: ActorRef,
     txPoolConfig: TxPoolConfig,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends Logger {
-  import node._
+  import configBuilder._
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 

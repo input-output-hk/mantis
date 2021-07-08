@@ -45,11 +45,11 @@ class BlockImporter(
     broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
     supervisor: ActorRef,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
-  import node._
+  import configBuilder._
 
   implicit val ec: Scheduler = Scheduler(context.dispatcher)
 
@@ -337,7 +337,7 @@ object BlockImporter {
       broadcaster: ActorRef,
       pendingTransactionsManager: ActorRef,
       supervisor: ActorRef,
-      node: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new BlockImporter(
@@ -351,7 +351,7 @@ object BlockImporter {
         broadcaster,
         pendingTransactionsManager,
         supervisor,
-        node
+        configBuilder
       )
     )
 

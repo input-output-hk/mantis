@@ -89,7 +89,7 @@ class FastSyncSpec
         blacklist = blacklist,
         syncConfig = syncConfig,
         scheduler = system.scheduler,
-        node = this
+        configBuilder = this
       )
     )
 

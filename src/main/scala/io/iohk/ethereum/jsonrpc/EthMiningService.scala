@@ -58,9 +58,9 @@ class EthMiningService(
     syncingController: ActorRef,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
-    node: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder
 ) extends TransactionPicker {
-  import node._
+  import configBuilder._
   import EthMiningService._
 
   private[this] def fullConsensusConfig = consensus.config
