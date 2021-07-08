@@ -22,7 +22,7 @@ case class EthNodeStatus64ExchangeState(
   override protected def createStatusMsg(): MessageSerializable = {
     val bestBlockHeader = getBestBlockHeader()
     val chainWeight = blockchain.getChainWeightByHash(bestBlockHeader.hash).get
-    val genesisHash = blockchain.genesisHeader.hash
+    val genesisHash = blockchainReader.genesisHeader.hash
 
     val status = ETH64.Status(
       protocolVersion = ProtocolVersions.ETH64.version,
@@ -30,7 +30,7 @@ case class EthNodeStatus64ExchangeState(
       totalDifficulty = chainWeight.totalDifficulty,
       bestHash = bestBlockHeader.hash,
       genesisHash = genesisHash,
-      forkId = ForkId.create(genesisHash, blockchainConfig)(blockchain.getBestBlockNumber())
+      forkId = ForkId.create(genesisHash, blockchainConfig)(blockchainReader.getBestBlockNumber())
     )
 
     log.debug(s"Sending status $status")

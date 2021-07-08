@@ -196,7 +196,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
-    blockchain.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
+    blockchainWriter.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
 
     val newLocalStatusMsg =
       localStatusMsg
