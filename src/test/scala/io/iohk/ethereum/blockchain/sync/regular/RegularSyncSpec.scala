@@ -61,6 +61,7 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class RegularSyncSpec
@@ -479,8 +480,8 @@ class RegularSyncSpec
         (blockchainReader.getBestBlockNumber _).when().returns(0)
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).atLeastOnce()
         (blockImport
-          .importBlock(_: Block)(_: Scheduler))
-          .when(*, *)
+          .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+          .when(*, *, *)
           .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
 
         var saveNodeWasCalled: Boolean = false
@@ -518,7 +519,7 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (blockImport.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
+        (blockImport.importBlock(_: Block)(_: Scheduler, _: BlockchainConfig)).verify(*, *, *).never()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
@@ -674,7 +675,7 @@ class RegularSyncSpec
 
         val parentBlock = testBlocks.last
         setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        blockImport.importBlock(parentBlock)(Scheduler.global)
+        blockImport.importBlock(parentBlock)(Scheduler.global, implicitly[BlockchainConfig])
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)

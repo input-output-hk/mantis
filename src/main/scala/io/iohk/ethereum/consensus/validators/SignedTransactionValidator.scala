@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus.validators
 
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait SignedTransactionValidator {
   def validate(
@@ -9,7 +10,7 @@ trait SignedTransactionValidator {
       blockHeader: BlockHeader,
       upfrontGasCost: UInt256,
       accumGasUsed: BigInt
-  ): Either[SignedTransactionError, SignedTransactionValid]
+  )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid]
 }
 
 sealed trait SignedTransactionError

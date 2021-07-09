@@ -89,7 +89,8 @@ class FastSyncSpec
         etcPeerManager = etcPeerManager.ref,
         blacklist = blacklist,
         syncConfig = syncConfig,
-        scheduler = system.scheduler
+        scheduler = system.scheduler,
+        configBuilder = this
       )
     )
 

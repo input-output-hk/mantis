@@ -19,7 +19,6 @@ class TestModeBlockExecution(
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
-    blockchainConfig: BlockchainConfig,
     blockPreparator: BlockPreparator,
     blockValidation: BlockValidation,
     saveStoragePreimage: (UInt256) => Unit
@@ -28,12 +27,13 @@ class TestModeBlockExecution(
       blockchainReader,
       blockchainWriter,
       evmCodeStorage,
-      blockchainConfig,
       blockPreparator,
       blockValidation
     ) {
 
-  override protected def buildInitialWorld(block: Block, parentHeader: BlockHeader): InMemoryWorldStateProxy =
+  override protected def buildInitialWorld(block: Block, parentHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): InMemoryWorldStateProxy =
     TestModeWorldStateProxy(
       evmCodeStorage = evmCodeStorage,
       nodesKeyValueStorage = blockchain.getBackingMptStorage(block.header.number),

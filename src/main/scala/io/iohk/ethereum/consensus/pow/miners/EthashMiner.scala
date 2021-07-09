@@ -20,6 +20,7 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.utils.BigIntExtensionMethods._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
 
@@ -38,7 +39,9 @@ class EthashMiner(
 
   import EthashMiner._
 
-  def processMining(bestBlock: Block): CancelableFuture[CoordinatorProtocol] = {
+  def processMining(
+      bestBlock: Block
+  )(implicit blockchainConfig: BlockchainConfig): CancelableFuture[CoordinatorProtocol] = {
     log.debug("Starting mining with parent block {}", bestBlock.number)
     blockCreator
       .getBlockForMining(bestBlock)
@@ -56,9 +59,11 @@ class EthashMiner(
       .runToFuture
   }
 
-  private def doMining(blockNumber: Long, block: Block): (Long, MiningResult) = {
+  private def doMining(blockNumber: Long, block: Block)(implicit
+      blockchainConfig: BlockchainConfig
+  ): (Long, MiningResult) = {
     val epoch =
-      EthashUtils.epoch(blockNumber, blockCreator.blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
+      EthashUtils.epoch(blockNumber, blockchainConfig.forkBlockNumbers.ecip1099BlockNumber.toLong)
     val (dag, dagSize) = dagManager.calculateDagSize(blockNumber, epoch)
     val headerHash = crypto.kec256(BlockHeader.getEncodedWithoutNonce(block.header))
     val startTime = System.nanoTime()

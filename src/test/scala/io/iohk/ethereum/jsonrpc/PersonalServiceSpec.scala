@@ -35,6 +35,7 @@ import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.KeyStore.DecryptionFailed
 import io.iohk.ethereum.keystore.KeyStore.IOError
 import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ForkBlockNumbers
@@ -125,7 +126,7 @@ class PersonalServiceSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchainReader.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -146,7 +147,7 @@ class PersonalServiceSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchainReader.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -179,7 +180,7 @@ class PersonalServiceSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchainReader.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
     val res = personal.sendTransaction(req).runToFuture
@@ -338,7 +339,7 @@ class PersonalServiceSpec
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
-    (blockchainReader.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber - 1)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -358,7 +359,7 @@ class PersonalServiceSpec
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
     (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
-    (blockchainReader.getBestBlockNumber _).expects().returning(blockchainConfig.forkBlockNumbers.eip155BlockNumber)
+    (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
     val res = personal.sendTransaction(req).runToFuture
@@ -409,50 +410,36 @@ class PersonalServiceSpec
     val nonce = 7
     val txValue = 128000
 
-    val blockchainConfig: BlockchainConfig = BlockchainConfig(
-      chainId = 0x03.toByte,
-      //unused
-      networkId = 1,
-      maxCodeSize = None,
-      forkBlockNumbers = ForkBlockNumbers(
-        eip155BlockNumber = 12345,
-        eip161BlockNumber = 0,
-        frontierBlockNumber = 0,
-        difficultyBombPauseBlockNumber = 0,
-        difficultyBombContinueBlockNumber = 0,
-        difficultyBombRemovalBlockNumber = Long.MaxValue,
-        homesteadBlockNumber = 0,
-        eip150BlockNumber = 0,
-        eip160BlockNumber = 0,
-        eip106BlockNumber = 0,
-        byzantiumBlockNumber = 0,
-        constantinopleBlockNumber = 0,
-        istanbulBlockNumber = 0,
-        atlantisBlockNumber = 0,
-        aghartaBlockNumber = 0,
-        phoenixBlockNumber = 0,
-        petersburgBlockNumber = 0,
-        ecip1098BlockNumber = 0,
-        ecip1097BlockNumber = 0,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
-      ),
-      customGenesisFileOpt = None,
-      customGenesisJsonOpt = None,
-      accountStartNonce = UInt256.Zero,
-      monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
-      daoForkConfig = None,
-      bootstrapNodes = Set(),
-      gasTieBreaker = false,
-      ethCompatibleStorage = true,
-      treasuryAddress = Address(0)
+    val chainId: Byte = 0x03.toByte
+    val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers(
+      eip155BlockNumber = 12345,
+      eip161BlockNumber = 0,
+      frontierBlockNumber = 0,
+      difficultyBombPauseBlockNumber = 0,
+      difficultyBombContinueBlockNumber = 0,
+      difficultyBombRemovalBlockNumber = Long.MaxValue,
+      homesteadBlockNumber = 0,
+      eip150BlockNumber = 0,
+      eip160BlockNumber = 0,
+      eip106BlockNumber = 0,
+      byzantiumBlockNumber = 0,
+      constantinopleBlockNumber = 0,
+      istanbulBlockNumber = 0,
+      atlantisBlockNumber = 0,
+      aghartaBlockNumber = 0,
+      phoenixBlockNumber = 0,
+      petersburgBlockNumber = 0,
+      ecip1098BlockNumber = 0,
+      ecip1097BlockNumber = 0,
+      ecip1099BlockNumber = Long.MaxValue,
+      ecip1049BlockNumber = None
     )
 
     val wallet: Wallet = Wallet(address, prvKey)
     val tx: TransactionRequest = TransactionRequest(from = address, to = Some(Address(42)), value = Some(txValue))
     val stxWithSender: SignedTransactionWithSender = wallet.signTx(tx.toTransaction(nonce), None)
     val stx = stxWithSender.tx
-    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(blockchainConfig.chainId)).tx
+    val chainSpecificStx: SignedTransaction = wallet.signTx(tx.toTransaction(nonce), Some(chainId)).tx
 
     val txPoolConfig: TxPoolConfig = new TxPoolConfig {
       override val txPoolSize: Int = 30
@@ -474,8 +461,25 @@ class PersonalServiceSpec
         blockchain,
         blockchainReader,
         txPool.ref,
-        blockchainConfig,
-        txPoolConfig
+        txPoolConfig,
+        new BlockchainConfigBuilder {
+          override def blockchainConfig = BlockchainConfig(
+            chainId = chainId,
+            //unused
+            networkId = 1,
+            maxCodeSize = None,
+            forkBlockNumbers = forkBlockNumbers,
+            customGenesisFileOpt = None,
+            customGenesisJsonOpt = None,
+            accountStartNonce = UInt256.Zero,
+            monetaryPolicyConfig = MonetaryPolicyConfig(0, 0, 0, 0),
+            daoForkConfig = None,
+            bootstrapNodes = Set(),
+            gasTieBreaker = false,
+            ethCompatibleStorage = true,
+            treasuryAddress = Address(0)
+          )
+        }
       )
 
     def array[T](arr: Array[T])(implicit ev: ClassTag[Array[T]]): MatcherBase =

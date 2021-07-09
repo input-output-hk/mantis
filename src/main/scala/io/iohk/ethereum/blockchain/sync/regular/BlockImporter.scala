@@ -26,6 +26,7 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool.AddOmmers
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddUncheckedTransactions
@@ -45,10 +46,12 @@ class BlockImporter(
     ommersPool: ActorRef,
     broadcaster: ActorRef,
     pendingTransactionsManager: ActorRef,
-    supervisor: ActorRef
+    supervisor: ActorRef,
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
   import BlockImporter._
+  import configBuilder._
 
   implicit val ec: Scheduler = Scheduler(context.dispatcher)
 
@@ -336,7 +339,8 @@ object BlockImporter {
       ommersPool: ActorRef,
       broadcaster: ActorRef,
       pendingTransactionsManager: ActorRef,
-      supervisor: ActorRef
+      supervisor: ActorRef,
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new BlockImporter(
@@ -350,7 +354,8 @@ object BlockImporter {
         ommersPool,
         broadcaster,
         pendingTransactionsManager,
-        supervisor
+        supervisor,
+        configBuilder
       )
     )
 

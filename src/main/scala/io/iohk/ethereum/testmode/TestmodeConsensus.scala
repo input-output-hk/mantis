@@ -37,10 +37,8 @@ class TestmodeConsensus(
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
-    override val difficultyCalculator: DifficultyCalculator,
-    sealEngine: SealEngineType,
+    node: TestNode,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Consensus {
@@ -49,29 +47,38 @@ class TestmodeConsensus(
   override def protocol: Protocol = Protocol.PoW
   override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
 
+  override def difficultyCalculator: DifficultyCalculator = DifficultyCalculator
+
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Right(
+        BlockHeaderValid
+      )
 
-      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+          blockchainConfig: BlockchainConfig
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         Right(BlockHeaderValid)
     }
-    override def signedTransactionValidator: SignedTransactionValidator =
-      new StdSignedTransactionValidator(blockchainConfig)
+    override def signedTransactionValidator: SignedTransactionValidator = StdSignedTransactionValidator
     override def validateBlockBeforeExecution(
         block: Block,
         getBlockHeaderByHash: GetBlockHeaderByHash,
         getNBlocksBack: GetNBlocksBack
+    )(implicit
+        blockchainConfig: BlockchainConfig
     ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
     override def blockValidator: BlockValidator = new BlockValidator {
       override def validateBlockAndReceipts(
           blockHeader: BlockHeader,
@@ -84,17 +91,18 @@ class TestmodeConsensus(
     }
   }
 
-  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
+  override def validators: Validators = ValidatorsExecutor.apply(Protocol.MockedPow)
 
   override def blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
-    blockchainReader = blockchainReader,
-    blockchainConfig = blockchainConfig
+    blockchainReader = blockchainReader
   ) {
-    override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-      sealEngine match {
+    override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy)(implicit
+        blockchainConfig: BlockchainConfig
+    ): InMemoryWorldStateProxy =
+      node.sealEngine match {
         case SealEngineType.NoProof =>
           super.payBlockReward(block, worldStateProxy)
         case SealEngineType.NoReward =>
@@ -105,7 +113,6 @@ class TestmodeConsensus(
   override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       evmCodeStorage,
-      blockchainConfig,
       consensusConfig,
       blockPreparator,
       difficultyCalculator,
@@ -127,19 +134,4 @@ class TestmodeConsensus(
   /** Sends msg to the internal miner
     */
   override def sendMiner(msg: MinerProtocol): Unit = {}
-}
-
-trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with StorageBuilder =>
-
-  override lazy val consensus = new TestmodeConsensus(
-    vm,
-    storagesInstance.storages.evmCodeStorage,
-    blockchain,
-    blockchainReader,
-    blockchainConfig,
-    consensusConfig,
-    DifficultyCalculator(blockchainConfig),
-    SealEngineType.NoReward
-  )
 }

@@ -9,6 +9,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait SyncBlocksValidator { this: ActorLogging =>
 
@@ -37,7 +38,9 @@ trait SyncBlocksValidator { this: ActorLogging =>
         case (invalid, _) => invalid
       }
 
-  def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+  def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Either[BlockHeaderError, BlockHeaderValid] =
     validators.blockHeaderValidator.validateHeaderOnly(blockHeader)
 
   def checkHeadersChain(headers: Seq[BlockHeader]): Boolean =

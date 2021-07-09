@@ -30,13 +30,11 @@ class PoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig,
     consensusConfig: ConsensusConfig,
     val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchainConfig,
       consensusConfig,
       difficultyCalc,
       blockTimestampProvider
@@ -52,7 +50,7 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       blockTimestamp: Long,
       x: Ommers
-  ): BlockHeader =
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
 
   /** An empty `X` */
@@ -79,40 +77,40 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       x: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.PoWBlockGeneratorTiming.record { () =>
-    val pHeader = parent.header
-    val blockNumber = pHeader.number + 1
-    val parentHash = pHeader.hash
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
+    ConsensusMetrics.PoWBlockGeneratorTiming.record { () =>
+      val pHeader = parent.header
+      val blockNumber = pHeader.number + 1
+      val parentHash = pHeader.hash
 
-    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
-      case Left(_)  => emptyX
-      case Right(_) => x
+      val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
+        case Left(_)  => emptyX
+        case Right(_) => x
+      }
+
+      val prepared = prepareBlock(
+        evmCodeStorage,
+        parent,
+        transactions,
+        beneficiary,
+        blockNumber,
+        blockPreparator,
+        ommers,
+        initialWorldStateBeforeExecution
+      )
+
+      cache.updateAndGet { t: List[PendingBlockAndState] =>
+        (prepared :: t).take(blockCacheSize)
+      }
+
+      prepared
     }
-
-    val prepared = prepareBlock(
-      evmCodeStorage,
-      parent,
-      transactions,
-      beneficiary,
-      blockNumber,
-      blockPreparator,
-      ommers,
-      initialWorldStateBeforeExecution
-    )
-
-    cache.updateAndGet { t: List[PendingBlockAndState] =>
-      (prepared :: t).take(blockCacheSize)
-    }
-
-    prepared
-  }
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): PoWBlockGeneratorImpl =
     new PoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
       blockchainReader,
-      blockchainConfig,
       consensusConfig,
       blockPreparator,
       difficultyCalc,

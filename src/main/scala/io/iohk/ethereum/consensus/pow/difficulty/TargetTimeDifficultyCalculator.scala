@@ -2,6 +2,7 @@ package io.iohk.ethereum.consensus.pow.difficulty
 
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalculator {
 
@@ -22,7 +23,9 @@ class TargetTimeDifficultyCalculator(powTargetTime: Long) extends DifficultyCalc
     */
   private val lowerBoundExpectedRatio: Long = (powTargetTime / 1.5).toLong
 
-  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): BigInt = {
     val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision

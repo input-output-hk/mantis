@@ -4,15 +4,17 @@ import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends DifficultyCalculator {
-  import blockchainConfig.forkBlockNumbers._
+object EthashDifficultyCalculator extends DifficultyCalculator {
   import DifficultyCalculator._
-
   private val ExpDifficultyPeriod: Int = 100000
   private val ByzantiumRelaxDifficulty: BigInt = 3000000
   private val ConstantinopleRelaxDifficulty: BigInt = 5000000
 
-  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader): BigInt = {
+  def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): BigInt = {
+    import blockchainConfig.forkBlockNumbers._
+
     lazy val timestampDiff = blockTimestamp - parentHeader.unixTimestamp
 
     val x: BigInt = parentHeader.difficulty / DifficultyBoundDivision
@@ -47,7 +49,10 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
     difficultyWithoutBomb + extraDifficulty
   }
 
-  private def calculateBombExponent(blockNumber: BigInt): Int =
+  private def calculateBombExponent(blockNumber: BigInt)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Int = {
+    import blockchainConfig.forkBlockNumbers._
     if (blockNumber < difficultyBombPauseBlockNumber)
       (blockNumber / ExpDifficultyPeriod - 2).toInt
     else if (blockNumber < difficultyBombContinueBlockNumber)
@@ -56,4 +61,5 @@ class EthashDifficultyCalculator(blockchainConfig: BlockchainConfig) extends Dif
       val delay = (difficultyBombContinueBlockNumber - difficultyBombPauseBlockNumber) / ExpDifficultyPeriod
       ((blockNumber / ExpDifficultyPeriod) - delay - 2).toInt
     }
+  }
 }

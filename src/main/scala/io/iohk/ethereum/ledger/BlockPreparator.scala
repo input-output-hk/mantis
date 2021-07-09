@@ -21,13 +21,12 @@ class BlockPreparator(
     vm: VMImpl,
     signedTxValidator: SignedTransactionValidator,
     blockchain: BlockchainImpl, // FIXME Depend on the interface
-    blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig
+    blockchainReader: BlockchainReader
 ) extends Logger {
 
   // NOTE We need a lazy val here, not a plain val, otherwise a mocked BlockChainConfig
   //      in some irrelevant test can throw an exception.
-  private[ledger] lazy val blockRewardCalculator = new BlockRewardCalculator(
+  private[ledger] def blockRewardCalculator(implicit blockchainConfig: BlockchainConfig) = new BlockRewardCalculator(
     blockchainConfig.monetaryPolicyConfig,
     blockchainConfig.forkBlockNumbers.byzantiumBlockNumber,
     blockchainConfig.forkBlockNumbers.constantinopleBlockNumber
@@ -51,7 +50,7 @@ class BlockPreparator(
   protected[ledger] def payBlockReward(
       block: Block,
       worldStateProxy: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy = {
+  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy = {
     val blockNumber = block.header.number
     val minerRewardForBlock = blockRewardCalculator.calculateMiningRewardForBlock(blockNumber)
     val minerRewardForOmmers =
@@ -91,7 +90,7 @@ class BlockPreparator(
     }
   }
 
-  private def treasuryEnabled(blockNo: BigInt): Boolean =
+  private def treasuryEnabled(blockNo: BigInt)(implicit blockchainConfig: BlockchainConfig): Boolean =
     blockNo >= blockchainConfig.forkBlockNumbers.ecip1098BlockNumber
 
   /** v0 ≡ Tg (Tx gas limit) * Tp (Tx gas price). See YP equation number (68)
@@ -130,7 +129,7 @@ class BlockPreparator(
       senderAddress: Address,
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy
-  ): PR = {
+  )(implicit blockchainConfig: BlockchainConfig): PR = {
     val evmConfig = EvmConfig.forBlock(blockHeader.number, blockchainConfig)
     val context: PC = ProgramContext(stx, blockHeader, senderAddress, world, evmConfig)
     vm.run(context)
@@ -150,7 +149,7 @@ class BlockPreparator(
 
   private[ledger] def increaseAccountBalance(address: Address, value: UInt256)(
       world: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy = {
+  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy = {
     val account =
       world.getAccount(address).getOrElse(Account.empty(blockchainConfig.accountStartNonce)).increaseBalance(value)
     world.saveAccount(address, account)
@@ -158,7 +157,7 @@ class BlockPreparator(
 
   private[ledger] def pay(address: Address, value: UInt256, withTouch: Boolean)(
       world: InMemoryWorldStateProxy
-  ): InMemoryWorldStateProxy =
+  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy =
     if (world.isZeroValueTransferToNonExistentAccount(address, value)) {
       world
     } else {
@@ -198,7 +197,9 @@ class BlockPreparator(
     * @return a worldState equal worldStateProxy except that the accounts touched during execution are deleted and touched
     *         Set is cleared
     */
-  private[ledger] def deleteEmptyTouchedAccounts(world: InMemoryWorldStateProxy): InMemoryWorldStateProxy = {
+  private[ledger] def deleteEmptyTouchedAccounts(
+      world: InMemoryWorldStateProxy
+  )(implicit blockchainConfig: BlockchainConfig): InMemoryWorldStateProxy = {
     def deleteEmptyAccount(world: InMemoryWorldStateProxy, address: Address) =
       if (world.getAccount(address).exists(_.isEmpty(blockchainConfig.accountStartNonce)))
         world.deleteAccount(address)
@@ -215,7 +216,7 @@ class BlockPreparator(
       senderAddress: Address,
       blockHeader: BlockHeader,
       world: InMemoryWorldStateProxy
-  ): TxResult = {
+  )(implicit blockchainConfig: BlockchainConfig): TxResult = {
     log.debug(s"Transaction ${stx.hash.toHex} execution start")
     val gasPrice = UInt256(stx.tx.gasPrice)
     val gasLimit = stx.tx.gasLimit
@@ -271,7 +272,7 @@ class BlockPreparator(
       blockHeader: BlockHeader,
       acumGas: BigInt = 0,
       acumReceipts: Seq[Receipt] = Nil
-  ): Either[TxsExecutionError, BlockResult] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[TxsExecutionError, BlockResult] =
     signedTransactions match {
       case Nil =>
         Right(BlockResult(worldState = world, gasUsed = acumGas, receipts = acumReceipts))
@@ -333,7 +334,7 @@ class BlockPreparator(
       acumGas: BigInt = 0,
       acumReceipts: Seq[Receipt] = Nil,
       executed: Seq[SignedTransaction] = Nil
-  ): (BlockResult, Seq[SignedTransaction]) = {
+  )(implicit blockchainConfig: BlockchainConfig): (BlockResult, Seq[SignedTransaction]) = {
 
     val result = executeTransactions(signedTransactions, world, blockHeader, acumGas, acumReceipts)
 
@@ -358,7 +359,7 @@ class BlockPreparator(
       block: Block,
       parent: BlockHeader,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PreparedBlock = {
+  )(implicit blockchainConfig: BlockchainConfig): PreparedBlock = {
 
     val initialWorld =
       initialWorldStateBeforeExecution.getOrElse(

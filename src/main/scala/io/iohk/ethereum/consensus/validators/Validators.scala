@@ -9,6 +9,7 @@ import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait Validators {
   def blockValidator: BlockValidator
@@ -20,7 +21,7 @@ trait Validators {
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[ValidationBeforeExecError, BlockExecutionSuccess]
+  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess]
 
   /** This function validates that the various results from execution are consistent with the block. This includes:
     *   - Validating the resulting stateRootHash
@@ -38,5 +39,5 @@ trait Validators {
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess]
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess]
 }

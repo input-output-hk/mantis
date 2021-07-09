@@ -38,8 +38,7 @@ import io.iohk.ethereum.utils.Logger
 class GenesisDataLoader(
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
-    stateStorage: StateStorage,
-    blockchainConfig: BlockchainConfig
+    stateStorage: StateStorage
 ) extends Logger {
 
   private val bloomLength = 512
@@ -49,9 +48,8 @@ class GenesisDataLoader(
   import Account._
 
   private val emptyTrieRootHash = ByteString(crypto.kec256(rlp.encode(Array.emptyByteArray)))
-  crypto.kec256(ByteString.empty)
 
-  def loadGenesisData(): Unit = {
+  def loadGenesisData()(implicit blockchainConfig: BlockchainConfig): Unit = {
     log.debug("Loading genesis data")
 
     val genesisJson = blockchainConfig.customGenesisJsonOpt.getOrElse {
@@ -89,7 +87,7 @@ class GenesisDataLoader(
     }
   }
 
-  private def loadGenesisData(genesisJson: String): Try[Unit] = {
+  private def loadGenesisData(genesisJson: String)(implicit blockchainConfig: BlockchainConfig): Try[Unit] = {
     import org.json4s.native.JsonMethods.parse
     implicit val formats: Formats = DefaultFormats + ByteStringJsonSerializer + UInt256JsonSerializer
     for {
@@ -98,7 +96,7 @@ class GenesisDataLoader(
     } yield ()
   }
 
-  def loadGenesisData(genesisData: GenesisData): Try[Unit] = {
+  def loadGenesisData(genesisData: GenesisData)(implicit blockchainConfig: BlockchainConfig): Try[Unit] = {
 
     val storage = stateStorage.getReadOnlyStorage
     val initalRootHash = MerklePatriciaTrie.EmptyRootHash
@@ -132,7 +130,9 @@ class GenesisDataLoader(
     }
   }
 
-  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage) = {
+  private def getGenesisStateRoot(genesisData: GenesisData, initalRootHash: Array[Byte], storage: MptStorage)(implicit
+      blockchainConfig: BlockchainConfig
+  ) = {
     import MerklePatriciaTrie.defaultByteArraySerializable
 
     genesisData.alloc.zipWithIndex.foldLeft(initalRootHash) { case (rootHash, ((address, genesisAccount), _)) =>

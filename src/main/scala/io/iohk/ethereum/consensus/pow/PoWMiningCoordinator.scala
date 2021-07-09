@@ -19,6 +19,7 @@ import io.iohk.ethereum.consensus.pow.miners.Miner
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.jsonrpc.EthMiningService
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 
 object PoWMiningCoordinator {
   // TODO in ETCM-773 make trait sealed
@@ -54,7 +55,8 @@ object PoWMiningCoordinator {
       ethMiningService: EthMiningService,
       blockCreator: PoWBlockCreator,
       blockchainReader: BlockchainReader,
-      ecip1049BlockNumber: Option[BigInt]
+      ecip1049BlockNumber: Option[BigInt],
+      configBuilder: BlockchainConfigBuilder
   ): Behavior[CoordinatorProtocol] =
     Behaviors
       .setup[CoordinatorProtocol](context =>
@@ -64,7 +66,8 @@ object PoWMiningCoordinator {
           ethMiningService,
           blockCreator,
           blockchainReader,
-          ecip1049BlockNumber
+          ecip1049BlockNumber,
+          configBuilder
         )
       )
 }
@@ -75,9 +78,11 @@ class PoWMiningCoordinator private (
     ethMiningService: EthMiningService,
     blockCreator: PoWBlockCreator,
     blockchainReader: BlockchainReader,
-    ecip1049BlockNumber: Option[BigInt]
+    ecip1049BlockNumber: Option[BigInt],
+    configBuilder: BlockchainConfigBuilder
 ) extends AbstractBehavior[CoordinatorProtocol](context) {
 
+  import configBuilder._
   import PoWMiningCoordinator._
 
   implicit private val scheduler: Scheduler = Scheduler(context.executionContext)

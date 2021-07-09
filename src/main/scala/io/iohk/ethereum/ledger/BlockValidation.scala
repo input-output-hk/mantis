@@ -8,6 +8,7 @@ import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockValidation(
     consensus: Consensus,
@@ -15,7 +16,9 @@ class BlockValidation(
     blockQueue: BlockQueue
 ) {
 
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+  def validateBlockBeforeExecution(
+      block: Block
+  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     consensus.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
@@ -52,7 +55,7 @@ class BlockValidation(
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
     consensus.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = stateRootHash,

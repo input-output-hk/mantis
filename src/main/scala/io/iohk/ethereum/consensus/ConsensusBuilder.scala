@@ -22,7 +22,6 @@ trait StdConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder
     with StorageBuilder
     with BlockchainBuilder
-    with BlockchainConfigBuilder
     with ConsensusConfigBuilder
     with NodeKeyBuilder
     with Logger =>
@@ -39,7 +38,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
     val fullConfig = newConfig(specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(consensusConfig.protocol)
 
     val additionalPoWData = consensusConfig.protocol match {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
@@ -51,7 +50,6 @@ trait StdConsensusBuilder extends ConsensusBuilder {
         storagesInstance.storages.evmCodeStorage,
         blockchain,
         blockchainReader,
-        blockchainConfig,
         fullConfig,
         validators,
         additionalPoWData
