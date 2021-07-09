@@ -27,6 +27,7 @@ import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62
 import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class BlockBroadcastSpec
@@ -61,7 +62,9 @@ class BlockBroadcastSpec
     val blockHeader: BlockHeader = baseBlockHeader.copy(number = initialPeerInfo.maxBlockNumber - 3)
     val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val peerInfo = initialPeerInfo
-      .copy(remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.ETH63.version))
+      .copy(remoteStatus =
+        peerStatus.copy(protocolFamily = ProtocolFamily.ETH, protocolVersion = ProtocolVersions.ETH63.version)
+      )
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
       BaseETH6XMessages.NewBlock(Block(blockHeader, BlockBody(Nil, Nil)), peerInfo.chainWeight.totalDifficulty + 2)
@@ -176,6 +179,7 @@ class BlockBroadcastSpec
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
     val peerStatus: RemoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETC,
       protocolVersion = ProtocolVersions.ETC64.version,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),

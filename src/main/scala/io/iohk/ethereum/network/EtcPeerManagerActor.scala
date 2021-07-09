@@ -26,6 +26,10 @@ import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ETH64
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily.ETC
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily.ETH
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -239,6 +243,7 @@ object EtcPeerManagerActor {
     * (they are different versions of Status msg)
     */
   case class RemoteStatus(
+      protocolFamily: ProtocolFamily,
       protocolVersion: Int,
       networkId: Int,
       chainWeight: ChainWeight,
@@ -247,6 +252,7 @@ object EtcPeerManagerActor {
   ) {
     override def toString: String =
       s"RemoteStatus { " +
+        s"protocolFamily: $protocolFamily, " +
         s"protocolVersion: $protocolVersion, " +
         s"networkId: $networkId, " +
         s"chainWeight: $chainWeight, " +
@@ -256,11 +262,29 @@ object EtcPeerManagerActor {
   }
 
   object RemoteStatus {
+    def apply(status: ETH64.Status): RemoteStatus =
+      RemoteStatus(
+        ETH,
+        status.protocolVersion,
+        status.networkId,
+        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        status.bestHash,
+        status.genesisHash
+      )
+
     def apply(status: ETC64.Status): RemoteStatus =
-      RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
+      RemoteStatus(
+        ETC,
+        status.protocolVersion,
+        status.networkId,
+        status.chainWeight,
+        status.bestHash,
+        status.genesisHash
+      )
 
     def apply(status: BaseETH6XMessages.Status): RemoteStatus =
       RemoteStatus(
+        ETH,
         status.protocolVersion,
         status.networkId,
         ChainWeight.totalDifficultyOnly(status.totalDifficulty),

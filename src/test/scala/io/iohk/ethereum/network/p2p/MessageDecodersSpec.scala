@@ -9,6 +9,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.forkid.ForkId
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages._
@@ -60,6 +61,8 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
     decode(ProtocolVersions.ETC64)
       .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+    decode(ProtocolVersions.ETH64)
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
   }
 
   it should "not decode message from older version of protocol as newer version" in {
@@ -81,6 +84,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getBlockHeadersBytes: Array[Byte] = getBlockHeaders.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
     decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
   }
 
@@ -89,6 +93,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val blockHeadersBytes: Array[Byte] = blockHeaders.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
     decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
   }
 
@@ -97,6 +102,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getBlockBodiesBytes: Array[Byte] = getBlockBodies.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
     decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
   }
 
@@ -105,6 +111,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val blockBodiesBytes: Array[Byte] = blockBodies.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
     decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
   }
 
@@ -113,6 +120,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getNodeDataBytes: Array[Byte] = getNodeData.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
     decode(ProtocolVersions.ETC64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
   }
 
@@ -121,6 +129,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val nodeDataBytes: Array[Byte] = nodeData.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
     decode(ProtocolVersions.ETC64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
   }
 
@@ -129,6 +138,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getReceiptsBytes: Array[Byte] = getReceipts.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
     decode(ProtocolVersions.ETC64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
   }
 
@@ -137,17 +147,21 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val receiptsBytes: Array[Byte] = receipts.toBytes
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
     decode(ProtocolVersions.ETC64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
   }
 
   it should "decode Status message for all supported versions of protocol" in {
     val status63 = BaseETH6XMessages.Status(ProtocolVersions.ETH63.version, 1, BigInt(100), exampleHash, exampleHash)
     val status63Bytes: Array[Byte] = status63.toBytes
-    val status64 =
+    val statusEtc64 =
       ETC64.Status(ProtocolVersions.ETH63.version, 1, ChainWeight(1, BigInt(100)), exampleHash, exampleHash)
+    val statusEth64 =
+      ETH64.Status(ProtocolVersions.ETH64.version, 1, BigInt(100), exampleHash, exampleHash, ForkId(1L, None))
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.StatusCode, status63Bytes) shouldBe status63
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.StatusCode, status64.toBytes) shouldBe status64
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.StatusCode, statusEth64.toBytes) shouldBe statusEth64
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.StatusCode, statusEtc64.toBytes) shouldBe statusEtc64
   }
 
   it should "decode NewBlock message for all supported versions of protocol" in {
@@ -156,6 +170,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val newBlock64 = ObjectGenerators.newBlock64Gen(secureRandom, None).sample.get
 
     decode(ProtocolVersions.ETH63).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe newBlock63
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe newBlock63
     decode(ProtocolVersions.ETC64).fromBytes(Codes.NewBlockCode, newBlock64.toBytes) shouldBe newBlock64
   }
 
@@ -164,6 +179,8 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val signedTransactionsBytes: Array[Byte] = signedTransactions.toBytes
 
     decode(ProtocolVersions.ETH63)
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+    decode(ProtocolVersions.ETH64)
       .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
     decode(ProtocolVersions.ETC64)
       .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions

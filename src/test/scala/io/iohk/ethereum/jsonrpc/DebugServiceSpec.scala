@@ -26,6 +26,7 @@ import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class DebugServiceSpec
@@ -76,6 +77,7 @@ class DebugServiceSpec
     val debugService = new DebugService(peerManager.ref, etcPeerManager.ref)
 
     val peerStatus: RemoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),

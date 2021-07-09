@@ -44,6 +44,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Logger
 
@@ -264,6 +265,7 @@ class FastSyncBranchResolverActorSpec
     def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.ETC64.version): PeerInfo = {
       val status =
         RemoteStatus(
+          ProtocolFamily.ETC,
           protocolVersion,
           1,
           ChainWeight.totalDifficultyOnly(1),

@@ -53,6 +53,7 @@ import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.discovery.Node
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
@@ -631,6 +632,7 @@ class PeerManagerSpec
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist(cache)
 
     val peerStatus: RemoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
