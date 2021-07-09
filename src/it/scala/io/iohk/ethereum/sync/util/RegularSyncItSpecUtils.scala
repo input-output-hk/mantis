@@ -26,10 +26,10 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.FullMiningConfig
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.pow
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.PoWMining
@@ -46,6 +46,7 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.def
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
+
 object RegularSyncItSpecUtils {
 
   class ValidatorsExecutorAlwaysSucceed extends MockValidatorsAlwaysSucceed {

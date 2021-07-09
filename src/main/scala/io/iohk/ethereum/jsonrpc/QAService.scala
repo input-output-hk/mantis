@@ -11,8 +11,8 @@ import enumeratum._
 import mouse.all._
 
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses

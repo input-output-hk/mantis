@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.pow.blocks.Ommers
 import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable

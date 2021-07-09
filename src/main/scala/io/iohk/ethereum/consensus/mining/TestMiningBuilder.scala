@@ -1,11 +1,11 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Logger
 
-/** A [[io.iohk.ethereum.consensus.MiningBuilder ConsensusBuilder]] that builds a
-  * [[io.iohk.ethereum.consensus.TestMining TestConsensus]]
+/** A [[MiningBuilder ConsensusBuilder]] that builds a
+  * [[TestMining TestConsensus]]
   */
 trait TestMiningBuilder { self: StdMiningBuilder =>
   protected def buildTestConsensus(): TestMining =

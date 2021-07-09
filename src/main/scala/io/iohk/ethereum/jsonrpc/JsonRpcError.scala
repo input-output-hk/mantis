@@ -6,7 +6,7 @@ import org.json4s.JObject
 import org.json4s.JString
 import org.json4s.JValue
 
-import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])

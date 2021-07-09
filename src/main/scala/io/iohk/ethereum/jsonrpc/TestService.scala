@@ -17,8 +17,8 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage

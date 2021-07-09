@@ -1,15 +1,15 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 /** Enumerates the known consensus protocols that Mantis can use.
-  * For the respective implementations, see [[io.iohk.ethereum.consensus.Mining Consensus]].
+  * For the respective implementations, see [[Mining Consensus]].
   */
 sealed trait Protocol {
 
   /** We use this `name` to specify the protocol in configuration.
     *
-    * @see [[io.iohk.ethereum.consensus.Protocol.Names]]
+    * @see [[mining.Protocol.Names]]
     */
   def name: String
 }

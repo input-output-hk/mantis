@@ -25,8 +25,9 @@ import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.blockchain.sync.SyncController
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.MiningBuilder
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -880,8 +881,8 @@ trait GenesisDataLoaderBuilder {
 /** Provides the basic functionality of a Node, except the consensus algorithm.
   * The latter is loaded dynamically based on configuration.
   *
-  * @see [[io.iohk.ethereum.consensus.MiningBuilder ConsensusBuilder]],
-  *      [[io.iohk.ethereum.consensus.MiningConfigBuilder ConsensusConfigBuilder]]
+  * @see [[MiningBuilder ConsensusBuilder]],
+  *      [[MiningConfigBuilder ConsensusConfigBuilder]]
   */
 trait Node
     extends SecureRandomBuilder

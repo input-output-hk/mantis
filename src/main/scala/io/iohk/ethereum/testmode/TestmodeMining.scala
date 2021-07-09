@@ -4,11 +4,18 @@ import akka.util.ByteString
 
 import monix.eval.Task
 
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.NoOmmersBlockGenerator
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.MiningBuilder
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse

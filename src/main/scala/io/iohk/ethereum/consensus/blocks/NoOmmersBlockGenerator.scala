@@ -1,8 +1,8 @@
 package io.iohk.ethereum.consensus.blocks
 
-import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator

@@ -10,12 +10,12 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.MiningConfigs
-import io.iohk.ethereum.consensus.MiningConfigs.ethashConfig
-import io.iohk.ethereum.consensus.FullMiningConfig
-import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
-import io.iohk.ethereum.consensus.Protocol.RestrictedPoWMinerData
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigs
+import io.iohk.ethereum.consensus.mining.MiningConfigs.ethashConfig
+import io.iohk.ethereum.consensus.mining.Protocol
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
 import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor

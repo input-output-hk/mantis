@@ -7,7 +7,7 @@ import scala.util.Success
 import scala.util.Try
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.StdMiningBuilder
+import io.iohk.ethereum.consensus.mining.StdMiningBuilder
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor

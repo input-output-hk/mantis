@@ -10,7 +10,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import io.iohk.ethereum.consensus.Mining
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.Block

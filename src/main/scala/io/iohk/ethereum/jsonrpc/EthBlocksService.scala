@@ -6,7 +6,7 @@ import monix.eval.Task
 
 import org.bouncycastle.util.encoders.Hex
 
-import io.iohk.ethereum.consensus.Mining
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockQueue

@@ -11,8 +11,8 @@ import org.scalamock.scalatest.AsyncMockFactory
 
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered

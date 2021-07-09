@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import io.micrometer.core.instrument.Timer
 

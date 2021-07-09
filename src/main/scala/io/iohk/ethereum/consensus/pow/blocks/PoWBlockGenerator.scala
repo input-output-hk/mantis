@@ -4,10 +4,10 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage

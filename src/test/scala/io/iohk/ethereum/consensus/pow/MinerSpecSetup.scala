@@ -18,11 +18,11 @@ import org.scalamock.scalatest.MockFactory
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.MiningConfigBuilder
-import io.iohk.ethereum.consensus.FullMiningConfig
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor

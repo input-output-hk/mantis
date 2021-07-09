@@ -4,8 +4,8 @@ import akka.util.ByteString
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.BlockchainImpl

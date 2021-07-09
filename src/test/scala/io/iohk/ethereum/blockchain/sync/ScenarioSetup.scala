@@ -9,10 +9,10 @@ import scala.concurrent.ExecutionContextExecutor
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.Mining
-import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.consensus.StdTestMiningBuilder
-import io.iohk.ethereum.consensus.TestMining
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.Protocol
+import io.iohk.ethereum.consensus.mining.StdTestMiningBuilder
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
@@ -51,8 +51,8 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
-    * @note We use the refined type [[io.iohk.ethereum.consensus.TestMining TestConsensus]]
-    *       instead of just [[io.iohk.ethereum.consensus.Mining Consensus]].
+    * @note We use the refined type [[TestMining TestConsensus]]
+    *       instead of just [[Mining Consensus]].
     * @note If you override this, consensus will pick up automatically.
     */
   override lazy val mining: TestMining = buildTestConsensus().withValidators(validators).withVM(vm)

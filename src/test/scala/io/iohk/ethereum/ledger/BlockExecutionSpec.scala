@@ -16,8 +16,8 @@ import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.Mocks.MockValidatorsFailOnSpecificBlockNumber
 import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.BlockValidator

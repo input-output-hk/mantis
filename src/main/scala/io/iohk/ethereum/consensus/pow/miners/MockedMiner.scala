@@ -13,6 +13,7 @@ import scala.concurrent.duration._
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.wrongConsensusArgument
 import io.iohk.ethereum.consensus.pow.PoWBlockCreator
 import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
@@ -23,7 +24,6 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.Mi
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotSupported
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningError
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
-import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader

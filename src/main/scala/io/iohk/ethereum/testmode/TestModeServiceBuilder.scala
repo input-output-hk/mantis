@@ -2,9 +2,9 @@ package io.iohk.ethereum.testmode
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.MiningBuilder
-import io.iohk.ethereum.consensus.MiningConfigBuilder
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningBuilder
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.ActorSystemBuilder
 import io.iohk.ethereum.nodebuilder._

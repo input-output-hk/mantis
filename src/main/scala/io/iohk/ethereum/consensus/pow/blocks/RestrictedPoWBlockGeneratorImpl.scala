@@ -2,12 +2,12 @@ package io.iohk.ethereum.consensus.pow.blocks
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
-import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.db.storage.EvmCodeStorage

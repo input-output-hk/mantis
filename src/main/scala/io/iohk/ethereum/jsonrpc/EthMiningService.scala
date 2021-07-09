@@ -15,9 +15,9 @@ import scala.collection.concurrent.{Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.Mining
-import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.Address

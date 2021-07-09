@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import monix.eval.Task
 
@@ -15,11 +15,11 @@ import io.iohk.ethereum.nodebuilder.Node
 
 /** Abstraction for a mining protocol implementation.
   *
-  * @see [[io.iohk.ethereum.consensus.Protocol Protocol]]
+  * @see [[Protocol Protocol]]
   */
 trait Mining {
 
-  /** The type of configuration [[io.iohk.ethereum.consensus.FullMiningConfig#specific specific]]
+  /** The type of configuration [[FullMiningConfig#specific specific]]
     * to this consensus protocol implementation.
     */
   type Config <: AnyRef /*Product*/
@@ -36,7 +36,7 @@ trait Mining {
     */
   def validators: Validators
 
-  /** This is used by the [[io.iohk.ethereum.consensus.Mining#blockGenerator blockGenerator]].
+  /** This is used by the [[Mining#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator
 

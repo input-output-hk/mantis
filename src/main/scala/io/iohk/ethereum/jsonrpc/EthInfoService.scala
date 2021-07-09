@@ -13,7 +13,7 @@ import scala.reflect.ClassTag
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.consensus.Mining
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain._

@@ -1,4 +1,4 @@
-package io.iohk.ethereum
+package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
 
@@ -13,7 +13,7 @@ import io.iohk.ethereum.domain.BlockHeader
 /** Provides everything related to consensus.
   * Different consensus protocols are implemented in sub-packages.
   */
-package object consensus {
+package object mining {
   final type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
   final type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 

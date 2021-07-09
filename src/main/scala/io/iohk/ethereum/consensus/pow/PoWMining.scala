@@ -11,9 +11,19 @@ import monix.eval.Task
 
 import scala.concurrent.duration._
 
-import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.Protocol
+import io.iohk.ethereum.consensus.mining.Protocol.AdditionalPoWProtocolData
+import io.iohk.ethereum.consensus.mining.Protocol.MockedPow
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.mining.Protocol.PoW
+import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoW
+import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
+import io.iohk.ethereum.consensus.mining.TestMining
+import io.iohk.ethereum.consensus.mining.wrongConsensusArgument
+import io.iohk.ethereum.consensus.mining.wrongValidatorsArgument
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
@@ -123,7 +133,7 @@ class PoWMining private (
   private[this] def stopMiningProcess(): Unit =
     sendMiner(MinerProtocol.StopMining)
 
-  /** This is used by the [[io.iohk.ethereum.consensus.Mining#blockGenerator blockGenerator]].
+  /** This is used by the [[Mining#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
@@ -198,8 +208,7 @@ class PoWMining private (
           difficultyCalculator
         )
 
-      case _ =>
-        wrongValidatorsArgument[ValidatorsExecutor](validators)
+      case _ => wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
 
   def withVM(vm: VMImpl): PoWMining =
