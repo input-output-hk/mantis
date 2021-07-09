@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import scala.util.Try
+import MessageDecoder._
 
 object NetworkMessageDecoder extends MessageDecoder {
 

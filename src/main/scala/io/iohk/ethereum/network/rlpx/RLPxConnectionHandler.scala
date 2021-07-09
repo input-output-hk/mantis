@@ -19,6 +19,7 @@ import org.bouncycastle.util.encoders.Hex
 
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.MessageDecoder._
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.NetworkMessageDecoder
 import io.iohk.ethereum.network.p2p.messages.Capability
@@ -255,11 +256,11 @@ class RLPxConnectionHandler(
         messagesSoFar.foreach(processMessage)
       }
 
-    def processMessage(messageTry: Try[Message]): Unit = messageTry match {
-      case Success(message) =>
+    def processMessage(messageTry: Either[DecodingError, Message]): Unit = messageTry match {
+      case Right(message) =>
         context.parent ! MessageReceived(message)
 
-      case Failure(ex) =>
+      case Left(ex) =>
         log.info("Cannot decode message from {}, because of {}", peerId, ex.getMessage)
         // break connection in case of failed decoding, to avoid attack which would send us garbage
         context.stop(self)
@@ -450,8 +451,10 @@ object RLPxConnectionHandler {
     private def extractHello(frame: Frame): Option[Hello] = {
       val frameData = frame.payload.toArray
       if (frame.`type` == Hello.code) {
-        val m = NetworkMessageDecoder.fromBytesUnsafe(frame.`type`, frameData)
-        Some(m.asInstanceOf[Hello])
+        NetworkMessageDecoder.fromBytes(frame.`type`, frameData) match {
+          case Left(err) => throw err // TODO: rethink throwing here
+          case Right(msg) => Some(msg.asInstanceOf[Hello])
+        }
       } else {
         None
       }

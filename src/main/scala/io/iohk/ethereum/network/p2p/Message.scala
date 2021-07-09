@@ -23,8 +23,7 @@ trait MessageSerializable extends Message {
 
 @FunctionalInterface
 trait MessageDecoder extends Logger { self =>
-
-  type DecodingError = Throwable // TODO: Replace Throwable with an ADT when feasible
+  import MessageDecoder._
 
   def fromBytes(`type`: Int, payload: Array[Byte]): Either[DecodingError, Message]
 
@@ -40,4 +39,8 @@ trait MessageDecoder extends Logger { self =>
         otherMessageDecoder.fromBytes(`type`, payload)
       }
   }
+}
+
+object MessageDecoder {
+  type DecodingError = Throwable // TODO: Replace Throwable with an ADT when feasible
 }

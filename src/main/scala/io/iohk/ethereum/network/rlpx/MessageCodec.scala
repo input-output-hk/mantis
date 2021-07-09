@@ -13,6 +13,7 @@ import org.xerial.snappy.Snappy
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageDecoder
+import io.iohk.ethereum.network.p2p.MessageDecoder.DecodingError
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 
@@ -32,12 +33,12 @@ class MessageCodec(
   val contextIdCounter = new AtomicInteger
 
   // TODO: ETCM-402 - messageDecoder should use negotiated protocol version
-  def readMessages(data: ByteString): Seq[Try[Message]] = {
+  def readMessages(data: ByteString): Seq[Either[DecodingError, Message]] = {
     val frames = frameCodec.readFrames(data)
     readFrames(frames)
   }
 
-  def readFrames(frames: Seq[Frame]): Seq[Try[Message]] =
+  def readFrames(frames: Seq[Frame]): Seq[Either[DecodingError, Message]] =
     frames.map { frame =>
       val frameData = frame.payload.toArray
       val payloadTry =
@@ -47,8 +48,8 @@ class MessageCodec(
           Success(frameData)
         }
 
-      payloadTry.map { payload =>
-        messageDecoder.fromBytesUnsafe(frame.`type`, payload)
+      payloadTry.toEither.flatMap { payload =>
+        messageDecoder.fromBytes(frame.`type`, payload)
       }
     }
 
