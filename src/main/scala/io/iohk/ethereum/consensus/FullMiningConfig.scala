@@ -1,6 +1,6 @@
 package io.iohk.ethereum.consensus
 
-case class FullConsensusConfig[C <: AnyRef /*Product*/ ](
+case class FullMiningConfig[C <: AnyRef /*Product*/ ](
     generic: MiningConfig,
     specific: C
 ) {

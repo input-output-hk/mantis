@@ -43,7 +43,7 @@ class PoWMining private (
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     val blockchainConfig: BlockchainConfig,
-    val config: FullConsensusConfig[EthashConfig],
+    val config: FullMiningConfig[EthashConfig],
     val validators: ValidatorsExecutor,
     val blockGenerator: PoWBlockGenerator,
     val difficultyCalculator: DifficultyCalculator
@@ -239,7 +239,7 @@ object PoWMining {
       blockchain: BlockchainImpl,
       blockchainReader: BlockchainReader,
       blockchainConfig: BlockchainConfig,
-      config: FullConsensusConfig[EthashConfig],
+      config: FullMiningConfig[EthashConfig],
       validators: ValidatorsExecutor,
       additionalEthashProtocolData: AdditionalPoWProtocolData
   ): PoWMining = {

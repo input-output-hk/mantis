@@ -19,14 +19,14 @@ import io.iohk.ethereum.nodebuilder.Node
   */
 trait Mining {
 
-  /** The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific specific]]
+  /** The type of configuration [[io.iohk.ethereum.consensus.FullMiningConfig#specific specific]]
     * to this consensus protocol implementation.
     */
   type Config <: AnyRef /*Product*/
 
   def protocol: Protocol
 
-  def config: FullConsensusConfig[Config]
+  def config: FullMiningConfig[Config]
 
   /** This is the VM used while preparing and generating blocks.
     */

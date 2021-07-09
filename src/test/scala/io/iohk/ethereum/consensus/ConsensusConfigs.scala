@@ -28,5 +28,5 @@ object ConsensusConfigs {
     miningEnabled = false
   )
 
-  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(miningConfig, ethashConfig)
+  final val fullMiningConfig: FullMiningConfig[EthashConfig] = FullMiningConfig(miningConfig, ethashConfig)
 }

@@ -47,7 +47,7 @@ class TestmodeConsensus(
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.PoW
-  override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](miningConfig, "")
+  override def config: FullMiningConfig[AnyRef] = FullMiningConfig[AnyRef](miningConfig, "")
 
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {

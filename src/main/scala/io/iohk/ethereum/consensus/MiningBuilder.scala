@@ -29,8 +29,8 @@ trait StdMiningBuilder extends MiningBuilder {
 
   private lazy val mantisConfig = Config.config
 
-  private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
-    FullConsensusConfig(miningConfig, c)
+  private def newConfig[C <: AnyRef](c: C): FullMiningConfig[C] =
+    FullMiningConfig(miningConfig, c)
 
   //TODO [ETCM-397] refactor configs to avoid possibility of running mocked or
   // restricted-pow consensus on real network like ETC or Mordor

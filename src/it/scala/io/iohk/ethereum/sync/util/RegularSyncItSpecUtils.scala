@@ -27,7 +27,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.FullConsensusConfig
+import io.iohk.ethereum.consensus.FullMiningConfig
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow
@@ -65,7 +65,7 @@ object RegularSyncItSpecUtils {
     def buildEthashConsensus(): pow.PoWMining = {
       val miningConfig: MiningConfig = MiningConfig(Config.config)
       val specificConfig: EthashConfig = pow.EthashConfig(config)
-      val fullConfig = FullConsensusConfig(miningConfig, specificConfig)
+      val fullConfig = FullMiningConfig(miningConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
       val consensus =
         PoWMining(

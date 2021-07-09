@@ -12,7 +12,7 @@ import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ConsensusConfigs
 import io.iohk.ethereum.consensus.ConsensusConfigs.ethashConfig
-import io.iohk.ethereum.consensus.FullConsensusConfig
+import io.iohk.ethereum.consensus.FullMiningConfig
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.Protocol.RestrictedPoWMinerData
@@ -37,7 +37,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      ConsensusConfigs.fullConsensusConfig,
+      ConsensusConfigs.fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )
@@ -54,7 +54,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      ConsensusConfigs.fullConsensusConfig,
+      ConsensusConfigs.fullMiningConfig,
       validator,
       RestrictedPoWMinerData(key)
     )
@@ -64,7 +64,7 @@ class PoWMiningSpec
 
   it should "not start a miner when miningEnabled=false" in new TestSetup {
     val configNoMining = miningConfig.copy(miningEnabled = false)
-    val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
+    val fullMiningConfig = FullMiningConfig(configNoMining, ethashConfig)
 
     val powMining = PoWMining(
       vm,
@@ -72,7 +72,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      fullConsensusConfig,
+      fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )
@@ -84,7 +84,7 @@ class PoWMiningSpec
 
   it should "start only one mocked miner when miner protocol is MockedPow" in new TestSetup {
     val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.MockedPow)
-    val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
+    val fullMiningConfig = FullMiningConfig(configNoMining, ethashConfig)
 
     val powMining = PoWMining(
       vm,
@@ -92,7 +92,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      fullConsensusConfig,
+      fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )
@@ -104,7 +104,7 @@ class PoWMiningSpec
 
   it should "start only the normal miner when miner protocol is PoW" in new TestSetup {
     val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.PoW)
-    val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
+    val fullMiningConfig = FullMiningConfig(configNoMining, ethashConfig)
 
     val powMining = PoWMining(
       vm,
@@ -112,7 +112,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      fullConsensusConfig,
+      fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )
@@ -124,7 +124,7 @@ class PoWMiningSpec
 
   it should "start only the normal miner when miner protocol is RestrictedPoW" in new TestSetup {
     val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.RestrictedPoW)
-    val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
+    val fullMiningConfig = FullMiningConfig(configNoMining, ethashConfig)
 
     val powMining = PoWMining(
       vm,
@@ -132,7 +132,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      fullConsensusConfig,
+      fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )

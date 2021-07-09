@@ -19,7 +19,7 @@ import org.scalamock.scalatest.MockFactory
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.MiningConfigBuilder
-import io.iohk.ethereum.consensus.FullConsensusConfig
+import io.iohk.ethereum.consensus.FullMiningConfig
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
@@ -83,7 +83,7 @@ trait MinerSpecSetup extends MiningConfigBuilder with MockFactory {
     val mantisConfig = Config.config
     val specificConfig = EthashConfig(mantisConfig)
 
-    val fullConfig = FullConsensusConfig(miningConfig, specificConfig)
+    val fullConfig = FullMiningConfig(miningConfig, specificConfig)
 
     val validators = ValidatorsExecutor(blockchainConfig, miningConfig.protocol)
 
