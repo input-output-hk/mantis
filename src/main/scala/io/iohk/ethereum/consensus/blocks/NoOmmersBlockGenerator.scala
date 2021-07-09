@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.blocks
 
 import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
@@ -46,7 +46,7 @@ abstract class NoOmmersBlockGenerator(
       beneficiary: Address,
       x: Nil.type,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.NoOmmersBlockGeneratorTiming.record { () =>
+  ): PendingBlockAndState = MiningMetrics.NoOmmersBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
 

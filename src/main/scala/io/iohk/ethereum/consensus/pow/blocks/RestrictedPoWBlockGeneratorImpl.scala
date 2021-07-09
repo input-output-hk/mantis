@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus.pow.blocks
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
@@ -46,7 +46,7 @@ class RestrictedPoWBlockGeneratorImpl(
       beneficiary: Address,
       ommers: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
+  ): PendingBlockAndState = MiningMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash

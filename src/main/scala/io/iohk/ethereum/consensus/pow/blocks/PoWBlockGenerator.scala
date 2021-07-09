@@ -5,7 +5,7 @@ import java.util.function.UnaryOperator
 import akka.util.ByteString
 
 import io.iohk.ethereum.consensus.MiningConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
+import io.iohk.ethereum.consensus.MiningMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -59,7 +59,7 @@ class PoWBlockGeneratorImpl(
   def emptyX: Ommers = Nil
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] =
-    ConsensusMetrics.MinedBlockEvaluationTimer.record { () =>
+    MiningMetrics.MinedBlockEvaluationTimer.record { () =>
       cache
         .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
           override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
@@ -79,7 +79,7 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       x: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.PoWBlockGeneratorTiming.record { () =>
+  ): PendingBlockAndState = MiningMetrics.PoWBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
