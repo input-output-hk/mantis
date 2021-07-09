@@ -89,7 +89,7 @@ in
       dependsOn = [ compile ];
       label = "unit tests";
       command = ''
-        nix-shell --run '$SBT coverage test'
+        nix-shell --run '$SBT coverage test || $SBT testQuick'
       '';
       artifactPaths = [
         "target/test-reports/**/*"
