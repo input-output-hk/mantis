@@ -27,11 +27,6 @@ trait MessageDecoder extends Logger { self =>
 
   def fromBytes(`type`: Int, payload: Array[Byte]): Either[DecodingError, Message]
 
-  def fromBytesUnsafe(`type`: Int, payload: Array[Byte]): Message = self.fromBytes(`type`, payload) match {
-    case Left(err) => throw err
-    case Right(res) => res
-  }
-
   def orElse(otherMessageDecoder: MessageDecoder): MessageDecoder = new MessageDecoder {
     override def fromBytes(`type`: Int, payload: Array[Byte]): Either[DecodingError, Message] =
     self.fromBytes(`type`, payload).leftFlatMap { err =>

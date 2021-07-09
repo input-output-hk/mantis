@@ -176,7 +176,7 @@ class MessagesSerializationSpec extends AnyWordSpec with ScalaCheckPropertyCheck
   //scalastyle:on
 
   def verify[T](msg: T, encode: T => Array[Byte], code: Int, version: Capability): Unit =
-    messageDecoder(version).fromBytesUnsafe(code, encode(msg)) shouldEqual msg
+    messageDecoder(version).fromBytes(code, encode(msg)) shouldEqual Right(msg)
 
   private def messageDecoder(version: Capability) =
     NetworkMessageDecoder.orElse(EthereumMessageDecoder.ethMessageDecoder(version))

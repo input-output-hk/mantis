@@ -46,7 +46,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
         )
       )
     )
-    NetworkMessageDecoder.fromBytesUnsafe(WireProtocol.Hello.code, helloBytes) shouldBe hello
+    NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes) shouldBe Right(hello)
   }
 
   it should "decode NewBlockHashes message for all supported versions of protocol" in {
