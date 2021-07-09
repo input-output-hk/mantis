@@ -107,7 +107,7 @@ class EthMiningService(
           log.error("Getting current best block failed")
           Task.now(Left(JsonRpcError.InternalError))
       }
-    }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
+    }(Task.now(Left(JsonRpcError.MiningIsNotEthash)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
     mining.ifEthash[ServiceResponse[SubmitWorkResponse]] { ethash =>
@@ -124,7 +124,7 @@ class EthMiningService(
             Right(SubmitWorkResponse(false))
         }
       }
-    }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
+    }(Task.now(Left(JsonRpcError.MiningIsNotEthash)))
 
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
     Task.now(Right(GetCoinbaseResponse(miningConfig.coinbase)))
@@ -171,6 +171,6 @@ class EthMiningService(
 
   private[jsonrpc] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] =
     mining.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
-      Task.now(Left(JsonRpcError.ConsensusIsNotEthash))
+      Task.now(Left(JsonRpcError.MiningIsNotEthash))
     )
 }

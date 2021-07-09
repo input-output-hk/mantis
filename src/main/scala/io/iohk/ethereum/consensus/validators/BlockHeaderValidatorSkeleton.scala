@@ -25,7 +25,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
   private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator(blockchainConfig)
 
-  /** The difficulty calculator. This is specific to the consensus protocol.
+  /** The difficulty calculator. This is specific to the mining protocol.
     */
   protected def difficulty: DifficultyCalculator
 

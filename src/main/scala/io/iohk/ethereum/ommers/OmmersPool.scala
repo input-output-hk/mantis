@@ -68,7 +68,7 @@ object OmmersPool {
     * @param ommerGenerationLimit should be === 6
     * @param returnedOmmersSizeLimit should be === 2
     *
-    * ^ Probably not worthy but those params could be placed in consensus config.
+    * Probably not worthy but those params could be placed in mining config.
     */
   def props(
       blockchainReader: BlockchainReader,

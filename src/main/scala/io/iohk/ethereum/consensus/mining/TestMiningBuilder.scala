@@ -4,11 +4,10 @@ import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Logger
 
-/** A [[MiningBuilder ConsensusBuilder]] that builds a
-  * [[TestMining TestConsensus]]
+/** A [[MiningBuilder]] that builds a [[TestMining]]
   */
 trait TestMiningBuilder { self: StdMiningBuilder =>
-  protected def buildTestConsensus(): TestMining =
+  protected def buildTestMining(): TestMining =
     buildMining().asInstanceOf[TestMining] // we are in tests, so if we get an exception, so be it
 }
 

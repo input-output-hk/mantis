@@ -8,12 +8,12 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
-/** Provides generic consensus configuration. Each consensus protocol implementation
+/** Provides generic mining configuration. Each consensus protocol implementation
   * will use its own specific configuration as well.
   *
-  * @param protocol Designates the consensus protocol.
+  * @param protocol Designates the mining protocol.
   * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
-  *                      specific consensus protocol implementation.
+  *                      specific mining protocol implementation.
   */
 final case class MiningConfig(
     protocol: Protocol,
@@ -45,10 +45,10 @@ object MiningConfig extends Logger {
       " but it should be one of " +
       AllowedProtocols.map("'" + _ + "'").mkString(",")
 
-  private def readProtocol(consensusConfig: TypesafeConfig): Protocol = {
-    val protocol = consensusConfig.getString(Keys.Protocol)
+  private def readProtocol(miningConfig: TypesafeConfig): Protocol = {
+    val protocol = miningConfig.getString(Keys.Protocol)
 
-    // If the consensus protocol is not a known one, then it is a fatal error
+    // If the mining protocol is not a known one, then it is a fatal error
     // and the application must exit.
     if (!AllowedProtocols(protocol)) {
       val error = AllowedProtocolsError(protocol)

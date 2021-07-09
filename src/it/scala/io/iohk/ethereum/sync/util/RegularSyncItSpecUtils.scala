@@ -63,12 +63,12 @@ object RegularSyncItSpecUtils {
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
-    def buildEthashConsensus(): pow.PoWMining = {
+    def buildEthashMining(): pow.PoWMining = {
       val miningConfig: MiningConfig = MiningConfig(Config.config)
       val specificConfig: EthashConfig = pow.EthashConfig(config)
       val fullConfig = FullMiningConfig(miningConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
-      val consensus =
+      val mining =
         PoWMining(
           vm,
           storagesInstance.storages.evmCodeStorage,
@@ -79,7 +79,7 @@ object RegularSyncItSpecUtils {
           ValidatorsExecutorAlwaysSucceed,
           NoAdditionalPoWData
         )
-      consensus
+      mining
     }
 
     lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
@@ -89,7 +89,7 @@ object RegularSyncItSpecUtils {
         "peers-client"
       )
 
-    lazy val mining: PoWMining = buildEthashConsensus()
+    lazy val mining: PoWMining = buildEthashMining()
 
     lazy val blockQueue: BlockQueue = BlockQueue(bl, blockchainReader, syncConfig)
     lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
@@ -121,7 +121,7 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
-    lazy val validators: ValidatorsExecutor = buildEthashConsensus().validators
+    lazy val validators: ValidatorsExecutor = buildEthashMining().validators
 
     val broadcasterRef: ActorRef = system.actorOf(
       BlockBroadcasterActor

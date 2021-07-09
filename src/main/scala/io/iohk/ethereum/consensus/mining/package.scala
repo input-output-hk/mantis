@@ -11,15 +11,15 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 
 /** Provides everything related to consensus.
-  * Different consensus protocols are implemented in sub-packages.
+  * Different mining protocols are implemented in sub-packages.
   */
 package object mining {
   final type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
   final type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 
-  def wrongConsensusArgument[T <: Mining: ClassTag](mining: Mining): Nothing = {
+  def wrongMiningArgument[T <: Mining: ClassTag](mining: Mining): Nothing = {
     val requiredClass = implicitly[ClassTag[T]].runtimeClass
-    val msg = s"Consensus is of ${mining.getClass} it should be of $requiredClass"
+    val msg = s"Mining is of ${mining.getClass} it should be of $requiredClass"
     throw new IllegalArgumentException(msg)
   }
 
@@ -37,7 +37,7 @@ package object mining {
 
   implicit final class RichMining(val mining: Mining) extends AnyVal {
 
-    /** There are APIs that expect that the standard Ethash consensus is running and so depend
+    /** There are APIs that expect that the standard Ethash mining is running and so depend
       * on either its configuration or general PoW semantics.
       * This is a method that can handle such cases via a respective if/then/else construct:
       * if we run under [[io.iohk.ethereum.consensus.pow.PoWMining EthashConsensus]]

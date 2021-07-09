@@ -67,7 +67,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     .returns(null)
     .anyNumberOfTimes()
 
-  override lazy val mining: TestMining = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestMining()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)
 

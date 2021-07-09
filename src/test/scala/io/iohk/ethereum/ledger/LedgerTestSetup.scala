@@ -280,7 +280,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   override lazy val vm: VMImpl = new VMImpl
 
   // Make type more specific
-  override lazy val mining: TestMining = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestMining()
   //- cake overrides
 
   val blockQueue: BlockQueue

@@ -244,10 +244,10 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
       val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
 
-      val testConsensus = newTestMining(vm = mockVM)
+      val testMining = newTestMining(vm = mockVM)
 
       val txResult =
-        testConsensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
+        testMining.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
     }

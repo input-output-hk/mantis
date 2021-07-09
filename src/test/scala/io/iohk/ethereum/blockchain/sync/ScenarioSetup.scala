@@ -51,11 +51,10 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
-    * @note We use the refined type [[TestMining TestConsensus]]
-    *       instead of just [[Mining Consensus]].
+    * @note We use the refined type [[TestMining]] instead of just [[Mining]].
     * @note If you override this, consensus will pick up automatically.
     */
-  override lazy val mining: TestMining = buildTestConsensus().withValidators(validators).withVM(vm)
+  override lazy val mining: TestMining = buildTestMining().withValidators(validators).withVM(vm)
 
   /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.

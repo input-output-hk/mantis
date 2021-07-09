@@ -128,18 +128,18 @@ class EthMiningServiceSpec
   }
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    val testConsensus = buildTestConsensus()
+    val testMining = buildTestMining()
     override lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       miningConfig = miningConfig,
-      blockPreparator = testConsensus.blockPreparator,
+      blockPreparator = testMining.blockPreparator,
       difficultyCalc,
       minerKey
     )
-    override lazy val mining: TestMining = testConsensus.withBlockGenerator(restrictedGenerator)
+    override lazy val mining: TestMining = testMining.withBlockGenerator(restrictedGenerator)
 
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -233,7 +233,7 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    override lazy val mining: TestMining = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
     override lazy val miningConfig = MiningConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()

@@ -22,7 +22,7 @@ import io.iohk.ethereum.consensus.mining.Protocol.PoW
 import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoW
 import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
 import io.iohk.ethereum.consensus.mining.TestMining
-import io.iohk.ethereum.consensus.mining.wrongConsensusArgument
+import io.iohk.ethereum.consensus.mining.wrongMiningArgument
 import io.iohk.ethereum.consensus.mining.wrongValidatorsArgument
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
@@ -137,7 +137,7 @@ class PoWMining private (
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
-  /** Starts the consensus protocol on the current `node`.
+  /** Starts the mining protocol on the current `node`.
     */
   def startProtocol(node: Node): Unit =
     if (config.miningEnabled) {
@@ -150,7 +150,7 @@ class PoWMining private (
             mining = mining,
             ommersPool = node.ommersPool
           )
-        case mining => wrongConsensusArgument[PoWMining](mining)
+        case mining => wrongMiningArgument[PoWMining](mining)
       }
 
       startMiningProcess(node, blockCreator)

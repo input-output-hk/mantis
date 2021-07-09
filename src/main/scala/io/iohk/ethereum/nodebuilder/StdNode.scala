@@ -17,7 +17,7 @@ import io.iohk.ethereum.testmode.TestModeServiceBuilder
 import io.iohk.ethereum.testmode.TestmodeMiningBuilder
 import io.iohk.ethereum.utils.Config
 
-/** A standard node is everything Ethereum prescribes except the consensus algorithm,
+/** A standard node is everything Ethereum prescribes except the mining algorithm,
   * which is plugged in dynamically.
   *
   * The design is historically related to the initial cake-pattern-based
@@ -35,7 +35,7 @@ abstract class BaseNode extends Node {
 
   private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
-  private[this] def startConsensus(): Unit = mining.startProtocol(this)
+  private[this] def startMining(): Unit = mining.startProtocol(this)
 
   private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
 
@@ -70,7 +70,7 @@ abstract class BaseNode extends Node {
 
     startSyncController()
 
-    startConsensus()
+    startMining()
 
     startDiscoveryManager()
 

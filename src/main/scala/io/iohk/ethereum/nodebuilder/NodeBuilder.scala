@@ -878,7 +878,7 @@ trait GenesisDataLoaderBuilder {
     )
 }
 
-/** Provides the basic functionality of a Node, except the consensus algorithm.
+/** Provides the basic functionality of a Node, except the mining algorithm.
   * The latter is loaded dynamically based on configuration.
   *
   * @see [[MiningBuilder ConsensusBuilder]],

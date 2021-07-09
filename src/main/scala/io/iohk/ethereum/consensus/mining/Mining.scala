@@ -20,7 +20,7 @@ import io.iohk.ethereum.nodebuilder.Node
 trait Mining {
 
   /** The type of configuration [[FullMiningConfig#specific specific]]
-    * to this consensus protocol implementation.
+    * to this mining protocol implementation.
     */
   type Config <: AnyRef /*Product*/
 
@@ -32,7 +32,7 @@ trait Mining {
     */
   def vm: VMImpl
 
-  /** Provides the set of validators specific to this consensus protocol.
+  /** Provides the set of validators specific to this mining protocol.
     */
   def validators: Validators
 
@@ -41,17 +41,17 @@ trait Mining {
   def blockPreparator: BlockPreparator
 
   /** Returns the [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]]
-    * this consensus protocol uses.
+    * this mining protocol uses.
     */
   def blockGenerator: BlockGenerator
 
   def difficultyCalculator: DifficultyCalculator
 
-  /** Starts the consensus protocol on the current `node`.
+  /** Starts the mining protocol on the current `node`.
     */
   def startProtocol(node: Node): Unit
 
-  /** Stops the consensus protocol on the current node.
+  /** Stops the mining protocol on the current node.
     * This is called internally when the node terminates.
     */
   def stopProtocol(): Unit
@@ -68,9 +68,9 @@ trait Mining {
 /** Internal API, used for testing.
   *
   * This is a [[Mining]] API for the needs of the test suites.
-  * It gives a lot of flexibility overriding parts of a consensus' behavior
+  * It gives a lot of flexibility overriding parts of Mining' behavior
   * but it is the developer's responsibility to maintain consistency (though the
-  * particular consensus protocols we implement so far do their best
+  * particular mining protocols we implement so far do their best
   * in that direction).
   */
 trait TestMining extends Mining {
