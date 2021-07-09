@@ -60,7 +60,7 @@ import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeServiceBuilder
-import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
+import io.iohk.ethereum.testmode.TestmodeMiningBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -440,7 +440,7 @@ trait TestServiceBuilder {
     with MiningConfigBuilder
     with BlockchainConfigBuilder
     with VmBuilder
-    with TestmodeConsensusBuilder
+    with TestmodeMiningBuilder
     with TestModeServiceBuilder
     with StorageBuilder =>
 
