@@ -452,7 +452,7 @@ object RLPxConnectionHandler {
       val frameData = frame.payload.toArray
       if (frame.`type` == Hello.code) {
         NetworkMessageDecoder.fromBytes(frame.`type`, frameData) match {
-          case Left(err) => throw err // TODO: rethink throwing here
+          case Left(err)  => throw err // TODO: rethink throwing here
           case Right(msg) => Some(msg.asInstanceOf[Hello])
         }
       } else {

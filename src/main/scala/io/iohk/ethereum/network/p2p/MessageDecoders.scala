@@ -1,5 +1,7 @@
 package io.iohk.ethereum.network.p2p
 
+import scala.util.Try
+
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
@@ -18,7 +20,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
-import scala.util.Try
+
 import MessageDecoder._
 
 object NetworkMessageDecoder extends MessageDecoder {

@@ -22,7 +22,7 @@ trait MessageDecoder extends Logger { self =>
 
   def orElse(otherMessageDecoder: MessageDecoder): MessageDecoder = new MessageDecoder {
     override def fromBytes(`type`: Int, payload: Array[Byte]): Either[DecodingError, Message] =
-    self.fromBytes(`type`, payload).leftFlatMap { err =>
+      self.fromBytes(`type`, payload).leftFlatMap { err =>
         log.debug(err.getLocalizedMessage())
         otherMessageDecoder.fromBytes(`type`, payload)
       }
