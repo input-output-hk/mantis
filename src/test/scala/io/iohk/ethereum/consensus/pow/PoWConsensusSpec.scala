@@ -31,7 +31,7 @@ class PoWConsensusSpec
     with Matchers {
 
   "PoWConsensus" should "use NoAdditionalPoWData block generator for PoWBlockGeneratorImpl" in new TestSetup {
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       storagesInstance.storages.evmCodeStorage,
       blockchain,
@@ -48,7 +48,7 @@ class PoWConsensusSpec
   it should "use RestrictedPoWBlockGeneratorImpl block generator for RestrictedPoWMinerData" in new TestSetup {
     val key = mock[AsymmetricCipherKeyPair]
 
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
@@ -66,7 +66,7 @@ class PoWConsensusSpec
     val configNoMining = consensusConfig.copy(miningEnabled = false)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
@@ -86,7 +86,7 @@ class PoWConsensusSpec
     val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.MockedPow)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
@@ -106,7 +106,7 @@ class PoWConsensusSpec
     val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.PoW)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
@@ -126,7 +126,7 @@ class PoWConsensusSpec
     val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.RestrictedPoW)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
-    val powConsensus = PoWConsensus(
+    val powConsensus = PoWMining(
       vm,
       evmCodeStorage,
       blockchain,

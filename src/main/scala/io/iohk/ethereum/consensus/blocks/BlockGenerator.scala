@@ -17,7 +17,7 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 trait BlockGenerator {
 
   /** The type of consensus-specific data used in the block generation process.
-    * For example, under [[io.iohk.ethereum.consensus.pow.PoWConsensus EthashConsensus]],
+    * For example, under [[io.iohk.ethereum.consensus.pow.PoWMining EthashConsensus]],
     * this represents the [[io.iohk.ethereum.domain.BlockBody#uncleNodesList ommers]].
     */
   type X

@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus
 
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.Protocol.RestrictedPoWMinerData
-import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.Config
@@ -16,7 +16,7 @@ trait ConsensusBuilder {
   * This is done dynamically when Mantis boots, based on its configuration.
   *
   * @see [[io.iohk.ethereum.consensus.Mining Consensus]],
-  *      [[io.iohk.ethereum.consensus.pow.PoWConsensus PoWConsensus]],
+  *      [[io.iohk.ethereum.consensus.pow.PoWMining PoWConsensus]],
   */
 trait StdConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder
@@ -34,7 +34,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
 
   //TODO [ETCM-397] refactor configs to avoid possibility of running mocked or
   // restricted-pow consensus on real network like ETC or Mordor
-  protected def buildPoWConsensus(): pow.PoWConsensus = {
+  protected def buildPoWConsensus(): pow.PoWMining = {
     val specificConfig = pow.EthashConfig(mantisConfig)
 
     val fullConfig = newConfig(specificConfig)
@@ -46,7 +46,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
       case Protocol.RestrictedPoW            => RestrictedPoWMinerData(nodeKey)
     }
     val consensus =
-      PoWConsensus(
+      PoWMining(
         vm,
         storagesInstance.storages.evmCodeStorage,
         blockchain,

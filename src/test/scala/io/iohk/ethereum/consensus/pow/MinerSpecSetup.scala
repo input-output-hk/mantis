@@ -71,7 +71,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     chainId = 0x3d.toByte
   )
 
-  lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
+  lazy val mining: PoWMining = buildPoWConsensus().withBlockGenerator(blockGenerator)
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
   lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
@@ -79,7 +79,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   protected def getParentBlock(parentBlockNumber: Int): Block =
     origin.copy(header = origin.header.copy(number = parentBlockNumber))
 
-  def buildPoWConsensus(): PoWConsensus = {
+  def buildPoWConsensus(): PoWMining = {
     val mantisConfig = Config.config
     val specificConfig = EthashConfig(mantisConfig)
 
@@ -88,7 +88,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
-    PoWConsensus(
+    PoWMining(
       vm,
       evmCodeStorage,
       blockchain,

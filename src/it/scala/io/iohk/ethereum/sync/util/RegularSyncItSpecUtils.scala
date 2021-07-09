@@ -32,7 +32,7 @@ import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow
 import io.iohk.ethereum.consensus.pow.EthashConfig
-import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
@@ -62,13 +62,13 @@ object RegularSyncItSpecUtils {
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
-    def buildEthashConsensus(): pow.PoWConsensus = {
+    def buildEthashConsensus(): pow.PoWMining = {
       val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)
       val specificConfig: EthashConfig = pow.EthashConfig(config)
       val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
       val consensus =
-        PoWConsensus(
+        PoWMining(
           vm,
           storagesInstance.storages.evmCodeStorage,
           bl,
@@ -88,10 +88,10 @@ object RegularSyncItSpecUtils {
         "peers-client"
       )
 
-    lazy val consensus: PoWConsensus = buildEthashConsensus()
+    lazy val mining: PoWMining = buildEthashConsensus()
 
     lazy val blockQueue: BlockQueue = BlockQueue(bl, blockchainReader, syncConfig)
-    lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
+    lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
     lazy val blockExecution =
       new BlockExecution(
         bl,
@@ -99,7 +99,7 @@ object RegularSyncItSpecUtils {
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
     lazy val blockImport: BlockImport =

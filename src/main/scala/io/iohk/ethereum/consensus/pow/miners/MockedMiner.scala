@@ -14,7 +14,7 @@ import scala.concurrent.duration._
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.PoWBlockCreator
-import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlock
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
@@ -135,11 +135,11 @@ object MockedMiner {
 
   def apply(node: Node): ActorRef =
     node.mining match {
-      case consensus: PoWConsensus =>
+      case consensus: PoWMining =>
         val blockCreator = new PoWBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,
           getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
-          consensus = consensus,
+          mining = consensus,
           ommersPool = node.ommersPool
         )
         val minerProps = props(
@@ -150,7 +150,7 @@ object MockedMiner {
         )
         node.system.actorOf(minerProps)
       case consensus =>
-        wrongConsensusArgument[PoWConsensus](consensus)
+        wrongConsensusArgument[PoWMining](consensus)
     }
 
   // TODO to be removed in ETCM-773
