@@ -13,6 +13,8 @@ import scala.concurrent.duration._
 
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
+import org.scalatest.Outcome
+import org.scalatest.Retries
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
@@ -45,7 +47,8 @@ class BlockImporterItSpec
     with Matchers
     with BeforeAndAfterAll
     with Eventually
-    with NormalPatience {
+    with NormalPatience
+    with Retries {
 
   implicit val testScheduler: SchedulerService = Scheduler.fixedPool("test", 32)
 
@@ -53,6 +56,9 @@ class BlockImporterItSpec
     testScheduler.shutdown()
     testScheduler.awaitTermination(60.second)
   }
+
+  override def withFixture(test: NoArgTest): Outcome =
+    withRetry(super.withFixture(test))
 
   override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
 
