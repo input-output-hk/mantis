@@ -396,7 +396,7 @@ object RLPxConnectionHandler {
       negotiated: Capability,
       p2pVersion: Long
   ): MessageCodec = {
-    val md = EthereumMessageDecoder.ethMessageDecoder(negotiated).orElse(NetworkMessageDecoder)
+    val md = EthereumMessageDecoder.ethMessageDecoder(negotiated)
     new MessageCodec(frameCodec, md, p2pVersion)
   }
 

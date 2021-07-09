@@ -110,9 +110,9 @@ object EthereumMessageDecoder {
   type Decoder = (Int, Array[Byte]) => Message
   def ethMessageDecoder(protocolVersion: Capability): MessageDecoder =
     protocolVersion match {
-      case Capability.Capabilities.Etc64Capability => ETC64MessageDecoder.fromBytes
-      case Capability.Capabilities.Eth63Capability => ETH63MessageDecoder.fromBytes
-      case Capability.Capabilities.Eth64Capability => ETH64MessageDecoder.fromBytes
+      case Capability.Capabilities.Etc64Capability => ETC64MessageDecoder.orElse(NetworkMessageDecoder)
+      case Capability.Capabilities.Eth63Capability => ETH63MessageDecoder.orElse(NetworkMessageDecoder)
+      case Capability.Capabilities.Eth64Capability => ETH64MessageDecoder.orElse(NetworkMessageDecoder)
       case _                                       => throw new RuntimeException(s"Unsupported Protocol Version $protocolVersion")
     }
 }
