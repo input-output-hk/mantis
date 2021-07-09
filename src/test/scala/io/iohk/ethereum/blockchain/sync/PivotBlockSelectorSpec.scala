@@ -38,6 +38,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -587,6 +588,7 @@ class PivotBlockSelectorSpec
 
     val peer1Status: RemoteStatus =
       RemoteStatus(
+        ProtocolFamily.ETC,
         ProtocolVersions.ETC64.version,
         1,
         ChainWeight.totalDifficultyOnly(20),

@@ -19,6 +19,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
@@ -250,6 +251,7 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     val peerEventBusActor: ActorRef = system.actorOf(PeerEventBusActor.props)
 
     val peerStatus: RemoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),

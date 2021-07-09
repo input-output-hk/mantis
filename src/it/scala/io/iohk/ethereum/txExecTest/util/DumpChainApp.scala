@@ -42,11 +42,11 @@ import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.EtcHandshaker
 import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.AuthHandshakerBuilder
 import io.iohk.ethereum.nodebuilder.NodeKeyBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.utils.ServerStatus
@@ -119,7 +119,7 @@ object DumpChainApp
       override val blockchain: Blockchain = DumpChainApp.blockchain
       override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val capabilities: List[Capability] = blockchainConfig.capabilities
+      override val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)

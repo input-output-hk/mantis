@@ -49,6 +49,7 @@ import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.DisconnectEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
@@ -58,6 +59,7 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.utils.ServerStatus
@@ -430,6 +432,7 @@ class PeerActorSpec
   it should "stay connected to pre fork peer" in new TestSetup {
 
     val remoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = peerConf.networkId,
       chainWeight =
@@ -586,7 +589,7 @@ class PeerActorSpec
       override val blockchain: Blockchain = self.blockchain
       override val blockchainReader: BlockchainReader = self.blockchainReader
       override val appStateStorage: AppStateStorage = self.storagesInstance.storages.appStateStorage
-      override val capabilities: List[Capability] = List(protocol)
+      override val blockchainConfig: BlockchainConfig = self.blockchainConfig.copy(capabilities = List(protocol))
     }
 
     val handshaker: EtcHandshaker = EtcHandshaker(handshakerConfiguration)

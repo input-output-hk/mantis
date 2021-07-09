@@ -41,6 +41,7 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config
 
@@ -131,6 +132,7 @@ class StateSyncSpec
     val syncInit: TestProbe = TestProbe()
 
     val peerStatus: RemoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),

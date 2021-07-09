@@ -17,7 +17,7 @@ import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHash
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily._
 
 class BlockBroadcast(val etcPeerManager: ActorRef) {
 
@@ -45,10 +45,12 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
 
   private def broadcastNewBlock(blockToBroadcast: BlockToBroadcast, peers: Map[PeerId, PeerWithInfo]): Unit =
     obtainRandomPeerSubset(peers.values.map(_.peer).toSet).foreach { peer =>
-      val message: MessageSerializable =
-        if (peers(peer.id).peerInfo.remoteStatus.protocolVersion.toByte == ProtocolVersions.ETC64.version)
-          blockToBroadcast.as64
-        else blockToBroadcast.as63
+      val remoteStatus = peers(peer.id).peerInfo.remoteStatus
+
+      val message: MessageSerializable = remoteStatus.protocolFamily match {
+        case ETH => blockToBroadcast.as63
+        case ETC => blockToBroadcast.as64
+      }
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
 

@@ -1,5 +1,13 @@
 package io.iohk.ethereum.network.p2p
 
+package messages {
+  sealed trait ProtocolFamily
+  object ProtocolFamily {
+    final case object ETH extends ProtocolFamily
+    final case object ETC extends ProtocolFamily
+  }
+}
+
 package object messages {
   object ProtocolVersions {
     val ETH61: Capability = Capability("eth", 61.toByte)
