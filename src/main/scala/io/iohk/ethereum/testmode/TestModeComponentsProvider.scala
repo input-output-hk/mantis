@@ -86,8 +86,8 @@ class TestModeComponentsProvider(
       blockchainConfig: BlockchainConfig,
       sealEngine: SealEngineType,
       blockTimestamp: Long = 0
-  ): TestmodeConsensus =
-    new TestmodeConsensus(
+  ): TestmodeMining =
+    new TestmodeMining(
       vm,
       evmCodeStorage,
       blockchain,

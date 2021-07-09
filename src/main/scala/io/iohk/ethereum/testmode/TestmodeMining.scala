@@ -32,7 +32,7 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class TestmodeConsensus(
+class TestmodeMining(
     override val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
@@ -132,7 +132,7 @@ class TestmodeConsensus(
 trait TestmodeMiningBuilder extends MiningBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningConfigBuilder with StorageBuilder =>
 
-  override lazy val mining = new TestmodeConsensus(
+  override lazy val mining = new TestmodeMining(
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,
