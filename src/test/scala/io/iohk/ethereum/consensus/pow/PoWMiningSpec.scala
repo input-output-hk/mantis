@@ -10,8 +10,8 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.ConsensusConfigs.ethashConfig
+import io.iohk.ethereum.consensus.MiningConfigs
+import io.iohk.ethereum.consensus.MiningConfigs.ethashConfig
 import io.iohk.ethereum.consensus.FullMiningConfig
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
@@ -37,7 +37,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      ConsensusConfigs.fullMiningConfig,
+      MiningConfigs.fullMiningConfig,
       validator,
       NoAdditionalPoWData
     )
@@ -54,7 +54,7 @@ class PoWMiningSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      ConsensusConfigs.fullMiningConfig,
+      MiningConfigs.fullMiningConfig,
       validator,
       RestrictedPoWMinerData(key)
     )

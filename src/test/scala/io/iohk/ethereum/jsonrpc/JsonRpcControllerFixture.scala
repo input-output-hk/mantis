@@ -17,7 +17,7 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
+import io.iohk.ethereum.consensus.MiningConfigs
 import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
@@ -77,9 +77,9 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ommersPool: TestProbe = TestProbe()
   val filterManager: TestProbe = TestProbe()
 
-  val ethashConfig = ConsensusConfigs.ethashConfig
-  override lazy val miningConfig = ConsensusConfigs.miningConfig
-  val fullConsensusConfig = ConsensusConfigs.fullMiningConfig
+  val ethashConfig = MiningConfigs.ethashConfig
+  override lazy val miningConfig = MiningConfigs.miningConfig
+  val fullMiningConfig = MiningConfigs.fullMiningConfig
   val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
   val filterConfig: FilterConfig = new FilterConfig {

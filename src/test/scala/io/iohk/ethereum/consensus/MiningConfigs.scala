@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.domain.Address
 
 /** Provides utility values used throughout tests */
-object ConsensusConfigs {
+object MiningConfigs {
   final val blockCacheSize = 30
   final val coinbaseAddressNum = 42
   final val coinbase: Address = Address(coinbaseAddressNum)
