@@ -450,7 +450,7 @@ object RLPxConnectionHandler {
     private def extractHello(frame: Frame): Option[Hello] = {
       val frameData = frame.payload.toArray
       if (frame.`type` == Hello.code) {
-        val m = NetworkMessageDecoder.fromBytes(frame.`type`, frameData)
+        val m = NetworkMessageDecoder.fromBytesUnsafe(frame.`type`, frameData)
         Some(m.asInstanceOf[Hello])
       } else {
         None

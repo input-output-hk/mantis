@@ -46,7 +46,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
         )
       )
     )
-    NetworkMessageDecoder.fromBytes(WireProtocol.Hello.code, helloBytes) shouldBe hello
+    NetworkMessageDecoder.fromBytesUnsafe(WireProtocol.Hello.code, helloBytes) shouldBe hello
   }
 
   it should "decode NewBlockHashes message for all supported versions of protocol" in {
@@ -58,11 +58,11 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       ETH62.NewBlockHashes(Seq(ETH62.BlockHash(exampleHash, 1), ETH62.BlockHash(exampleHash, 2)))
 
     decode(ProtocolVersions.ETH63)
-      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe Right(newBlockHashesETH62)
     decode(ProtocolVersions.ETC64)
-      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe Right(newBlockHashesETH62)
     decode(ProtocolVersions.ETH64)
-      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe newBlockHashesETH62
+      .fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH62bytes) shouldBe Right(newBlockHashesETH62)
   }
 
   it should "not decode message from older version of protocol as newer version" in {
@@ -76,79 +76,79 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     decode(ProtocolVersions.ETH63).fromBytes(
       Codes.BlockHashesFromNumberCode,
       blockHashesFromNumberBytes
-    ) shouldBe blockHashesFromNumber
+    ) shouldBe Right(blockHashesFromNumber)
   }
 
   it should "decode GetBlockHeaders message for all supported versions of protocol" in {
     val getBlockHeaders = ETH62.GetBlockHeaders(Left(1), 1, 1, false)
     val getBlockHeadersBytes: Array[Byte] = getBlockHeaders.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe getBlockHeaders
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
   }
 
   it should "decode BlockHeaders message for all supported versions of protocol" in {
     val blockHeaders = ETH62.BlockHeaders(ObjectGenerators.seqBlockHeaderGen.sample.get)
     val blockHeadersBytes: Array[Byte] = blockHeaders.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe blockHeaders
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe Right(blockHeaders)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe Right(blockHeaders)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockHeadersCode, blockHeadersBytes) shouldBe Right(blockHeaders)
   }
 
   it should "decode GetBlockBodies message for all supported versions of protocol" in {
     val getBlockBodies = ETH62.GetBlockBodies(Seq(exampleHash))
     val getBlockBodiesBytes: Array[Byte] = getBlockBodies.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe getBlockBodies
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
   }
 
   it should "decode BlockBodies message for all supported versions of protocol" in {
     val blockBodies = ETH62.BlockBodies(Seq(Fixtures.Blocks.Block3125369.body, Fixtures.Blocks.DaoForkBlock.body))
     val blockBodiesBytes: Array[Byte] = blockBodies.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe blockBodies
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe Right(blockBodies)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe Right(blockBodies)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.BlockBodiesCode, blockBodiesBytes) shouldBe Right(blockBodies)
   }
 
   it should "decode GetNodeData message for all supported versions of protocol" in {
     val getNodeData = ETH63.GetNodeData(Seq(exampleHash))
     val getNodeDataBytes: Array[Byte] = getNodeData.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe getNodeData
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe Right(getNodeData)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe Right(getNodeData)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetNodeDataCode, getNodeDataBytes) shouldBe Right(getNodeData)
   }
 
   it should "decode NodeData message for all supported versions of protocol" in {
     val nodeData = ETH63.NodeData(Seq(exampleHash))
     val nodeDataBytes: Array[Byte] = nodeData.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe nodeData
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe Right(nodeData)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe Right(nodeData)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.NodeDataCode, nodeDataBytes) shouldBe Right(nodeData)
   }
 
   it should "decode GetReceipts message for all supported versions of protocol" in {
     val getReceipts = ETH63.GetReceipts(Seq(exampleHash))
     val getReceiptsBytes: Array[Byte] = getReceipts.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe getReceipts
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe Right(getReceipts)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe Right(getReceipts)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetReceiptsCode, getReceiptsBytes) shouldBe Right(getReceipts)
   }
 
   it should "decode Receipts message for all supported versions of protocol" in {
     val receipts = ETH63.Receipts(ObjectGenerators.receiptsGen(3).sample.get)
     val receiptsBytes: Array[Byte] = receipts.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe receipts
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe Right(receipts)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe Right(receipts)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.ReceiptsCode, receiptsBytes) shouldBe Right(receipts)
   }
 
   it should "decode Status message for all supported versions of protocol" in {
@@ -159,9 +159,9 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val statusEth64 =
       ETH64.Status(ProtocolVersions.ETH64.version, 1, BigInt(100), exampleHash, exampleHash, ForkId(1L, None))
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.StatusCode, status63Bytes) shouldBe status63
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.StatusCode, statusEth64.toBytes) shouldBe statusEth64
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.StatusCode, statusEtc64.toBytes) shouldBe statusEtc64
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.StatusCode, status63Bytes) shouldBe Right(status63)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.StatusCode, statusEth64.toBytes) shouldBe Right(statusEth64)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.StatusCode, statusEtc64.toBytes) shouldBe Right(statusEtc64)
   }
 
   it should "decode NewBlock message for all supported versions of protocol" in {
@@ -169,9 +169,9 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val newBlock63Bytes: Array[Byte] = newBlock63.toBytes
     val newBlock64 = ObjectGenerators.newBlock64Gen(secureRandom, None).sample.get
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe newBlock63
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe newBlock63
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.NewBlockCode, newBlock64.toBytes) shouldBe newBlock64
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe Right(newBlock63)
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.NewBlockCode, newBlock63Bytes) shouldBe Right(newBlock63)
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.NewBlockCode, newBlock64.toBytes) shouldBe Right(newBlock64)
   }
 
   it should "decode SignedTransactions message for all supported versions of protocol" in {
@@ -179,17 +179,16 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val signedTransactionsBytes: Array[Byte] = signedTransactions.toBytes
 
     decode(ProtocolVersions.ETH63)
-      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe Right(signedTransactions)
     decode(ProtocolVersions.ETH64)
-      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe Right(signedTransactions)
     decode(ProtocolVersions.ETC64)
-      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe signedTransactions
+      .fromBytes(Codes.SignedTransactionsCode, signedTransactionsBytes) shouldBe Right(signedTransactions)
   }
 
   it should "not decode message not existing in given protocol" in {
-    assertThrows[RuntimeException] {
-      decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes)
-    }
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a [Left[_, Message]]
+
   }
 
   it should "not decode message of not supported protocol" in {

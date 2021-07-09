@@ -48,7 +48,7 @@ class MessageCodec(
         }
 
       payloadTry.map { payload =>
-        messageDecoder.fromBytes(frame.`type`, payload)
+        messageDecoder.fromBytesUnsafe(frame.`type`, payload)
       }
     }
 

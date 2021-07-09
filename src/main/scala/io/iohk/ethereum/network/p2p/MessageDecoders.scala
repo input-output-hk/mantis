@@ -18,16 +18,17 @@ import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong._
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
+import scala.util.Try
 
 object NetworkMessageDecoder extends MessageDecoder {
 
-  override def fromBytes(msgCode: Int, payload: Array[Byte]): Message =
+  override def fromBytes(msgCode: Int, payload: Array[Byte]): Either[DecodingError, Message] =
     msgCode match {
-      case Disconnect.code => payload.toDisconnect
-      case Ping.code       => payload.toPing
-      case Pong.code       => payload.toPong
-      case Hello.code      => payload.toHello
-      case _               => throw new RuntimeException(s"Unknown network message type: $msgCode")
+      case Disconnect.code => Try(payload.toDisconnect).toEither
+      case Ping.code       => Try(payload.toPing).toEither
+      case Pong.code       => Try(payload.toPong).toEither
+      case Hello.code      => Try(payload.toHello).toEither
+      case _               => Left(new RuntimeException(s"Unknown network message type: $msgCode"))
     }
 
 }
@@ -36,22 +37,22 @@ object ETC64MessageDecoder extends MessageDecoder {
   import io.iohk.ethereum.network.p2p.messages.ETC64.Status._
   import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock._
 
-  def fromBytes(msgCode: Int, payload: Array[Byte]): Message =
+  def fromBytes(msgCode: Int, payload: Array[Byte]): Either[DecodingError, Message] =
     msgCode match {
-      case Codes.StatusCode                => payload.toStatus
-      case Codes.NewBlockCode              => payload.toNewBlock
-      case Codes.GetNodeDataCode           => payload.toGetNodeData
-      case Codes.NodeDataCode              => payload.toNodeData
-      case Codes.GetReceiptsCode           => payload.toGetReceipts
-      case Codes.ReceiptsCode              => payload.toReceipts
-      case Codes.NewBlockHashesCode        => payload.toNewBlockHashes
-      case Codes.GetBlockHeadersCode       => payload.toGetBlockHeaders
-      case Codes.BlockHeadersCode          => payload.toBlockHeaders
-      case Codes.GetBlockBodiesCode        => payload.toGetBlockBodies
-      case Codes.BlockBodiesCode           => payload.toBlockBodies
-      case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
-      case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown etc/64 message type: $msgCode")
+      case Codes.StatusCode                => Try(payload.toStatus).toEither
+      case Codes.NewBlockCode              => Try(payload.toNewBlock).toEither
+      case Codes.GetNodeDataCode           => Try(payload.toGetNodeData).toEither
+      case Codes.NodeDataCode              => Try(payload.toNodeData).toEither
+      case Codes.GetReceiptsCode           => Try(payload.toGetReceipts).toEither
+      case Codes.ReceiptsCode              => Try(payload.toReceipts).toEither
+      case Codes.NewBlockHashesCode        => Try(payload.toNewBlockHashes).toEither
+      case Codes.GetBlockHeadersCode       => Try(payload.toGetBlockHeaders).toEither
+      case Codes.BlockHeadersCode          => Try(payload.toBlockHeaders).toEither
+      case Codes.GetBlockBodiesCode        => Try(payload.toGetBlockBodies).toEither
+      case Codes.BlockBodiesCode           => Try(payload.toBlockBodies).toEither
+      case Codes.BlockHashesFromNumberCode => Try(payload.toBlockHashesFromNumber).toEither
+      case Codes.SignedTransactionsCode    => Try(payload.toSignedTransactions).toEither
+      case _                               => Left(new RuntimeException(s"Unknown etc/64 message type: $msgCode"))
     }
 }
 
@@ -59,22 +60,22 @@ object ETH64MessageDecoder extends MessageDecoder {
   import io.iohk.ethereum.network.p2p.messages.ETH64.Status._
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
 
-  def fromBytes(msgCode: Int, payload: Array[Byte]): Message =
+  def fromBytes(msgCode: Int, payload: Array[Byte]): Either[DecodingError, Message] =
     msgCode match {
-      case Codes.GetNodeDataCode           => payload.toGetNodeData
-      case Codes.NodeDataCode              => payload.toNodeData
-      case Codes.GetReceiptsCode           => payload.toGetReceipts
-      case Codes.ReceiptsCode              => payload.toReceipts
-      case Codes.NewBlockHashesCode        => payload.toNewBlockHashes
-      case Codes.GetBlockHeadersCode       => payload.toGetBlockHeaders
-      case Codes.BlockHeadersCode          => payload.toBlockHeaders
-      case Codes.GetBlockBodiesCode        => payload.toGetBlockBodies
-      case Codes.BlockBodiesCode           => payload.toBlockBodies
-      case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
-      case Codes.StatusCode                => payload.toStatus
-      case Codes.NewBlockCode              => payload.toNewBlock
-      case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown eth/64 message type: $msgCode")
+      case Codes.GetNodeDataCode           => Try(payload.toGetNodeData).toEither
+      case Codes.NodeDataCode              => Try(payload.toNodeData).toEither
+      case Codes.GetReceiptsCode           => Try(payload.toGetReceipts).toEither
+      case Codes.ReceiptsCode              => Try(payload.toReceipts).toEither
+      case Codes.NewBlockHashesCode        => Try(payload.toNewBlockHashes).toEither
+      case Codes.GetBlockHeadersCode       => Try(payload.toGetBlockHeaders).toEither
+      case Codes.BlockHeadersCode          => Try(payload.toBlockHeaders).toEither
+      case Codes.GetBlockBodiesCode        => Try(payload.toGetBlockBodies).toEither
+      case Codes.BlockBodiesCode           => Try(payload.toBlockBodies).toEither
+      case Codes.BlockHashesFromNumberCode => Try(payload.toBlockHashesFromNumber).toEither
+      case Codes.StatusCode                => Try(payload.toStatus).toEither
+      case Codes.NewBlockCode              => Try(payload.toNewBlock).toEither
+      case Codes.SignedTransactionsCode    => Try(payload.toSignedTransactions).toEither
+      case _                               => Left(new RuntimeException(s"Unknown eth/64 message type: $msgCode"))
     }
 }
 
@@ -82,22 +83,22 @@ object ETH63MessageDecoder extends MessageDecoder {
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status._
   import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock._
 
-  def fromBytes(msgCode: Int, payload: Array[Byte]): Message =
+  def fromBytes(msgCode: Int, payload: Array[Byte]): Either[DecodingError, Message] =
     msgCode match {
-      case Codes.GetNodeDataCode           => payload.toGetNodeData
-      case Codes.NodeDataCode              => payload.toNodeData
-      case Codes.GetReceiptsCode           => payload.toGetReceipts
-      case Codes.ReceiptsCode              => payload.toReceipts
-      case Codes.NewBlockHashesCode        => payload.toNewBlockHashes
-      case Codes.GetBlockHeadersCode       => payload.toGetBlockHeaders
-      case Codes.BlockHeadersCode          => payload.toBlockHeaders
-      case Codes.GetBlockBodiesCode        => payload.toGetBlockBodies
-      case Codes.BlockBodiesCode           => payload.toBlockBodies
-      case Codes.BlockHashesFromNumberCode => payload.toBlockHashesFromNumber
-      case Codes.StatusCode                => payload.toStatus
-      case Codes.NewBlockCode              => payload.toNewBlock
-      case Codes.SignedTransactionsCode    => payload.toSignedTransactions
-      case _                               => throw new RuntimeException(s"Unknown eth/63 message type: $msgCode")
+      case Codes.GetNodeDataCode           => Try(payload.toGetNodeData).toEither
+      case Codes.NodeDataCode              => Try(payload.toNodeData).toEither
+      case Codes.GetReceiptsCode           => Try(payload.toGetReceipts).toEither
+      case Codes.ReceiptsCode              => Try(payload.toReceipts).toEither
+      case Codes.NewBlockHashesCode        => Try(payload.toNewBlockHashes).toEither
+      case Codes.GetBlockHeadersCode       => Try(payload.toGetBlockHeaders).toEither
+      case Codes.BlockHeadersCode          => Try(payload.toBlockHeaders).toEither
+      case Codes.GetBlockBodiesCode        => Try(payload.toGetBlockBodies).toEither
+      case Codes.BlockBodiesCode           => Try(payload.toBlockBodies).toEither
+      case Codes.BlockHashesFromNumberCode => Try(payload.toBlockHashesFromNumber).toEither
+      case Codes.StatusCode                => Try(payload.toStatus).toEither
+      case Codes.NewBlockCode              => Try(payload.toNewBlock).toEither
+      case Codes.SignedTransactionsCode    => Try(payload.toSignedTransactions).toEither
+      case _                               => Left(new RuntimeException(s"Unknown eth/63 message type: $msgCode"))
     }
 }
 
