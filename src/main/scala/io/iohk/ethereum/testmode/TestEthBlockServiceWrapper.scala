@@ -75,7 +75,7 @@ class TestEthBlockServiceWrapper(
     .getBlockByNumber(request)
     .map(
       _.map { blockByBlockResponse =>
-        val bestBranch = blockchainReader.getBestBranch().get
+        val bestBranch = blockchainReader.getBestBranch()
         val fullBlock = bestBranch.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       }

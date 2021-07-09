@@ -187,7 +187,7 @@ class CheckpointingServiceSpec
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     val bestChain: BlockchainBranch = mock[BlockchainBranch]
-    (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(Some(bestChain))
+    (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
     val blockQueue: BlockQueue = mock[BlockQueue]
     val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()

@@ -206,7 +206,7 @@ class EthProofService(
     def getBlock(number: BigInt): Either[JsonRpcError, Block] =
       blockchainReader
         .getBestBranch()
-        .flatMap(_.getBlockByNumber(number))
+        .getBlockByNumber(number)
         .toRight(JsonRpcError.InvalidParams(s"Block $number not found"))
 
     def getLatestBlock(): Either[JsonRpcError, Block] =

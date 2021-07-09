@@ -75,7 +75,7 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
   private def getTopBlocksFromNumber(from: BigInt): List[Block] = {
     val bestBranch = blockchainReader.getBestBranch()
     (from to blockchainReader.getBestBlockNumber())
-      .flatMap(nb => bestBranch.flatMap(_.getBlockByNumber(nb)))
+      .flatMap(nb => bestBranch.getBlockByNumber(nb))
       .toList
   }
 }
