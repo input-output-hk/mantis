@@ -11,7 +11,7 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.consensus.StdTestConsensusBuilder
+import io.iohk.ethereum.consensus.StdTestMiningBuilder
 import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
@@ -26,7 +26,7 @@ import io.iohk.ethereum.nodebuilder._
   * Specifically it relates to the creation and wiring of the several components of a
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
   */
-trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
+trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected lazy val executionContextExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   protected lazy val monixScheduler: Scheduler = Scheduler(executionContextExecutor)

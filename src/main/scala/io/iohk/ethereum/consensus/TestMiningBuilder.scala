@@ -13,7 +13,7 @@ trait TestMiningBuilder { self: StdMiningBuilder =>
 }
 
 /** A standard [[TestMiningBuilder]] cake. */
-trait StdTestConsensusBuilder
+trait StdTestMiningBuilder
     extends StdMiningBuilder
     with TestMiningBuilder
     with VmBuilder
