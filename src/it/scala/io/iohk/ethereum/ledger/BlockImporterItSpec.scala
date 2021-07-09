@@ -34,7 +34,6 @@ import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -123,6 +122,7 @@ class BlockImporterItSpec
       blockImport,
       blockchain,
       blockchainReader,
+      storagesInstance.storages.stateStorage,
       new BranchResolution(blockchain, blockchainReader),
       syncConfig,
       ommersPoolProbe.ref,
@@ -167,6 +167,7 @@ class BlockImporterItSpec
         mkBlockImport(validators = successValidators),
         blockchain,
         blockchainReader,
+        storagesInstance.storages.stateStorage,
         new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
@@ -280,6 +281,7 @@ class BlockImporterItSpec
         mkBlockImport(validators = successValidators),
         blockchain,
         blockchainReader,
+        storagesInstance.storages.stateStorage,
         new BranchResolution(blockchain, blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,

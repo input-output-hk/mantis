@@ -473,6 +473,7 @@ class RegularSyncSpec
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
+        (blockchainReader.getBestBlockNumber _).when().returns(0)
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
         (blockImport
           .importBlock(_: Block)(_: Scheduler))
@@ -483,7 +484,7 @@ class RegularSyncSpec
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
         (blockchainReader.getBestBlockNumber _).when().returns(0)
         (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
-        (blockchain.saveNode _)
+        (stateStorage.saveNode _)
           .when(*, *, *)
           .onCall { (hash, encoded, totalDifficulty) =>
             val expectedNode = nodeData.head

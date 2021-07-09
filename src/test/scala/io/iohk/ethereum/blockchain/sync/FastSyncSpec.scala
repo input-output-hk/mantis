@@ -83,6 +83,7 @@ class FastSyncSpec
         blockchainWriter = blockchainWriter,
         evmCodeStorage = storagesInstance.storages.evmCodeStorage,
         nodeStorage = storagesInstance.storages.nodeStorage,
+        stateStorage = storagesInstance.storages.stateStorage,
         validators = validators,
         peerEventBus = peerEventBus.ref,
         etcPeerManager = etcPeerManager.ref,

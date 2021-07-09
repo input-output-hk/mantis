@@ -20,7 +20,6 @@ import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
@@ -183,8 +182,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
-
-  override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
   override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 
