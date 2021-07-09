@@ -415,7 +415,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   val bestChain: BlockchainBranch = mock[BlockchainBranch]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
-  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(Some(bestChain))
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
