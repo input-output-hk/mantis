@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 trait TestSyncPeers { self: TestSyncConfig =>
@@ -25,6 +26,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
 
   val peer1Status: RemoteStatus =
     RemoteStatus(
+      ProtocolFamily.ETC,
       ProtocolVersions.ETC64.version,
       1,
       ChainWeight.totalDifficultyOnly(20),

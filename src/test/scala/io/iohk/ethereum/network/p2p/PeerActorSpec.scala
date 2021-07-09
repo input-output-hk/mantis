@@ -49,6 +49,7 @@ import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.ETH62._
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.DisconnectEnc
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect.Reasons
@@ -431,6 +432,7 @@ class PeerActorSpec
   it should "stay connected to pre fork peer" in new TestSetup {
 
     val remoteStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = peerConf.networkId,
       chainWeight =

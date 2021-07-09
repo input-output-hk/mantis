@@ -16,6 +16,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
@@ -80,6 +81,7 @@ class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val peer3: Peer = Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), TestProbe().ref, false)
 
     private val peerStatus = RemoteStatus(
+      protocolFamily = ProtocolFamily.ETH,
       protocolVersion = ProtocolVersions.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight(0, 0),

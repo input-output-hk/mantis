@@ -59,6 +59,7 @@ import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -708,7 +709,7 @@ class RegularSyncSpec
           val peerWithETH63: (Peer, PeerInfo) = {
             val id = peerId(handshakedPeers.size)
             val peer = getPeer(id)
-            val peerInfo = getPeerInfo(peer, ProtocolVersions.ETH63.version)
+            val peerInfo = getPeerInfo(peer, ProtocolFamily.ETH, ProtocolVersions.ETH63.version)
             (peer, peerInfo)
           }
 
