@@ -20,7 +20,7 @@ import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
@@ -408,7 +408,7 @@ class EthBlocksServiceSpec
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
 
-    override lazy val mining: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: TestMining = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     lazy val ethBlocksService = new EthBlocksService(

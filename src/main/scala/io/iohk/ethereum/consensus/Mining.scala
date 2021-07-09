@@ -73,18 +73,18 @@ trait Mining {
   * particular consensus protocols we implement so far do their best
   * in that direction).
   */
-trait TestConsensus extends Mining {
+trait TestMining extends Mining {
   def blockGenerator: TestBlockGenerator
 
   /** Internal API, used for testing */
   protected def newBlockGenerator(validators: Validators): TestBlockGenerator
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): TestConsensus
+  def withValidators(validators: Validators): TestMining
 
   /** Internal API, used for testing */
-  def withVM(vm: VMImpl): TestConsensus
+  def withVM(vm: VMImpl): TestMining
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: TestBlockGenerator): TestConsensus
+  def withBlockGenerator(blockGenerator: TestBlockGenerator): TestMining
 }

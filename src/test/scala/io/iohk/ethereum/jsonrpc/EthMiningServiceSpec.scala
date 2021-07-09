@@ -22,7 +22,7 @@ import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
@@ -139,7 +139,7 @@ class EthMiningServiceSpec
       difficultyCalc,
       minerKey
     )
-    override lazy val mining: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
+    override lazy val mining: TestMining = testConsensus.withBlockGenerator(restrictedGenerator)
 
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -233,7 +233,7 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    override lazy val mining: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: TestMining = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     val syncingController: TestProbe = TestProbe()

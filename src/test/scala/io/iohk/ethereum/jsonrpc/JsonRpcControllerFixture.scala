@@ -18,7 +18,7 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -67,7 +67,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     .returns(null)
     .anyNumberOfTimes()
 
-  override lazy val mining: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestConsensus()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)
 

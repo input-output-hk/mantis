@@ -12,7 +12,7 @@ import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
@@ -51,11 +51,11 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
-    * @note We use the refined type [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
+    * @note We use the refined type [[io.iohk.ethereum.consensus.TestMining TestConsensus]]
     *       instead of just [[io.iohk.ethereum.consensus.Mining Consensus]].
     * @note If you override this, consensus will pick up automatically.
     */
-  override lazy val mining: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
+  override lazy val mining: TestMining = buildTestConsensus().withValidators(validators).withVM(vm)
 
   /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.

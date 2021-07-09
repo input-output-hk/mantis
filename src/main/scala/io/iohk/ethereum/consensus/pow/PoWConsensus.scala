@@ -47,7 +47,7 @@ class PoWConsensus private (
     val validators: ValidatorsExecutor,
     val blockGenerator: PoWBlockGenerator,
     val difficultyCalculator: DifficultyCalculator
-) extends TestConsensus
+) extends TestMining
     with Logger {
 
   type Config = EthashConfig
