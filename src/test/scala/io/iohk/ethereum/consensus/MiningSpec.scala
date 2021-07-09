@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-class ConsensusSpec extends AnyFlatSpec with Matchers {
+class MiningSpec extends AnyFlatSpec with Matchers {
 
   "KnownProtocols" should "have unique names" in {
     val protocols = Protocol.KnownProtocols
