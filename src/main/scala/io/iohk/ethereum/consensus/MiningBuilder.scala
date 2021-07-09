@@ -8,7 +8,7 @@ import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Logger
 
-trait ConsensusBuilder {
+trait MiningBuilder {
   def mining: Mining
 }
 
@@ -18,7 +18,7 @@ trait ConsensusBuilder {
   * @see [[io.iohk.ethereum.consensus.Mining Consensus]],
   *      [[io.iohk.ethereum.consensus.pow.PoWMining PoWConsensus]],
   */
-trait StdConsensusBuilder extends ConsensusBuilder {
+trait StdConsensusBuilder extends MiningBuilder {
   self: VmBuilder
     with StorageBuilder
     with BlockchainBuilder

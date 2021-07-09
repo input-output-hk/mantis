@@ -194,7 +194,7 @@ trait BlockQueueBuilder {
 trait BlockImportBuilder {
   self: BlockchainBuilder
     with BlockQueueBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with BlockchainConfigBuilder
     with ActorSystemBuilder
     with StorageBuilder =>
@@ -411,7 +411,7 @@ trait FilterManagerBuilder {
     with PendingTransactionsManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with ConsensusBuilder =>
+    with MiningBuilder =>
 
   lazy val filterManager: ActorRef =
     system.actorOf(
@@ -460,13 +460,13 @@ trait TestServiceBuilder {
 }
 
 trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with TestModeServiceBuilder with MiningBuilder with BlockQueueBuilder =>
   override lazy val ethBlocksService =
     new TestEthBlockServiceWrapper(blockchain, blockchainReader, mining, blockQueue)
 }
 
 trait EthProofServiceBuilder {
-  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
+  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningBuilder =>
 
   lazy val ethProofService: ProofService = new EthProofService(
     blockchain,
@@ -480,7 +480,7 @@ trait EthInfoServiceBuilder {
   self: StorageBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with StxLedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
@@ -502,7 +502,7 @@ trait EthInfoServiceBuilder {
 trait EthMiningServiceBuilder {
   self: BlockchainBuilder
     with BlockchainConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with JSONRpcConfigBuilder
     with OmmersPoolBuilder
     with SyncControllerBuilder
@@ -523,7 +523,7 @@ trait EthMiningServiceBuilder {
 trait EthTxServiceBuilder {
   self: BlockchainBuilder
     with PendingTransactionsManagerBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with TxPoolConfigBuilder
     with StorageBuilder =>
 
@@ -538,13 +538,13 @@ trait EthTxServiceBuilder {
 }
 
 trait EthBlocksServiceBuilder {
-  self: BlockchainBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with MiningBuilder with BlockQueueBuilder =>
 
   lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
 }
 
 trait EthUserServiceBuilder {
-  self: BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder with StorageBuilder =>
+  self: BlockchainBuilder with BlockchainConfigBuilder with MiningBuilder with StorageBuilder =>
 
   lazy val ethUserService = new EthUserService(
     blockchain,
@@ -583,7 +583,7 @@ trait PersonalServiceBuilder {
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder
+  self: MiningBuilder
     with SyncControllerBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
@@ -754,7 +754,7 @@ trait StxLedgerBuilder {
     with BlockchainBuilder
     with StorageBuilder
     with SyncConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with ActorSystemBuilder =>
 
   lazy val stxLedger: StxLedger =
@@ -786,7 +786,7 @@ trait SyncControllerBuilder {
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
     with ShutdownHookBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with BlacklistBuilder =>
 
   lazy val syncController: ActorRef = system.actorOf(
@@ -880,7 +880,7 @@ trait GenesisDataLoaderBuilder {
 /** Provides the basic functionality of a Node, except the consensus algorithm.
   * The latter is loaded dynamically based on configuration.
   *
-  * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
+  * @see [[io.iohk.ethereum.consensus.MiningBuilder ConsensusBuilder]],
   *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
   */
 trait Node
@@ -941,7 +941,7 @@ trait Node
     with KnownNodesManagerBuilder
     with SyncConfigBuilder
     with VmBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with ConsensusConfigBuilder
     with StxLedgerBuilder
     with KeyStoreConfigBuilder

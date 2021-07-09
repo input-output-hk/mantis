@@ -129,7 +129,7 @@ class TestmodeConsensus(
   override def sendMiner(msg: MinerProtocol): Unit = {}
 }
 
-trait TestmodeConsensusBuilder extends ConsensusBuilder {
+trait TestmodeConsensusBuilder extends MiningBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with StorageBuilder =>
 
   override lazy val mining = new TestmodeConsensus(
