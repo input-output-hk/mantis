@@ -7,14 +7,14 @@ import io.iohk.ethereum.utils.Logger
 /** A [[io.iohk.ethereum.consensus.MiningBuilder ConsensusBuilder]] that builds a
   * [[io.iohk.ethereum.consensus.TestMining TestConsensus]]
   */
-trait TestConsensusBuilder { self: StdConsensusBuilder =>
+trait TestConsensusBuilder { self: StdMiningBuilder =>
   protected def buildTestConsensus(): TestMining =
     buildMining().asInstanceOf[TestMining] // we are in tests, so if we get an exception, so be it
 }
 
 /** A standard [[TestConsensusBuilder]] cake. */
 trait StdTestConsensusBuilder
-    extends StdConsensusBuilder
+    extends StdMiningBuilder
     with TestConsensusBuilder
     with VmBuilder
     with VmConfigBuilder

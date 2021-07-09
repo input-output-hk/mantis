@@ -18,7 +18,7 @@ trait MiningBuilder {
   * @see [[io.iohk.ethereum.consensus.Mining Consensus]],
   *      [[io.iohk.ethereum.consensus.pow.PoWMining PoWConsensus]],
   */
-trait StdConsensusBuilder extends MiningBuilder {
+trait StdMiningBuilder extends MiningBuilder {
   self: VmBuilder
     with StorageBuilder
     with BlockchainBuilder
@@ -45,7 +45,8 @@ trait StdConsensusBuilder extends MiningBuilder {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
       case Protocol.RestrictedPoW            => RestrictedPoWMinerData(nodeKey)
     }
-    val consensus =
+
+    val mining =
       PoWMining(
         vm,
         storagesInstance.storages.evmCodeStorage,
@@ -56,21 +57,22 @@ trait StdConsensusBuilder extends MiningBuilder {
         validators,
         additionalPoWData
       )
-    consensus
+
+    mining
   }
 
   protected def buildMining(): Mining = {
     val config = consensusConfig
     val protocol = config.protocol
 
-    val consensus =
+    val mining =
       config.protocol match {
         case Protocol.PoW | Protocol.MockedPow | Protocol.RestrictedPoW => buildPoWConsensus()
       }
 
-    log.info(s"Using '${protocol.name}' consensus [${consensus.getClass.getName}]")
+    log.info(s"Using '${protocol.name}' mining protocol [${mining.getClass.getName}]")
 
-    consensus
+    mining
   }
 
   lazy val mining: Mining = buildMining()

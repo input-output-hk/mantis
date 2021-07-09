@@ -7,7 +7,7 @@ import scala.util.Success
 import scala.util.Try
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.StdConsensusBuilder
+import io.iohk.ethereum.consensus.StdMiningBuilder
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
@@ -106,7 +106,7 @@ abstract class BaseNode extends Node {
   }
 }
 
-class StdNode extends BaseNode with StdConsensusBuilder
+class StdNode extends BaseNode with StdMiningBuilder
 class TestNode
     extends BaseNode
     with TestModeServiceBuilder
