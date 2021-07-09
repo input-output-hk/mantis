@@ -129,7 +129,7 @@ class FilterManager(
       if (currentBlockNumber > toBlockNumber) {
         logsSoFar
       } else {
-        blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match {
+        blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), currentBlockNumber) match {
           case Some(header)
               if bytesToCheckInBloomFilter.isEmpty || BloomFilter.containsAnyOf(
                 header.logsBloom,
@@ -244,7 +244,7 @@ class FilterManager(
       if (currentBlockNumber > bestBlock) {
         hashesSoFar
       } else
-        blockchainReader.getBlockHeaderByNumber(currentBlockNumber) match {
+        blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), currentBlockNumber) match {
           case Some(header) => recur(currentBlockNumber + 1, hashesSoFar :+ header.hash)
           case None         => hashesSoFar
         }

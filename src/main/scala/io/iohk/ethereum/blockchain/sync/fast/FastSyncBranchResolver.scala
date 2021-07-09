@@ -24,7 +24,7 @@ trait FastSyncBranchResolver {
     val blocksToBeRemoved = childOf(fromBlock).to(toBlock).reverse.toList
     blocksToBeRemoved.foreach { toBeRemoved =>
       blockchainReader
-        .getBlockHeaderByNumber(toBeRemoved)
+        .getBlockHeaderByNumber(blockchainReader.getBestBranch(), toBeRemoved)
         .foreach(header => blockchain.removeBlock(header.hash, withState = false))
     }
   }
@@ -54,7 +54,9 @@ class RecentBlocksSearch(blockchainReader: BlockchainReader) {
       bestBlockNumber: BigInt
   ): Option[BigInt] = {
     def isParent(potentialParent: BigInt, childCandidate: BlockHeader): Boolean =
-      blockchainReader.getBlockHeaderByNumber(potentialParent).exists(_.isParentOf(childCandidate))
+      blockchainReader
+        .getBlockHeaderByNumber(blockchainReader.getBestBranch(), potentialParent)
+        .exists(_.isParentOf(childCandidate))
     NonEmptyList.fromList(candidateHeaders.reverse.toList).flatMap { remoteHeaders =>
       val blocksToBeCompared = bestBlockNumber.until(bestBlockNumber - remoteHeaders.size).by(-1).toList
       remoteHeaders.toList

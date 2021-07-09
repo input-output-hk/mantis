@@ -55,7 +55,7 @@ case class EtcForkBlockExchangeState(
 
     case GetBlockHeaders(Left(number), numHeaders, _, _) if number == forkResolver.forkBlockNumber && numHeaders == 1 =>
       log.debug("Received request for fork block")
-      blockchainReader.getBlockHeaderByNumber(number) match {
+      blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), number) match {
         case Some(header) => Some(BlockHeaders(Seq(header)))
         case None         => Some(BlockHeaders(Nil))
       }

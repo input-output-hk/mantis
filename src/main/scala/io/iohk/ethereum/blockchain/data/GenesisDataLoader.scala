@@ -108,7 +108,7 @@ class GenesisDataLoader(
 
     log.debug(s"Prepared genesis header: $header")
 
-    blockchainReader.getBlockHeaderByNumber(0) match {
+    blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), 0) match {
       case Some(existingGenesisHeader) if existingGenesisHeader.hash == header.hash =>
         log.debug("Genesis data already in the database")
         Success(())

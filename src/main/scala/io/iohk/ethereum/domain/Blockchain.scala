@@ -103,7 +103,7 @@ class BlockchainImpl(
   override def isInChain(hash: ByteString): Boolean =
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
-      hash <- blockchainReader.getBestBranch().getHashByBlockNumber(header.number)
+      hash <- blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranch(), header.number)
     } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
@@ -118,7 +118,7 @@ class BlockchainImpl(
     getAccountMpt(blockNumber) >>= (_.getProof(address))
 
   private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
-    blockchainReader.getBlockHeaderByNumber(blockNumber).map { bh =>
+    blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), blockNumber).map { bh =>
       val storage = stateStorage.getBackingStorage(blockNumber)
       MerklePatriciaTrie[Address, Account](
         rootHash = bh.stateRoot.toArray,
@@ -223,7 +223,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (blockchainReader.getBestBranch().getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranch(), block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -292,7 +292,7 @@ class BlockchainImpl(
   ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- blockchainReader.getBestBranch().getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number

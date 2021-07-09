@@ -31,7 +31,8 @@ class StxLedger(
       InMemoryWorldStateProxy(
         evmCodeStorage = evmCodeStorage,
         mptStorage = blockchain.getReadOnlyMptStorage(),
-        getBlockHashByNumber = (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+        getBlockHashByNumber = (number: BigInt) =>
+          blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), number).map(_.hash),
         accountStartNonce = blockchainConfig.accountStartNonce,
         stateRootHash = blockHeader.stateRoot,
         noEmptyAccounts = EvmConfig.forBlock(blockHeader.number, blockchainConfig).noEmptyAccounts,

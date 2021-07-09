@@ -46,7 +46,9 @@ trait EtcNodeStatusExchangeState[T <: Message] extends InProgressState[PeerInfo]
 
   protected def getBestBlockHeader(): BlockHeader = {
     val bestBlockNumber = blockchainReader.getBestBlockNumber()
-    blockchainReader.getBlockHeaderByNumber(bestBlockNumber).getOrElse(blockchainReader.genesisHeader)
+    blockchainReader
+      .getBlockHeaderByNumber(blockchainReader.getBestBranch(), bestBlockNumber)
+      .getOrElse(blockchainReader.genesisHeader)
   }
 
   protected def createStatusMsg(): MessageSerializable

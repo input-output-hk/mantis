@@ -33,7 +33,9 @@ class TransactionHistoryService(
     val getLastCheckpoint = Task(blockchain.getLatestCheckpointBlockNumber()).memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
-      .mapParallelOrdered(10)(blockNr => Task(blockchainReader.getBestBranch().getBlockByNumber(blockNr)))(
+      .mapParallelOrdered(10)(blockNr =>
+        Task(blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), blockNr))
+      )(
         OverflowStrategy.Unbounded
       )
       .collect { case Some(block) => block }

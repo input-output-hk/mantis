@@ -1,16 +1,13 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.branch.BestBlockchainBranch
-import io.iohk.ethereum.domain.branch.BlockchainBranch
-import io.iohk.ethereum.domain.branch.EmptyBlockchainBranch
+import io.iohk.ethereum.domain.branch.{BestBranchSubset, BlockchainBranch, EmptyBranch}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -51,9 +48,9 @@ class BlockchainReader(
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
+  def getBlockHeaderByNumber(branch: BlockchainBranch, number: BigInt): Option[BlockHeader] =
     for {
-      hash <- getHashByBlockNumber(number)
+      hash <- getHashByBlockNumber(branch, number)
       header <- getBlockHeaderByHash(hash)
     } yield header
 
@@ -74,13 +71,9 @@ class BlockchainReader(
   def getBestBranch(): BlockchainBranch =
     getBestBlock()
       .map { block =>
-        new BestBlockchainBranch(
-          block.header,
-          blockNumberMappingStorage,
-          this
-        )
+        BestBranchSubset(block.header)
       }
-      .getOrElse(EmptyBlockchainBranch)
+      .getOrElse(EmptyBranch)
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
@@ -100,37 +93,48 @@ class BlockchainReader(
   def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber).orElse(
-      getBlockByNumber(
-        appStateStorage.getBestBlockNumber()
-      )
-    )
+    getBlockFromBestChain(bestBlockNumber)
+      .orElse(getBlockFromBestChain(bestBlockNumber))
   }
 
   def genesisHeader: BlockHeader =
-    getBlockHeaderByNumber(0).get
+    getHeaderFromBestChain(0).get
 
   def genesisBlock: Block =
-    getBlockByNumber(0).get
-
-  /** Allows to query for a block based on it's number
-    *
-    * @param number Block number
-    * @return Block if it exists
-    */
-  private def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- getBlockByHash(hash)
-    } yield block
+    getBlockFromBestChain(0).get
 
   /** Returns a block hash given a block number
     *
     * @param number Number of the searchead block
     * @return Block hash if found
     */
-  private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
+  def getHashByBlockNumber(branch: BlockchainBranch, number: BigInt): Option[ByteString] = branch match {
+    case EmptyBranch => None
+    case BestBranchSubset(tipHeader) =>
+      if (tipHeader.number >= number && number >= 0) {
+        blockNumberMappingStorage.get(number)
+      } else None
+  }
+
+  def getBlockByNumber(branch: BlockchainBranch, number: BigInt): Option[Block] = branch match {
+    case EmptyBranch => None
+    case BestBranchSubset(_) =>
+      for {
+        hash <- getHashByBlockNumber(branch, number)
+        block <- getBlockByHash(hash)
+      } yield block
+  }
+
+  private def getBlockFromBestChain(number: BigInt): Option[Block] =
+    blockNumberMappingStorage
+      .get(number)
+      .flatMap(getBlockByHash)
+
+  private def getHeaderFromBestChain(number: BigInt): Option[BlockHeader] =
+    blockNumberMappingStorage
+      .get(number)
+      .flatMap(getBlockHeaderByHash)
+
 }
 
 object BlockchainReader {

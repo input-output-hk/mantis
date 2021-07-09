@@ -141,7 +141,7 @@ class FastSyncBranchResolverActor(
 
   private def handleBinarySearchBlockHeaderResponse(searchState: SearchState, childHeader: BlockHeader): Unit = {
     import BinarySearchSupport._
-    blockchainReader.getBlockHeaderByNumber(parentOf(childHeader.number)) match {
+    blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), parentOf(childHeader.number)) match {
       case Some(parentHeader) =>
         validateBlockHeaders(parentHeader, childHeader, searchState) match {
           case NoCommonBlock => stopWithFailure(BranchResolutionFailed.noCommonBlock)

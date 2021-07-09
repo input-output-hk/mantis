@@ -39,7 +39,8 @@ class EthUserService(
         val world = InMemoryWorldStateProxy(
           evmCodeStorage,
           blockchain.getBackingMptStorage(block.header.number),
-          (number: BigInt) => blockchainReader.getBlockHeaderByNumber(number).map(_.hash),
+          (number: BigInt) =>
+            blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), number).map(_.hash),
           blockchainConfig.accountStartNonce,
           block.header.stateRoot,
           noEmptyAccounts = false,

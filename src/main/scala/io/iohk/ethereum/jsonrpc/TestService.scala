@@ -294,7 +294,10 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchainReader.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
-      blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
+      blockchain.removeBlock(
+        blockchainReader.getBlockHeaderByNumber(blockchainReader.getBestBranch(), n).get.hash,
+        withState = false
+      )
     }
     RewindToBlockResponse().rightNow
   }
@@ -372,7 +375,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBestBranch().getBlockByNumber(number),
+        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), number),
         blockHash => blockchainReader.getBlockByHash(blockHash)
       )
 
@@ -412,7 +415,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBestBranch().getBlockByNumber(number),
+        number => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), number),
         hash => blockchainReader.getBlockByHash(hash)
       )
 
