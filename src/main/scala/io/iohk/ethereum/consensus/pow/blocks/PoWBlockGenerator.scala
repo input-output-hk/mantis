@@ -4,7 +4,7 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
@@ -31,13 +31,13 @@ class PoWBlockGeneratorImpl(
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       difficultyCalc,
       blockTimestampProvider
     )
@@ -113,7 +113,7 @@ class PoWBlockGeneratorImpl(
       validators,
       blockchainReader,
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider

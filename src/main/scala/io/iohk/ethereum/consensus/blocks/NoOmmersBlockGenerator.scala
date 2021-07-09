@@ -1,6 +1,6 @@
 package io.iohk.ethereum.consensus.blocks
 
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -12,13 +12,13 @@ import io.iohk.ethereum.utils.BlockchainConfig
 abstract class NoOmmersBlockGenerator(
     evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       difficultyCalc,
       blockTimestampProvider
     ) {

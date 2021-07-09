@@ -63,7 +63,7 @@ class PoWConsensusSpec
   }
 
   it should "not start a miner when miningEnabled=false" in new TestSetup {
-    val configNoMining = consensusConfig.copy(miningEnabled = false)
+    val configNoMining = miningConfig.copy(miningEnabled = false)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
     val powConsensus = PoWMining(
@@ -83,7 +83,7 @@ class PoWConsensusSpec
   }
 
   it should "start only one mocked miner when miner protocol is MockedPow" in new TestSetup {
-    val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.MockedPow)
+    val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.MockedPow)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
     val powConsensus = PoWMining(
@@ -103,7 +103,7 @@ class PoWConsensusSpec
   }
 
   it should "start only the normal miner when miner protocol is PoW" in new TestSetup {
-    val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.PoW)
+    val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.PoW)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
     val powConsensus = PoWMining(
@@ -123,7 +123,7 @@ class PoWConsensusSpec
   }
 
   it should "start only the normal miner when miner protocol is RestrictedPoW" in new TestSetup {
-    val configNoMining = consensusConfig.copy(miningEnabled = true, protocol = Protocol.RestrictedPoW)
+    val configNoMining = miningConfig.copy(miningEnabled = true, protocol = Protocol.RestrictedPoW)
     val fullConsensusConfig = FullConsensusConfig(configNoMining, ethashConfig)
 
     val powConsensus = PoWMining(

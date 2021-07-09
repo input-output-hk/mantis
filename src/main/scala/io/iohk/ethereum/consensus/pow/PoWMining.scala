@@ -170,7 +170,7 @@ class PoWMining private (
           validators = _validators,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalculator,
           blockTimestampProvider = blockGenerator.blockTimestampProvider
@@ -258,7 +258,7 @@ object PoWMining {
           validators = validators,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator,
           minerKeyPair = key
@@ -269,7 +269,7 @@ object PoWMining {
           validators = validators,
           blockchainReader = blockchainReader,
           blockchainConfig = blockchainConfig,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator
         )

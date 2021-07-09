@@ -157,7 +157,7 @@ class EthServiceSpec
     override lazy val stxLedger: StxLedger = mock[StxLedger]
 
     override lazy val mining: TestMining = buildTestConsensus().withBlockGenerator(blockGenerator)
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val miningConfig = ConsensusConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()
 

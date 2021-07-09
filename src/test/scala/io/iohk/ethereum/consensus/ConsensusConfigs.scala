@@ -20,7 +20,7 @@ object ConsensusConfigs {
     mineRounds = 100000
   )
 
-  final val consensusConfig: ConsensusConfig = new ConsensusConfig(
+  final val miningConfig: MiningConfig = new MiningConfig(
     protocol = Protocol.PoW,
     coinbase = coinbase,
     headerExtraData = ByteString.empty,
@@ -28,5 +28,5 @@ object ConsensusConfigs {
     miningEnabled = false
   )
 
-  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(consensusConfig, ethashConfig)
+  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(miningConfig, ethashConfig)
 }

@@ -30,7 +30,7 @@ trait StdMiningBuilder extends MiningBuilder {
   private lazy val mantisConfig = Config.config
 
   private def newConfig[C <: AnyRef](c: C): FullConsensusConfig[C] =
-    FullConsensusConfig(consensusConfig, c)
+    FullConsensusConfig(miningConfig, c)
 
   //TODO [ETCM-397] refactor configs to avoid possibility of running mocked or
   // restricted-pow consensus on real network like ETC or Mordor
@@ -39,9 +39,9 @@ trait StdMiningBuilder extends MiningBuilder {
 
     val fullConfig = newConfig(specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(blockchainConfig, miningConfig.protocol)
 
-    val additionalPoWData = consensusConfig.protocol match {
+    val additionalPoWData = miningConfig.protocol match {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
       case Protocol.RestrictedPoW            => RestrictedPoWMinerData(nodeKey)
     }
@@ -62,7 +62,7 @@ trait StdMiningBuilder extends MiningBuilder {
   }
 
   protected def buildMining(): Mining = {
-    val config = consensusConfig
+    val config = miningConfig
     val protocol = config.protocol
 
     val mining =

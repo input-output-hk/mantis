@@ -16,7 +16,7 @@ import scala.concurrent.duration.FiniteDuration
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.Mining
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.EthashUtils
 import io.iohk.ethereum.crypto.kec256
@@ -64,7 +64,7 @@ class EthMiningService(
   import EthMiningService._
 
   private[this] def fullConsensusConfig = mining.config
-  private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
+  private[this] def miningConfig: MiningConfig = fullConsensusConfig.generic
 
   val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
   val lastActive = new AtomicReference[Option[Date]](None)
@@ -90,7 +90,7 @@ class EthMiningService(
             val PendingBlockAndState(pb, _) = blockGenerator.generateBlock(
               block,
               pendingTxs.pendingTransactions.map(_.stx.tx),
-              consensusConfig.coinbase,
+              miningConfig.coinbase,
               ommers.headers,
               None
             )
@@ -127,7 +127,7 @@ class EthMiningService(
     }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   def getCoinbase(req: GetCoinbaseRequest): ServiceResponse[GetCoinbaseResponse] =
-    Task.now(Right(GetCoinbaseResponse(consensusConfig.coinbase)))
+    Task.now(Right(GetCoinbaseResponse(miningConfig.coinbase)))
 
   def submitHashRate(req: SubmitHashRateRequest): ServiceResponse[SubmitHashRateResponse] =
     ifEthash(req) { req =>

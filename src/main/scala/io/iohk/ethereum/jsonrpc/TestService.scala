@@ -17,7 +17,7 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
@@ -138,7 +138,7 @@ class TestService(
     stateStorage: StateStorage,
     evmCodeStorage: EvmCodeStorage,
     pendingTransactionsManager: ActorRef,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
     initialConfig: BlockchainConfig,
     transactionMappingStorage: TransactionMappingStorage
@@ -149,7 +149,7 @@ class TestService(
   import TestService._
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
-  private var etherbase: Address = consensusConfig.coinbase
+  private var etherbase: Address = miningConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
   private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0

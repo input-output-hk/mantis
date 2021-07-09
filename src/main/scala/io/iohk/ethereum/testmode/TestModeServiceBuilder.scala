@@ -30,7 +30,7 @@ trait TestModeServiceBuilder extends StxLedgerBuilder {
       storagesInstance.storages.evmCodeStorage,
       syncConfig,
       scheduler,
-      consensusConfig,
+      miningConfig,
       DifficultyCalculator(blockchainConfig),
       vm
     )

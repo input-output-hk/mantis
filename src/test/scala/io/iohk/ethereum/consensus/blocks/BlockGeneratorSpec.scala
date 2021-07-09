@@ -16,7 +16,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
@@ -544,7 +544,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
             )
           )
 
-        override lazy val consensusConfig = buildConsensusConfig()
+        override lazy val miningConfig = buildConsensusConfig()
       }
       import testSetup._
 
@@ -575,7 +575,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildConsensusConfig()
     }
     val block = {
       import producer._
@@ -591,7 +591,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildConsensusConfig()
     }
 
     {
@@ -614,7 +614,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = maliciousAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildConsensusConfig()
     }
     val block = {
       import producer._
@@ -630,7 +630,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildConsensusConfig()
     }
 
     {
@@ -734,7 +734,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     override lazy val validators: ValidatorsExecutor = powValidators
 
-    override lazy val consensusConfig: ConsensusConfig =
+    override lazy val miningConfig: MiningConfig =
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator: TestBlockGenerator =

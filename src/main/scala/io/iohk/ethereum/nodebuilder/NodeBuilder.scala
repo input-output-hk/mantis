@@ -452,7 +452,7 @@ trait TestServiceBuilder {
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.evmCodeStorage,
       pendingTransactionsManager,
-      consensusConfig,
+      miningConfig,
       testModeComponentsProvider,
       blockchainConfig,
       storagesInstance.storages.transactionMappingStorage

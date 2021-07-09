@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import io.iohk.ethereum.utils.Config
 
 trait ConsensusConfigBuilder {
-  protected def buildConsensusConfig(): ConsensusConfig = ConsensusConfig(Config.config)
+  protected def buildConsensusConfig(): MiningConfig = MiningConfig(Config.config)
 
-  lazy val consensusConfig: ConsensusConfig = buildConsensusConfig()
+  lazy val miningConfig: MiningConfig = buildConsensusConfig()
 }

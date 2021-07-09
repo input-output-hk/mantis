@@ -4,7 +4,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.pow.blocks.Ommers
 import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
@@ -29,14 +29,14 @@ import io.iohk.ethereum.utils.ByteUtils.or
   */
 abstract class BlockGeneratorSkeleton(
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     difficultyCalc: DifficultyCalculator,
     _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends TestBlockGenerator {
 
-  protected val headerExtraData = consensusConfig.headerExtraData
+  protected val headerExtraData = miningConfig.headerExtraData
 
-  protected val blockCacheSize = consensusConfig.blockCacheSize
+  protected val blockCacheSize = miningConfig.blockCacheSize
 
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 

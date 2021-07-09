@@ -78,7 +78,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val filterManager: TestProbe = TestProbe()
 
   val ethashConfig = ConsensusConfigs.ethashConfig
-  override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+  override lazy val miningConfig = ConsensusConfigs.miningConfig
   val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
   val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 

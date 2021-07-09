@@ -134,7 +134,7 @@ class EthMiningServiceSpec
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
+      miningConfig = miningConfig,
       blockPreparator = testConsensus.blockPreparator,
       difficultyCalc,
       minerKey
@@ -188,7 +188,7 @@ class EthMiningServiceSpec
   it should "return correct coinbase" in new TestSetup {
 
     val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
-    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
+    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
   it should "accept and report hashrate" in new TestSetup {
@@ -234,7 +234,7 @@ class EthMiningServiceSpec
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
     override lazy val mining: TestMining = buildTestConsensus().withBlockGenerator(blockGenerator)
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val miningConfig = ConsensusConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()
     val pendingTransactionsManager: TestProbe = TestProbe()
@@ -254,7 +254,7 @@ class EthMiningServiceSpec
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
+      miningConfig = miningConfig,
       blockPreparator = mining.blockPreparator,
       difficultyCalc,
       minerKey

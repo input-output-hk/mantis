@@ -15,7 +15,7 @@ import io.iohk.ethereum.utils.Logger
   * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
   *                      specific consensus protocol implementation.
   */
-final case class ConsensusConfig(
+final case class MiningConfig(
     protocol: Protocol,
     coinbase: Address,
     headerExtraData: ByteString, // only used in BlockGenerator
@@ -23,7 +23,7 @@ final case class ConsensusConfig(
     miningEnabled: Boolean
 )
 
-object ConsensusConfig extends Logger {
+object MiningConfig extends Logger {
   object Keys {
     final val Consensus = "consensus"
     final val Protocol = "protocol"
@@ -58,7 +58,7 @@ object ConsensusConfig extends Logger {
     Protocol(protocol)
   }
 
-  def apply(mantisConfig: TypesafeConfig): ConsensusConfig = {
+  def apply(mantisConfig: TypesafeConfig): MiningConfig = {
     val config = mantisConfig.getConfig(Keys.Consensus)
 
     val protocol = readProtocol(config)
@@ -69,7 +69,7 @@ object ConsensusConfig extends Logger {
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
 
-    new ConsensusConfig(
+    new MiningConfig(
       protocol = protocol,
       coinbase = coinbase,
       headerExtraData = headerExtraData,

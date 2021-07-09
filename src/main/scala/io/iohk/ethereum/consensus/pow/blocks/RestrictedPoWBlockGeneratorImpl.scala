@@ -2,7 +2,7 @@ package io.iohk.ethereum.consensus.pow.blocks
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.MiningConfig
 import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.DefaultBlockTimestampProvider
@@ -24,7 +24,7 @@ class RestrictedPoWBlockGeneratorImpl(
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     override val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     minerKeyPair: AsymmetricCipherKeyPair,
@@ -34,7 +34,7 @@ class RestrictedPoWBlockGeneratorImpl(
       validators,
       blockchainReader,
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider

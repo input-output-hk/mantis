@@ -38,7 +38,7 @@ class TestmodeConsensus(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     override val difficultyCalculator: DifficultyCalculator,
     sealEngine: SealEngineType,
     blockTimestamp: Long = 0
@@ -47,7 +47,7 @@ class TestmodeConsensus(
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.PoW
-  override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
+  override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](miningConfig, "")
 
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
@@ -106,7 +106,7 @@ class TestmodeConsensus(
     new NoOmmersBlockGenerator(
       evmCodeStorage,
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalculator,
       new BlockTimestampProvider {
@@ -138,7 +138,7 @@ trait TestmodeConsensusBuilder extends MiningBuilder {
     blockchain,
     blockchainReader,
     blockchainConfig,
-    consensusConfig,
+    miningConfig,
     DifficultyCalculator(blockchainConfig),
     SealEngineType.NoReward
   )
