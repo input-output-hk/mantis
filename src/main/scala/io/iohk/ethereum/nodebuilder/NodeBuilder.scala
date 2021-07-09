@@ -437,7 +437,7 @@ trait DebugServiceBuilder {
 trait TestServiceBuilder {
   self: BlockchainBuilder
     with PendingTransactionsManagerBuilder
-    with ConsensusConfigBuilder
+    with MiningConfigBuilder
     with BlockchainConfigBuilder
     with VmBuilder
     with TestmodeConsensusBuilder
@@ -737,7 +737,7 @@ trait JSONRpcIpcServerBuilder {
 }
 
 trait OmmersPoolBuilder {
-  self: ActorSystemBuilder with BlockchainBuilder with ConsensusConfigBuilder =>
+  self: ActorSystemBuilder with BlockchainBuilder with MiningConfigBuilder =>
 
   lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
   lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, ommersPoolSize))
@@ -881,7 +881,7 @@ trait GenesisDataLoaderBuilder {
   * The latter is loaded dynamically based on configuration.
   *
   * @see [[io.iohk.ethereum.consensus.MiningBuilder ConsensusBuilder]],
-  *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
+  *      [[io.iohk.ethereum.consensus.MiningConfigBuilder ConsensusConfigBuilder]]
   */
 trait Node
     extends SecureRandomBuilder
@@ -942,7 +942,7 @@ trait Node
     with SyncConfigBuilder
     with VmBuilder
     with MiningBuilder
-    with ConsensusConfigBuilder
+    with MiningConfigBuilder
     with StxLedgerBuilder
     with KeyStoreConfigBuilder
     with AsyncConfigBuilder

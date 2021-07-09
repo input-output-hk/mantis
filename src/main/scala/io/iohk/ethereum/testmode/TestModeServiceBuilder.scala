@@ -3,7 +3,7 @@ package io.iohk.ethereum.testmode
 import monix.execution.Scheduler
 
 import io.iohk.ethereum.consensus.MiningBuilder
-import io.iohk.ethereum.consensus.ConsensusConfigBuilder
+import io.iohk.ethereum.consensus.MiningConfigBuilder
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.ActorSystemBuilder
@@ -16,7 +16,7 @@ trait TestModeServiceBuilder extends StxLedgerBuilder {
     with SyncConfigBuilder
     with MiningBuilder
     with ActorSystemBuilder
-    with ConsensusConfigBuilder
+    with MiningConfigBuilder
     with BlockQueueBuilder
     with VmBuilder =>
 

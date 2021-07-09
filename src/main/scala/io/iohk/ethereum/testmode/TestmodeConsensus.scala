@@ -130,7 +130,7 @@ class TestmodeConsensus(
 }
 
 trait TestmodeConsensusBuilder extends MiningBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with StorageBuilder =>
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningConfigBuilder with StorageBuilder =>
 
   override lazy val mining = new TestmodeConsensus(
     vm,

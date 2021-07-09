@@ -544,7 +544,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
             )
           )
 
-        override lazy val miningConfig = buildConsensusConfig()
+        override lazy val miningConfig = buildMiningConfig()
       }
       import testSetup._
 
@@ -575,7 +575,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val miningConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -591,7 +591,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val miningConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -614,7 +614,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = maliciousAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val miningConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -630,7 +630,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val miningConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -735,7 +735,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     override lazy val validators: ValidatorsExecutor = powValidators
 
     override lazy val miningConfig: MiningConfig =
-      buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
+      buildMiningConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator: TestBlockGenerator =
       mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)

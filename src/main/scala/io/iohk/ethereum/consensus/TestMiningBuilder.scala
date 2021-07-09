@@ -27,6 +27,6 @@ trait StdTestMiningBuilder
     with NodeKeyBuilder
     with SecureRandomBuilder
     with SyncConfigBuilder
-    with ConsensusConfigBuilder
+    with MiningConfigBuilder
     with ShutdownHookBuilder
     with Logger

@@ -18,7 +18,7 @@ import org.scalamock.scalatest.MockFactory
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.ConsensusConfigBuilder
+import io.iohk.ethereum.consensus.MiningConfigBuilder
 import io.iohk.ethereum.consensus.FullConsensusConfig
 import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.PendingBlock
@@ -36,7 +36,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
 
-trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+trait MinerSpecSetup extends MiningConfigBuilder with MockFactory {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
   implicit val scheduler: Scheduler = Scheduler(classicSystem.dispatcher)
   val parentActor: TestProbe = TestProbe()

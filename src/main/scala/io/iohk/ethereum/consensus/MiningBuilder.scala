@@ -23,7 +23,7 @@ trait StdMiningBuilder extends MiningBuilder {
     with StorageBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
-    with ConsensusConfigBuilder
+    with MiningConfigBuilder
     with NodeKeyBuilder
     with Logger =>
 
