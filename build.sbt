@@ -226,7 +226,9 @@ lazy val node = {
     .settings(
       inConfig(Integration)(
         Defaults.testSettings
-          ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings :+ (Test / parallelExecution := false)
+          ++ org.scalafmt.sbt.ScalafmtPlugin.scalafmtConfigSettings
+          :+ (Test / parallelExecution := false)
+          :+ (coverageEnabled := false)
       ): _*
     )
     .settings(inConfig(Benchmark)(Defaults.testSettings :+ (Test / parallelExecution := false)): _*)

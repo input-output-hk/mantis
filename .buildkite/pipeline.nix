@@ -143,7 +143,7 @@ in
       dependsOn = [ compile ];
       label = "integration tests";
       command = ''
-        nix-shell --run '$SBT coverageOff it:test'
+        nix-shell --run '$SBT it:test || $SBT it:testQuick'
       '';
       artifactPaths = [ "target/test-reports/**/*" ];
       timeoutInMinutes = 60;
