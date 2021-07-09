@@ -107,7 +107,6 @@ object ETH63MessageDecoder extends MessageDecoder {
 
 // scalastyle:off
 object EthereumMessageDecoder {
-  type Decoder = (Int, Array[Byte]) => Message
   def ethMessageDecoder(protocolVersion: Capability): MessageDecoder =
     protocolVersion match {
       case Capability.Capabilities.Etc64Capability => ETC64MessageDecoder.orElse(NetworkMessageDecoder)
