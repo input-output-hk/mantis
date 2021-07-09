@@ -87,6 +87,8 @@ class RegularSyncSpec
   def sync[T <: Fixture](test: => T): Future[Assertion] =
     Future {
       test
+      // this makes sure that actors are all done after the test (believe me, afterEach does not work with mocks)
+      TestKit.shutdownActorSystem(testSystem)
       succeed
     }
 
@@ -475,7 +477,7 @@ class RegularSyncSpec
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
         (blockchainReader.getBestBlockNumber _).when().returns(0)
-        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
+        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).atLeastOnce()
         (blockImport
           .importBlock(_: Block)(_: Scheduler))
           .when(*, *)
