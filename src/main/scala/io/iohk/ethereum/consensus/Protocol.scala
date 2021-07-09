@@ -3,7 +3,7 @@ package io.iohk.ethereum.consensus
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
 /** Enumerates the known consensus protocols that Mantis can use.
-  * For the respective implementations, see [[io.iohk.ethereum.consensus.Consensus Consensus]].
+  * For the respective implementations, see [[io.iohk.ethereum.consensus.Mining Consensus]].
   */
 sealed trait Protocol {
 

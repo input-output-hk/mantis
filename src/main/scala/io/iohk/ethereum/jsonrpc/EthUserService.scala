@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 import monix.eval.Task
 
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
@@ -27,7 +27,7 @@ object EthUserService {
 class EthUserService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val consensus: Consensus,
+    val mining: Mining,
     evmCodeStorage: EvmCodeStorage,
     blockchainConfig: BlockchainConfig
 ) extends ResolveBlock {

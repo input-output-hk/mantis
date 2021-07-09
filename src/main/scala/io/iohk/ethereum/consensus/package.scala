@@ -17,9 +17,9 @@ package object consensus {
   final type GetBlockHeaderByHash = ByteString => Option[BlockHeader]
   final type GetNBlocksBack = (ByteString, Int) => Seq[Block]
 
-  def wrongConsensusArgument[T <: Consensus: ClassTag](consensus: Consensus): Nothing = {
+  def wrongConsensusArgument[T <: Mining: ClassTag](mining: Mining): Nothing = {
     val requiredClass = implicitly[ClassTag[T]].runtimeClass
-    val msg = s"Consensus is of ${consensus.getClass} it should be of $requiredClass"
+    val msg = s"Consensus is of ${mining.getClass} it should be of $requiredClass"
     throw new IllegalArgumentException(msg)
   }
 
@@ -35,7 +35,7 @@ package object consensus {
     throw new IllegalArgumentException(msg)
   }
 
-  implicit final class RichConsensus(val consensus: Consensus) extends AnyVal {
+  implicit final class RichConsensus(val mining: Mining) extends AnyVal {
 
     /** There are APIs that expect that the standard Ethash consensus is running and so depend
       * on either its configuration or general PoW semantics.
@@ -44,7 +44,7 @@ package object consensus {
       * then the `_then` function is called, otherwise the `_else` value is computed.
       */
     def ifEthash[A](_then: PoWConsensus => A)(_else: => A): A =
-      consensus match {
+      mining match {
         case ethash: PoWConsensus => _then(ethash)
         case _                    => _else
       }

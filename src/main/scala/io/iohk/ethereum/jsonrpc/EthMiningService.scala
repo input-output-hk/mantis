@@ -15,7 +15,7 @@ import scala.collection.concurrent.{Map => ConcurrentMap}
 import scala.concurrent.duration.FiniteDuration
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.pow.EthashUtils
@@ -53,7 +53,7 @@ object EthMiningService {
 class EthMiningService(
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensus: Consensus,
+    mining: Mining,
     jsonRpcConfig: JsonRpcConfig,
     ommersPool: ActorRef,
     syncingController: ActorRef,
@@ -63,7 +63,7 @@ class EthMiningService(
 
   import EthMiningService._
 
-  private[this] def fullConsensusConfig = consensus.config
+  private[this] def fullConsensusConfig = mining.config
   private[this] def consensusConfig: ConsensusConfig = fullConsensusConfig.generic
 
   val hashRate: ConcurrentMap[ByteString, (BigInt, Date)] = new TrieMap[ByteString, (BigInt, Date)]()
@@ -81,7 +81,7 @@ class EthMiningService(
     }
 
   def getWork(req: GetWorkRequest): ServiceResponse[GetWorkResponse] =
-    consensus.ifEthash { ethash =>
+    mining.ifEthash { ethash =>
       reportActive()
       blockchainReader.getBestBlock() match {
         case Some(block) =>
@@ -110,7 +110,7 @@ class EthMiningService(
     }(Task.now(Left(JsonRpcError.ConsensusIsNotEthash)))
 
   def submitWork(req: SubmitWorkRequest): ServiceResponse[SubmitWorkResponse] =
-    consensus.ifEthash[ServiceResponse[SubmitWorkResponse]] { ethash =>
+    mining.ifEthash[ServiceResponse[SubmitWorkResponse]] { ethash =>
       reportActive()
       Task {
         ethash.blockGenerator.getPrepared(req.powHeaderHash) match {
@@ -157,7 +157,7 @@ class EthMiningService(
   }
 
   private def getOmmersFromPool(parentBlockHash: ByteString): Task[OmmersPool.Ommers] =
-    consensus.ifEthash { ethash =>
+    mining.ifEthash { ethash =>
       val miningConfig = ethash.config.specific
       implicit val timeout: Timeout = Timeout(miningConfig.ommerPoolQueryTimeout)
 
@@ -170,7 +170,7 @@ class EthMiningService(
     }(Task.now(OmmersPool.Ommers(Nil))) // NOTE If not Ethash consensus, ommers do not make sense, so => Nil
 
   private[jsonrpc] def ifEthash[Req, Res](req: Req)(f: Req => Res): ServiceResponse[Res] =
-    consensus.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
+    mining.ifEthash[ServiceResponse[Res]](_ => Task.now(Right(f(req))))(
       Task.now(Left(JsonRpcError.ConsensusIsNotEthash))
     )
 }

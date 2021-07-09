@@ -35,7 +35,7 @@ abstract class BaseNode extends Node {
 
   private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
-  private[this] def startConsensus(): Unit = consensus.startProtocol(this)
+  private[this] def startConsensus(): Unit = mining.startProtocol(this)
 
   private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
 
@@ -85,7 +85,7 @@ abstract class BaseNode extends Node {
     }
 
     tryAndLogFailure(() => peerDiscoveryManager ! PeerDiscoveryManager.Stop)
-    tryAndLogFailure(() => consensus.stopProtocol())
+    tryAndLogFailure(() => mining.stopProtocol())
     tryAndLogFailure(() =>
       Await.ready(
         system

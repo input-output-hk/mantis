@@ -134,7 +134,7 @@ object MockedMiner {
     ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef =
-    node.consensus match {
+    node.mining match {
       case consensus: PoWConsensus =>
         val blockCreator = new PoWBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,

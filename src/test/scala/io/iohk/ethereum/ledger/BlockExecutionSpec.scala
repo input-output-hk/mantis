@@ -60,7 +60,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         )
 
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block1.header.number)
-        val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
+        val newConsensus: TestConsensus = mining.withVM(vm).withValidators(mockValidators)
         val blockValidation =
           new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
@@ -103,7 +103,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           )
         )
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block2.header.number)
-        val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
+        val newConsensus: TestConsensus = mining.withVM(mockVm).withValidators(mockValidators)
         val blockValidation =
           new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
@@ -139,7 +139,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           )
         )
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(chain.last.number)
-        val newConsensus: TestConsensus = consensus.withVM(mockVm).withValidators(mockValidators)
+        val newConsensus: TestConsensus = mining.withVM(mockVm).withValidators(mockValidators)
         val blockValidation =
           new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
@@ -167,7 +167,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val treasuryAccountBefore = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
 
         val mockValidators = MockValidatorsAlwaysSucceed
-        val newConsensus: TestConsensus = consensus.withVM(vm).withValidators(mockValidators)
+        val newConsensus: TestConsensus = mining.withVM(vm).withValidators(mockValidators)
         val blockValidation =
           new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
         val blockExecution =
@@ -226,7 +226,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           )
         )
 
-        val newConsensus: TestConsensus = consensus.withVM(mockVm)
+        val newConsensus: TestConsensus = mining.withVM(mockVm)
 
         val blockValidation =
           new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
@@ -306,7 +306,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             )
           )
 
-          val newConsensus = consensus.withValidators(mockValidators).withVM(mockVm)
+          val newConsensus = mining.withValidators(mockValidators).withVM(mockVm)
           val blockValidation =
             new BlockValidation(newConsensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
           val blockExecution =
@@ -403,12 +403,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val ommersAddresses = (0 until ommersSize).map(i => Address(i.toByte +: Hex.decode("10")))
 
         val blockReward =
-          consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, ommersSize)
+          mining.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, ommersSize)
 
         val changes = Seq(
           minerAddress -> UpdateBalance(UInt256(blockReward))
         ) ++ ommersAddresses.map { ommerAddress =>
-          val ommerReward = consensus.blockPreparator.blockRewardCalculator.calculateOmmerRewardForInclusion(
+          val ommerReward = mining.blockPreparator.blockRewardCalculator.calculateOmmerRewardForInclusion(
             validBlockHeader.number,
             validBlockHeader.number - ommersBlockDifference
           )
@@ -465,7 +465,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       )
 
       val blockReward: BigInt =
-        consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
+        mining.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
       val changes = Seq(
         minerAddress -> UpdateBalance(UInt256(blockReward)) // Paying miner for block processing
@@ -508,7 +508,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       )
 
       val blockReward: BigInt =
-        consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
+        mining.blockPreparator.blockRewardCalculator.calculateMiningReward(validBlockHeader.number, 0)
 
       val changes = Seq(minerAddress -> UpdateBalance(UInt256(blockReward))) //Paying miner for block processing
       val correctStateRoot: ByteString = applyChanges(validBlockParentHeader.stateRoot, blockchainStorages, changes)
@@ -626,7 +626,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         InMemoryWorldStateProxy.persistState(resultingWorldState).stateRootHash shouldBe expectedStateRootTx2
 
         val blockReward: BigInt =
-          consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
+          mining.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
         val changes = Seq(
           minerAddress -> UpdateBalance(UInt256(blockReward))
         )
@@ -679,7 +679,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
   trait BlockExecutionTestSetup extends BlockchainSetup {
 
     val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     val blockExecution =
       new BlockExecution(
         blockchain,
@@ -687,7 +687,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         blockchainStorages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 

@@ -408,13 +408,13 @@ class EthBlocksServiceSpec
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     lazy val ethBlocksService = new EthBlocksService(
       blockchain,
       blockchainReader,
-      consensus,
+      mining,
       blockQueue
     )
 

@@ -67,7 +67,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     .returns(null)
     .anyNumberOfTimes()
 
-  override lazy val consensus: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestConsensus = buildTestConsensus()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)
 
@@ -95,7 +95,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchain,
     blockchainReader,
     blockchainConfig,
-    consensus,
+    mining,
     stxLedger,
     keyStore,
     syncingController.ref,
@@ -106,7 +106,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethMiningService = new EthMiningService(
     blockchainReader,
     blockchainConfig,
-    consensus,
+    mining,
     config,
     ommersPool.ref,
     syncingController.ref,
@@ -114,12 +114,12 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     getTransactionFromPoolTimeout
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
 
   val ethTxService = new EthTxService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage
@@ -128,7 +128,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethUserService = new EthUserService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     storagesInstance.storages.evmCodeStorage,
     blockchainConfig
   )

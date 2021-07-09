@@ -24,7 +24,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
 
   it should "delete no accounts when there are no touched accounts" in new TestSetup {
     val newWorld =
-      InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldStatePostEIP161))
+      InMemoryWorldStateProxy.persistState(mining.blockPreparator.deleteEmptyTouchedAccounts(worldStatePostEIP161))
     accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.stateRootHash shouldBe worldStatePostEIP161.stateRootHash
   }
@@ -34,7 +34,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld =
-      InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
+      InMemoryWorldStateProxy.persistState(mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
     accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
   }
 
@@ -44,7 +44,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld =
-      InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
+      InMemoryWorldStateProxy.persistState(mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -57,7 +57,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterTransfer.touchedAccounts.size shouldEqual 1
 
     val newWorld =
-      InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
+      InMemoryWorldStateProxy.persistState(mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     (accountAddresses - validEmptyAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))
     newWorld.getAccount(validEmptyAccountAddress) shouldBe None
@@ -70,14 +70,14 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterTransfer.touchedAccounts.size shouldEqual 0
 
     val worldAfterPayingToMiner =
-      consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(
+      mining.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(
         worldAfterTransfer
       )
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 0
 
     val newWorld =
-      InMemoryWorldStateProxy.persistState(consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
+      InMemoryWorldStateProxy.persistState(mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterTransfer))
 
     accountAddresses.foreach(a => assert(newWorld.getAccount(a).isDefined))
   }
@@ -88,14 +88,14 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterTransfer.touchedAccounts.size shouldEqual 2
 
     val worldAfterPayingToMiner =
-      consensus.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(
+      mining.blockPreparator.pay(validEmptyAccountAddress1, zeroTransferBalance, withTouch = true)(
         worldAfterTransfer
       )
 
     worldAfterPayingToMiner.touchedAccounts.size shouldEqual 3
 
     val newWorld = InMemoryWorldStateProxy.persistState(
-      consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterPayingToMiner)
+      mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterPayingToMiner)
     )
 
     (accountAddresses -- Set(validEmptyAccountAddress, validEmptyAccountAddress1)).foreach { a =>
@@ -115,7 +115,7 @@ class DeleteTouchedAccountsSpec extends AnyFlatSpec with Matchers {
     worldAfterInitAndTransfer.touchedAccounts.size shouldEqual 2
 
     val newWorld = InMemoryWorldStateProxy.persistState(
-      consensus.blockPreparator.deleteEmptyTouchedAccounts(worldAfterInitAndTransfer)
+      mining.blockPreparator.deleteEmptyTouchedAccounts(worldAfterInitAndTransfer)
     )
 
     (accountAddresses + validCreatedAccountAddress).foreach(a => assert(newWorld.getAccount(a).isDefined))

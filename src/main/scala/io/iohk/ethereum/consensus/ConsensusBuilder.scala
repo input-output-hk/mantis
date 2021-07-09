@@ -9,13 +9,13 @@ import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Logger
 
 trait ConsensusBuilder {
-  def consensus: Consensus
+  def mining: Mining
 }
 
 /** A consensus builder is responsible to instantiate the consensus protocol.
   * This is done dynamically when Mantis boots, based on its configuration.
   *
-  * @see [[io.iohk.ethereum.consensus.Consensus Consensus]],
+  * @see [[io.iohk.ethereum.consensus.Mining Consensus]],
   *      [[io.iohk.ethereum.consensus.pow.PoWConsensus PoWConsensus]],
   */
 trait StdConsensusBuilder extends ConsensusBuilder {
@@ -59,7 +59,7 @@ trait StdConsensusBuilder extends ConsensusBuilder {
     consensus
   }
 
-  protected def buildConsensus(): Consensus = {
+  protected def buildMining(): Mining = {
     val config = consensusConfig
     val protocol = config.protocol
 
@@ -73,5 +73,5 @@ trait StdConsensusBuilder extends ConsensusBuilder {
     consensus
   }
 
-  lazy val consensus: Consensus = buildConsensus()
+  lazy val mining: Mining = buildMining()
 }

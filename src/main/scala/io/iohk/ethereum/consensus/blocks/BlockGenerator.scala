@@ -8,11 +8,10 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 /** We use a `BlockGenerator` to create the next block.
   * In a PoW setting, this is what a miner typically does.
   * In general, a [[BlockGenerator]] depends on and is provided by the
-  * [[io.iohk.ethereum.consensus.Consensus Consensus]].
+  * [[io.iohk.ethereum.consensus.Mining Consensus]].
   *
   * @note This is generally a stateful object.
-  *
-  * @see [[io.iohk.ethereum.consensus.Consensus#blockGenerator Consensus#blockGenerator()]],
+  * @see [[io.iohk.ethereum.consensus.Mining#blockGenerator Consensus#blockGenerator()]],
   *      [[io.iohk.ethereum.ledger.BlockPreparator BlockPreparator]]
   */
 trait BlockGenerator {

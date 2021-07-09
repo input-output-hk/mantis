@@ -139,7 +139,7 @@ class EthMiningServiceSpec
       difficultyCalc,
       minerKey
     )
-    override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
+    override lazy val mining: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
 
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -233,7 +233,7 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
     override lazy val consensusConfig = ConsensusConfigs.consensusConfig
 
     val syncingController: TestProbe = TestProbe()
@@ -255,7 +255,7 @@ class EthMiningServiceSpec
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
       consensusConfig = consensusConfig,
-      blockPreparator = consensus.blockPreparator,
+      blockPreparator = mining.blockPreparator,
       difficultyCalc,
       minerKey
     )
@@ -265,7 +265,7 @@ class EthMiningServiceSpec
     lazy val ethMiningService = new EthMiningService(
       blockchainReader,
       blockchainConfig,
-      consensus,
+      mining,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,

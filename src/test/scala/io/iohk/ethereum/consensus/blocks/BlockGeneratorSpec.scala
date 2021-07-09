@@ -256,7 +256,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -339,7 +339,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -738,10 +738,10 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator: TestBlockGenerator =
-      consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+      mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     lazy val blockExecution =
       new BlockExecution(
         blockchain,
@@ -749,7 +749,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 

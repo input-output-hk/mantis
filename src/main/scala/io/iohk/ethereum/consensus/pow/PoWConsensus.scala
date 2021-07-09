@@ -123,7 +123,7 @@ class PoWConsensus private (
   private[this] def stopMiningProcess(): Unit =
     sendMiner(MinerProtocol.StopMining)
 
-  /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+  /** This is used by the [[io.iohk.ethereum.consensus.Mining#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
@@ -132,7 +132,7 @@ class PoWConsensus private (
   def startProtocol(node: Node): Unit =
     if (config.miningEnabled) {
       log.info("Mining is enabled. Will try to start configured miner actor")
-      val blockCreator = node.consensus match {
+      val blockCreator = node.mining match {
         case consensus: PoWConsensus =>
           new PoWBlockCreator(
             pendingTransactionsManager = node.pendingTransactionsManager,

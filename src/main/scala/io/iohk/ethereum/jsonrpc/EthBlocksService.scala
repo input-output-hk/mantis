@@ -6,7 +6,7 @@ import monix.eval.Task
 
 import org.bouncycastle.util.encoders.Hex
 
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockQueue
@@ -43,7 +43,7 @@ object EthBlocksService {
 class EthBlocksService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val consensus: Consensus,
+    val mining: Mining,
     val blockQueue: BlockQueue
 ) extends ResolveBlock {
   import EthBlocksService._

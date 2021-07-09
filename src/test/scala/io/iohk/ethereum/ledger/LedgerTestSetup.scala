@@ -49,7 +49,7 @@ import io.iohk.ethereum.vm.ProgramResult
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   //+ cake overrides
 
-  val prep: BlockPreparator = consensus.blockPreparator
+  val prep: BlockPreparator = mining.blockPreparator
   //- cake overrides
 
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -280,7 +280,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   override lazy val vm: VMImpl = new VMImpl
 
   // Make type more specific
-  override lazy val consensus: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestConsensus = buildTestConsensus()
   //- cake overrides
 
   val blockQueue: BlockQueue
@@ -370,7 +370,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
 
   lazy val blockImportNotFailingAfterExecValidation: BlockImport = {
-    val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
+    val consensuz = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,

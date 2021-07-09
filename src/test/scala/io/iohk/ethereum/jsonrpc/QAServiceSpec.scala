@@ -11,7 +11,7 @@ import org.scalamock.scalatest.AsyncMockFactory
 
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
@@ -103,7 +103,7 @@ class QAServiceSpec
   }
 
   class Fixture extends BlockchainConfigBuilder {
-    protected trait TestConsensus extends Consensus {
+    protected trait TestConsensus extends Mining {
       override type Config = EthashConfig
     }
 

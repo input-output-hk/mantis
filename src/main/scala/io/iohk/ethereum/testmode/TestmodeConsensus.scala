@@ -43,7 +43,7 @@ class TestmodeConsensus(
     sealEngine: SealEngineType,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
-    extends Consensus {
+    extends Mining {
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.PoW
@@ -132,7 +132,7 @@ class TestmodeConsensus(
 trait TestmodeConsensusBuilder extends ConsensusBuilder {
   self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with StorageBuilder =>
 
-  override lazy val consensus = new TestmodeConsensus(
+  override lazy val mining = new TestmodeConsensus(
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,

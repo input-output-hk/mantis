@@ -9,7 +9,7 @@ import scala.concurrent.ExecutionContextExecutor
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.Mining
 import io.iohk.ethereum.consensus.Protocol
 import io.iohk.ethereum.consensus.StdTestConsensusBuilder
 import io.iohk.ethereum.consensus.TestConsensus
@@ -52,11 +52,10 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     * that a test case may need.
     *
     * @note We use the refined type [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
-    *       instead of just [[io.iohk.ethereum.consensus.Consensus Consensus]].
-    *
+    *       instead of just [[io.iohk.ethereum.consensus.Mining Consensus]].
     * @note If you override this, consensus will pick up automatically.
     */
-  override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
+  override lazy val mining: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
 
   /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.
@@ -70,14 +69,14 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     * @note The existing consensus instance will continue to live independently and will still be
     *       the instance provided by the cake.
     */
-  protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
-    consensus.withValidators(validators).withVM(vm)
+  protected def newTestMining(validators: Validators = mining.validators, vm: VMImpl = mining.vm): Mining =
+    mining.withValidators(validators).withVM(vm)
 
   protected def mkBlockImport(
       validators: Validators = validators,
       blockExecutionOpt: Option[BlockExecution] = None
   ): BlockImport = {
-    val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,

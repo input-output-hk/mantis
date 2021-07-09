@@ -9,7 +9,7 @@ import io.iohk.ethereum.utils.Logger
   */
 trait TestConsensusBuilder { self: StdConsensusBuilder =>
   protected def buildTestConsensus(): TestConsensus =
-    buildConsensus().asInstanceOf[TestConsensus] // we are in tests, so if we get an exception, so be it
+    buildMining().asInstanceOf[TestConsensus] // we are in tests, so if we get an exception, so be it
 }
 
 /** A standard [[TestConsensusBuilder]] cake. */

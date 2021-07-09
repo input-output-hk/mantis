@@ -509,7 +509,7 @@ class SyncControllerSpec
 
     override lazy val validators: Validators = _validators
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
+    override lazy val mining: TestConsensus = buildTestConsensus().withValidators(validators)
 
     //+ cake overrides
 

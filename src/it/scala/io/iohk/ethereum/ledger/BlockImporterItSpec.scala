@@ -252,8 +252,8 @@ class TestFixture extends TestSetupWithVmAndValidators {
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
-        new BlockValidation(consensus, blockchainReader, blockQueue)
+        mining.blockPreparator,
+        new BlockValidation(mining, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,

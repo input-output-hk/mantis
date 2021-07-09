@@ -13,11 +13,11 @@ import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 
-/** Abstraction for a consensus protocol implementation.
+/** Abstraction for a mining protocol implementation.
   *
   * @see [[io.iohk.ethereum.consensus.Protocol Protocol]]
   */
-trait Consensus {
+trait Mining {
 
   /** The type of configuration [[io.iohk.ethereum.consensus.FullConsensusConfig#specific specific]]
     * to this consensus protocol implementation.
@@ -36,7 +36,7 @@ trait Consensus {
     */
   def validators: Validators
 
-  /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+  /** This is used by the [[io.iohk.ethereum.consensus.Mining#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator
 
@@ -67,13 +67,13 @@ trait Consensus {
 
 /** Internal API, used for testing.
   *
-  * This is a [[Consensus]] API for the needs of the test suites.
+  * This is a [[Mining]] API for the needs of the test suites.
   * It gives a lot of flexibility overriding parts of a consensus' behavior
   * but it is the developer's responsibility to maintain consistency (though the
   * particular consensus protocols we implement so far do their best
   * in that direction).
   */
-trait TestConsensus extends Consensus {
+trait TestConsensus extends Mining {
   def blockGenerator: TestBlockGenerator
 
   /** Internal API, used for testing */

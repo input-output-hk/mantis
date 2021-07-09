@@ -28,7 +28,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 
 class QAService(
-    consensus: Consensus,
+    mining: Mining,
     blockchainReader: BlockchainReader,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     blockchainConfig: BlockchainConfig,
@@ -41,7 +41,7 @@ class QAService(
     * @return nothing
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] =
-    consensus
+    mining
       .askMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .onErrorHandle { throwable =>
