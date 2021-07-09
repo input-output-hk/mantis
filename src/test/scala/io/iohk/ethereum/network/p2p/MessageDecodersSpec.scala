@@ -187,7 +187,7 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   }
 
   it should "not decode message not existing in given protocol" in {
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a [Left[_, Message]]
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a[Left[_, Message]]
 
   }
 
