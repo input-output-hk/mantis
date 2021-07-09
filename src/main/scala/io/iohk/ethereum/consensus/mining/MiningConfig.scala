@@ -25,7 +25,7 @@ final case class MiningConfig(
 
 object MiningConfig extends Logger {
   object Keys {
-    final val Consensus = "consensus"
+    final val Mining = "mining"
     final val Protocol = "protocol"
     final val Coinbase = "coinbase"
     final val HeaderExtraData = "header-extra-data"
@@ -40,7 +40,7 @@ object MiningConfig extends Logger {
   )
 
   final val AllowedProtocolsError: String => String = (s: String) =>
-    Keys.Consensus +
+    Keys.Mining +
       " is configured as '" + s + "'" +
       " but it should be one of " +
       AllowedProtocols.map("'" + _ + "'").mkString(",")
@@ -59,7 +59,7 @@ object MiningConfig extends Logger {
   }
 
   def apply(mantisConfig: TypesafeConfig): MiningConfig = {
-    val config = mantisConfig.getConfig(Keys.Consensus)
+    val config = mantisConfig.getConfig(Keys.Mining)
 
     val protocol = readProtocol(config)
     val coinbase = Address(config.getString(Keys.Coinbase))
