@@ -33,14 +33,11 @@ import org.scalatest.matchers.should.Matchers
 import scodec.bits.BitVector
 
 import io.iohk.ethereum.NormalPatience
-import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.db.storage.KnownNodesStorage
 import io.iohk.ethereum.utils.Config
 
 class PeerDiscoveryManagerSpec
-    extends TestKit(ActorSystem("PeerDiscoveryManagerSpec_System"))
-    with AnyFlatSpecLike
-    with WithActorSystemShutDown
+    extends AnyFlatSpecLike
     with Matchers
     with Eventually
     with MockFactory
@@ -64,6 +61,7 @@ class PeerDiscoveryManagerSpec
   ).map(new java.net.URI(_)).map(Node.fromUri)
 
   trait Fixture {
+    implicit lazy val system: ActorSystem = ActorSystem("PeerDiscoveryManagerSpec_System")
     lazy val discoveryConfig = defaultConfig
     lazy val knownNodesStorage: KnownNodesStorage = mock[KnownNodesStorage]
     lazy val discoveryService: DiscoveryService = mock[DiscoveryService]
@@ -93,7 +91,10 @@ class PeerDiscoveryManagerSpec
 
   def test(fixture: Fixture): Unit =
     try fixture.test()
-    finally system.stop(fixture.peerDiscoveryManager)
+    finally {
+      fixture.system.stop(fixture.peerDiscoveryManager)
+      TestKit.shutdownActorSystem(fixture.system, verifySystemShutdown = true)
+    }
 
   def toENode(node: Node): ENode =
     ENode(
