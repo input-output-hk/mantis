@@ -37,30 +37,19 @@ export JAVA_OPTS="$JAVA_OPTS -Dsbt.gigahorse=false"
 # with `publish / skip := true` in build.sbt for the default project,
 # without any aggregation, by default it would publish nothing, so
 # let's tell it here by using `sbt-ci-release` env vars.
-# NOTE: +rlp/publishSigned with the `+` would cross publish,
-# but it doesn't work because of scapegoat (see below).
-export CI_SNAPSHOT_RELEASE="; bytes/publishSigned; rlp/publishSigned; crypto/publishSigned"
+export CI_SNAPSHOT_RELEASE="; +bytes/publishSigned; +rlp/publishSigned; +crypto/publishSigned"
 export CI_RELEASE=$CI_SNAPSHOT_RELEASE
-export CI_SONATYPE_RELEASE=$"; bytes/sonatypeBundleRelease; rlp/sonatypeBundleRelease; crypto/sonatypeBundleRelease"
 
-# Scala 2.12 has up to scapegoat 1.4.5, while Scala 2.13 starts with 1.4.7.
-# I couldn't make build.sbt vary the scapegoat version by the current cross build,
-# so as a workaround the combos are called here explicitly.
 function release {
     SCALA_VERSION=$1
 
-    sbt "++ $SCALA_VERSION ; ci-release"
-}
-
-function releaseAll {
-    release 2.12.13
-    release 2.13.6
+    sbt ci-release
 }
 
 if [[ "$BUILDKITE_BRANCH" == "develop" ]]; then
 
     # Publish the -SNAPSHOT version.
-    releaseAll
+    release
 
 elif [[ "$BUILDKITE_BRANCH" == "master" ]]; then
 
@@ -69,9 +58,9 @@ elif [[ "$BUILDKITE_BRANCH" == "master" ]]; then
 
     # Whether ci-release does a release or a snapshot depends on whether it thinks the build is tagged; setting a dummy value.
     # Check https://github.com/olafurpg/sbt-ci-release/blob/main/plugin/src/main/scala/com/geirsson/CiReleasePlugin.scala for the rules.
-	export CI_COMMIT_TAG=$(sbt -Dsbt.supershell=false -error "print version")
+	  export CI_COMMIT_TAG=$(sbt -Dsbt.supershell=false -error "print version")
 
-    releaseAll
+    release
 
 else
 
