@@ -90,7 +90,8 @@ class NodeDataSpec extends AnyFlatSpec with Matchers {
   it should "be decoded properly" in {
     val result = EthereumMessageDecoder
       .ethMessageDecoder(ProtocolVersions.ETH63)
-      .fromBytes(Codes.NodeDataCode, encode(encodedNodeData)).getOrElse(fail("Should have decoded NodeData"))
+      .fromBytes(Codes.NodeDataCode, encode(encodedNodeData))
+      .getOrElse(fail("Should have decoded NodeData"))
 
     result match {
       case m: NodeData =>

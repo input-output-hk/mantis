@@ -83,9 +83,15 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getBlockHeaders = ETH62.GetBlockHeaders(Left(1), 1, 1, false)
     val getBlockHeadersBytes: Array[Byte] = getBlockHeaders.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(getBlockHeaders)
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(
+      getBlockHeaders
+    )
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(
+      getBlockHeaders
+    )
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockHeadersCode, getBlockHeadersBytes) shouldBe Right(
+      getBlockHeaders
+    )
   }
 
   it should "decode BlockHeaders message for all supported versions of protocol" in {
@@ -101,9 +107,15 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
     val getBlockBodies = ETH62.GetBlockBodies(Seq(exampleHash))
     val getBlockBodiesBytes: Array[Byte] = getBlockBodies.toBytes
 
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
-    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
-    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(getBlockBodies)
+    decode(ProtocolVersions.ETH63).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(
+      getBlockBodies
+    )
+    decode(ProtocolVersions.ETH64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(
+      getBlockBodies
+    )
+    decode(ProtocolVersions.ETC64).fromBytes(Codes.GetBlockBodiesCode, getBlockBodiesBytes) shouldBe Right(
+      getBlockBodies
+    )
   }
 
   it should "decode BlockBodies message for all supported versions of protocol" in {
@@ -187,7 +199,8 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
   }
 
   it should "not decode message not existing in given protocol" in {
-    decode(ProtocolVersions.ETH63).fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a[Left[_, Message]]
+    decode(ProtocolVersions.ETH63)
+      .fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a[Left[_, Message]]
 
   }
 
