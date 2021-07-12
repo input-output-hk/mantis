@@ -48,14 +48,13 @@ export CI_SONATYPE_RELEASE=$"; bytes/sonatypeBundleRelease; rlp/sonatypeBundleRe
 # so as a workaround the combos are called here explicitly.
 function release {
     SCALA_VERSION=$1
-    export SCAPEGOAT_VERSION=$2
 
     sbt "++ $SCALA_VERSION ; ci-release"
 }
 
 function releaseAll {
-    release 2.12.10 1.4.5
-    release 2.13.4 1.4.7
+    release 2.12.13
+    release 2.13.6
 }
 
 if [[ "$BUILDKITE_BRANCH" == "develop" ]]; then
