@@ -30,5 +30,7 @@ class BestBlockchainBranch(
     } else None
 
   override def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    bestChainBlockNumberMappingStorage.get(number)
+    if (tipBlockHeader.number >= number && number >= 0) {
+      bestChainBlockNumberMappingStorage.get(number)
+    } else None
 }
