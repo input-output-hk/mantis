@@ -6,7 +6,6 @@ import org.bouncycastle.util.encoders.Hex
 import org.json4s.CustomSerializer
 import org.json4s.DefaultFormats
 import org.json4s.Formats
-import org.json4s.JNull
 import org.json4s.JString
 
 import io.iohk.ethereum.domain.Address
@@ -14,7 +13,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcError
 
 object JsonSerializers {
   implicit val formats: Formats =
-    DefaultFormats + UnformattedDataJsonSerializer + QuantitiesSerializer + OptionNoneToJNullSerializer + AddressJsonSerializer
+    DefaultFormats.preservingEmptyValues + UnformattedDataJsonSerializer + QuantitiesSerializer + AddressJsonSerializer
 
   object UnformattedDataJsonSerializer
       extends CustomSerializer[ByteString](_ =>
@@ -34,14 +33,6 @@ object JsonSerializers {
             else
               JString(s"0x${Hex.toHexString(n.toByteArray).dropWhile(_ == '0')}")
           }
-        )
-      )
-
-  object OptionNoneToJNullSerializer
-      extends CustomSerializer[Option[_]](formats =>
-        (
-          PartialFunction.empty,
-          { case None => JNull }
         )
       )
 
