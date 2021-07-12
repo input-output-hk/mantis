@@ -25,6 +25,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingBodies
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.AwaitingHeadersToBeIgnored
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotFormingSeq
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingReadyBlocks
+import io.iohk.ethereum.blockchain.sync.regular.BlockFetcherState.HeadersNotMatchingWaitingHeaders
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.ImportNewBlock
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.validators.BlockValidator
@@ -166,8 +167,9 @@ class BlockFetcher(
                 log.info("Dismissed received headers due to: {}", HeadersNotMatchingReadyBlocks.description)
                 peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedHeaders)
                 state.withHeaderFetchReceived
-              case Left(err) =>
-                log.info("Dismissed received headers due to: {}", err)
+              case Left(HeadersNotMatchingWaitingHeaders) =>
+                log.info("Dismissed received headers due to: {}", HeadersNotMatchingWaitingHeaders.description)
+                peersClient ! BlacklistPeer(peer.id, BlacklistReason.UnrequestedHeaders)
                 state.withHeaderFetchReceived
               case Right(updatedState) =>
                 updatedState.withHeaderFetchReceived

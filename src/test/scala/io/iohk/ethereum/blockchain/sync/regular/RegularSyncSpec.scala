@@ -167,8 +167,10 @@ class RegularSyncSpec
           )
           peersClient.expectMsgEq(blockHeadersChunkRequest(1))
           peersClient.reply(PeersClient.Response(defaultPeer, BlockHeaders(testBlocksChunked(5).headers)))
-          peersClient.expectMsgPF() {
-            case PeersClient.BlacklistPeer(id, _) if id == defaultPeer.id => true
+
+          peersClient.fishForMessage() {
+            case PeersClient.BlacklistPeer(defaultPeer.id, _) => true
+            case _                                            => false
           }
         }
       )
