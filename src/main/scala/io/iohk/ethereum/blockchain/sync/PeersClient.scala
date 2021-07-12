@@ -1,5 +1,8 @@
 package io.iohk.ethereum.blockchain.sync
 
+import java.util.Collections.newSetFromMap
+
+import scala.jdk.CollectionConverters._
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -9,7 +12,6 @@ import akka.actor.Scheduler
 
 import scala.concurrent.ExecutionContext
 import scala.reflect.ClassTag
-
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -22,6 +24,8 @@ import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.utils.Config.SyncConfig
+
+import scala.collection.mutable
 
 class PeersClient(
     val etcPeerManager: ActorRef,
@@ -38,6 +42,8 @@ class PeersClient(
 
   val statusSchedule: Cancellable =
     scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
+
+  val activeFetchingNodes: mutable.Set[Peer] = lruSet[Peer](syncConfig.peersToFetchFrom)
 
   def receive: Receive = running(Map())
 
@@ -129,6 +135,25 @@ class PeersClient(
 
     log.debug(s"Handshaked peers status (number of peers: ${handshakedPeersStatus.size}): $handshakedPeersStatus")
   }
+
+  //returns the next best peer after the one already returned previously
+  //TODO: make sure the next best peer has a different best block, so we don't fetch in parallel identical branches
+  def nextBestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
+    val peersToUse = peersToDownloadFrom.values
+      .collect { case PeerWithInfo(peer, PeerInfo(_, chainWeight, true, _, _)) =>
+        (peer, chainWeight)
+      }
+
+    val peer =
+      peersToUse.filter(peerAndWeight => !activeFetchingNodes.contains(peerAndWeight._1)).maxByOption(_._2).map(_._1)
+    peer.foreach(activeFetchingNodes.add)
+    peer
+  }
+
+  private def lruSet[A](maxEntries: Int): mutable.Set[A] =
+    newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {
+      override def removeEldestEntry(eldest: java.util.Map.Entry[A, java.lang.Boolean]): Boolean = size > maxEntries
+    }).asScala
 }
 
 object PeersClient {

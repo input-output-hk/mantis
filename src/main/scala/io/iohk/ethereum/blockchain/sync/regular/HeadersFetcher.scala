@@ -5,15 +5,13 @@ import akka.actor.typed.scaladsl.AbstractBehavior
 import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.{ActorRef => ClassicActorRef}
-
+import akka.util.ByteString
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.util.Failure
 import scala.util.Success
-
 import org.slf4j.Logger
-
 import io.iohk.ethereum.blockchain.sync.PeersClient.BestPeer
 import io.iohk.ethereum.blockchain.sync.PeersClient.Request
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
@@ -41,9 +39,9 @@ class HeadersFetcher(
 
   override def onMessage(message: HeadersFetcherCommand): Behavior[HeadersFetcherCommand] =
     message match {
-      case FetchHeaders(blockNumber: BigInt, amount: BigInt) =>
-        log.debug("Start fetching headers from block {}", blockNumber)
-        requestHeaders(blockNumber, amount)
+      case FetchHeaders(block: Either[BigInt, ByteString], amount: BigInt) =>
+        log.debug("Start fetching headers from block {}", block)
+        requestHeaders(block, amount)
         Behaviors.same
       case AdaptedMessage(peer, BlockHeaders(headers)) =>
         log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
@@ -55,9 +53,9 @@ class HeadersFetcher(
       case _ => Behaviors.unhandled
     }
 
-  private def requestHeaders(blockNr: BigInt, amount: BigInt): Unit = {
-    log.debug("Fetching headers from block {}", blockNr)
-    val msg = GetBlockHeaders(Left(blockNr), amount, skip = 0, reverse = false)
+  private def requestHeaders(block: Either[BigInt, ByteString], amount: BigInt): Unit = {
+    log.debug("Fetching headers from block {}", block)
+    val msg = GetBlockHeaders(block, amount, skip = 0, reverse = false)
 
     val resp = makeRequest(Request.create(msg, BestPeer), HeadersFetcher.RetryHeadersRequest)
       .flatMap {
@@ -84,7 +82,7 @@ object HeadersFetcher {
     Behaviors.setup(context => new HeadersFetcher(peersClient, syncConfig, supervisor, context))
 
   sealed trait HeadersFetcherCommand
-  final case class FetchHeaders(blockNumber: BigInt, amount: BigInt) extends HeadersFetcherCommand
+  final case class FetchHeaders(block: Either[BigInt, ByteString], amount: BigInt) extends HeadersFetcherCommand
   final case object RetryHeadersRequest extends HeadersFetcherCommand
   final private case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends HeadersFetcherCommand
 }
