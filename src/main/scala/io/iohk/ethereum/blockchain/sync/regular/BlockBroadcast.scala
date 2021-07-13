@@ -50,7 +50,7 @@ class BlockBroadcast(val etcPeerManager: ActorRef) {
       val message: MessageSerializable = remoteStatus.capability match {
         case Capability.ETH63 => blockToBroadcast.as63
         case Capability.ETH64 => blockToBroadcast.as63
-        case Capability.ETC64 => blockToBroadcast.as64
+        case Capability.ETC64 => blockToBroadcast.asEtc64
       }
       etcPeerManager ! EtcPeerManagerActor.SendMessage(message, peer.id)
     }
@@ -81,6 +81,6 @@ object BlockBroadcast {
     */
   case class BlockToBroadcast(block: Block, chainWeight: ChainWeight) {
     def as63: BaseETH6XMessages.NewBlock = BaseETH6XMessages.NewBlock(block, chainWeight.totalDifficulty)
-    def as64: ETC64.NewBlock = ETC64.NewBlock(block, chainWeight)
+    def asEtc64: ETC64.NewBlock = ETC64.NewBlock(block, chainWeight)
   }
 }
