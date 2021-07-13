@@ -6,9 +6,8 @@ import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
 
-/** A Branch instance which only works for the best canonical branch. As this branch
-  * currently has specific indexes (particularly regarding accessing blocks by number),
-  * it will uses thoses to provide better performance.
+/** A Branch instance which only works for the best canonical branch or a subset of this branch.
+  * This implementation uses the existing storage indexes to access blocks by number more efficiently.
   */
 class BestBlockchainBranch(
     tipBlockHeader: BlockHeader,

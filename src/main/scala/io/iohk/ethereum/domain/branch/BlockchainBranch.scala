@@ -4,7 +4,6 @@ import akka.util.ByteString
 
 import io.iohk.ethereum.domain.Block
 
-// TODO choose a name : ChainInstance, BlockchainBranch, Branch, Blockchain ?
 trait BlockchainBranch {
 
   /** Returns a block inside this branch based on its number */
