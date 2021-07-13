@@ -254,7 +254,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         txsExecResult.isRight shouldBe true
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
 
-        val transaction: LegacyTransaction = validStxSignedByOrigin.tx
+        val transaction: Transaction = validStxSignedByOrigin.tx
         // Check valid world
         val minerPaymentForTxs = UInt256(transaction.gasLimit * transaction.gasPrice)
         val changes = Seq(

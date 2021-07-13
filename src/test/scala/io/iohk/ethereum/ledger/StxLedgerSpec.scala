@@ -47,7 +47,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
     val errorExecResult: TxResult = mining.blockPreparator.executeTransaction(
-      stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)),
+      stx.copy(tx = Transaction.withGasLimit(estimationResult - 1)(stx.tx)),
       fromAddress,
       genesisHeader,
       worldWithAccount
