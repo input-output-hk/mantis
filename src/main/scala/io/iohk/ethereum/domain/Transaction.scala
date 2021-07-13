@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
-sealed trait Transaction {
+sealed trait Transaction extends Product with Serializable {
   def nonce: BigInt
   def gasPrice: BigInt
   def gasLimit: BigInt
@@ -25,6 +25,32 @@ object Transaction {
   val Type01: Int = 1
   val LegacyThresholdLowerBound: Int = 0xc0
   val LegacyThresholdUpperBound: Int = 0xfe
+
+  def typed(
+      nonce: BigInt,
+      gasPrice: BigInt,
+      gasLimit: BigInt,
+      receivingAddress: Address,
+      value: BigInt,
+      payload: ByteString,
+      accessList: Option[List[AccessListItem]]
+  ): Transaction =
+    TransactionWithAccessList(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
+
+  def legacy(
+      nonce: BigInt,
+      gasPrice: BigInt,
+      gasLimit: BigInt,
+      receivingAddress: Address,
+      value: BigInt,
+      payload: ByteString
+  ): Transaction =
+    LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
+
+  def withGasLimit(gl: BigInt): Transaction => Transaction = {
+    case tx: LegacyTransaction         => tx.copy(gasLimit = gl)
+    case tx: TransactionWithAccessList => tx.copy(gasLimit = gl)
+  }
 }
 
 sealed trait TypedTransaction extends Transaction
@@ -73,7 +99,7 @@ case class TransactionWithAccessList(
     receivingAddress: Option[Address],
     value: BigInt,
     payload: ByteString,
-    accessList: List[AccessListItem]
+    accessList: Option[List[AccessListItem]]
 ) extends TypedTransaction {
   override def toString: String =
     s"TransactionWithAccessList {" +
