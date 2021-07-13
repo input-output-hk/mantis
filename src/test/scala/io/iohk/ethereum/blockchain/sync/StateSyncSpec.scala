@@ -42,7 +42,6 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.utils.Config
 
 class StateSyncSpec

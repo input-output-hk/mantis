@@ -35,11 +35,10 @@ import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.PeerDis
 import io.iohk.ethereum.network.PeerEventBusActor.Unsubscribe
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETH62._
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class PivotBlockSelectorSpec

@@ -45,7 +45,6 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 import io.iohk.ethereum.utils.Logger
 
 class FastSyncBranchResolverActorSpec

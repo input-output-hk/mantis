@@ -11,7 +11,6 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 
 trait TestSyncPeers { self: TestSyncConfig =>
   implicit def system: ActorSystem

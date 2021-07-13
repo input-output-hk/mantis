@@ -27,7 +27,6 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 
 class DebugServiceSpec
     extends TestKit(ActorSystem("ActorSystem_DebugServiceSpec"))

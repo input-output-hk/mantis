@@ -17,7 +17,6 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 
 class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
   "PeerClient" should "determined the best peer based on it latest checkpoint number and total difficulty" in {

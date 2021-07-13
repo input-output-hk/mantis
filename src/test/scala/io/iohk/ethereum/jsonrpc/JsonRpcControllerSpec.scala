@@ -32,7 +32,6 @@ import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
 
 class JsonRpcControllerSpec
     extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))

@@ -11,8 +11,8 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.forkid.ForkId
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
-import io.iohk.ethereum.network.p2p.messages._
 import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages._
 import io.iohk.ethereum.security.SecureRandomBuilder
 
 class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBuilder {
