@@ -25,7 +25,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     // remote peer did not receive local status so it treats all remote messages as uncompressed
     assert(remoteReadNotCompressedStatus.size == 1)
-    assert(remoteReadNotCompressedStatus.head.get == status)
+    assert(remoteReadNotCompressedStatus.head == Right(status))
   }
 
   it should "compress messages when remote side advertises p2p version larger or equal 5" in new TestSetup {
@@ -41,7 +41,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     // remote peer did not receive local status so it treats all remote messages as uncompressed,
     // but local peer compress messages after V5 Hello message
     assert(remoteReadNotCompressedStatus.size == 1)
-    assert(remoteReadNotCompressedStatus.head.isFailure)
+    assert(remoteReadNotCompressedStatus.head.isLeft)
   }
 
   it should "compress messages when both sides advertises p2p version larger or equal 5" in new TestSetup {
@@ -56,7 +56,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     // both peers exchanged v5 hellos, so they should send compressed messages
     assert(remoteReadNextMessageAfterHello.size == 1)
-    assert(remoteReadNextMessageAfterHello.head.get == status)
+    assert(remoteReadNextMessageAfterHello.head == Right(status))
   }
 
   it should "compress and decompress first message after hello when receiving 2 frames" in new TestSetup {
@@ -72,8 +72,8 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
 
     // both peers exchanged v5 hellos, so they should send compressed messages
     assert(remoteReadBothMessages.size == 2)
-    assert(remoteReadBothMessages.head.get == helloV5)
-    assert(remoteReadBothMessages.last.get == status)
+    assert(remoteReadBothMessages.head == Right(helloV5))
+    assert(remoteReadBothMessages.last == Right(status))
   }
 
   trait TestSetup extends SecureChannelSetup {
