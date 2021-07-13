@@ -17,7 +17,7 @@ class BestBlockchainBranch(
 ) extends BlockchainBranch {
 
   /* The following assumptions are made in this class :
-   *  - The whole branch exist in storage
+   *  - The whole branch exists in storage
    *  - The various metadata and index are consistent
    */
 
