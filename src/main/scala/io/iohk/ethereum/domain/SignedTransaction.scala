@@ -165,7 +165,7 @@ object SignedTransaction {
   }
 }
 
-case class SignedTransaction(tx: LegacyTransaction, signature: ECDSASignature) {
+case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
 
   def safeSenderIsEqualTo(address: Address): Boolean =
     SignedTransaction.getSender(this).contains(address)
