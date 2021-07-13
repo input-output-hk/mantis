@@ -5,7 +5,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.ETC64
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 
 case class EtcNodeStatus64ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration
@@ -22,7 +22,7 @@ case class EtcNodeStatus64ExchangeState(
     val chainWeight = blockchain.getChainWeightByHash(bestBlockHeader.hash).get
 
     val status = ETC64.Status(
-      protocolVersion = ProtocolVersions.ETC64.version,
+      protocolVersion = Capability.ETC64.version,
       networkId = peerConfiguration.networkId,
       chainWeight = chainWeight,
       bestHash = bestBlockHeader.hash,

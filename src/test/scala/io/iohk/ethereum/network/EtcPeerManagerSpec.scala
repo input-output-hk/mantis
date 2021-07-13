@@ -29,11 +29,11 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.NewBlock
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.Config
 
@@ -303,7 +303,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     val peerStatus: RemoteStatus = RemoteStatus(
       protocolFamily = ProtocolFamily.ETH,
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
@@ -319,7 +319,7 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
     )
 
     val initialPeerInfoETC64: PeerInfo = PeerInfo(
-      remoteStatus = peerStatus.copy(protocolVersion = ProtocolVersions.ETC64.version),
+      remoteStatus = peerStatus.copy(protocolVersion = Capability.ETC64.version),
       chainWeight = peerStatus.chainWeight,
       forkAccepted = false,
       maxBlockNumber = Fixtures.Blocks.Block3125369.header.number,

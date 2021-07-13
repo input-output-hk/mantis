@@ -24,11 +24,11 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62
 import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class BlockBroadcastSpec
     extends TestKit(ActorSystem("BlockBroadcastSpec_System"))
@@ -63,7 +63,7 @@ class BlockBroadcastSpec
     val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val peerInfo = initialPeerInfo
       .copy(remoteStatus =
-        peerStatus.copy(protocolFamily = ProtocolFamily.ETH, protocolVersion = ProtocolVersions.ETH63.version)
+        peerStatus.copy(protocolFamily = ProtocolFamily.ETH, protocolVersion = Capability.ETH63.version)
       )
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
@@ -180,7 +180,7 @@ class BlockBroadcastSpec
 
     val peerStatus: RemoteStatus = RemoteStatus(
       protocolFamily = ProtocolFamily.ETC,
-      protocolVersion = ProtocolVersions.ETC64.version,
+      protocolVersion = Capability.ETC64.version,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

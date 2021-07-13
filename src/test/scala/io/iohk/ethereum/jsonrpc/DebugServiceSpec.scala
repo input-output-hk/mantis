@@ -26,8 +26,8 @@ import io.iohk.ethereum.network.PeerActor
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 class DebugServiceSpec
     extends TestKit(ActorSystem("ActorSystem_DebugServiceSpec"))
@@ -78,7 +78,7 @@ class DebugServiceSpec
 
     val peerStatus: RemoteStatus = RemoteStatus(
       protocolFamily = ProtocolFamily.ETH,
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

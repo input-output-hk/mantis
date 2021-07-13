@@ -44,12 +44,12 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -123,10 +123,11 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
+    // TODO: Refactor - use Capability instead of ProtocolFamily and version
     def getPeerInfo(
         peer: Peer,
         protocolFamily: ProtocolFamily = ProtocolFamily.ETC,
-        protocolVersion: Int = ProtocolVersions.ETC64.version
+        protocolVersion: Int = Capability.ETC64.version
     ): PeerInfo = {
       val status =
         RemoteStatus(

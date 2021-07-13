@@ -5,8 +5,8 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH64
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 
 case class EthNodeStatus64ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration
@@ -25,7 +25,7 @@ case class EthNodeStatus64ExchangeState(
     val genesisHash = blockchainReader.genesisHeader.hash
 
     val status = ETH64.Status(
-      protocolVersion = ProtocolVersions.ETH64.version,
+      protocolVersion = Capability.ETH64.version,
       networkId = peerConfiguration.networkId,
       totalDifficulty = chainWeight.totalDifficulty,
       bestHash = bestBlockHeader.hash,

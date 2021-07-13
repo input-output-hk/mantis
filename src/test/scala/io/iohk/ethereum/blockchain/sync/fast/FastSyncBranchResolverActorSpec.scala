@@ -42,10 +42,10 @@ import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Logger
 
 class FastSyncBranchResolverActorSpec
@@ -262,7 +262,7 @@ class FastSyncBranchResolverActorSpec
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
-    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.ETC64.version): PeerInfo = {
+    def getPeerInfo(peer: Peer, protocolVersion: Int = Capability.ETC64.version): PeerInfo = {
       val status =
         RemoteStatus(
           ProtocolFamily.ETC,
