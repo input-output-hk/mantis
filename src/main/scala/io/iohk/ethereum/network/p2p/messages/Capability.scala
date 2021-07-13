@@ -1,13 +1,25 @@
 package io.iohk.ethereum.network.p2p.messages
 
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily._
 import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPException
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPSerializable
+import io.iohk.ethereum.rlp.RLPValue
 import io.iohk.ethereum.rlp.rawDecode
+
+sealed trait ProtocolFamily
+object ProtocolFamily {
+  final case object ETH extends ProtocolFamily
+  final case object ETC extends ProtocolFamily
+  implicit class ProtocolFamilyEnc(val msg: ProtocolFamily) extends RLPSerializable {
+    override def toRLPEncodable: RLPEncodeable = msg match {
+      case ETH => RLPValue("eth".getBytes())
+      case ETC => RLPValue("etc".getBytes())
+    }
+  }
+}
 
 sealed abstract class Capability(val name: ProtocolFamily, val version: Byte)
 
