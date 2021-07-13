@@ -588,8 +588,7 @@ class PivotBlockSelectorSpec
 
     val peer1Status: RemoteStatus =
       RemoteStatus(
-        ProtocolFamily.ETC,
-        Capability.ETC64.version,
+        Capability.ETC64,
         1,
         ChainWeight.totalDifficultyOnly(20),
         ByteString("peer1_bestHash"),

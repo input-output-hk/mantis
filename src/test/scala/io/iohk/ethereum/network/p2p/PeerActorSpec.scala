@@ -430,8 +430,7 @@ class PeerActorSpec
   it should "stay connected to pre fork peer" in new TestSetup {
 
     val remoteStatus = RemoteStatus(
-      protocolFamily = ProtocolFamily.ETH,
-      protocolVersion = Capability.ETH63.version,
+      capability = Capability.ETH63,
       networkId = peerConf.networkId,
       chainWeight =
         ChainWeight.totalDifficultyOnly(daoForkBlockChainTotalDifficulty - 200000), // remote is before the fork

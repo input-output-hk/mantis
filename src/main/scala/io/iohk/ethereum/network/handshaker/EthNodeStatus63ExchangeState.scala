@@ -4,8 +4,8 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Capability
 
 case class EthNodeStatus63ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration

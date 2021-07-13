@@ -86,7 +86,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")
@@ -117,7 +117,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")
@@ -216,7 +216,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")

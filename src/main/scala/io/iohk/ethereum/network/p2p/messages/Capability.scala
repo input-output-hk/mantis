@@ -1,5 +1,6 @@
 package io.iohk.ethereum.network.p2p.messages
 
+import io.iohk.ethereum.network.p2p.messages.ProtocolFamily._
 import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPException
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
@@ -7,20 +8,19 @@ import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.rlp.RLPSerializable
 import io.iohk.ethereum.rlp.rawDecode
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily._
 
 sealed abstract class Capability(val name: ProtocolFamily, val version: Byte)
 
 object Capability {
-  case object ETH63 extends Capability(ProtocolFamily.ETH, 63)
-  case object ETH64 extends Capability(ProtocolFamily.ETH, 64)
-  case object ETC64 extends Capability(ProtocolFamily.ETC, 64)
+  case object ETH63 extends Capability(ProtocolFamily.ETH, 63) //scalastyle:ignore magic.number
+  case object ETH64 extends Capability(ProtocolFamily.ETH, 64) //scalastyle:ignore magic.number
+  case object ETC64 extends Capability(ProtocolFamily.ETC, 64) //scalastyle:ignore magic.number
 
   def parse(s: String): Option[Capability] = s match {
     case "eth/63" => Some(ETH63)
     case "eth/64" => Some(ETH64)
     case "etc/64" => Some(ETC64)
-    case _ => None // TODO: log unknown capability?
+    case _        => None // TODO: log unknown capability?
   }
 
   def parseUnsafe(s: String): Capability =

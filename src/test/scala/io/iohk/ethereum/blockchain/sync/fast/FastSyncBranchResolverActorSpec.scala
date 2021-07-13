@@ -262,11 +262,10 @@ class FastSyncBranchResolverActorSpec
     def peerId(number: Int): PeerId = PeerId(s"peer_$number")
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
-    def getPeerInfo(peer: Peer, protocolVersion: Int = Capability.ETC64.version): PeerInfo = {
+    def getPeerInfo(peer: Peer): PeerInfo = {
       val status =
         RemoteStatus(
-          ProtocolFamily.ETC,
-          protocolVersion,
+          Capability.ETC64,
           1,
           ChainWeight.totalDifficultyOnly(1),
           ByteString(s"${peer.id}_bestHash"),

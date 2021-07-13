@@ -63,7 +63,7 @@ class BlockBroadcastSpec
     val newBlockNewHashes = NewBlockHashes(Seq(ETH62.BlockHash(blockHeader.hash, blockHeader.number)))
     val peerInfo = initialPeerInfo
       .copy(remoteStatus =
-        peerStatus.copy(protocolFamily = ProtocolFamily.ETH, protocolVersion = Capability.ETH63.version)
+        peerStatus.copy(capability = Capability.ETH63)
       )
       .withChainWeight(ChainWeight.totalDifficultyOnly(initialPeerInfo.chainWeight.totalDifficulty))
     val newBlock =
@@ -179,8 +179,7 @@ class BlockBroadcastSpec
     val baseBlockHeader = Fixtures.Blocks.Block3125369.header
 
     val peerStatus: RemoteStatus = RemoteStatus(
-      protocolFamily = ProtocolFamily.ETC,
-      protocolVersion = Capability.ETC64.version,
+      capability = Capability.ETC64,
       networkId = 1,
       chainWeight = ChainWeight(10, 10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
