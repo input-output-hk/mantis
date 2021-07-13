@@ -79,13 +79,13 @@ let
 in
 stdenv.mkDerivation rec {
   pname = "retesteth";
-  version = "v0.1.0-accesslist_fix";
+  version = "v0.1.1-eip1559";
 
   src = fetchFromGitHub {
     owner = "input-output-hk";
     repo = "retesteth";
     rev = "remove-hunter";
-    sha256 = "sha256-5BSbf8NoLWL5Iro3S70FRPGkLt+ZFKTeu/yBG2cSu/g=";
+    sha256 = "sha256-NdiH01EPM9lHnWXgDj7DqZOt5GPIk3hmZSM2blj0+SM=";
   };
 
   nativeBuildInputs = [ cmake pkg-config ];
