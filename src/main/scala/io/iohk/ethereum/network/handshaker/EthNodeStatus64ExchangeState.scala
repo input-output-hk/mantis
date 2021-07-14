@@ -1,6 +1,6 @@
 package io.iohk.ethereum.network.handshaker
 
-import cats.effect._
+import cats.effect.SyncIO
 
 import io.iohk.ethereum.forkid.Connect
 import io.iohk.ethereum.forkid.ForkId
@@ -27,7 +27,6 @@ case class EthNodeStatus64ExchangeState(
           blockchainReader.getBestBlockNumber(),
           status.forkId
         )
-      _ = log.info("Fork id validation result was: {}", validationResult)
     } yield validationResult match {
       case Connect => applyRemoteStatusMessage(RemoteStatus(status))
       case _       => DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
