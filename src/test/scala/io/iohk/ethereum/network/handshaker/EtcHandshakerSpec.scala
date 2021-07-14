@@ -190,7 +190,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with fork id when peer supports ETH64" in new LocalPeerETH64Setup with RemotePeerETH64Setup {
+  it should "connect correctly after validating fork id when peer supports ETH64" in new LocalPeerETH64Setup
+    with RemotePeerETH64Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
@@ -221,6 +222,45 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       case other =>
         fail(s"Invalid handshaker state: $other")
     }
+  }
+
+  it should "disconnect from a useless peer after validating fork id when peer supports ETH64" in new LocalPeerETH64Setup
+    with RemotePeerETH64Setup {
+
+    val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
+
+    blockchainWriter.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
+
+    val newLocalStatusMsg =
+      localStatusMsg
+        .copy(
+          bestHash = firstBlock.header.hash,
+          totalDifficulty = newChainWeight.totalDifficulty,
+          forkId = ForkId(0xfc64ec04L, Some(1150000))
+        )
+
+    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
+
+    val newRemoteStatusMsg =
+      remoteStatusMsg
+        .copy(
+          forkId = ForkId(1, None) // ForkId that is incompatible with our chain
+        )
+
+    val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
+    assert(handshakerAfterHelloOpt.isDefined)
+
+    handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
+
+    val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(newRemoteStatusMsg)
+    assert(handshakerAfterStatusOpt.isDefined)
+
+    handshakerAfterStatusOpt.get.nextMessage match {
+      case Left(HandshakeFailure(Disconnect.Reasons.UselessPeer)) => succeed
+      case other =>
+        fail(s"Invalid handshaker state: $other")
+    }
+
   }
 
   it should "fail if a timeout happened during hello exchange" in new TestSetup {
@@ -447,7 +487,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
       totalDifficulty = 0,
       bestHash = genesisBlock.header.hash,
       genesisHash = genesisBlock.header.hash,
-      forkId = ForkId(2L, Some(3L))
+      forkId = ForkId(0xfc64ec04L, Some(1150000))
     )
 
     val remoteStatus: RemoteStatus = RemoteStatus(remoteStatusMsg)
