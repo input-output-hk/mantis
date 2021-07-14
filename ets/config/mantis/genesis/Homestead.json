@@ -1,5 +1,6 @@
 {
     "params" : {
+        "fork" : "Homestead",
         "homesteadForkBlock" : "0x00"
     },
     "accounts" : {
