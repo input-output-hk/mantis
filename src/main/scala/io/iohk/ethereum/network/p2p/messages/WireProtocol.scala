@@ -34,7 +34,7 @@ object WireProtocol {
 
       def toHello: Hello = rawDecode(bytes) match {
         case RLPList(p2pVersion, clientId, (capabilities: RLPList), listenPort, nodeId, _*) =>
-          Hello(p2pVersion, clientId, capabilities.items.map(_.toCapability), listenPort, nodeId)
+          Hello(p2pVersion, clientId, capabilities.items.map(_.toCapability).flatten, listenPort, nodeId)
         case _ => throw new RuntimeException("Cannot decode Hello")
       }
     }

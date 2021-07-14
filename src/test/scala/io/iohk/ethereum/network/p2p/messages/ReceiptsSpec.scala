@@ -11,6 +11,7 @@ import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.network.p2p.EthereumMessageDecoder
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -56,7 +57,7 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers {
 
   it should "decode receipts" in {
     EthereumMessageDecoder
-      .ethMessageDecoder(ProtocolVersions.ETH63)
+      .ethMessageDecoder(Capability.ETH63)
       .fromBytes(
         Codes.ReceiptsCode,
         encode(encodedReceipts)
@@ -65,7 +66,7 @@ class ReceiptsSpec extends AnyFlatSpec with Matchers {
 
   it should "decode encoded receipts" in {
     EthereumMessageDecoder
-      .ethMessageDecoder(ProtocolVersions.ETH63)
+      .ethMessageDecoder(Capability.ETH63)
       .fromBytes(Codes.ReceiptsCode, receipts.toBytes) shouldBe Right(receipts)
   }
 }

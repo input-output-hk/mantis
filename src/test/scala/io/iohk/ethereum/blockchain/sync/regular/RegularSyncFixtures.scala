@@ -44,12 +44,11 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -125,13 +124,11 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def getPeerInfo(
         peer: Peer,
-        protocolFamily: ProtocolFamily = ProtocolFamily.ETC,
-        protocolVersion: Int = ProtocolVersions.ETC64.version
+        capability: Capability = Capability.ETC64
     ): PeerInfo = {
       val status =
         RemoteStatus(
-          protocolFamily,
-          protocolVersion,
+          capability,
           1,
           ChainWeight.totalDifficultyOnly(1),
           ByteString(s"${peer.id}_bestHash"),
