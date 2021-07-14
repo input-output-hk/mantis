@@ -207,35 +207,37 @@ class TestService(
     SetChainParamsResponse().rightNow
   }
 
-  val neverOccuringBlock: Int = Int.MaxValue
+  val neverOccurringBlock: Int = Int.MaxValue
+
   private def buildNewConfig(blockchainParams: BlockchainParams) = {
-    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccuringBlock)
-    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
+    val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccurringBlock)
+    val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccurringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     node.blockchainConfig.copy(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
-        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
-        eip106BlockNumber = neverOccuringBlock,
-        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccuringBlock),
+        homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccurringBlock),
+        eip106BlockNumber = neverOccurringBlock,
+        eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccurringBlock),
         eip155BlockNumber = byzantiumBlockNumber,
         eip160BlockNumber = byzantiumBlockNumber,
         eip161BlockNumber = byzantiumBlockNumber,
-        difficultyBombPauseBlockNumber = neverOccuringBlock,
-        difficultyBombContinueBlockNumber = neverOccuringBlock,
-        difficultyBombRemovalBlockNumber = neverOccuringBlock,
+        difficultyBombPauseBlockNumber = neverOccurringBlock,
+        difficultyBombContinueBlockNumber = neverOccurringBlock,
+        difficultyBombRemovalBlockNumber = neverOccurringBlock,
         byzantiumBlockNumber = byzantiumBlockNumber,
         ecip1049BlockNumber = None,
-        ecip1097BlockNumber = neverOccuringBlock,
-        ecip1098BlockNumber = neverOccuringBlock,
-        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccuringBlock),
+        ecip1097BlockNumber = neverOccurringBlock,
+        ecip1098BlockNumber = neverOccurringBlock,
+        constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccurringBlock),
         petersburgBlockNumber = istanbulForkBlockNumber,
         aghartaBlockNumber = istanbulForkBlockNumber,
         istanbulBlockNumber = istanbulForkBlockNumber,
         atlantisBlockNumber = istanbulForkBlockNumber,
         phoenixBlockNumber = istanbulForkBlockNumber,
-        ecip1099BlockNumber = neverOccuringBlock
+        ecip1099BlockNumber = neverOccurringBlock,
+        ecip1103BlockNumber = neverOccurringBlock
       ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce),
       networkId = 1,

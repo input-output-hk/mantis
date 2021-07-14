@@ -98,7 +98,8 @@ class RestrictedEthashBlockHeaderValidatorSpec
           ecip1098BlockNumber = Long.MaxValue,
           ecip1097BlockNumber = Long.MaxValue,
           ecip1099BlockNumber = Long.MaxValue,
-          ecip1049BlockNumber = None
+          ecip1049BlockNumber = None,
+          ecip1103BlockNumber = Long.MaxValue
         ),
         daoForkConfig = None,
         // unused
