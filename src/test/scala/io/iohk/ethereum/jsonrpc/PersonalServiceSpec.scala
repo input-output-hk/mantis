@@ -435,7 +435,8 @@ class PersonalServiceSpec
         ecip1098BlockNumber = 0,
         ecip1097BlockNumber = 0,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        ecip1103BlockNumber = Long.MaxValue,
       ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,

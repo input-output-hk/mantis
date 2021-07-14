@@ -43,7 +43,8 @@ class ForksTest extends AnyFlatSpec with Matchers {
         ecip1098BlockNumber = Long.MaxValue,
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        ecip1103BlockNumber = Long.MaxValue,
       ),
       chainId = 0x3d.toByte,
       monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),

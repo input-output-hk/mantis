@@ -245,7 +245,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1098BlockNumber = Long.MaxValue,
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        ecip1103BlockNumber = Long.MaxValue
       )
     )
 
@@ -314,7 +315,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1098BlockNumber = Long.MaxValue,
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        ecip1103BlockNumber = Long.MaxValue
       ),
       chainId = 0x3d.toByte,
       networkId = 1,
@@ -697,7 +699,8 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         ecip1098BlockNumber = Long.MaxValue,
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        ecip1103BlockNumber = Long.MaxValue
       ),
       chainId = 0x3d.toByte,
       networkId = 1,
