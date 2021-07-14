@@ -22,9 +22,12 @@ case object Connect extends ForkIdValidationResult
 case object ErrRemoteStale extends ForkIdValidationResult
 case object ErrLocalIncompatibleOrStale extends ForkIdValidationResult
 
+import cats.effect._
+
 object ForkIdValidator {
 
-  implicit val unsafeLogger: SelfAwareStructuredLogger[Task] = Slf4jLogger.getLogger[Task]
+  implicit val taskLogger: SelfAwareStructuredLogger[Task] = Slf4jLogger.getLogger[Task]
+  implicit val syncIoLogger: SelfAwareStructuredLogger[SyncIO] = Slf4jLogger.getLogger[SyncIO]
 
   val maxUInt64: BigInt = (BigInt(0x7fffffffffffffffL) << 1) + 1 // scalastyle:ignore magic.number
 
