@@ -197,12 +197,4 @@ class MessageDecodersSpec extends AnyFlatSpec with Matchers with SecureRandomBui
       .fromBytes(Codes.SignedTransactionsCode, blockHashesFromNumberBytes) shouldBe a[Left[_, Message]]
 
   }
-
-  /*
-  it should "not decode message of not supported protocol" in {
-    assertThrows[RuntimeException] {
-      decode(Capability.ETH61).fromBytes(Codes.NewBlockHashesCode, NewBlockHashesETH61bytes)
-    }
-  }
-   */
 }
