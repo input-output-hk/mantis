@@ -87,8 +87,6 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
   }
 
-  val currentProtocolVersion = 63
-
   val appStateStorage: AppStateStorage = mock[AppStateStorage]
   val web3Service = new Web3Service
   val netService: NetService = mock[NetService]
@@ -101,7 +99,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     stxLedger,
     keyStore,
     syncingController.ref,
-    Capability("eth", currentProtocolVersion.toByte),
+    Capability.ETH63,
     Timeouts.shortTimeout
   )
 

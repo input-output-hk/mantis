@@ -28,8 +28,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.handshaker._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
@@ -181,7 +180,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
 
   object DefaultValues {
     val defaultStatusMsg: Status = Status(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = 1,
       totalDifficulty = Fixtures.Blocks.Genesis.header.difficulty,
       bestHash = Fixtures.Blocks.Genesis.header.hash,
@@ -204,7 +203,7 @@ class PeerActorHandshakingSpec extends AnyFlatSpec with Matchers {
     val defaultHello: Hello = Hello(
       p2pVersion = 0,
       clientId = "notused",
-      capabilities = Seq(Eth63Capability),
+      capabilities = Seq(Capability.ETH63),
       listenPort = 0,
       nodeId = ByteString.empty
     )

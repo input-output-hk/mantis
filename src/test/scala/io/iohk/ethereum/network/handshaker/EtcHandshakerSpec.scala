@@ -22,13 +22,11 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeComplete.Handshak
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status.StatusEnc
 import io.iohk.ethereum.network.p2p.messages.Capability
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders.GetBlockHeadersEnc
 import io.iohk.ethereum.network.p2p.messages.ETH64
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello.HelloEnc
@@ -88,7 +86,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")
@@ -119,7 +117,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     assert(handshakerAfterStatusOpt.isDefined)
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")
@@ -192,7 +190,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
   }
 
-  it should "send status with fork id when peer supports ETH64" in new LocalPeerETH64Setup with RemotePeerETH64Setup {
+  it should "connect correctly after validating fork id when peer supports ETH64" in new LocalPeerETH64Setup
+    with RemotePeerETH64Setup {
 
     val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
 
@@ -218,11 +217,50 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
     handshakerAfterStatusOpt.get.nextMessage match {
       case Left(HandshakeSuccess(peerInfo)) =>
-        peerInfo.remoteStatus.protocolVersion shouldBe localStatus.protocolVersion
+        peerInfo.remoteStatus.capability shouldBe localStatus.capability
 
       case other =>
         fail(s"Invalid handshaker state: $other")
     }
+  }
+
+  it should "disconnect from a useless peer after validating fork id when peer supports ETH64" in new LocalPeerETH64Setup
+    with RemotePeerETH64Setup {
+
+    val newChainWeight = ChainWeight.zero.increase(genesisBlock.header).increase(firstBlock.header)
+
+    blockchainWriter.save(firstBlock, Nil, newChainWeight, saveAsBestBlock = true)
+
+    val newLocalStatusMsg =
+      localStatusMsg
+        .copy(
+          bestHash = firstBlock.header.hash,
+          totalDifficulty = newChainWeight.totalDifficulty,
+          forkId = ForkId(0xfc64ec04L, Some(1150000))
+        )
+
+    initHandshakerWithoutResolver.nextMessage.map(_.messageToSend) shouldBe Right(localHello: HelloEnc)
+
+    val newRemoteStatusMsg =
+      remoteStatusMsg
+        .copy(
+          forkId = ForkId(1, None) // ForkId that is incompatible with our chain
+        )
+
+    val handshakerAfterHelloOpt = initHandshakerWithoutResolver.applyMessage(remoteHello)
+    assert(handshakerAfterHelloOpt.isDefined)
+
+    handshakerAfterHelloOpt.get.nextMessage.map(_.messageToSend.underlyingMsg) shouldBe Right(newLocalStatusMsg)
+
+    val handshakerAfterStatusOpt = handshakerAfterHelloOpt.get.applyMessage(newRemoteStatusMsg)
+    assert(handshakerAfterStatusOpt.isDefined)
+
+    handshakerAfterStatusOpt.get.nextMessage match {
+      case Left(HandshakeFailure(Disconnect.Reasons.UselessPeer)) => succeed
+      case other =>
+        fail(s"Invalid handshaker state: $other")
+    }
+
   }
 
   it should "fail if a timeout happened during hello exchange" in new TestSetup {
@@ -274,9 +312,8 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "fail if the remote peer doesn't support ETH63/ETC64" in new RemotePeerETH63Setup {
-    val eth62Capability = ProtocolVersions.ETH62
     val handshakerAfterHelloOpt =
-      initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Seq(eth62Capability)))
+      initHandshakerWithResolver.applyMessage(remoteHello.copy(capabilities = Nil))
     assert(handshakerAfterHelloOpt.isDefined)
     handshakerAfterHelloOpt.get.nextMessage.leftSide shouldBe Left(
       HandshakeFailure(Disconnect.Reasons.IncompatibleP2pProtocolVersion)
@@ -331,7 +368,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     }
 
     val initHandshakerWithoutResolver: EtcHandshaker = EtcHandshaker(
-      new MockEtcHandshakerConfiguration(List(ProtocolVersions.ETC64, ProtocolVersions.ETH63, ProtocolVersions.ETH64))
+      new MockEtcHandshakerConfiguration(List(Capability.ETC64, Capability.ETH63, Capability.ETH64))
     )
 
     val initHandshakerWithResolver: EtcHandshaker = EtcHandshaker(etcHandshakerConfigurationWithResolver)
@@ -344,7 +381,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val localHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Etc64Capability, Eth63Capability, Eth64Capability),
+      capabilities = Seq(Capability.ETC64, Capability.ETH63, Capability.ETH64),
       listenPort = 0, //Local node not listening
       nodeId = ByteString(nodeStatus.nodeId)
     )
@@ -355,7 +392,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait LocalPeerETH63Setup extends LocalPeerSetup {
     val localStatusMsg: BaseETH6XMessages.Status = BaseETH6XMessages.Status(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
       bestHash = genesisBlock.header.hash,
@@ -366,7 +403,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait LocalPeerETH64Setup extends LocalPeerSetup {
     val localStatusMsg: ETH64.Status = ETH64.Status(
-      protocolVersion = ProtocolVersions.ETH64.version,
+      protocolVersion = Capability.ETH64.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = genesisBlock.header.difficulty,
       bestHash = genesisBlock.header.hash,
@@ -378,7 +415,7 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
 
   trait LocalPeerETC64Setup extends LocalPeerSetup {
     val localStatusMsg: ETC64.Status = ETC64.Status(
-      protocolVersion = ProtocolVersions.ETC64.version,
+      protocolVersion = Capability.ETC64.version,
       networkId = Config.Network.peer.networkId,
       chainWeight = ChainWeight.zero.increase(genesisBlock.header),
       bestHash = genesisBlock.header.hash,
@@ -400,13 +437,13 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
-      capabilities = Seq(Eth63Capability),
+      capabilities = Seq(Capability.ETH63),
       listenPort = remotePort,
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
     val remoteStatusMsg: BaseETH6XMessages.Status = BaseETH6XMessages.Status(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,
       bestHash = genesisBlock.header.hash,
@@ -420,14 +457,14 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
-      capabilities = Seq(Etc64Capability, Eth63Capability),
+      capabilities = Seq(Capability.ETC64, Capability.ETH63),
       listenPort = remotePort,
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
     val remoteStatusMsg: ETC64.Status =
       ETC64.Status(
-        protocolVersion = ProtocolVersions.ETC64.version,
+        protocolVersion = Capability.ETC64.version,
         networkId = Config.Network.peer.networkId,
         chainWeight = ChainWeight.zero,
         bestHash = genesisBlock.header.hash,
@@ -439,18 +476,18 @@ class EtcHandshakerSpec extends AnyFlatSpec with Matchers {
     val remoteHello: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = "remote-peer",
-      capabilities = Seq(Eth64Capability),
+      capabilities = Seq(Capability.ETH64),
       listenPort = remotePort,
       nodeId = ByteString(remoteNodeStatus.nodeId)
     )
 
     val remoteStatusMsg: ETH64.Status = ETH64.Status(
-      protocolVersion = ProtocolVersions.ETH64.version,
+      protocolVersion = Capability.ETH64.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 0,
       bestHash = genesisBlock.header.hash,
       genesisHash = genesisBlock.header.hash,
-      forkId = ForkId(2L, Some(3L))
+      forkId = ForkId(0xfc64ec04L, Some(1150000))
     )
 
     val remoteStatus: RemoteStatus = RemoteStatus(remoteStatusMsg)

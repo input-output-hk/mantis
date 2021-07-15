@@ -7,8 +7,7 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.network.handshaker.EtcHelloExchangeState
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.Status
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities._
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.rlpx.FrameCodec
 import io.iohk.ethereum.network.rlpx.MessageCodec
@@ -85,7 +84,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val helloV5: Hello = Hello(
       p2pVersion = EtcHelloExchangeState.P2pVersion,
       clientId = Config.clientId,
-      capabilities = Seq(Eth63Capability),
+      capabilities = Seq(Capability.ETH63),
       listenPort = 0, //Local node not listening
       nodeId = ByteString(1)
     )
@@ -93,7 +92,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     val helloV4: Hello = helloV5.copy(p2pVersion = 4)
 
     val status: Status = Status(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = Config.Network.peer.networkId,
       totalDifficulty = 1,
       bestHash = ByteString(1),
@@ -101,7 +100,7 @@ class MessageCodecSpec extends AnyFlatSpec with Matchers {
     )
 
     val decoder: MessageDecoder =
-      NetworkMessageDecoder.orElse(EthereumMessageDecoder.ethMessageDecoder(Eth63Capability))
+      NetworkMessageDecoder.orElse(EthereumMessageDecoder.ethMessageDecoder(Capability.ETH63))
 
     val messageCodec = new MessageCodec(frameCodec, decoder, negotiatedLocalP2PVersion)
     val remoteMessageCodec = new MessageCodec(remoteFrameCodec, decoder, negotiatedRemoteP2PVersion)
