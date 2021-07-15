@@ -20,7 +20,7 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
     }
     "gatherForks for the etc chain correctly" in {
       val res = config.blockchains.map { case (name, conf) => (name, gatherForks(conf)) }
-      res("etc") shouldBe List(1150000, 2500000, 3000000, 5000000, 5900000, 8772000, 9573000, 10500839, 11700000)
+      res("etc") shouldBe List(1150000, 2500000, 3000000, 5000000, 5900000, 8772000, 9573000, 10500839, 11700000, 13189133)
     }
 
     "gatherForks for the eth chain correctly" in {
@@ -78,7 +78,9 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(10500839 - 1) shouldBe ForkId(0x7ba22882L, Some(10500839))
       create(10500839) shouldBe ForkId(0x9007bfccL, Some(11700000))
       create(11700000 - 1) shouldBe ForkId(0x9007bfccL, Some(11700000))
-      create(11700000) shouldBe ForkId(0xdb63a1caL, None)
+      create(11700000) shouldBe ForkId(0xdb63a1caL, Some(13189133))
+      create(13189133-1) shouldBe ForkId(0xdb63a1caL, Some(13189133))
+      create(13189133) shouldBe ForkId(0x0f6bf187L, None) // First Magneto block
     }
 
     "create correct ForkId for mordor blocks" in {
@@ -92,11 +94,9 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(999982) shouldBe ForkId(0x604f6ee1L, Some(999983))
       create(999983) shouldBe ForkId(0xf42f5539L, Some(2520000))
       create(2519999) shouldBe ForkId(0xf42f5539L, Some(2520000))
-      create(2520000) shouldBe ForkId(0x66b5c286L, None)
-      // TODO: Add Magneto
-      // create(2520000) shouldBe ForkId(0x66b5c286L, Some(3985893))
-      // create(3985893) shouldBe ForkId(0x66b5c286L, Some(3985893))
-      // create(3985894) shouldBe ForkId(0x92b323e0L, None)
+      create(2520000) shouldBe ForkId(0x66b5c286L, Some(3985893))
+      create(3985893-1) shouldBe ForkId(0x66b5c286L, Some(3985893))
+      create(3985893) shouldBe ForkId(0x92b323e0L, None) // First Magneto block
     }
 
     // Here’s a couple of tests to verify the proper RLP encoding (since FORK_HASH is a 4 byte binary but FORK_NEXT is an 8 byte quantity):
