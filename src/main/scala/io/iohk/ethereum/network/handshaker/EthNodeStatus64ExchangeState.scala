@@ -1,12 +1,17 @@
 package io.iohk.ethereum.network.handshaker
 
+import cats.effect.SyncIO
+
+import io.iohk.ethereum.forkid.Connect
 import io.iohk.ethereum.forkid.ForkId
+import io.iohk.ethereum.forkid.ForkIdValidator
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH64
+import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 
 case class EthNodeStatus64ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration
@@ -15,8 +20,17 @@ case class EthNodeStatus64ExchangeState(
   import handshakerConfiguration._
 
   def applyResponseMessage: PartialFunction[Message, HandshakerState[PeerInfo]] = { case status: ETH64.Status =>
-    // TODO: validate fork id of the remote peer
-    applyRemoteStatusMessage(RemoteStatus(status))
+    import ForkIdValidator.syncIoLogger
+    (for {
+      validationResult <-
+        ForkIdValidator.validatePeer[SyncIO](blockchainReader.genesisHeader.hash, blockchainConfig)(
+          blockchainReader.getBestBlockNumber(),
+          status.forkId
+        )
+    } yield validationResult match {
+      case Connect => applyRemoteStatusMessage(RemoteStatus(status))
+      case _       => DisconnectedState[PeerInfo](Disconnect.Reasons.UselessPeer)
+    }).unsafeRunSync()
   }
 
   override protected def createStatusMsg(): MessageSerializable = {
