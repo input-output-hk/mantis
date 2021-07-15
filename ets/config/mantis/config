@@ -13,7 +13,9 @@
       "Byzantium",
       "Constantinople",
       "ConstantinopleFix",
-      "Istanbul"
+      "Istanbul",
+      "Berlin",
+      "London"
     ],
     "additionalForks" : [
       "FrontierToHomesteadAt5",
