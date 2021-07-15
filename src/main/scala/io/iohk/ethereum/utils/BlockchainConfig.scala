@@ -38,7 +38,7 @@ case class BlockchainConfig(
     copy(forkBlockNumbers = update(forkBlockNumbers))
 }
 
-case class ForkBlockNumbers(
+case class ForkBlockNumbers (
     frontierBlockNumber: BigInt,
     homesteadBlockNumber: BigInt,
     eip106BlockNumber: BigInt,
@@ -71,6 +71,33 @@ case class ForkBlockNumbers(
       }
     case _ => None
   }
+}
+
+object ForkBlockNumbers {
+  val Empty: ForkBlockNumbers = ForkBlockNumbers(
+    frontierBlockNumber = 0,
+    homesteadBlockNumber = Long.MaxValue,
+    difficultyBombPauseBlockNumber = Long.MaxValue,
+    difficultyBombContinueBlockNumber = Long.MaxValue,
+    difficultyBombRemovalBlockNumber = Long.MaxValue,
+    eip106BlockNumber = Long.MaxValue,
+    eip150BlockNumber = Long.MaxValue,
+    eip160BlockNumber = Long.MaxValue,
+    eip155BlockNumber = Long.MaxValue,
+    eip161BlockNumber = Long.MaxValue,
+    byzantiumBlockNumber = Long.MaxValue,
+    constantinopleBlockNumber = Long.MaxValue,
+    istanbulBlockNumber = Long.MaxValue,
+    atlantisBlockNumber = Long.MaxValue,
+    aghartaBlockNumber = Long.MaxValue,
+    phoenixBlockNumber = Long.MaxValue,
+    petersburgBlockNumber = Long.MaxValue,
+    ecip1098BlockNumber = Long.MaxValue,
+    ecip1097BlockNumber = Long.MaxValue,
+    ecip1099BlockNumber = Long.MaxValue,
+    ecip1049BlockNumber = None,
+    ecip1103BlockNumber = Long.MaxValue
+  )
 }
 
 object BlockchainConfig {
