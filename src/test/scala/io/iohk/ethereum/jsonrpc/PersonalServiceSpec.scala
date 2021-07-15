@@ -414,13 +414,12 @@ class PersonalServiceSpec
       //unused
       networkId = 1,
       maxCodeSize = None,
-      forkBlockNumbers = ForkBlockNumbers(
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         eip155BlockNumber = 12345,
         eip161BlockNumber = 0,
         frontierBlockNumber = 0,
         difficultyBombPauseBlockNumber = 0,
         difficultyBombContinueBlockNumber = 0,
-        difficultyBombRemovalBlockNumber = Long.MaxValue,
         homesteadBlockNumber = 0,
         eip150BlockNumber = 0,
         eip160BlockNumber = 0,
@@ -434,8 +433,6 @@ class PersonalServiceSpec
         petersburgBlockNumber = 0,
         ecip1098BlockNumber = 0,
         ecip1097BlockNumber = 0,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
       ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,
