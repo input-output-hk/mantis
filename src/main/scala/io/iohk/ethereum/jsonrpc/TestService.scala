@@ -215,29 +215,19 @@ class TestService(
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     node.blockchainConfig.copy(
-      forkBlockNumbers = ForkBlockNumbers(
-        frontierBlockNumber = 0,
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccurringBlock),
-        eip106BlockNumber = neverOccurringBlock,
         eip150BlockNumber = blockchainParams.EIP150ForkBlock.getOrElse(neverOccurringBlock),
         eip155BlockNumber = byzantiumBlockNumber,
         eip160BlockNumber = byzantiumBlockNumber,
         eip161BlockNumber = byzantiumBlockNumber,
-        difficultyBombPauseBlockNumber = neverOccurringBlock,
-        difficultyBombContinueBlockNumber = neverOccurringBlock,
-        difficultyBombRemovalBlockNumber = neverOccurringBlock,
         byzantiumBlockNumber = byzantiumBlockNumber,
-        ecip1049BlockNumber = None,
-        ecip1097BlockNumber = neverOccurringBlock,
-        ecip1098BlockNumber = neverOccurringBlock,
         constantinopleBlockNumber = blockchainParams.constantinopleForkBlock.getOrElse(neverOccurringBlock),
         petersburgBlockNumber = istanbulForkBlockNumber,
         aghartaBlockNumber = istanbulForkBlockNumber,
         istanbulBlockNumber = istanbulForkBlockNumber,
         atlantisBlockNumber = istanbulForkBlockNumber,
         phoenixBlockNumber = istanbulForkBlockNumber,
-        ecip1099BlockNumber = neverOccurringBlock,
-        ecip1103BlockNumber = neverOccurringBlock
       ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce),
       networkId = 1,

@@ -121,14 +121,13 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
   implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
-    forkBlockNumbers = ForkBlockNumbers(
+    forkBlockNumbers = ForkBlockNumbers.Empty.copy(
       eip155BlockNumber = 0,
       eip161BlockNumber = 0,
       frontierBlockNumber = 0,
       homesteadBlockNumber = 0,
       difficultyBombPauseBlockNumber = 0,
       difficultyBombContinueBlockNumber = 0,
-      difficultyBombRemovalBlockNumber = Long.MaxValue,
       eip150BlockNumber = 0,
       eip160BlockNumber = 0,
       eip106BlockNumber = 0,
@@ -140,10 +139,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       phoenixBlockNumber = 0,
       petersburgBlockNumber = 0,
       ecip1098BlockNumber = 0,
-      ecip1097BlockNumber = 0,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None,
-      ecip1103BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = 0
     ),
     chainId = 0x03.toByte,
     networkId = 1,

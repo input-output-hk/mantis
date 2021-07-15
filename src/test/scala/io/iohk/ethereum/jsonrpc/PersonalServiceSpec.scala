@@ -411,13 +411,12 @@ class PersonalServiceSpec
     val txValue = 128000
 
     val chainId: Byte = 0x03.toByte
-    val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers(
+    val forkBlockNumbers: ForkBlockNumbers = ForkBlockNumbers.Empty.copy(
       eip155BlockNumber = 12345,
       eip161BlockNumber = 0,
       frontierBlockNumber = 0,
       difficultyBombPauseBlockNumber = 0,
       difficultyBombContinueBlockNumber = 0,
-      difficultyBombRemovalBlockNumber = Long.MaxValue,
       homesteadBlockNumber = 0,
       eip150BlockNumber = 0,
       eip160BlockNumber = 0,
@@ -430,10 +429,7 @@ class PersonalServiceSpec
       phoenixBlockNumber = 0,
       petersburgBlockNumber = 0,
       ecip1098BlockNumber = 0,
-      ecip1097BlockNumber = 0,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None,
-      ecip1103BlockNumber = Long.MaxValue
+      ecip1097BlockNumber = 0
     )
 
     val wallet: Wallet = Wallet(address, prvKey)
