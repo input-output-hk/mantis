@@ -21,10 +21,10 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.MiningConfigs
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
@@ -128,18 +128,18 @@ class EthMiningServiceSpec
   }
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    val testConsensus = buildTestConsensus()
+    val testMining = buildTestMining()
     override lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
-      blockPreparator = testConsensus.blockPreparator,
+      miningConfig = miningConfig,
+      blockPreparator = testMining.blockPreparator,
       difficultyCalc,
       minerKey
     )
-    override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
+    override lazy val mining: TestMining = testMining.withBlockGenerator(restrictedGenerator)
 
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -188,7 +188,7 @@ class EthMiningServiceSpec
   it should "return correct coinbase" in new TestSetup {
 
     val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
-    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
+    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
   it should "accept and report hashrate" in new TestSetup {
@@ -233,8 +233,8 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
+    override lazy val miningConfig = MiningConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()
     val pendingTransactionsManager: TestProbe = TestProbe()
@@ -254,8 +254,8 @@ class EthMiningServiceSpec
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
       blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
-      blockPreparator = consensus.blockPreparator,
+      miningConfig = miningConfig,
+      blockPreparator = mining.blockPreparator,
       difficultyCalc,
       minerKey
     )
@@ -265,7 +265,7 @@ class EthMiningServiceSpec
     lazy val ethMiningService = new EthMiningService(
       blockchainReader,
       blockchainConfig,
-      consensus,
+      mining,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,

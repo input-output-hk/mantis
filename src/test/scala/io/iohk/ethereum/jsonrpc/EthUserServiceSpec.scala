@@ -143,7 +143,7 @@ class EthUserServiceSpec
     lazy val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
-      consensus,
+      mining,
       storagesInstance.storages.evmCodeStorage,
       blockchainConfig
     )

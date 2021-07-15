@@ -2,12 +2,12 @@ package io.iohk.ethereum.consensus.pow.blocks
 
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.DefaultBlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.consensus.pow.RestrictedPoWSigner
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -24,7 +24,7 @@ class RestrictedPoWBlockGeneratorImpl(
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     override val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     minerKeyPair: AsymmetricCipherKeyPair,
@@ -34,7 +34,7 @@ class RestrictedPoWBlockGeneratorImpl(
       validators,
       blockchainReader,
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider
@@ -46,7 +46,7 @@ class RestrictedPoWBlockGeneratorImpl(
       beneficiary: Address,
       ommers: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
+  ): PendingBlockAndState = MiningMetrics.RestrictedPoWBlockGeneratorTiming.record { () =>
     val pHeader = parent.header
     val blockNumber = pHeader.number + 1
     val parentHash = pHeader.hash
