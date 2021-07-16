@@ -9,11 +9,11 @@ import io.iohk.ethereum.domain.BlockchainReader
 /** A Branch instance which only works for the best canonical branch or a subset of this branch.
   * This implementation uses the existing storage indexes to access blocks by number more efficiently.
   */
-class BestBlockchainBranch(
+class BestBranch(
     tipBlockHeader: BlockHeader,
     bestChainBlockNumberMappingStorage: BlockNumberMappingStorage,
     blockchainReader: BlockchainReader
-) extends BlockchainBranch {
+) extends Branch {
 
   /* The following assumptions are made in this class :
    *  - The whole branch exists in storage

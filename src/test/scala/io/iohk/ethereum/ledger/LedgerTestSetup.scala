@@ -32,7 +32,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.domain.branch.BlockchainBranch
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.PC
 import io.iohk.ethereum.ledger.PR
@@ -412,7 +412,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
 
-  val bestChain: BlockchainBranch = mock[BlockchainBranch]
+  val bestChain: Branch = mock[Branch]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
   (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)

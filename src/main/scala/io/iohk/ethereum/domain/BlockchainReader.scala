@@ -8,9 +8,9 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.branch.BestBlockchainBranch
-import io.iohk.ethereum.domain.branch.BlockchainBranch
-import io.iohk.ethereum.domain.branch.EmptyBlockchainBranch
+import io.iohk.ethereum.domain.branch.BestBranch
+import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.EmptyBranch$
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -71,16 +71,16 @@ class BlockchainReader(
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
   /** get the current best stored branch */
-  def getBestBranch(): BlockchainBranch =
+  def getBestBranch(): Branch =
     getBestBlock()
       .map { block =>
-        new BestBlockchainBranch(
+        new BestBranch(
           block.header,
           blockNumberMappingStorage,
           this
         )
       }
-      .getOrElse(EmptyBlockchainBranch)
+      .getOrElse(EmptyBranch$)
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()

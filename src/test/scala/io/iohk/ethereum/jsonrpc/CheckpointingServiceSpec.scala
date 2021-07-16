@@ -23,7 +23,7 @@ import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.domain.branch.BlockchainBranch
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.BlockQueue
 
@@ -186,7 +186,7 @@ class CheckpointingServiceSpec
   trait TestSetup {
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
-    val bestChain: BlockchainBranch = mock[BlockchainBranch]
+    val bestChain: Branch = mock[Branch]
     (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
     val blockQueue: BlockQueue = mock[BlockQueue]
     val syncController: TestProbe = TestProbe()

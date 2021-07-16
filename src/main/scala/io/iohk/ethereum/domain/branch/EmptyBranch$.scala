@@ -3,7 +3,7 @@ import akka.util.ByteString
 
 import io.iohk.ethereum.domain.Block
 
-object EmptyBlockchainBranch extends BlockchainBranch {
+object EmptyBranch$ extends Branch {
 
   override def getBlockByNumber(number: BigInt): Option[Block] = None
 

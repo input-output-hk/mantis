@@ -4,7 +4,8 @@ import akka.util.ByteString
 
 import io.iohk.ethereum.domain.Block
 
-trait BlockchainBranch {
+/** An interface to manipulate blockchain branches */
+trait Branch {
 
   /** Returns a block inside this branch based on its number */
   def getBlockByNumber(number: BigInt): Option[Block]
