@@ -21,7 +21,6 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
@@ -352,9 +351,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Left(HeaderParentNotFoundError)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Left(
+        HeaderParentNotFoundError
+      )
 
-      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+          blockchainConfig: BlockchainConfig
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         Left(HeaderParentNotFoundError)
     }
   }
@@ -365,7 +368,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
   }
 
   lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
@@ -384,14 +389,13 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         consensuz.blockPreparator,
         blockValidation
       ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false
-        ): Either[BlockExecutionError, Seq[Receipt]] = {
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] = {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
             blockchain.getBackingMptStorage(-1),
@@ -481,15 +485,8 @@ trait CheckpointHelpers {
 
 trait OmmersTestSetup extends EphemBlockchain {
   object OmmerValidation extends Mocks.MockValidatorsAlwaysSucceed {
-    override val ommersValidator: OmmersValidator = (
-        parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack
-    ) =>
+    override val ommersValidator: OmmersValidator =
       new StdOmmersValidator(blockHeaderValidator)
-        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
 
   override lazy val blockImportWithMockedBlockExecution: BlockImport =

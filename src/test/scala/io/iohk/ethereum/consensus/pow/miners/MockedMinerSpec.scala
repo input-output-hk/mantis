@@ -19,6 +19,7 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 
 class MockedMinerSpec
@@ -53,8 +54,8 @@ class MockedMinerSpec
         blockCreatorBehaviour(parent, withTransactions = false, bfm1)
 
         (blockCreator
-          .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
-          .expects(bfm1, false, *)
+          .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy])(_: BlockchainConfig))
+          .expects(bfm1, false, *, *)
           .returning(
             Task.raiseError(new RuntimeException("error"))
           )
@@ -224,7 +225,8 @@ class MockedMinerSpec
         blockchain,
         blockchainReader,
         blockCreator,
-        sync.ref
+        sync.ref,
+        this
       )
     )
 

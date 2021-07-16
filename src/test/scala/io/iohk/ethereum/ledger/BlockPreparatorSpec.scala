@@ -15,6 +15,7 @@ import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.validators.SignedTransactionError
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValid
 import io.iohk.ethereum.consensus.validators.SignedTransactionValidator
@@ -23,6 +24,7 @@ import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm.InvalidJump
 import io.iohk.ethereum.vm.InvalidOpCode
 import io.iohk.ethereum.vm.OutOfGas
@@ -288,12 +290,19 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
     override lazy val validators: MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
-        (stx: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
-          if (stx.tx.receivingAddress.contains(Address(42))) {
-            Right(SignedTransactionValid)
-          } else {
-            Left(TransactionSignatureError)
-          }
+        new SignedTransactionValidator {
+          def validate(
+              stx: SignedTransaction,
+              senderAccount: Account,
+              blockHeader: BlockHeader,
+              upfrontGasCost: UInt256,
+              accumGasUsed: BigInt
+          )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+            if (stx.tx.receivingAddress.contains(Address(42))) {
+              Right(SignedTransactionValid)
+            } else {
+              Left(TransactionSignatureError)
+            }
         }
     }
 
@@ -324,8 +333,15 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
     override lazy val validators: Mocks.MockValidatorsAlwaysSucceed = new Mocks.MockValidatorsAlwaysSucceed {
       override val signedTransactionValidator: SignedTransactionValidator =
-        (_: SignedTransaction, _: Account, _: BlockHeader, _: UInt256, _: BigInt) => {
-          Left(TransactionSignatureError)
+        new SignedTransactionValidator {
+          def validate(
+              stx: SignedTransaction,
+              senderAccount: Account,
+              blockHeader: BlockHeader,
+              upfrontGasCost: UInt256,
+              accumGasUsed: BigInt
+          )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] =
+            Left(TransactionSignatureError)
         }
     }
 

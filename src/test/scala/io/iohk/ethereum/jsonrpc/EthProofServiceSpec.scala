@@ -277,7 +277,7 @@ class EthProofServiceSpec
       blockchainReader,
       mining,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig
+      this
     )
   }
 }

@@ -21,6 +21,7 @@ import io.iohk.ethereum.jsonrpc.JsonRpcError._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore
 import io.iohk.ethereum.keystore.Wallet
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
@@ -28,7 +29,6 @@ import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.AddOrOverrideTransaction
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Logger
 import io.iohk.ethereum.utils.TxPoolConfig
@@ -80,9 +80,10 @@ class PersonalService(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     txPool: ActorRef,
-    blockchainConfig: BlockchainConfig,
-    txPoolConfig: TxPoolConfig
+    txPoolConfig: TxPoolConfig,
+    configBuilder: BlockchainConfigBuilder
 ) extends Logger {
+  import configBuilder._
 
   private val unlockedWallets: ExpiringMap[Address, Wallet] = ExpiringMap.empty(Duration.ofSeconds(defaultUnlockTime))
 

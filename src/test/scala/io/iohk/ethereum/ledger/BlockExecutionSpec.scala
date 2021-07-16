@@ -69,7 +69,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchainReader,
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newMining.blockPreparator,
             blockValidation
           )
@@ -112,7 +111,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchainReader,
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newMining.blockPreparator,
             blockValidation
           )
@@ -148,7 +146,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchainReader,
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newMining.blockPreparator,
             blockValidation
           )
@@ -176,7 +173,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchainReader,
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newMining.blockPreparator,
             blockValidation
           )
@@ -236,7 +232,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockchainReader,
             blockchainWriter,
             blockchainStorages.evmCodeStorage,
-            blockchainConfig,
             newMining.blockPreparator,
             blockValidation
           )
@@ -315,7 +310,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
               blockchainReader,
               blockchainWriter,
               blockchainStorages.evmCodeStorage,
-              blockchainConfig,
               newConsensus.blockPreparator,
               blockValidation
             )
@@ -686,7 +680,6 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         blockchainReader,
         blockchainWriter,
         blockchainStorages.evmCodeStorage,
-        blockchainConfig,
         mining.blockPreparator,
         blockValidation
       )

@@ -45,7 +45,7 @@ trait StdMiningBuilder extends MiningBuilder {
 
     val fullConfig = newConfig(specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, miningConfig.protocol)
+    val validators = ValidatorsExecutor(miningConfig.protocol)
 
     val additionalPoWData: AdditionalPoWProtocolData = miningConfig.protocol match {
       case Protocol.PoW | Protocol.MockedPow => NoAdditionalPoWData
@@ -58,7 +58,6 @@ trait StdMiningBuilder extends MiningBuilder {
         storagesInstance.storages.evmCodeStorage,
         blockchain,
         blockchainReader,
-        blockchainConfig,
         fullConfig,
         validators,
         additionalPoWData
