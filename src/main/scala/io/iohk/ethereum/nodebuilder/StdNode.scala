@@ -7,7 +7,7 @@ import scala.util.Success
 import scala.util.Try
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.StdConsensusBuilder
+import io.iohk.ethereum.consensus.mining.StdMiningBuilder
 import io.iohk.ethereum.metrics.Metrics
 import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
@@ -15,7 +15,7 @@ import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.utils.Config
 
-/** A standard node is everything Ethereum prescribes except the consensus algorithm,
+/** A standard node is everything Ethereum prescribes except the mining algorithm,
   * which is plugged in dynamically.
   *
   * The design is historically related to the initial cake-pattern-based
@@ -33,7 +33,7 @@ abstract class BaseNode extends Node {
 
   private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
-  private[this] def startConsensus(): Unit = consensus.startProtocol(this)
+  private[this] def startMining(): Unit = mining.startProtocol(this)
 
   private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
 
@@ -68,7 +68,7 @@ abstract class BaseNode extends Node {
 
     startSyncController()
 
-    startConsensus()
+    startMining()
 
     startDiscoveryManager()
 
@@ -83,7 +83,7 @@ abstract class BaseNode extends Node {
     }
 
     tryAndLogFailure(() => peerDiscoveryManager ! PeerDiscoveryManager.Stop)
-    tryAndLogFailure(() => consensus.stopProtocol())
+    tryAndLogFailure(() => mining.stopProtocol())
     tryAndLogFailure(() =>
       Await.ready(
         system
@@ -104,4 +104,4 @@ abstract class BaseNode extends Node {
   }
 }
 
-class StdNode extends BaseNode with StdConsensusBuilder
+class StdNode extends BaseNode with StdMiningBuilder

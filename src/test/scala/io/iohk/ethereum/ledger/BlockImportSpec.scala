@@ -11,7 +11,7 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.mining._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators._

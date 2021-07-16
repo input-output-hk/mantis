@@ -4,10 +4,10 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -30,12 +30,12 @@ class PoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      consensusConfig,
+      miningConfig,
       difficultyCalc,
       blockTimestampProvider
     )
@@ -57,7 +57,7 @@ class PoWBlockGeneratorImpl(
   def emptyX: Ommers = Nil
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] =
-    ConsensusMetrics.MinedBlockEvaluationTimer.record { () =>
+    MiningMetrics.MinedBlockEvaluationTimer.record { () =>
       cache
         .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
           override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
@@ -77,8 +77,8 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       x: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
-    ConsensusMetrics.PoWBlockGeneratorTiming.record { () =>
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState = MiningMetrics.PoWBlockGeneratorTiming.record {
+    () =>
       val pHeader = parent.header
       val blockNumber = pHeader.number + 1
       val parentHash = pHeader.hash
@@ -86,8 +86,8 @@ class PoWBlockGeneratorImpl(
       val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
         case Left(_)  => emptyX
         case Right(_) => x
-      }
 
+      }
       val prepared = prepareBlock(
         evmCodeStorage,
         parent,
@@ -104,14 +104,14 @@ class PoWBlockGeneratorImpl(
       }
 
       prepared
-    }
+  }
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): PoWBlockGeneratorImpl =
     new PoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
       blockchainReader,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider

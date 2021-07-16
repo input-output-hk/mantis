@@ -62,7 +62,7 @@ class KeccakMinerSpec extends AnyFlatSpec with Matchers {
     override val blockCreator = new PoWBlockCreator(
       pendingTransactionsManager = pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
-      consensus = consensus,
+      mining = mining,
       ommersPool = ommersPool.ref
     )
 

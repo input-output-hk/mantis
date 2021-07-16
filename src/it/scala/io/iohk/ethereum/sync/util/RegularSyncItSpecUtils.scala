@@ -26,13 +26,13 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.FullConsensusConfig
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.pow
 import io.iohk.ethereum.consensus.pow.EthashConfig
-import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
@@ -46,6 +46,7 @@ import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils.FakePeerCustomConfig.def
 import io.iohk.ethereum.sync.util.SyncCommonItSpecUtils._
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils._
+
 object RegularSyncItSpecUtils {
 
   class ValidatorsExecutorAlwaysSucceed extends MockValidatorsAlwaysSucceed {
@@ -64,13 +65,13 @@ object RegularSyncItSpecUtils {
   class FakePeer(peerName: String, fakePeerCustomConfig: FakePeerCustomConfig)
       extends CommonFakePeer(peerName, fakePeerCustomConfig) {
 
-    def buildEthashConsensus(): pow.PoWConsensus = {
-      val consensusConfig: ConsensusConfig = ConsensusConfig(Config.config)
+    def buildEthashMining(): pow.PoWMining = {
+      val miningConfig: MiningConfig = MiningConfig(Config.config)
       val specificConfig: EthashConfig = pow.EthashConfig(config)
-      val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
+      val fullConfig = FullMiningConfig(miningConfig, specificConfig)
       val vm = VmSetup.vm(VmConfig(config), blockchainConfig, testMode = false)
-      val consensus =
-        PoWConsensus(
+      val mining =
+        PoWMining(
           vm,
           storagesInstance.storages.evmCodeStorage,
           bl,
@@ -79,7 +80,7 @@ object RegularSyncItSpecUtils {
           ValidatorsExecutorAlwaysSucceed,
           NoAdditionalPoWData
         )
-      consensus
+      mining
     }
 
     lazy val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator
@@ -89,17 +90,17 @@ object RegularSyncItSpecUtils {
         "peers-client"
       )
 
-    lazy val consensus: PoWConsensus = buildEthashConsensus()
+    lazy val mining: PoWMining = buildEthashMining()
 
     lazy val blockQueue: BlockQueue = BlockQueue(bl, blockchainReader, syncConfig)
-    lazy val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
+    lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
     lazy val blockExecution =
       new BlockExecution(
         bl,
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
     lazy val blockImport: BlockImport =
@@ -120,7 +121,7 @@ object RegularSyncItSpecUtils {
       "pending-transactions-manager"
     )
 
-    lazy val validators: ValidatorsExecutor = buildEthashConsensus().validators
+    lazy val validators: ValidatorsExecutor = buildEthashMining().validators
 
     val broadcasterRef: ActorRef = system.actorOf(
       BlockBroadcasterActor
@@ -147,6 +148,7 @@ object RegularSyncItSpecUtils {
         blockImport,
         bl,
         blockchainReader,
+        storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),
         syncConfig,
         ommersPool,
@@ -165,6 +167,7 @@ object RegularSyncItSpecUtils {
         blockImport,
         bl,
         blockchainReader,
+        storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),
         validators.blockValidator,
         blacklist,
@@ -186,6 +189,7 @@ object RegularSyncItSpecUtils {
       Task(blockNumber match {
         case Some(bNumber) =>
           blockchainReader
+            .getBestBranch()
             .getBlockByNumber(bNumber)
             .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => blockchainReader.getBestBlock().get

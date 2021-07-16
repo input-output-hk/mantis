@@ -1,8 +1,8 @@
 package io.iohk.ethereum.consensus.blocks
 
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockPreparator
@@ -11,12 +11,12 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 abstract class NoOmmersBlockGenerator(
     evmCodeStorage: EvmCodeStorage,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      consensusConfig,
+      miningConfig,
       difficultyCalc,
       blockTimestampProvider
     ) {
@@ -45,7 +45,7 @@ abstract class NoOmmersBlockGenerator(
       x: Nil.type,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
   )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
-    ConsensusMetrics.NoOmmersBlockGeneratorTiming.record { () =>
+    MiningMetrics.NoOmmersBlockGeneratorTiming.record { () =>
       val pHeader = parent.header
       val blockNumber = pHeader.number + 1
 

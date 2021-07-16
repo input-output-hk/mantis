@@ -11,9 +11,19 @@ import monix.eval.Task
 
 import scala.concurrent.duration._
 
-import io.iohk.ethereum.consensus.Protocol._
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.Protocol
+import io.iohk.ethereum.consensus.mining.Protocol.AdditionalPoWProtocolData
+import io.iohk.ethereum.consensus.mining.Protocol.MockedPow
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
+import io.iohk.ethereum.consensus.mining.Protocol.PoW
+import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoW
+import io.iohk.ethereum.consensus.mining.Protocol.RestrictedPoWMinerData
+import io.iohk.ethereum.consensus.mining.TestMining
+import io.iohk.ethereum.consensus.mining.wrongMiningArgument
+import io.iohk.ethereum.consensus.mining.wrongValidatorsArgument
 import io.iohk.ethereum.consensus.pow.PoWMiningCoordinator.CoordinatorProtocol
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGeneratorImpl
@@ -34,18 +44,18 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.Logger
 
-/** Implements standard Ethereum consensus (Proof of Work).
+/** Implements standard Ethereum mining (Proof of Work).
   */
-class PoWConsensus private (
+class PoWMining private (
     val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
-    val config: FullConsensusConfig[EthashConfig],
+    val config: FullMiningConfig[EthashConfig],
     val validators: ValidatorsExecutor,
     val blockGenerator: PoWBlockGenerator,
     val difficultyCalculator: DifficultyCalculator
-) extends TestConsensus
+) extends TestMining
     with Logger {
 
   type Config = EthashConfig
@@ -121,24 +131,24 @@ class PoWConsensus private (
   private[this] def stopMiningProcess(): Unit =
     sendMiner(MinerProtocol.StopMining)
 
-  /** This is used by the [[io.iohk.ethereum.consensus.Consensus#blockGenerator blockGenerator]].
+  /** This is used by the [[Mining#blockGenerator blockGenerator]].
     */
   def blockPreparator: BlockPreparator = this._blockPreparator
 
-  /** Starts the consensus protocol on the current `node`.
+  /** Starts the mining protocol on the current `node`.
     */
   def startProtocol(node: Node): Unit =
     if (config.miningEnabled) {
       log.info("Mining is enabled. Will try to start configured miner actor")
-      val blockCreator = node.consensus match {
-        case consensus: PoWConsensus =>
+      val blockCreator = node.mining match {
+        case mining: PoWMining =>
           new PoWBlockCreator(
             pendingTransactionsManager = node.pendingTransactionsManager,
             getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
-            consensus = consensus,
+            mining = mining,
             ommersPool = node.ommersPool
           )
-        case consensus => wrongConsensusArgument[PoWConsensus](consensus)
+        case mining => wrongMiningArgument[PoWMining](mining)
       }
 
       startMiningProcess(node, blockCreator)
@@ -166,7 +176,7 @@ class PoWConsensus private (
           evmCodeStorage = evmCodeStorage,
           validators = _validators,
           blockchainReader = blockchainReader,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalculator,
           blockTimestampProvider = blockGenerator.blockTimestampProvider
@@ -177,12 +187,12 @@ class PoWConsensus private (
     }
 
   /** Internal API, used for testing */
-  def withValidators(validators: Validators): PoWConsensus =
+  def withValidators(validators: Validators): PoWMining =
     validators match {
       case _validators: ValidatorsExecutor =>
         val blockGenerator = newBlockGenerator(validators)
 
-        new PoWConsensus(
+        new PoWMining(
           vm = vm,
           evmCodeStorage = evmCodeStorage,
           blockchain = blockchain,
@@ -193,12 +203,11 @@ class PoWConsensus private (
           difficultyCalculator
         )
 
-      case _ =>
-        wrongValidatorsArgument[ValidatorsExecutor](validators)
+      case _ => wrongValidatorsArgument[ValidatorsExecutor](validators)
     }
 
-  def withVM(vm: VMImpl): PoWConsensus =
-    new PoWConsensus(
+  def withVM(vm: VMImpl): PoWMining =
+    new PoWMining(
       vm = vm,
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
@@ -210,8 +219,8 @@ class PoWConsensus private (
     )
 
   /** Internal API, used for testing */
-  def withBlockGenerator(blockGenerator: TestBlockGenerator): PoWConsensus =
-    new PoWConsensus(
+  def withBlockGenerator(blockGenerator: TestBlockGenerator): PoWMining =
+    new PoWMining(
       evmCodeStorage = evmCodeStorage,
       vm = vm,
       blockchain = blockchain,
@@ -224,17 +233,17 @@ class PoWConsensus private (
 
 }
 
-object PoWConsensus {
+object PoWMining {
   // scalastyle:off method.length
   def apply(
       vm: VMImpl,
       evmCodeStorage: EvmCodeStorage,
       blockchain: BlockchainImpl,
       blockchainReader: BlockchainReader,
-      config: FullConsensusConfig[EthashConfig],
+      config: FullMiningConfig[EthashConfig],
       validators: ValidatorsExecutor,
       additionalEthashProtocolData: AdditionalPoWProtocolData
-  ): PoWConsensus = {
+  ): PoWMining = {
     val difficultyCalculator = DifficultyCalculator
     val blockPreparator = new BlockPreparator(
       vm = vm,
@@ -248,7 +257,7 @@ object PoWConsensus {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator,
           minerKeyPair = key
@@ -258,12 +267,12 @@ object PoWConsensus {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          consensusConfig = config.generic,
+          miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator
         )
     }
-    new PoWConsensus(
+    new PoWMining(
       vm = vm,
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,

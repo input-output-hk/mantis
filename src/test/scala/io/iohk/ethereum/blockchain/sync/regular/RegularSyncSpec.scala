@@ -54,12 +54,12 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -87,6 +87,8 @@ class RegularSyncSpec
   def sync[T <: Fixture](test: => T): Future[Assertion] =
     Future {
       test
+      // this makes sure that actors are all done after the test (believe me, afterEach does not work with mocks)
+      TestKit.shutdownActorSystem(testSystem)
       succeed
     }
 
@@ -474,7 +476,8 @@ class RegularSyncSpec
         val failingBlock: Block = testBlocksChunked.head.head
         peersClient.setAutoPilot(new PeersClientAutoPilot)
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
-        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).repeat(10)
+        (blockchainReader.getBestBlockNumber _).when().returns(0)
+        (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).atLeastOnce()
         (blockImport
           .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
           .when(*, *, *)
@@ -484,7 +487,7 @@ class RegularSyncSpec
         val nodeData = List(ByteString(failingBlock.header.toBytes: Array[Byte]))
         (blockchainReader.getBestBlockNumber _).when().returns(0)
         (blockchainReader.getBlockHeaderByNumber _).when(*).returns(Some(BlockHelpers.genesis.header))
-        (blockchain.saveNode _)
+        (stateStorage.saveNode _)
           .when(*, *, *)
           .onCall { (hash, encoded, totalDifficulty) =>
             val expectedNode = nodeData.head
@@ -708,7 +711,7 @@ class RegularSyncSpec
           val peerWithETH63: (Peer, PeerInfo) = {
             val id = peerId(handshakedPeers.size)
             val peer = getPeer(id)
-            val peerInfo = getPeerInfo(peer, ProtocolVersions.ETH63.version)
+            val peerInfo = getPeerInfo(peer, Capability.ETH63)
             (peer, peerInfo)
           }
 

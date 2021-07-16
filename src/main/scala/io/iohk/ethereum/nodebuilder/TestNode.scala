@@ -8,7 +8,7 @@ import io.iohk.ethereum.jsonrpc.TestService
 import io.iohk.ethereum.testmode.SealEngineType
 import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
 import io.iohk.ethereum.testmode.TestModeComponentsProvider
-import io.iohk.ethereum.testmode.TestmodeConsensus
+import io.iohk.ethereum.testmode.TestmodeMining
 import io.iohk.ethereum.utils.BlockchainConfig
 
 class TestNode extends BaseNode {
@@ -23,20 +23,20 @@ class TestNode extends BaseNode {
       storagesInstance.storages.evmCodeStorage,
       syncConfig,
       scheduler,
-      consensusConfig,
+      miningConfig,
       vm,
       this
     )
 
   override lazy val ethBlocksService =
-    new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
+    new TestEthBlockServiceWrapper(blockchain, blockchainReader, mining, blockQueue)
 
-  override lazy val consensus = new TestmodeConsensus(
+  override lazy val mining = new TestmodeMining(
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,
     blockchainReader,
-    consensusConfig,
+    miningConfig,
     this
   )
 
@@ -49,7 +49,7 @@ class TestNode extends BaseNode {
         storagesInstance.storages.stateStorage,
         storagesInstance.storages.evmCodeStorage,
         pendingTransactionsManager,
-        consensusConfig,
+        miningConfig,
         testModeComponentsProvider,
         storagesInstance.storages.transactionMappingStorage,
         this

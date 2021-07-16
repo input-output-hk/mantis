@@ -33,6 +33,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
@@ -43,11 +44,11 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -76,6 +77,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
     lazy val branchResolution = new BranchResolution(blockchain, blockchainReader)
 
+    val stateStorage: StateStorage = stub[StateStorage]
+
     lazy val regularSync: ActorRef = system.actorOf(
       RegularSync
         .props(
@@ -85,6 +88,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           blockImport,
           blockchain,
           blockchainReader,
+          stateStorage,
           branchResolution,
           validators.blockValidator,
           blacklist,
@@ -120,10 +124,13 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def getPeer(id: PeerId): Peer =
       Peer(id, new InetSocketAddress("127.0.0.1", 0), TestProbe(id.value).ref, incomingConnection = false)
 
-    def getPeerInfo(peer: Peer, protocolVersion: Int = ProtocolVersions.ETC64.version): PeerInfo = {
+    def getPeerInfo(
+        peer: Peer,
+        capability: Capability = Capability.ETC64
+    ): PeerInfo = {
       val status =
         RemoteStatus(
-          protocolVersion,
+          capability,
           1,
           ChainWeight.totalDifficultyOnly(1),
           ByteString(s"${peer.id}_bestHash"),

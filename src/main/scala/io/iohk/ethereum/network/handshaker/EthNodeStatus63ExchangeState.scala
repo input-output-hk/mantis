@@ -5,9 +5,9 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 
-case class EtcNodeStatus63ExchangeState(
+case class EthNodeStatus63ExchangeState(
     handshakerConfiguration: EtcHandshakerConfiguration
 ) extends EtcNodeStatusExchangeState[BaseETH6XMessages.Status] {
 
@@ -23,7 +23,7 @@ case class EtcNodeStatus63ExchangeState(
     val chainWeight = blockchain.getChainWeightByHash(bestBlockHeader.hash).get
 
     val status = BaseETH6XMessages.Status(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      protocolVersion = Capability.ETH63.version,
       networkId = peerConfiguration.networkId,
       totalDifficulty = chainWeight.totalDifficulty,
       bestHash = bestBlockHeader.hash,

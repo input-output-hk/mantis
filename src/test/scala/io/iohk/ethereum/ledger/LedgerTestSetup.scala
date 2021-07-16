@@ -19,9 +19,9 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
@@ -31,6 +31,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.PC
 import io.iohk.ethereum.ledger.PR
@@ -48,7 +49,7 @@ import io.iohk.ethereum.vm.ProgramResult
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   //+ cake overrides
 
-  val prep: BlockPreparator = consensus.blockPreparator
+  val prep: BlockPreparator = mining.blockPreparator
   //- cake overrides
 
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -279,7 +280,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   override lazy val vm: VMImpl = new VMImpl
 
   // Make type more specific
-  override lazy val consensus: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestMining()
   //- cake overrides
 
   val blockQueue: BlockQueue
@@ -375,7 +376,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
 
   lazy val blockImportNotFailingAfterExecValidation: BlockImport = {
-    val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
+    val consensuz = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,
@@ -414,8 +415,11 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
+
+  val bestChain: Branch = mock[Branch]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -459,7 +463,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.isInChain _).expects(hash).returning(result)
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (blockchainReader.getBlockByNumber _).expects(number).returning(block)
+    (bestChain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchainReader.genesisHeader).expects().returning(header)

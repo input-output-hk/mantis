@@ -24,8 +24,8 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
@@ -516,7 +516,7 @@ class SyncControllerSpec
 
     override lazy val validators: Validators = _validators
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
+    override lazy val mining: TestMining = buildTestMining().withValidators(validators)
 
     //+ cake overrides
 
@@ -553,6 +553,7 @@ class SyncControllerSpec
           blockchainReader,
           blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
+          storagesInstance.storages.stateStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
           blockImport,

@@ -21,6 +21,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler._
 import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
@@ -59,9 +60,9 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.MptNodeEncoders.MptNodeDec
   * Important part is that nodes retrieved by getMissingNodes, must eventually be provided for scheduler to make progress
   */
 class SyncStateScheduler(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     evmCodeStorage: EvmCodeStorage,
+    stateStorage: StateStorage,
     bloomFilter: LoadableBloomFilter[ByteString]
 ) {
 
@@ -133,7 +134,7 @@ class SyncStateScheduler(
       bloomFilter.put(hash)
       reqType match {
         case _: CodeRequest => evmCodeStorage.put(hash, data).commit()
-        case _: NodeRequest => blockchain.saveNode(hash, data.toArray, targetBlockNumber)
+        case _: NodeRequest => stateStorage.saveNode(hash, data.toArray, targetBlockNumber)
       }
     }
     newState
@@ -294,6 +295,7 @@ object SyncStateScheduler {
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
+      stateStorage: StateStorage,
       nodeStorage: NodeStorage,
       expectedBloomFilterSize: Int
   ): SyncStateScheduler = {
@@ -304,9 +306,9 @@ object SyncStateScheduler {
         .takeWhileInclusive(_.isRight)
 
     new SyncStateScheduler(
-      blockchain,
       blockchainReader,
       evmCodeStorage,
+      stateStorage,
       LoadableBloomFilter[ByteString](expectedBloomFilterSize, mptStateSavedKeys)
     )
   }

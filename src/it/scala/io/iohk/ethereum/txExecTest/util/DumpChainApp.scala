@@ -20,13 +20,13 @@ import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.jsonrpc.ProofService.EmptyStorageValueProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
@@ -43,11 +43,11 @@ import io.iohk.ethereum.network.discovery.DiscoveryConfig
 import io.iohk.ethereum.network.handshaker.EtcHandshaker
 import io.iohk.ethereum.network.handshaker.EtcHandshakerConfiguration
 import io.iohk.ethereum.network.handshaker.Handshaker
-import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.RLPxConfiguration
 import io.iohk.ethereum.nodebuilder.AuthHandshakerBuilder
 import io.iohk.ethereum.nodebuilder.NodeKeyBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.NodeStatus
 import io.iohk.ethereum.utils.ServerStatus
@@ -102,7 +102,9 @@ object DumpChainApp
 
   val blockchain: Blockchain = new BlockchainMock(genesisHash)
   val blockchainReader: BlockchainReader = mock[BlockchainReader]
-  (blockchainReader.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
+  val bestChain: Branch = mock[Branch]
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
+  (bestChain.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
 
   val nodeStatus: NodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)
@@ -120,7 +122,7 @@ object DumpChainApp
       override val blockchain: Blockchain = DumpChainApp.blockchain
       override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
-      override val capabilities: List[Capability] = blockchainConfig.capabilities
+      override val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
     }
 
   lazy val handshaker: Handshaker[PeerInfo] = EtcHandshaker(handshakerConfiguration)
@@ -183,8 +185,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       position: BigInt,
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
-
-  override def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit = ???
 
   override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
 

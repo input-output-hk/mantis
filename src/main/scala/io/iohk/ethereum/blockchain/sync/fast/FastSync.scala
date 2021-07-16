@@ -38,6 +38,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -57,6 +58,7 @@ class FastSync(
     val blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
+    stateStorage: StateStorage,
     nodeStorage: NodeStorage,
     val validators: Validators,
     val peerEventBus: ActorRef,
@@ -179,6 +181,7 @@ class FastSync(
             blockchain,
             blockchainReader,
             evmCodeStorage,
+            stateStorage,
             nodeStorage,
             syncConfig.stateSyncBloomFilterSize
           ),
@@ -1153,6 +1156,7 @@ object FastSync {
       blockchainReader: BlockchainReader,
       blockchainWriter: BlockchainWriter,
       evmCodeStorage: EvmCodeStorage,
+      stateStorage: StateStorage,
       nodeStorage: NodeStorage,
       validators: Validators,
       peerEventBus: ActorRef,
@@ -1170,6 +1174,7 @@ object FastSync {
         blockchainReader,
         blockchainWriter,
         evmCodeStorage,
+        stateStorage,
         nodeStorage,
         validators,
         peerEventBus,

@@ -22,8 +22,7 @@ import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.network.p2p.MessageDecoder
 import io.iohk.ethereum.network.p2p.MessageSerializable
-import io.iohk.ethereum.network.p2p.messages.Capability.Capabilities
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Hello
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler.HelloCodec
@@ -192,7 +191,7 @@ class RLPxConnectionHandlerSpec
       override def fromBytes(`type`: Int, payload: Array[Byte]) =
         throw new Exception("Mock message decoder fails to decode all messages")
     }
-    val protocolVersion = ProtocolVersions.ETH63
+    val protocolVersion = Capability.ETH63
     val mockHandshaker: AuthHandshaker = mock[AuthHandshaker]
     val connection: TestProbe = TestProbe()
     val mockMessageCodec: MessageCodec = mock[MessageCodec]
@@ -243,7 +242,7 @@ class RLPxConnectionHandlerSpec
         .returning((response, AuthHandshakeSuccess(mock[Secrets], ByteString())))
       (mockHelloExtractor.readHello _)
         .expects(ByteString.empty)
-        .returning(Some((Hello(5, "", Capabilities.Eth63Capability :: Nil, 30303, ByteString("abc")), Seq.empty)))
+        .returning(Some((Hello(5, "", Capability.ETH63 :: Nil, 30303, ByteString("abc")), Seq.empty)))
       (mockMessageCodec.readMessages _)
         .expects(hello)
         .returning(Nil) //For processing of messages after handshaking finishes

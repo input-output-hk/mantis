@@ -2,9 +2,9 @@ package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
-import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.consensus.validators.std.StdBlockValidator

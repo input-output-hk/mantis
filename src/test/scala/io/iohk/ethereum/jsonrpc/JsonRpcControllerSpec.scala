@@ -8,8 +8,6 @@ import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.duration._
 
-import org.json4s.DefaultFormats
-import org.json4s.Formats
 import org.json4s.JArray
 import org.json4s.JObject
 import org.json4s.JString
@@ -28,15 +26,12 @@ import io.iohk.ethereum.jsonrpc.DebugService.ListPeersInfoResponse
 import io.iohk.ethereum.jsonrpc.NetService.ListeningResponse
 import io.iohk.ethereum.jsonrpc.NetService.PeerCountResponse
 import io.iohk.ethereum.jsonrpc.NetService.VersionResponse
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
-import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.jsonrpc.server.http.JsonRpcHttpServer
 import io.iohk.ethereum.jsonrpc.server.ipc.JsonRpcIpcServer
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 
 class JsonRpcControllerSpec
     extends TestKit(ActorSystem("JsonRpcControllerSpec_System"))
@@ -48,9 +43,6 @@ class JsonRpcControllerSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
-
-  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
-    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   "JsonRpcController" should "handle valid sha3 request" in new JsonRpcControllerFixture {
     val rpcRequest = newJsonRpcRequest("web3_sha3", JString("0x1234") :: Nil)
@@ -129,7 +121,7 @@ class JsonRpcControllerSpec
 
   it should "debug_listPeersInfo" in new JsonRpcControllerFixture {
     val peerStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      capability = Capability.ETH63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,

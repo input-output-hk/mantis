@@ -2,8 +2,8 @@ package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
@@ -30,8 +30,11 @@ trait OmmersValidator {
   )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
+    val bestBranch = blockchainReader.getBestBranch()
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) => ((blockNumber - n) until blockNumber).toList.flatMap(blockchainReader.getBlockByNumber)
+      (_, n) =>
+        ((blockNumber - n) until blockNumber).toList
+          .flatMap(nb => bestBranch.getBlockByNumber(nb))
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }

@@ -39,9 +39,9 @@ import io.iohk.ethereum.network.EtcPeerManagerActor._
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerId
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
 import io.iohk.ethereum.utils.Config
 
 class StateSyncSpec
@@ -131,7 +131,7 @@ class StateSyncSpec
     val syncInit: TestProbe = TestProbe()
 
     val peerStatus: RemoteStatus = RemoteStatus(
-      protocolVersion = ProtocolVersions.ETH63.version,
+      capability = Capability.ETH63,
       networkId = 1,
       chainWeight = ChainWeight.totalDifficultyOnly(10000),
       bestHash = Fixtures.Blocks.Block3125369.header.hash,
@@ -257,6 +257,7 @@ class StateSyncSpec
             blockchain,
             blockchainReader,
             getNewStorages.storages.evmCodeStorage,
+            getNewStorages.storages.stateStorage,
             getNewStorages.storages.nodeStorage,
             syncConfig.stateSyncBloomFilterSize
           ),

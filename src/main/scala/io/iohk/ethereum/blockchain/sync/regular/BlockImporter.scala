@@ -21,6 +21,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
@@ -39,6 +40,7 @@ class BlockImporter(
     blockImport: BlockImport,
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
+    stateStorage: StateStorage,
     branchResolution: BranchResolution,
     syncConfig: SyncConfig,
     ommersPool: ActorRef,
@@ -119,7 +121,7 @@ class BlockImporter(
       state: ImporterState
   ): Receive = { case BlockFetcher.FetchedStateNode(nodeData) =>
     val node = nodeData.values.head
-    blockchain.saveNode(kec256(node), node.toArray, blocksToRetry.head.number)
+    stateStorage.saveNode(kec256(node), node.toArray, blocksToRetry.head.number)
     importBlocks(blocksToRetry, blockImportType)(state)
   }
 
@@ -331,6 +333,7 @@ object BlockImporter {
       blockImport: BlockImport,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
+      stateStorage: StateStorage,
       branchResolution: BranchResolution,
       syncConfig: SyncConfig,
       ommersPool: ActorRef,
@@ -345,6 +348,7 @@ object BlockImporter {
         blockImport,
         blockchain,
         blockchainReader,
+        stateStorage,
         branchResolution,
         syncConfig,
         ommersPool,

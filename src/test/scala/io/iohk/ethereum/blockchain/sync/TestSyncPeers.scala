@@ -10,7 +10,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.network.p2p.messages.Capability
 
 trait TestSyncPeers { self: TestSyncConfig =>
   implicit def system: ActorSystem
@@ -25,7 +25,7 @@ trait TestSyncPeers { self: TestSyncConfig =>
 
   val peer1Status: RemoteStatus =
     RemoteStatus(
-      ProtocolVersions.ETC64.version,
+      Capability.ETC64,
       1,
       ChainWeight.totalDifficultyOnly(20),
       ByteString("peer1_bestHash"),

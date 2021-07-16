@@ -17,8 +17,8 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.blocks._
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -138,7 +138,7 @@ class TestService(
     stateStorage: StateStorage,
     evmCodeStorage: EvmCodeStorage,
     pendingTransactionsManager: ActorRef,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
     transactionMappingStorage: TransactionMappingStorage,
     node: TestNode
@@ -149,7 +149,7 @@ class TestService(
   import TestService._
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
-  private var etherbase: Address = consensusConfig.coinbase
+  private var etherbase: Address = miningConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
   private var blockTimestamp: Long = 0
 
@@ -376,7 +376,7 @@ class TestService(
 
     val blockOpt = request.parameters.blockHashOrNumber
       .fold(
-        number => blockchainReader.getBlockByNumber(number),
+        number => blockchainReader.getBestBranch().getBlockByNumber(number),
         blockHash => blockchainReader.getBlockByHash(blockHash)
       )
 
@@ -415,7 +415,10 @@ class TestService(
   def storageRangeAt(request: StorageRangeRequest): ServiceResponse[StorageRangeResponse] = {
 
     val blockOpt = request.parameters.blockHashOrNumber
-      .fold(number => blockchainReader.getBlockByNumber(number), hash => blockchainReader.getBlockByHash(hash))
+      .fold(
+        number => blockchainReader.getBestBranch().getBlockByNumber(number),
+        hash => blockchainReader.getBlockByHash(hash)
+      )
 
     (for {
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))

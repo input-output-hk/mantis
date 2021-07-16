@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -25,7 +25,7 @@ class TestModeComponentsProvider(
     evmCodeStorage: EvmCodeStorage,
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     vm: VMImpl,
     node: TestNode
 ) {
@@ -64,13 +64,13 @@ class TestModeComponentsProvider(
 
   def consensus(
       blockTimestamp: Long = 0
-  ): TestmodeConsensus =
-    new TestmodeConsensus(
+  ): TestmodeMining =
+    new TestmodeMining(
       vm,
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      consensusConfig,
+      miningConfig,
       node,
       blockTimestamp
     )

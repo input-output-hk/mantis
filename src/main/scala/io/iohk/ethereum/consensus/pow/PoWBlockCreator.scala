@@ -21,15 +21,15 @@ import io.iohk.ethereum.utils.BlockchainConfig
 class PoWBlockCreator(
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
-    consensus: PoWConsensus,
+    mining: PoWMining,
     ommersPool: ActorRef
 ) extends TransactionPicker {
 
-  lazy val fullConsensusConfig = consensus.config
+  lazy val fullConsensusConfig = mining.config
   private lazy val consensusConfig = fullConsensusConfig.generic
   lazy val miningConfig = fullConsensusConfig.specific
   private lazy val coinbase: Address = consensusConfig.coinbase
-  private lazy val blockGenerator: PoWBlockGenerator = consensus.blockGenerator
+  private lazy val blockGenerator: PoWBlockGenerator = mining.blockGenerator
 
   def getBlockForMining(
       parentBlock: Block,

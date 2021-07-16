@@ -2,8 +2,8 @@ package io.iohk.ethereum
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError.OmmersHeaderError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid

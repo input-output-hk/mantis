@@ -57,7 +57,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
 
     def blockValidation: BlockValidation =
       new BlockValidation(
-        setup.consensus,
+        setup.mining,
         setup.blockchainReader,
         BlockQueue(setup.blockchain, setup.blockchainReader, setup.syncConfig)
       )

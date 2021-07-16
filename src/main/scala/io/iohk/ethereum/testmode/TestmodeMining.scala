@@ -4,11 +4,16 @@ import akka.util.ByteString
 
 import monix.eval.Task
 
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.NoOmmersBlockGenerator
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
@@ -32,20 +37,20 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class TestmodeConsensus(
+class TestmodeMining(
     override val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     node: TestNode,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
-    extends Consensus {
+    extends Mining {
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.PoW
-  override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
+  override def config: FullMiningConfig[AnyRef] = FullMiningConfig[AnyRef](miningConfig, "")
 
   override def difficultyCalculator: DifficultyCalculator = DifficultyCalculator
 
@@ -113,7 +118,7 @@ class TestmodeConsensus(
   override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       evmCodeStorage,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalculator,
       new BlockTimestampProvider {

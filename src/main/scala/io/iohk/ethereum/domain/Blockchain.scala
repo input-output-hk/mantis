@@ -8,8 +8,6 @@ import cats.syntax.flatMap._
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
@@ -80,8 +78,6 @@ trait Blockchain {
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit
-
   /** Strict check if given block hash is in chain
     * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
     * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
@@ -107,7 +103,7 @@ class BlockchainImpl(
   override def isInChain(hash: ByteString): Boolean =
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
-      hash <- blockchainReader.getHashByBlockNumber(header.number)
+      hash <- blockchainReader.getBestBranch().getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
@@ -203,9 +199,6 @@ class BlockchainImpl(
       BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
     )
 
-  def saveNode(nodeHash: NodeHash, nodeEncoded: NodeEncoded, blockNumber: BigInt): Unit =
-    stateStorage.saveNode(nodeHash, nodeEncoded, blockNumber)
-
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)
 
@@ -230,7 +223,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (blockchainReader.getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getBestBranch().getHashByBlockNumber(block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -299,7 +292,7 @@ class BlockchainImpl(
   ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- blockchainReader.getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBestBranch().getBlockByNumber(blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number

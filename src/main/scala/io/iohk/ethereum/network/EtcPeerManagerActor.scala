@@ -20,12 +20,14 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializable
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETC64
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.GetBlockHeaders
 import io.iohk.ethereum.network.p2p.messages.ETH62.NewBlockHashes
+import io.iohk.ethereum.network.p2p.messages.ETH64
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Disconnect
 import io.iohk.ethereum.utils.ByteStringUtils
 
@@ -239,7 +241,7 @@ object EtcPeerManagerActor {
     * (they are different versions of Status msg)
     */
   case class RemoteStatus(
-      protocolVersion: Int,
+      capability: Capability,
       networkId: Int,
       chainWeight: ChainWeight,
       bestHash: ByteString,
@@ -247,7 +249,7 @@ object EtcPeerManagerActor {
   ) {
     override def toString: String =
       s"RemoteStatus { " +
-        s"protocolVersion: $protocolVersion, " +
+        s"capability: $capability, " +
         s"networkId: $networkId, " +
         s"chainWeight: $chainWeight, " +
         s"bestHash: ${ByteStringUtils.hash2string(bestHash)}, " +
@@ -256,12 +258,27 @@ object EtcPeerManagerActor {
   }
 
   object RemoteStatus {
+    def apply(status: ETH64.Status): RemoteStatus =
+      RemoteStatus(
+        Capability.ETH64,
+        status.networkId,
+        ChainWeight.totalDifficultyOnly(status.totalDifficulty),
+        status.bestHash,
+        status.genesisHash
+      )
+
     def apply(status: ETC64.Status): RemoteStatus =
-      RemoteStatus(status.protocolVersion, status.networkId, status.chainWeight, status.bestHash, status.genesisHash)
+      RemoteStatus(
+        Capability.ETC64,
+        status.networkId,
+        status.chainWeight,
+        status.bestHash,
+        status.genesisHash
+      )
 
     def apply(status: BaseETH6XMessages.Status): RemoteStatus =
       RemoteStatus(
-        status.protocolVersion,
+        Capability.ETH63,
         status.networkId,
         ChainWeight.totalDifficultyOnly(status.totalDifficulty),
         status.bestHash,

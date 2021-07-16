@@ -275,7 +275,7 @@ class EthProofServiceSpec
     val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
-      consensus,
+      mining,
       storagesInstance.storages.evmCodeStorage,
       this
     )

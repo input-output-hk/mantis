@@ -25,7 +25,7 @@ import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.utils.Logger
 
 /** Implementation of Ethash CPU mining worker.
-  * Could be started by switching configuration flag "consensus.mining-enabled" to true
+  * Could be started by switching configuration flag "mining.mining-enabled" to true
   * Implementation explanation at https://eth.wiki/concepts/ethash/ethash
   */
 class EthashMiner(

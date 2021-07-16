@@ -4,8 +4,8 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Receipt

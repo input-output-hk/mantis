@@ -10,7 +10,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
 import io.iohk.ethereum.domain.Block
@@ -43,7 +43,7 @@ object EthTxService {
 class EthTxService(
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
-    val consensus: Consensus,
+    val mining: Mining,
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
     transactionMappingStorage: TransactionMappingStorage
@@ -156,8 +156,9 @@ class EthTxService(
     val bestBlock = blockchainReader.getBestBlockNumber()
 
     Task {
+      val bestBranch = blockchainReader.getBestBranch()
       val gasPrice = ((bestBlock - blockDifference) to bestBlock)
-        .flatMap(blockchainReader.getBlockByNumber)
+        .flatMap(nb => bestBranch.getBlockByNumber(nb))
         .flatMap(_.body.transactionList)
         .map(_.tx.gasPrice)
       if (gasPrice.nonEmpty) {

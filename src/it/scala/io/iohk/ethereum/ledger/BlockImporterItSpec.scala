@@ -32,7 +32,6 @@ import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockResult
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
@@ -40,7 +39,6 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 
 class BlockImporterItSpec
     extends MockFactory
-    with TestSetupWithVmAndValidators
     with AnyFlatSpecLike
     with Matchers
     with BeforeAndAfterAll
@@ -53,6 +51,158 @@ class BlockImporterItSpec
     testScheduler.shutdown()
     testScheduler.awaitTermination(60.second)
   }
+
+  "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in new TestFixture() {
+
+    override val blockImporter = system.actorOf(
+      BlockImporter.props(
+        fetcherProbe.ref,
+        mkBlockImport(validators = successValidators),
+        blockchain,
+        blockchainReader,
+        storagesInstance.storages.stateStorage,
+        new BranchResolution(blockchain, blockchainReader),
+        syncConfig,
+        ommersPoolProbe.ref,
+        broadcasterProbe.ref,
+        pendingTransactionsManagerProbe.ref,
+        supervisor.ref,
+        this
+      )
+    )
+
+    blockImporter ! BlockImporter.Start
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
+
+    //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
+    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock4)
+  }
+
+  it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in new StartedImportFixture() {
+    //returning discarded initial chain
+    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock3)
+  }
+
+  it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in new StartedImportFixture() {
+    val newBlock4ParentOldBlock3: Block =
+      getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
+    val newBlock4WeightParentOldBlock3 = oldWeight3.increase(newBlock4ParentOldBlock3.header)
+
+    //Block n5 with oldBlock4 as parent
+    val newBlock5ParentOldBlock4: Block =
+      getBlock(
+        genesisBlock.number + 5,
+        difficulty = 108,
+        parent = oldBlock4.header.hash,
+        ommers = Seq(oldBlock4.header)
+      )
+
+    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
+    // simulation of node restart
+    blockchain.saveBestKnownBlocks(blockchainReader.getBestBlockNumber() - 1)
+    blockchainWriter.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
+
+    //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock5ParentOldBlock4)))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock4ParentOldBlock3)
+  }
+
+  it should "switch to a branch with a checkpoint" in new StartedImportFixture() {
+
+    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+    val oldBlock5WithCheckpoint: Block = checkpointBlockGenerator.generate(oldBlock4, checkpoint)
+    blockchainWriter.save(oldBlock5WithCheckpoint, Nil, oldWeight4, saveAsBestBlock = true)
+
+    override val newBranch = List(newBlock2, newBlock3)
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock5WithCheckpoint)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number)
+  }
+
+  it should "switch to a branch with a newer checkpoint" in new StartedImportFixture() {
+
+    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
+    val newBlock4WithCheckpoint: Block = checkpointBlockGenerator.generate(newBlock3, checkpoint)
+    blockchainWriter.save(newBlock4WithCheckpoint, Nil, newWeight3, saveAsBestBlock = true)
+
+    override val newBranch = List(newBlock4WithCheckpoint)
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock4WithCheckpoint)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number)
+  }
+
+  it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in new StartedImportFixture() {
+
+    val parent = blockchainReader.getBestBlock().get
+    val newBlock5: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
+    val newWeight5 = newWeight3.increase(newBlock5.header)
+
+    blockchainWriter.save(newBlock5, Nil, newWeight5, saveAsBestBlock = true)
+
+    val signatures = CheckpointingTestHelpers.createCheckpointSignatures(
+      Seq(crypto.generateKeyPair(secureRandom)),
+      newBlock5.hash
+    )
+    val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
+    blockImporter ! NewCheckpoint(checkpointBlock)
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual checkpointBlock)
+    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1)
+  }
+
+  it should "ask BlockFetcher to resolve missing node" in new TestFixture() {
+    val parent = blockchainReader.getBestBlock().get
+    val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
+    val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
+
+    override val blockImporter = system.actorOf(
+      BlockImporter.props(
+        fetcherProbe.ref,
+        mkBlockImport(validators = successValidators),
+        blockchain,
+        blockchainReader,
+        storagesInstance.storages.stateStorage,
+        new BranchResolution(blockchain, blockchainReader),
+        syncConfig,
+        ommersPoolProbe.ref,
+        broadcasterProbe.ref,
+        pendingTransactionsManagerProbe.ref,
+        supervisor.ref,
+        this
+      )
+    )
+
+    blockImporter ! BlockImporter.Start
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
+
+    eventually {
+      val msg = fetcherProbe
+        .fishForMessage(Timeouts.normalTimeout) {
+          case BlockFetcher.FetchStateNode(_, _) => true
+          case _                                 => false
+        }
+        .asInstanceOf[BlockFetcher.FetchStateNode]
+
+      msg.hash.length should be > 0
+    }
+
+  }
+}
+
+class TestFixture extends TestSetupWithVmAndValidators {
 
   override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
 
@@ -84,7 +234,6 @@ class BlockImporterItSpec
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
     override val ommersValidator: OmmersValidator = new StdOmmersValidator(blockHeaderValidator)
-
   }
 
   override lazy val blockImport: BlockImport = mkBlockImport(
@@ -95,8 +244,8 @@ class BlockImporterItSpec
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        consensus.blockPreparator,
-        new BlockValidation(consensus, blockchainReader, blockQueue)
+        mining.blockPreparator,
+        new BlockValidation(mining, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,
@@ -106,7 +255,6 @@ class BlockImporterItSpec
       }
     )
   )
-  // }
 
   val blockImporter: ActorRef = system.actorOf(
     BlockImporter.props(
@@ -114,6 +262,7 @@ class BlockImporterItSpec
       blockImport,
       blockchain,
       blockchainReader,
+      storagesInstance.storages.stateStorage,
       new BranchResolution(blockchain, blockchainReader),
       syncConfig,
       ommersPoolProbe.ref,
@@ -148,154 +297,8 @@ class BlockImporterItSpec
 
   val oldBranch: List[Block] = List(oldBlock2, oldBlock3, oldBlock4)
   val newBranch: List[Block] = List(newBlock2, newBlock3)
+}
 
+class StartedImportFixture extends TestFixture {
   blockImporter ! BlockImporter.Start
-
-  "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in {
-
-    val blockImporter = system.actorOf(
-      BlockImporter.props(
-        fetcherProbe.ref,
-        mkBlockImport(validators = successValidators),
-        blockchain,
-        blockchainReader,
-        new BranchResolution(blockchain, blockchainReader),
-        syncConfig,
-        ommersPoolProbe.ref,
-        broadcasterProbe.ref,
-        pendingTransactionsManagerProbe.ref,
-        supervisor.ref,
-        this
-      )
-    )
-
-    blockImporter ! BlockImporter.Start
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
-
-    //because the blocks are not valid, we shouldn't reorganise, but at least stay with a current chain, and the best block of the current chain is oldBlock4
-    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock4)
-  }
-
-  it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in {
-
-    //returning discarded initial chain
-    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
-
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
-
-    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock3)
-  }
-
-  it should "return Unknown branch, in case of PickedBlocks with block that has a parent that's not in the chain" in {
-    val newBlock4ParentOldBlock3: Block =
-      getBlock(genesisBlock.number + 4, difficulty = 104, parent = oldBlock3.header.hash)
-    val newBlock4WeightParentOldBlock3 = oldWeight3.increase(newBlock4ParentOldBlock3.header)
-
-    //Block n5 with oldBlock4 as parent
-    val newBlock5ParentOldBlock4: Block =
-      getBlock(
-        genesisBlock.number + 5,
-        difficulty = 108,
-        parent = oldBlock4.header.hash,
-        ommers = Seq(oldBlock4.header)
-      )
-
-    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
-    // simulation of node restart
-    blockchain.saveBestKnownBlocks(blockchainReader.getBestBlockNumber() - 1)
-    blockchainWriter.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
-
-    //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(newBlock5ParentOldBlock4)))
-
-    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock4ParentOldBlock3)
-  }
-
-  it should "switch to a branch with a checkpoint" in {
-
-    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
-    val oldBlock5WithCheckpoint: Block = checkpointBlockGenerator.generate(oldBlock4, checkpoint)
-    blockchainWriter.save(oldBlock5WithCheckpoint, Nil, oldWeight4, saveAsBestBlock = true)
-
-    val newBranch = List(newBlock2, newBlock3)
-
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
-
-    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock5WithCheckpoint)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number)
-  }
-
-  it should "switch to a branch with a newer checkpoint" in {
-
-    val checkpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
-    val newBlock4WithCheckpoint: Block = checkpointBlockGenerator.generate(newBlock3, checkpoint)
-    blockchainWriter.save(newBlock4WithCheckpoint, Nil, newWeight3, saveAsBestBlock = true)
-
-    val newBranch = List(newBlock4WithCheckpoint)
-
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
-
-    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock4WithCheckpoint)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number)
-  }
-
-  it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in {
-
-    val parent = blockchainReader.getBestBlock().get
-    val newBlock5: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
-    val newWeight5 = newWeight3.increase(newBlock5.header)
-
-    blockchainWriter.save(newBlock5, Nil, newWeight5, saveAsBestBlock = true)
-
-    val signatures = CheckpointingTestHelpers.createCheckpointSignatures(
-      Seq(crypto.generateKeyPair(secureRandom)),
-      newBlock5.hash
-    )
-    val checkpointBlock = checkpointBlockGenerator.generate(newBlock5, Checkpoint(signatures))
-    blockImporter ! NewCheckpoint(checkpointBlock)
-
-    eventually(blockchainReader.getBestBlock().get shouldEqual checkpointBlock)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1)
-  }
-
-  it should "ask BlockFetcher to resolve missing node" in {
-    val parent = blockchainReader.getBestBlock().get
-    val newBlock: Block = getBlock(genesisBlock.number + 5, difficulty = 104, parent = parent.header.hash)
-    val invalidBlock = newBlock.copy(header = newBlock.header.copy(beneficiary = Address(111).bytes))
-
-    val blockImporter = system.actorOf(
-      BlockImporter.props(
-        fetcherProbe.ref,
-        mkBlockImport(validators = successValidators),
-        blockchain,
-        blockchainReader,
-        new BranchResolution(blockchain, blockchainReader),
-        syncConfig,
-        ommersPoolProbe.ref,
-        broadcasterProbe.ref,
-        pendingTransactionsManagerProbe.ref,
-        supervisor.ref,
-        this
-      )
-    )
-
-    blockImporter ! BlockImporter.Start
-    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(invalidBlock)))
-
-    eventually {
-      val msg = fetcherProbe
-        .fishForMessage(Timeouts.longTimeout) {
-          case BlockFetcher.FetchStateNode(_, _) => true
-          case _                                 => false
-        }
-        .asInstanceOf[BlockFetcher.FetchStateNode]
-
-      msg.hash.length should be > 0
-    }
-
-  }
 }

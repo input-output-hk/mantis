@@ -14,7 +14,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.validators.SignedTransactionError
 import io.iohk.ethereum.consensus.validators.SignedTransactionError.TransactionSignatureError
 import io.iohk.ethereum.consensus.validators.SignedTransactionValid
@@ -57,7 +57,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
         val postTxWorld: InMemoryWorldStateProxy =
-          consensus.blockPreparator
+          mining.blockPreparator
             .executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts)
             .worldState
 
@@ -81,7 +81,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         val header: BlockHeader = defaultBlockHeader.copy(beneficiary = minerAddress.bytes)
 
         val postTxWorld: InMemoryWorldStateProxy =
-          consensus.blockPreparator
+          mining.blockPreparator
             .executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts)
             .worldState
 
@@ -106,7 +106,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
           defaultBlockHeader.copy(number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber - 1)
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-          consensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+          mining.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
 
         result shouldBe a[Right[_, BlockResult]]
         result.map { br =>
@@ -130,7 +130,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
           )
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-          consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+          mining.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
 
         result shouldBe a[Right[_, BlockResult]]
         result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
@@ -143,7 +143,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
         lazy val mockVM =
           new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
 
-        val testConsensus: Consensus = newTestConsensus(vm = mockVM)
+        val testMining: Mining = newTestMining(vm = mockVM)
 
         val tx: LegacyTransaction = defaultTx.copy(
           gasPrice = defaultGasLimit,
@@ -162,7 +162,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
           )
 
         val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-          testConsensus.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
+          testMining.blockPreparator.executeTransactions(Seq(stx.tx), initialWorld, header)
 
         result shouldBe a[Right[_, BlockResult]]
         result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)
@@ -203,7 +203,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
           )
         )
 
-        val execResult = consensus
+        val execResult = mining
           .withVM(mockVM)
           .blockPreparator
           .executeTransaction(stx.tx, stx.senderAddress, header, worldWithMinerAndOriginAccounts)
@@ -246,10 +246,10 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
 
       val mockVM = new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, maybeError, bEmpty, defaultsLogs))
 
-      val testConsensus = newTestConsensus(vm = mockVM)
+      val testMining = newTestMining(vm = mockVM)
 
       val txResult =
-        testConsensus.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
+        testMining.blockPreparator.executeTransaction(stx.tx, stx.senderAddress, defaultBlockHeader, initialWorld)
 
       txResult.logs.size shouldBe logsSize
     }
@@ -271,7 +271,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val stx = SignedTransaction.sign(tx, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      consensus.blockPreparator.executeTransactions(
+      mining.blockPreparator.executeTransactions(
         Seq(stx),
         initialWorld,
         defaultBlockHeader
@@ -315,7 +315,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val stx3 = SignedTransaction.sign(tx3, newAccountKeyPair, Some(blockchainConfig.chainId))
     val stx4 = SignedTransaction.sign(tx4, newAccountKeyPair, Some(blockchainConfig.chainId))
 
-    val result: (BlockResult, Seq[SignedTransaction]) = consensus.blockPreparator.executePreparedTransactions(
+    val result: (BlockResult, Seq[SignedTransaction]) = mining.blockPreparator.executePreparedTransactions(
       Seq(stx1, stx2, stx3, stx4),
       initialWorld,
       defaultBlockHeader
@@ -351,7 +351,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     val stx2 = SignedTransaction.sign(tx2, newAccountKeyPair, Some(blockchainConfig.chainId))
 
     val result: (BlockResult, Seq[SignedTransaction]) =
-      consensus.blockPreparator.executePreparedTransactions(Seq(stx1, stx2), initialWorld, defaultBlockHeader)
+      mining.blockPreparator.executePreparedTransactions(Seq(stx1, stx2), initialWorld, defaultBlockHeader)
 
     result match { case (_, executedTxs) => executedTxs shouldBe Seq.empty }
   }
@@ -370,7 +370,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       defaultBlockHeader.copy(number = blockchainConfig.forkBlockNumbers.byzantiumBlockNumber - 1)
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+      mining.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
     result.map { br =>
@@ -394,7 +394,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       )
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      consensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+      mining.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
     result.map(_.receipts.last.postTransactionStateHash shouldBe SuccessOutcome)
@@ -407,7 +407,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
     lazy val mockVM =
       new MockVM(createResult(_, defaultGasLimit, defaultGasLimit, 0, Some(RevertOccurs), bEmpty, defaultsLogs))
 
-    val testConsensus: Consensus = newTestConsensus(vm = mockVM)
+    val testMining: Mining = newTestMining(vm = mockVM)
 
     val tx: LegacyTransaction = defaultTx.copy(
       gasPrice = defaultGasLimit,
@@ -423,7 +423,7 @@ class BlockPreparatorSpec extends AnyWordSpec with Matchers with ScalaCheckPrope
       )
 
     val result: Either[BlockExecutionError.TxsExecutionError, BlockResult] =
-      testConsensus.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
+      testMining.blockPreparator.executeTransactions(Seq(stx), initialWorld, header)
 
     result shouldBe a[Right[_, BlockResult]]
     result.map(_.receipts.last.postTransactionStateHash shouldBe FailureOutcome)

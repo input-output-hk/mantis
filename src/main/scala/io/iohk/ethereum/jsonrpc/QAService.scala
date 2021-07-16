@@ -11,8 +11,8 @@ import enumeratum._
 import mouse.all._
 
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses
@@ -28,7 +28,7 @@ import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 
 class QAService(
-    consensus: Consensus,
+    mining: Mining,
     blockchainReader: BlockchainReader,
     checkpointBlockGenerator: CheckpointBlockGenerator,
     blockchainConfig: BlockchainConfig,
@@ -41,7 +41,7 @@ class QAService(
     * @return nothing
     */
   def mineBlocks(req: MineBlocksRequest): ServiceResponse[MineBlocksResponse] =
-    consensus
+    mining
       .askMiner(MineBlocks(req.numBlocks, req.withTransactions, req.parentBlock))
       .map(_ |> (MineBlocksResponse(_)) |> (_.asRight))
       .onErrorHandle { throwable =>
