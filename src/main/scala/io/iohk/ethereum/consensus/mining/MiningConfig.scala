@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import akka.util.ByteString
 
@@ -8,14 +8,14 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.utils.Logger
 
-/** Provides generic consensus configuration. Each consensus protocol implementation
+/** Provides generic mining configuration. Each consensus protocol implementation
   * will use its own specific configuration as well.
   *
-  * @param protocol Designates the consensus protocol.
+  * @param protocol Designates the mining protocol.
   * @param miningEnabled Provides support for generalized "mining". The exact semantics are up to the
-  *                      specific consensus protocol implementation.
+  *                      specific mining protocol implementation.
   */
-final case class ConsensusConfig(
+final case class MiningConfig(
     protocol: Protocol,
     coinbase: Address,
     headerExtraData: ByteString, // only used in BlockGenerator
@@ -23,9 +23,9 @@ final case class ConsensusConfig(
     miningEnabled: Boolean
 )
 
-object ConsensusConfig extends Logger {
+object MiningConfig extends Logger {
   object Keys {
-    final val Consensus = "consensus"
+    final val Mining = "mining"
     final val Protocol = "protocol"
     final val Coinbase = "coinbase"
     final val HeaderExtraData = "header-extra-data"
@@ -40,15 +40,15 @@ object ConsensusConfig extends Logger {
   )
 
   final val AllowedProtocolsError: String => String = (s: String) =>
-    Keys.Consensus +
+    Keys.Mining +
       " is configured as '" + s + "'" +
       " but it should be one of " +
       AllowedProtocols.map("'" + _ + "'").mkString(",")
 
-  private def readProtocol(consensusConfig: TypesafeConfig): Protocol = {
-    val protocol = consensusConfig.getString(Keys.Protocol)
+  private def readProtocol(miningConfig: TypesafeConfig): Protocol = {
+    val protocol = miningConfig.getString(Keys.Protocol)
 
-    // If the consensus protocol is not a known one, then it is a fatal error
+    // If the mining protocol is not a known one, then it is a fatal error
     // and the application must exit.
     if (!AllowedProtocols(protocol)) {
       val error = AllowedProtocolsError(protocol)
@@ -58,8 +58,8 @@ object ConsensusConfig extends Logger {
     Protocol(protocol)
   }
 
-  def apply(mantisConfig: TypesafeConfig): ConsensusConfig = {
-    val config = mantisConfig.getConfig(Keys.Consensus)
+  def apply(mantisConfig: TypesafeConfig): MiningConfig = {
+    val config = mantisConfig.getConfig(Keys.Mining)
 
     val protocol = readProtocol(config)
     val coinbase = Address(config.getString(Keys.Coinbase))
@@ -69,7 +69,7 @@ object ConsensusConfig extends Logger {
     val blockCacheSize = config.getInt(Keys.BlockCacheSize)
     val miningEnabled = config.getBoolean(Keys.MiningEnabled)
 
-    new ConsensusConfig(
+    new MiningConfig(
       protocol = protocol,
       coinbase = coinbase,
       headerExtraData = headerExtraData,

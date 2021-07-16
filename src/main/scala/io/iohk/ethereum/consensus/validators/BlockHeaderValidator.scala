@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 package validators
 
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields

@@ -1930,7 +1930,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(app_consensus_blocks_generate_timer_seconds_sum[$__rate_interval])/rate(app_consensus_blocks_generate_timer_seconds_count[$__rate_interval])",
+              "expr": "rate(app_mining_blocks_generate_timer_seconds_sum[$__rate_interval])/rate(app_mining_blocks_generate_timer_seconds_count[$__rate_interval])",
               "interval": "",
               "legendFormat": "{{class}}",
               "refId": "A"
@@ -2027,7 +2027,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "app_consensus_blocks_generate_timer_seconds_max",
+              "expr": "app_mining_blocks_generate_timer_seconds_max",
               "interval": "",
               "legendFormat": "{{class}}",
               "refId": "A"
@@ -2124,7 +2124,7 @@
           "steppedLine": false,
           "targets": [
             {
-              "expr": "rate(app_consensus_minedblocks_evaluation_timer_seconds_sum[$__rate_interval]) / rate(app_consensus_minedblocks_evaluation_timer_seconds_count[$__rate_interval])\n",
+              "expr": "rate(app_mining_minedblocks_evaluation_timer_seconds_sum[$__rate_interval]) / rate(app_mining_minedblocks_evaluation_timer_seconds_count[$__rate_interval])\n",
               "interval": "",
               "legendFormat": "",
               "refId": "A"

@@ -1,7 +1,7 @@
 package io.iohk.ethereum.consensus.validators
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.validators.BlockHeaderError._
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty
@@ -25,7 +25,7 @@ abstract class BlockHeaderValidatorSkeleton(blockchainConfig: BlockchainConfig) 
 
   private val blockWithCheckpointHeaderValidator = new BlockWithCheckpointHeaderValidator(blockchainConfig)
 
-  /** The difficulty calculator. This is specific to the consensus protocol.
+  /** The difficulty calculator. This is specific to the mining protocol.
     */
   protected def difficulty: DifficultyCalculator
 

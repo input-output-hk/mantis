@@ -22,7 +22,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block only with ether transfers
     val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     val blockExecution =
       new BlockExecution(
         blockchain,
@@ -30,7 +30,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
         blockchainWriter,
         testBlockchainStorages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
     blockExecution.executeAndValidateBlock(fixtures.blockByNumber(1)) shouldBe noErrors

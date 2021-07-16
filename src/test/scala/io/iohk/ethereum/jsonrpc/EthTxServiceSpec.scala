@@ -377,7 +377,7 @@ class EthTxServiceSpec
     lazy val ethTxService = new EthTxService(
       blockchain,
       blockchainReader,
-      consensus,
+      mining,
       pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout,
       storagesInstance.storages.transactionMappingStorage
