@@ -51,7 +51,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
         ecip1049BlockNumber = None,
-        ecip1103BlockNumber = Long.MaxValue
+        magnetoBlockNumber = Long.MaxValue
       ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,
