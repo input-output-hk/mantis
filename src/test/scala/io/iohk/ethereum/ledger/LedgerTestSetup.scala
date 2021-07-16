@@ -460,7 +460,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       .once()
 
   def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] =
-    (blockchain.isInChain _).expects(hash).returning(result)
+    (bestChain.isInChain _).expects(hash).returning(result)
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
     (bestChain.getBlockByNumber _).expects(number).returning(block)

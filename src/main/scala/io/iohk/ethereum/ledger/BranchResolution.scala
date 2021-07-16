@@ -15,7 +15,8 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
     if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
-      val knownParentOrGenesis = blockchain
+      val knownParentOrGenesis = blockchainReader
+        .getBestBranch()
         .isInChain(headers.head.parentHash) || headers.head.hash == blockchainReader.genesisHeader.hash
 
       if (!knownParentOrGenesis)
