@@ -136,7 +136,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   // scalastyle:off magic.number
   trait BlockUtils extends EphemBlockchainTestSetup {
 
-    val ommersValidator = new StdOmmersValidator(new PoWBlockHeaderValidator(blockchainConfig))
+    val ommersValidator = new StdOmmersValidator(PoWBlockHeaderValidator)
 
     val ommerInvalidBranch: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b12345f6a89fb1e8f017f2411a29d0ae810ab8b")),

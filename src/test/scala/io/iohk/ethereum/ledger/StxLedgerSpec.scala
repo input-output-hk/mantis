@@ -120,7 +120,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 // scalastyle:off magic.number line.size.limit
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
-  override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
+  implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
     forkBlockNumbers = ForkBlockNumbers(
       eip155BlockNumber = 0,
       eip161BlockNumber = 0,
@@ -163,8 +163,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig,
-      mining.blockPreparator
+      mining.blockPreparator,
+      this
     )
 
   val emptyWorld: InMemoryWorldStateProxy =

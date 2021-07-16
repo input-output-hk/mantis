@@ -105,13 +105,13 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
 
   val ethMiningService = new EthMiningService(
     blockchainReader,
-    blockchainConfig,
     mining,
     config,
     ommersPool.ref,
     syncingController.ref,
     pendingTransactionsManager.ref,
-    getTransactionFromPoolTimeout
+    getTransactionFromPoolTimeout,
+    this
   )
 
   val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
@@ -130,7 +130,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchainReader,
     mining,
     storagesInstance.storages.evmCodeStorage,
-    blockchainConfig
+    this
   )
 
   val ethFilterService = new EthFilterService(

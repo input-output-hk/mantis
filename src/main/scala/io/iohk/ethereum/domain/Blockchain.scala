@@ -78,12 +78,6 @@ trait Blockchain {
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
-  /** Strict check if given block hash is in chain
-    * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
-    * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
-    * @param hash block hash
-    */
-  def isInChain(hash: ByteString): Boolean
 }
 
 class BlockchainImpl(
@@ -99,12 +93,6 @@ class BlockchainImpl(
     blockchainMetadata: BlockchainMetadata
 ) extends Blockchain
     with Logger {
-
-  override def isInChain(hash: ByteString): Boolean =
-    (for {
-      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
-      hash <- blockchainReader.getBestBranch().getHashByBlockNumber(header.number)
-    } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 

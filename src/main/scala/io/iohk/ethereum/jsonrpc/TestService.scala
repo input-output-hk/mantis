@@ -35,13 +35,13 @@ import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
 import io.iohk.ethereum.ledger._
+import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.testmode.SealEngineType
 import io.iohk.ethereum.testmode.TestModeComponentsProvider
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ForkBlockNumbers
 import io.iohk.ethereum.utils.Logger
@@ -140,25 +140,24 @@ class TestService(
     pendingTransactionsManager: ActorRef,
     miningConfig: MiningConfig,
     testModeComponentsProvider: TestModeComponentsProvider,
-    initialConfig: BlockchainConfig,
-    transactionMappingStorage: TransactionMappingStorage
-)(implicit
-    scheduler: Scheduler
-) extends Logger {
+    transactionMappingStorage: TransactionMappingStorage,
+    node: TestNode
+)(implicit scheduler: Scheduler)
+    extends Logger {
+  import node._
 
   import TestService._
   import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 
   private var etherbase: Address = miningConfig.coinbase
   private var accountHashWithAdresses: List[(ByteString, Address)] = List()
-  private var currentConfig: BlockchainConfig = initialConfig
   private var blockTimestamp: Long = 0
-  private var sealEngine: SealEngineType = SealEngineType.NoReward
+
   private val preimageCache: collection.concurrent.Map[ByteString, UInt256] =
     new collection.concurrent.TrieMap[ByteString, UInt256]()
 
   def setChainParams(request: SetChainParamsRequest): ServiceResponse[SetChainParamsResponse] = {
-    currentConfig = buildNewConfig(request.chainParams.blockchainParams)
+    node.currentBlockchainConfig.set(buildNewConfig(request.chainParams.blockchainParams))
 
     // clear ledger's cache on test start
     // setChainParams is expected to be the first remote call for each test
@@ -180,7 +179,7 @@ class TestService(
     // set coinbase for blocks that will be tried to mine
     etherbase = Address(genesisData.coinbase)
 
-    sealEngine = request.chainParams.sealEngine
+    node.currentSealEngine.set(request.chainParams.sealEngine)
 
     resetPreimages(genesisData)
 
@@ -191,8 +190,7 @@ class TestService(
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
 
     // load the new genesis
-    val genesisDataLoader =
-      new GenesisDataLoader(blockchainReader, blockchainWriter, stateStorage, currentConfig)
+    val genesisDataLoader = new GenesisDataLoader(blockchainReader, blockchainWriter, stateStorage)
     genesisDataLoader.loadGenesisData(genesisData)
 
     //save account codes to world state
@@ -215,7 +213,7 @@ class TestService(
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccuringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
-    currentConfig.copy(
+    node.blockchainConfig.copy(
       forkBlockNumbers = ForkBlockNumbers(
         frontierBlockNumber = 0,
         homesteadBlockNumber = blockchainParams.homesteadForkBlock.getOrElse(neverOccuringBlock),
@@ -264,12 +262,14 @@ class TestService(
     storagesToPersist.foreach(storage => emptyStorage.update(Nil, storage.toSeq.map(toBigInts)))
   }
 
-  def mineBlocks(request: MineBlocksRequest): ServiceResponse[MineBlocksResponse] = {
+  def mineBlocks(
+      request: MineBlocksRequest
+  ): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] =
       getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(currentConfig, preimageCache, sealEngine)
+            .blockImport(preimageCache)
             .importBlock(blockForMining.block)
         )
         .map { res =>
@@ -286,7 +286,9 @@ class TestService(
     doNTimesF(request.num)(mineBlock()).as(Right(MineBlocksResponse()))
   }
 
-  def modifyTimestamp(request: ModifyTimestampRequest): ServiceResponse[ModifyTimestampResponse] = {
+  def modifyTimestamp(
+      request: ModifyTimestampRequest
+  ): ServiceResponse[ModifyTimestampResponse] = {
     blockTimestamp = request.timestamp
     ModifyTimestampResponse().rightNow
   }
@@ -299,13 +301,15 @@ class TestService(
     RewindToBlockResponse().rightNow
   }
 
-  def importRawBlock(request: ImportRawBlockRequest): ServiceResponse[ImportRawBlockResponse] =
+  def importRawBlock(
+      request: ImportRawBlockRequest
+  ): ServiceResponse[ImportRawBlockResponse] =
     Try(decode(request.blockRlp).toBlock) match {
       case Failure(_) =>
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(currentConfig, preimageCache, sealEngine)
+          .blockImport(preimageCache)
           .importBlock(value)
           .flatMap(handleResult(value))
     }
@@ -347,7 +351,7 @@ class TestService(
       .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
       .map { pendingTxs =>
         testModeComponentsProvider
-          .consensus(currentConfig, sealEngine, blockTimestamp)
+          .consensus(blockTimestamp)
           .blockGenerator
           .generateBlock(
             parentBlock,

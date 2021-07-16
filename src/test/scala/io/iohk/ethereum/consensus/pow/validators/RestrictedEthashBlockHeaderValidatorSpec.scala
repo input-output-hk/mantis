@@ -27,23 +27,23 @@ class RestrictedEthashBlockHeaderValidatorSpec
     with SecureRandomBuilder {
 
   "RestrictedEthashBlockHeaderValidatorSpec" should "correctly validate header if allowed list is empty" in new TestSetup {
-    val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set()))
-    val validationResult = blockHeaderValidator.validate(validHeader, validParent)
+    val validationResult =
+      RestrictedEthashBlockHeaderValidator.validate(validHeader, validParent)(createBlockchainConfig(Set()))
     assert(validationResult == Right(BlockHeaderValid))
   }
 
   it should "fail validation of header with too long extra data field" in new TestSetup {
-    val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set()))
     val tooLongExtraData = validHeader.copy(extraData =
-      ByteString.fromArrayUnsafe(new Array[Byte](blockHeaderValidator.ExtraDataMaxSize + 1))
+      ByteString.fromArrayUnsafe(new Array[Byte](RestrictedEthashBlockHeaderValidator.ExtraDataMaxSize + 1))
     )
-    val validationResult = blockHeaderValidator.validate(tooLongExtraData, validParent)
+    val validationResult =
+      RestrictedEthashBlockHeaderValidator.validate(tooLongExtraData, validParent)(createBlockchainConfig(Set()))
     assert(validationResult == Left(RestrictedPoWHeaderExtraDataError))
   }
 
   it should "correctly validate header with valid key" in new TestSetup {
-    val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(validKey)))
-    val validationResult = blockHeaderValidator.validate(validHeader, validParent)
+    val validationResult =
+      RestrictedEthashBlockHeaderValidator.validate(validHeader, validParent)(createBlockchainConfig(Set(validKey)))
     assert(validationResult == Right(BlockHeaderValid))
   }
 
@@ -52,8 +52,8 @@ class RestrictedEthashBlockHeaderValidatorSpec
     val keyBytes = crypto.keyPairToByteStrings(allowedKey)._2
 
     // correct header is signed by different key that the one generated here
-    val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(keyBytes)))
-    val validationResult = blockHeaderValidator.validate(validHeader, validParent)
+    val validationResult =
+      RestrictedEthashBlockHeaderValidator.validate(validHeader, validParent)(createBlockchainConfig(Set(keyBytes)))
     assert(validationResult == Left(RestrictedPoWHeaderExtraDataError))
   }
 
@@ -61,11 +61,13 @@ class RestrictedEthashBlockHeaderValidatorSpec
     val allowedKey = crypto.generateKeyPair(secureRandom)
     val keyBytes = crypto.keyPairToByteStrings(allowedKey)._2
 
-    val blockHeaderValidator = new RestrictedEthashBlockHeaderValidator(createBlockchainConfig(Set(keyBytes, validKey)))
     val headerWithoutSig = validHeader.copy(extraData = validHeader.extraData.dropRight(ECDSASignature.EncodedLength))
     val reSignedHeader = RestrictedPoWSigner.signHeader(headerWithoutSig, allowedKey)
 
-    val validationResult = blockHeaderValidator.validate(reSignedHeader, validParent)
+    val validationResult =
+      RestrictedEthashBlockHeaderValidator.validate(reSignedHeader, validParent)(
+        createBlockchainConfig(Set(keyBytes, validKey))
+      )
     assert(validationResult == Left(HeaderPoWError))
   }
 
