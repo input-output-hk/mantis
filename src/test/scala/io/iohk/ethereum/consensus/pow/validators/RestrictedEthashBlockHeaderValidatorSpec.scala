@@ -86,7 +86,7 @@ class RestrictedEthashBlockHeaderValidatorSpec
           byzantiumBlockNumber = 4370000,
           constantinopleBlockNumber = 7280000,
           istanbulBlockNumber = 9069000,
-          eip106BlockNumber = 0,
+          eip106BlockNumber = 0
         ),
         daoForkConfig = None,
         // unused

@@ -388,7 +388,7 @@ class EthashBlockHeaderValidatorSpec
         byzantiumBlockNumber = 4370000,
         constantinopleBlockNumber = 7280000,
         istanbulBlockNumber = 9069000,
-        eip106BlockNumber = 0,
+        eip106BlockNumber = 0
       ),
       daoForkConfig = Some(new DaoForkConfig {
         override val blockExtraData: Option[ByteString] =

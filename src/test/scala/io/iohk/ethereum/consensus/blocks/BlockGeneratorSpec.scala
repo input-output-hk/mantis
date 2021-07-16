@@ -229,7 +229,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         homesteadBlockNumber = 1150000,
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
+        difficultyBombRemovalBlockNumber = 5900000
       )
     )
 
@@ -282,7 +282,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
         difficultyBombRemovalBlockNumber = 5900000,
-        eip161BlockNumber = 0,
+        eip161BlockNumber = 0
       ),
       chainId = 0x3d.toByte,
       networkId = 1,
@@ -648,7 +648,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         eip155BlockNumber = 0,
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
+        difficultyBombRemovalBlockNumber = 5900000
       ),
       chainId = 0x3d.toByte,
       networkId = 1,

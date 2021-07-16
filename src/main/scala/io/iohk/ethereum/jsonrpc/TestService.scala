@@ -227,7 +227,7 @@ class TestService(
         aghartaBlockNumber = istanbulForkBlockNumber,
         istanbulBlockNumber = istanbulForkBlockNumber,
         atlantisBlockNumber = istanbulForkBlockNumber,
-        phoenixBlockNumber = istanbulForkBlockNumber,
+        phoenixBlockNumber = istanbulForkBlockNumber
       ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce),
       networkId = 1,

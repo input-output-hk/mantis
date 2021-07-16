@@ -38,7 +38,7 @@ case class BlockchainConfig(
     copy(forkBlockNumbers = update(forkBlockNumbers))
 }
 
-case class ForkBlockNumbers (
+case class ForkBlockNumbers(
     frontierBlockNumber: BigInt,
     homesteadBlockNumber: BigInt,
     eip106BlockNumber: BigInt,

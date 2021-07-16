@@ -27,7 +27,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
         homesteadBlockNumber = 3,
         eip150BlockNumber = 5,
         eip160BlockNumber = 7,
-        eip155BlockNumber = 0,
+        eip155BlockNumber = 0
       ),
       chainId = 0x3d.toByte,
       monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),
