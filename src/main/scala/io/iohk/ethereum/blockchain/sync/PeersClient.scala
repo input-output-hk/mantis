@@ -101,7 +101,8 @@ class PeersClient(
 
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
     peerSelector match {
-      case BestPeer => bestPeer(peersToDownloadFrom)
+      case BestPeer     => bestPeer(peersToDownloadFrom)
+      case NextBestPeer => nextBestPeer(peersToDownloadFrom)
     }
 
   private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
@@ -138,7 +139,7 @@ class PeersClient(
 
   //returns the next best peer after the one already returned previously
   //TODO: make sure the next best peer has a different best block, so we don't fetch in parallel identical branches
-  def nextBestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
+  private def nextBestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom.values
       .collect { case PeerWithInfo(peer, PeerInfo(_, chainWeight, true, _, _)) =>
         (peer, chainWeight)
@@ -202,6 +203,7 @@ object PeersClient {
 
   sealed trait PeerSelector
   case object BestPeer extends PeerSelector
+  case object NextBestPeer extends PeerSelector
 
   def bestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom.values
