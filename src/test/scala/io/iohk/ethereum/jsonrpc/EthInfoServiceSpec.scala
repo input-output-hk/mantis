@@ -19,7 +19,8 @@ import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
-import io.iohk.ethereum.consensus._
+import io.iohk.ethereum.consensus.mining.MiningConfigs
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.domain.Block
@@ -156,8 +157,8 @@ class EthServiceSpec
     val keyStore: KeyStore = mock[KeyStore]
     override lazy val stxLedger: StxLedger = mock[StxLedger]
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
+    override lazy val miningConfig = MiningConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()
 
@@ -167,7 +168,7 @@ class EthServiceSpec
       blockchain,
       blockchainReader,
       blockchainConfig,
-      consensus,
+      mining,
       stxLedger,
       keyStore,
       syncingController.ref,

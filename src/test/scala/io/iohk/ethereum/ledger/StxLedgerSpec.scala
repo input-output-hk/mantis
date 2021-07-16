@@ -35,7 +35,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val simulationResult: TxResult =
       stxLedger.simulateTransaction(stxFromAddress, genesisHeader, None)
     val executionResult: TxResult =
-      consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
+      mining.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(stxFromAddress, genesisHeader, None)
 
@@ -46,7 +46,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
-    val errorExecResult: TxResult = consensus.blockPreparator.executeTransaction(
+    val errorExecResult: TxResult = mining.blockPreparator.executeTransaction(
       stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)),
       fromAddress,
       genesisHeader,
@@ -65,7 +65,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val stx = SignedTransaction(tx, fakeSignature)
 
     val executionResult: TxResult =
-      consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
+      mining.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(SignedTransactionWithSender(stx, fromAddress), genesisHeader, None)
 
@@ -82,7 +82,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
     val preparedBlock: PreparedBlock =
-      consensus.blockPreparator.prepareBlock(
+      mining.blockPreparator.prepareBlock(
         storagesInstance.storages.evmCodeStorage,
         newBlock,
         genesisBlock.header,
@@ -164,7 +164,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
       blockchainConfig,
-      consensus.blockPreparator
+      mining.blockPreparator
     )
 
   val emptyWorld: InMemoryWorldStateProxy =

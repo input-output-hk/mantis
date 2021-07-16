@@ -25,7 +25,7 @@ Private keys for pre-funded accounts are located in `mantis/src/rpcTest/resource
 7. Turn off Mantis client in `~/mantis_build/mantis-3.2.1`
 8. Go to `~/mantis_build/mantis-3.2.1` directory and run mantis using command below (mantis will be run with miner so you need to wait till DAG is loaded):
 
-        ./bin/mantis -Dmantis.consensus.mining-enabled=true
+        ./bin/mantis -Dmantis.mining.mining-enabled=true
 9. Go to `mantis` source dir and run 
 
         sbt "rpcTest:testOnly -- -n PrivNet"

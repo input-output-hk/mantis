@@ -2,7 +2,7 @@ package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.Blockchain
@@ -24,9 +24,9 @@ import io.iohk.ethereum.utils.Logger
 class TestEthBlockServiceWrapper(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
-    consensus: Consensus,
+    mining: Mining,
     blockQueue: BlockQueue
-) extends EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
+) extends EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
     with Logger {
 
   /** Implements the eth_getBlockByHash method that fetches a requested block.
@@ -75,7 +75,8 @@ class TestEthBlockServiceWrapper(
     .getBlockByNumber(request)
     .map(
       _.map { blockByBlockResponse =>
-        val fullBlock = blockchainReader.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
+        val bestBranch = blockchainReader.getBestBranch()
+        val fullBlock = bestBranch.getBlockByNumber(blockByBlockResponse.blockResponse.get.number).get
         BlockByNumberResponse(blockByBlockResponse.blockResponse.map(response => toEthResponse(fullBlock, response)))
       }
     )

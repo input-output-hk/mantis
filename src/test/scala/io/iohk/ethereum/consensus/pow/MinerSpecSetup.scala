@@ -18,11 +18,11 @@ import org.scalamock.scalatest.MockFactory
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.ConsensusConfigBuilder
-import io.iohk.ethereum.consensus.FullConsensusConfig
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -36,7 +36,7 @@ import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.utils.Config
 
-trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+trait MinerSpecSetup extends MiningConfigBuilder with MockFactory {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
   implicit val scheduler: Scheduler = Scheduler(classicSystem.dispatcher)
   val parentActor: TestProbe = TestProbe()
@@ -71,7 +71,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     chainId = 0x3d.toByte
   )
 
-  lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
+  lazy val mining: PoWMining = buildPoWConsensus().withBlockGenerator(blockGenerator)
   lazy val blockchainConfig = Config.blockchains.blockchainConfig
   lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
@@ -79,16 +79,16 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
   protected def getParentBlock(parentBlockNumber: Int): Block =
     origin.copy(header = origin.header.copy(number = parentBlockNumber))
 
-  def buildPoWConsensus(): PoWConsensus = {
+  def buildPoWConsensus(): PoWMining = {
     val mantisConfig = Config.config
     val specificConfig = EthashConfig(mantisConfig)
 
-    val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
+    val fullConfig = FullMiningConfig(miningConfig, specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(blockchainConfig, miningConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
-    PoWConsensus(
+    PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
@@ -107,7 +107,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
       BlockHeader(
         parentHash = parentHeader.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = consensusConfig.coinbase.bytes,
+        beneficiary = miningConfig.coinbase.bytes,
         stateRoot = parentHeader.stateRoot,
         transactionsRoot = parentHeader.transactionsRoot,
         receiptsRoot = parentHeader.receiptsRoot,
@@ -117,7 +117,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
         gasLimit = calculateGasLimit(UInt256(parentHeader.gasLimit)),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
-        extraData = consensusConfig.headerExtraData,
+        extraData = miningConfig.headerExtraData,
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ),
@@ -125,7 +125,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     )
 
     (blockGenerator.generateBlock _)
-      .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None)
+      .expects(parentBlock, Nil, miningConfig.coinbase, Nil, None)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
       .atLeastOnce()
 
