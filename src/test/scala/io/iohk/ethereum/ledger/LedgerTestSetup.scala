@@ -32,6 +32,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.PC
 import io.iohk.ethereum.ledger.PR
@@ -410,8 +411,11 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
+
+  val bestChain: Branch = mock[Branch]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -455,7 +459,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     (blockchain.isInChain _).expects(hash).returning(result)
 
   def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (blockchainReader.getBlockByNumber _).expects(number).returning(block)
+    (bestChain.getBlockByNumber _).expects(number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchainReader.genesisHeader).expects().returning(header)

@@ -29,8 +29,11 @@ trait OmmersValidator {
   ): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
+    val bestBranch = blockchainReader.getBestBranch()
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) => ((blockNumber - n) until blockNumber).toList.flatMap(blockchainReader.getBlockByNumber)
+      (_, n) =>
+        ((blockNumber - n) until blockNumber).toList
+          .flatMap(nb => bestBranch.getBlockByNumber(nb))
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }
