@@ -19,10 +19,10 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
@@ -49,7 +49,7 @@ import io.iohk.ethereum.vm.ProgramResult
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
   //+ cake overrides
 
-  val prep: BlockPreparator = consensus.blockPreparator
+  val prep: BlockPreparator = mining.blockPreparator
   //- cake overrides
 
   val originKeyPair: AsymmetricCipherKeyPair = generateKeyPair(secureRandom)
@@ -280,7 +280,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   override lazy val vm: VMImpl = new VMImpl
 
   // Make type more specific
-  override lazy val consensus: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestMining()
   //- cake overrides
 
   val blockQueue: BlockQueue
@@ -370,7 +370,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
 
   lazy val blockImportNotFailingAfterExecValidation: BlockImport = {
-    val consensuz = consensus.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
+    val consensuz = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,

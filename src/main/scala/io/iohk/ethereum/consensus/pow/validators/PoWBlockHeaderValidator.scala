@@ -10,13 +10,13 @@ import io.iohk.ethereum.utils.BlockchainConfig
 class PoWBlockHeaderValidator(blockchainConfig: BlockchainConfig)
     extends BlockHeaderValidatorSkeleton(blockchainConfig) {
 
-  /** The difficulty calculator. This is specific to the consensus protocol.
+  /** The difficulty calculator. This is specific to the mining protocol.
     */
   override protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
 
   private val ethashBlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
 
-  /** A hook where even more consensus-specific validation can take place.
+  /** A hook where even more mining-specific validation can take place.
     * For example, PoW validation is done here.
     */
   override protected[validators] def validateEvenMore(

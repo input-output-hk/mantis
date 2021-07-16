@@ -16,7 +16,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
@@ -256,7 +256,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -339,7 +339,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -544,7 +544,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
             )
           )
 
-        override lazy val consensusConfig = buildConsensusConfig()
+        override lazy val miningConfig = buildMiningConfig()
       }
       import testSetup._
 
@@ -575,7 +575,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -591,7 +591,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -614,7 +614,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = maliciousAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -630,7 +630,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -734,14 +734,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     override lazy val validators: ValidatorsExecutor = powValidators
 
-    override lazy val consensusConfig: ConsensusConfig =
-      buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
+    override lazy val miningConfig: MiningConfig =
+      buildMiningConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator: TestBlockGenerator =
-      consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+      mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     lazy val blockExecution =
       new BlockExecution(
         blockchain,
@@ -749,7 +749,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
         blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 

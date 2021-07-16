@@ -7,6 +7,8 @@ import scala.concurrent.duration._
 
 import com.typesafe.config.{Config => TypesafeConfig}
 
+import io.iohk.ethereum.consensus.mining.Protocol
+
 final case class EthashConfig(
     ommersPoolSize: Int,
     ommerPoolQueryTimeout: FiniteDuration,

@@ -84,7 +84,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
       val blockchainWriter = BlockchainWriter(storages, blockchainMetadata)
       val blockchain = BlockchainImpl(storages, blockchainReader, blockchainMetadata)
       val blockValidation =
-        new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+        new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
       val blockExecution =
         new BlockExecution(
           blockchain,
@@ -92,7 +92,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
           blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
           blockchainConfig,
-          consensus.blockPreparator,
+          mining.blockPreparator,
           blockValidation
         )
       blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors

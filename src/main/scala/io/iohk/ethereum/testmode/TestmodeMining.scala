@@ -4,11 +4,18 @@ import akka.util.ByteString
 
 import monix.eval.Task
 
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.BlockTimestampProvider
 import io.iohk.ethereum.consensus.blocks.NoOmmersBlockGenerator
 import io.iohk.ethereum.consensus.blocks.TestBlockGenerator
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.MiningBuilder
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponse
@@ -32,22 +39,22 @@ import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class TestmodeConsensus(
+class TestmodeMining(
     override val vm: VMImpl,
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     override val difficultyCalculator: DifficultyCalculator,
     sealEngine: SealEngineType,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
-    extends Consensus {
+    extends Mining {
 
   override type Config = AnyRef
   override def protocol: Protocol = Protocol.PoW
-  override def config: FullConsensusConfig[AnyRef] = FullConsensusConfig[AnyRef](consensusConfig, "")
+  override def config: FullMiningConfig[AnyRef] = FullMiningConfig[AnyRef](miningConfig, "")
 
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
@@ -106,7 +113,7 @@ class TestmodeConsensus(
     new NoOmmersBlockGenerator(
       evmCodeStorage,
       blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalculator,
       new BlockTimestampProvider {
@@ -129,16 +136,16 @@ class TestmodeConsensus(
   override def sendMiner(msg: MinerProtocol): Unit = {}
 }
 
-trait TestmodeConsensusBuilder extends ConsensusBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusConfigBuilder with StorageBuilder =>
+trait TestmodeMiningBuilder extends MiningBuilder {
+  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningConfigBuilder with StorageBuilder =>
 
-  override lazy val consensus = new TestmodeConsensus(
+  override lazy val mining = new TestmodeMining(
     vm,
     storagesInstance.storages.evmCodeStorage,
     blockchain,
     blockchainReader,
     blockchainConfig,
-    consensusConfig,
+    miningConfig,
     DifficultyCalculator(blockchainConfig),
     SealEngineType.NoReward
   )
