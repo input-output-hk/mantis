@@ -21,29 +21,13 @@ import io.iohk.ethereum.utils.MonetaryPolicyConfig
 class ForksTest extends AnyFlatSpec with Matchers {
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
-      forkBlockNumbers = ForkBlockNumbers(
+    implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 3,
         eip150BlockNumber = 5,
         eip160BlockNumber = 7,
-        eip155BlockNumber = 0,
-        eip106BlockNumber = Long.MaxValue,
-        eip161BlockNumber = Long.MaxValue,
-        difficultyBombPauseBlockNumber = Long.MaxValue,
-        difficultyBombContinueBlockNumber = Long.MaxValue,
-        difficultyBombRemovalBlockNumber = Long.MaxValue,
-        byzantiumBlockNumber = Long.MaxValue,
-        constantinopleBlockNumber = Long.MaxValue,
-        istanbulBlockNumber = Long.MaxValue,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        ecip1098BlockNumber = Long.MaxValue,
-        ecip1097BlockNumber = Long.MaxValue,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        eip155BlockNumber = 0
       ),
       chainId = 0x3d.toByte,
       monetaryPolicyConfig = MonetaryPolicyConfig(5000000, 0.2, 5000000000000000000L, 3000000000000000000L),
@@ -84,7 +68,6 @@ class ForksTest extends AnyFlatSpec with Matchers {
           blockchainReader,
           blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
-          blockchainConfig,
           mining.blockPreparator,
           blockValidation
         )

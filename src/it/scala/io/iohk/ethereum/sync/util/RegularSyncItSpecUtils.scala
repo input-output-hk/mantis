@@ -55,7 +55,9 @@ object RegularSyncItSpecUtils {
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
   }
 
   object ValidatorsExecutorAlwaysSucceed extends ValidatorsExecutorAlwaysSucceed
@@ -74,7 +76,6 @@ object RegularSyncItSpecUtils {
           storagesInstance.storages.evmCodeStorage,
           bl,
           blockchainReader,
-          blockchainConfig,
           fullConfig,
           ValidatorsExecutorAlwaysSucceed,
           NoAdditionalPoWData
@@ -99,7 +100,6 @@ object RegularSyncItSpecUtils {
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
         mining.blockPreparator,
         blockValidation
       )
@@ -154,7 +154,8 @@ object RegularSyncItSpecUtils {
         ommersPool,
         broadcasterRef,
         pendingTransactionsManager,
-        regularSync
+        regularSync,
+        this
       )
     )
 
@@ -173,7 +174,8 @@ object RegularSyncItSpecUtils {
         testSyncConfig,
         ommersPool,
         pendingTransactionsManager,
-        system.scheduler
+        system.scheduler,
+        this
       )
     )
 

@@ -208,8 +208,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getLatestCheckpointBlockNumber(): BigInt = ???
 
-  override def isInChain(hash: NodeHash): Boolean = ???
-
   override def getBackingMptStorage(blockNumber: BigInt): MptStorage = ???
 
   override def getReadOnlyMptStorage(): MptStorage = ???

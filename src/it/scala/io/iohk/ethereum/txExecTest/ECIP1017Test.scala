@@ -23,7 +23,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
   val EraDuration = 3
 
   trait TestSetup extends ScenarioSetup {
-    override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
+    implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
       monetaryPolicyConfig = MonetaryPolicyConfig(EraDuration, 0.2, 5000000000000000000L, 3000000000000000000L),
       // unused
       maxCodeSize = None,
@@ -50,7 +50,8 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
         ecip1098BlockNumber = Long.MaxValue,
         ecip1097BlockNumber = Long.MaxValue,
         ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        ecip1049BlockNumber = None,
+        magnetoBlockNumber = Long.MaxValue
       ),
       customGenesisFileOpt = None,
       customGenesisJsonOpt = None,
@@ -91,7 +92,6 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
           blockchainReader,
           blockchainWriter,
           testBlockchainStorages.evmCodeStorage,
-          blockchainConfig,
           mining.blockPreparator,
           blockValidation
         )

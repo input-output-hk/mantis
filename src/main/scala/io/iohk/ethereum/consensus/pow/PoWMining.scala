@@ -42,7 +42,6 @@ import io.iohk.ethereum.jsonrpc.AkkaTaskOps.TaskActorOps
 import io.iohk.ethereum.ledger.BlockPreparator
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder.Node
-import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 
 /** Implements standard Ethereum mining (Proof of Work).
@@ -52,7 +51,6 @@ class PoWMining private (
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
-    val blockchainConfig: BlockchainConfig,
     val config: FullMiningConfig[EthashConfig],
     val validators: ValidatorsExecutor,
     val blockGenerator: PoWBlockGenerator,
@@ -66,8 +64,7 @@ class PoWMining private (
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
-    blockchainReader = blockchainReader,
-    blockchainConfig = blockchainConfig
+    blockchainReader = blockchainReader
   )
 
   @volatile private[pow] var minerCoordinatorRef: Option[ActorRef[CoordinatorProtocol]] = None
@@ -116,7 +113,8 @@ class PoWMining private (
                   node.ethMiningService,
                   blockCreator,
                   blockchainReader,
-                  blockchainConfig.forkBlockNumbers.ecip1049BlockNumber
+                  node.blockchainConfig.forkBlockNumbers.ecip1049BlockNumber,
+                  node
                 ),
                 "PoWMinerCoordinator",
                 DispatcherSelector.fromConfig(BlockForgerDispatcherId)
@@ -171,15 +169,13 @@ class PoWMining private (
           vm = vm,
           signedTxValidator = validators.signedTransactionValidator,
           blockchain = blockchain,
-          blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig
+          blockchainReader = blockchainReader
         )
 
         new PoWBlockGeneratorImpl(
           evmCodeStorage = evmCodeStorage,
           validators = _validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalculator,
@@ -201,7 +197,6 @@ class PoWMining private (
           evmCodeStorage = evmCodeStorage,
           blockchain = blockchain,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           config = config,
           validators = _validators,
           blockGenerator = blockGenerator,
@@ -217,7 +212,6 @@ class PoWMining private (
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
       blockGenerator = blockGenerator,
@@ -231,7 +225,6 @@ class PoWMining private (
       vm = vm,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
       blockGenerator = blockGenerator.asInstanceOf[PoWBlockGenerator],
@@ -247,18 +240,16 @@ object PoWMining {
       evmCodeStorage: EvmCodeStorage,
       blockchain: BlockchainImpl,
       blockchainReader: BlockchainReader,
-      blockchainConfig: BlockchainConfig,
       config: FullMiningConfig[EthashConfig],
       validators: ValidatorsExecutor,
       additionalEthashProtocolData: AdditionalPoWProtocolData
   ): PoWMining = {
-    val difficultyCalculator = DifficultyCalculator(blockchainConfig)
+    val difficultyCalculator = DifficultyCalculator
     val blockPreparator = new BlockPreparator(
       vm = vm,
       signedTxValidator = validators.signedTransactionValidator,
       blockchain = blockchain,
-      blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig
+      blockchainReader = blockchainReader
     )
     val blockGenerator = additionalEthashProtocolData match {
       case RestrictedPoWMinerData(key) =>
@@ -266,7 +257,6 @@ object PoWMining {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator,
@@ -277,7 +267,6 @@ object PoWMining {
           evmCodeStorage = evmCodeStorage,
           validators = validators,
           blockchainReader = blockchainReader,
-          blockchainConfig = blockchainConfig,
           miningConfig = config.generic,
           blockPreparator = blockPreparator,
           difficultyCalc = difficultyCalculator
@@ -288,7 +277,6 @@ object PoWMining {
       evmCodeStorage = evmCodeStorage,
       blockchain = blockchain,
       blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig,
       config = config,
       validators = validators,
       blockGenerator = blockGenerator,

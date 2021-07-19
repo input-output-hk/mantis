@@ -4,7 +4,6 @@ import akka.util.ByteString
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -13,11 +12,9 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.ledger.BlockImport
-import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockValidation
-import io.iohk.ethereum.ledger.StxLedger
 import io.iohk.ethereum.ledger.VMImpl
-import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
@@ -29,29 +26,21 @@ class TestModeComponentsProvider(
     syncConfig: SyncConfig,
     validationExecutionContext: Scheduler,
     miningConfig: MiningConfig,
-    difficultyCalculator: DifficultyCalculator,
-    vm: VMImpl
+    vm: VMImpl,
+    node: TestNode
 ) {
 
-//  private var cache = HashMap.empty[(BlockchainConfig, SealEngineType), BlockImport]
-  private val internalBlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
-
-  def blockQueue(): BlockQueue = internalBlockQueue
-
   def blockImport(
-      blockchainConfig: BlockchainConfig,
-      preimageCache: collection.concurrent.Map[ByteString, UInt256],
-      sealEngine: SealEngineType
+      preimageCache: collection.concurrent.Map[ByteString, UInt256]
   ): BlockImport = {
-    val consensuz = consensus(blockchainConfig, sealEngine)
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, internalBlockQueue)
+    val consensuz = consensus()
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, node.blockQueue)
     val blockExecution =
       new TestModeBlockExecution(
         blockchain,
         blockchainReader,
         blockchainWriter,
         evmCodeStorage,
-        blockchainConfig,
         consensuz.blockPreparator,
         blockValidation,
         (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)
@@ -61,7 +50,7 @@ class TestModeComponentsProvider(
       blockchain,
       blockchainReader,
       blockchainWriter,
-      internalBlockQueue,
+      node.blockQueue,
       blockValidation,
       blockExecution,
       validationExecutionContext
@@ -71,20 +60,9 @@ class TestModeComponentsProvider(
   /** Clear the internal builder state
     */
   def clearState(): Unit =
-    internalBlockQueue.clear()
-
-  def stxLedger(blockchainConfig: BlockchainConfig, sealEngine: SealEngineType): StxLedger =
-    new StxLedger(
-      blockchain,
-      blockchainReader,
-      evmCodeStorage,
-      blockchainConfig,
-      consensus(blockchainConfig, sealEngine).blockPreparator
-    )
+    node.blockQueue.clear()
 
   def consensus(
-      blockchainConfig: BlockchainConfig,
-      sealEngine: SealEngineType,
       blockTimestamp: Long = 0
   ): TestmodeMining =
     new TestmodeMining(
@@ -92,10 +70,8 @@ class TestModeComponentsProvider(
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       miningConfig,
-      difficultyCalculator,
-      sealEngine,
+      node,
       blockTimestamp
     )
 }

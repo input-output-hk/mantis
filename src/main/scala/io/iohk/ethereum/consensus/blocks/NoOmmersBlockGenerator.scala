@@ -11,13 +11,11 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 abstract class NoOmmersBlockGenerator(
     evmCodeStorage: EvmCodeStorage,
-    blockchainConfig: BlockchainConfig,
     miningConfig: MiningConfig,
     blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchainConfig,
       miningConfig,
       difficultyCalc,
       blockTimestampProvider
@@ -34,7 +32,7 @@ abstract class NoOmmersBlockGenerator(
       beneficiary: Address,
       blockTimestamp: Long,
       x: Nil.type
-  ): BlockHeader =
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
 
   /** An empty `X` */
@@ -46,23 +44,24 @@ abstract class NoOmmersBlockGenerator(
       beneficiary: Address,
       x: Nil.type,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = MiningMetrics.NoOmmersBlockGeneratorTiming.record { () =>
-    val pHeader = parent.header
-    val blockNumber = pHeader.number + 1
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState =
+    MiningMetrics.NoOmmersBlockGeneratorTiming.record { () =>
+      val pHeader = parent.header
+      val blockNumber = pHeader.number + 1
 
-    val prepared =
-      prepareBlock(
-        evmCodeStorage,
-        parent,
-        transactions,
-        beneficiary,
-        blockNumber,
-        blockPreparator,
-        x,
-        initialWorldStateBeforeExecution
-      )
-    cache.updateAndGet((t: List[PendingBlockAndState]) => (prepared :: t).take(blockCacheSize))
+      val prepared =
+        prepareBlock(
+          evmCodeStorage,
+          parent,
+          transactions,
+          beneficiary,
+          blockNumber,
+          blockPreparator,
+          x,
+          initialWorldStateBeforeExecution
+        )
+      cache.updateAndGet((t: List[PendingBlockAndState]) => (prepared :: t).take(blockCacheSize))
 
-    prepared
-  }
+      prepared
+    }
 }

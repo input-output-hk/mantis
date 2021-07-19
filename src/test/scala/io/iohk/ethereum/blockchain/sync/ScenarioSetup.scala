@@ -32,7 +32,7 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected lazy val monixScheduler: Scheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
-  protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.PoW)
+  protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(Protocol.PoW)
 
   /** The default validators for the test cases.
     * Override this if you want to alter the behaviour of consensus
@@ -89,7 +89,6 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
           blockchainReader,
           blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
-          blockchainConfig,
           consensuz.blockPreparator,
           blockValidation
         )
