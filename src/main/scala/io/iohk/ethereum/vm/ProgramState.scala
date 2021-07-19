@@ -19,7 +19,12 @@ object ProgramState {
       world = context.world,
       staticCtx = context.staticCtx,
       addressesToDelete = context.initialAddressesToDelete,
-      originalWorld = context.originalWorld
+      originalWorld = context.originalWorld,
+      accessedAddresses = PrecompiledContracts.getContracts(context).keySet ++ Set(
+        context.originAddr,
+        context.recipientAddr.getOrElse(context.callerAddr)
+      ),
+      accessedStorageKeys = Set.empty
     )
 }
 
@@ -58,7 +63,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     halted: Boolean = false,
     staticCtx: Boolean = false,
     error: Option[ProgramError] = None,
-    originalWorld: W
+    originalWorld: W,
+    accessedAddresses: Set[Address],
+    accessedStorageKeys: Set[(Address, BigInt)]
 ) {
 
   def config: EvmConfig = env.evmConfig
@@ -125,6 +132,12 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def revert(data: ByteString): ProgramState[W, S] =
     copy(error = Some(RevertOccurs), returnData = data, halted = true)
+
+  def addAccessedAddress(addr: Address): ProgramState[W, S] =
+    copy(accessedAddresses = accessedAddresses.+(addr))
+
+  def addAccessedStorageKey(addr: Address, storageKey: BigInt): ProgramState[W, S] =
+    copy(accessedStorageKeys = accessedStorageKeys.+((addr, storageKey)))
 
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
