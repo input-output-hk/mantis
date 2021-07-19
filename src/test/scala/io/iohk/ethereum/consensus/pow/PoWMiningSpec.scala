@@ -36,7 +36,6 @@ class PoWMiningSpec
       storagesInstance.storages.evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       MiningConfigs.fullMiningConfig,
       validator,
       NoAdditionalPoWData
@@ -53,7 +52,6 @@ class PoWMiningSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       MiningConfigs.fullMiningConfig,
       validator,
       RestrictedPoWMinerData(key)
@@ -71,7 +69,6 @@ class PoWMiningSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullMiningConfig,
       validator,
       NoAdditionalPoWData
@@ -91,7 +88,6 @@ class PoWMiningSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullMiningConfig,
       validator,
       NoAdditionalPoWData
@@ -111,7 +107,6 @@ class PoWMiningSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullMiningConfig,
       validator,
       NoAdditionalPoWData
@@ -131,7 +126,6 @@ class PoWMiningSpec
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullMiningConfig,
       validator,
       NoAdditionalPoWData

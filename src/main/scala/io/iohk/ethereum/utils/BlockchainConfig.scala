@@ -59,17 +59,45 @@ case class ForkBlockNumbers(
     ecip1098BlockNumber: BigInt,
     ecip1097BlockNumber: BigInt,
     ecip1049BlockNumber: Option[BigInt],
-    ecip1099BlockNumber: BigInt
+    ecip1099BlockNumber: BigInt,
+    magnetoBlockNumber: BigInt
 ) {
   def all: List[BigInt] = this.productIterator.toList.flatMap {
     case i: BigInt => Some(i)
     case i: Option[_] =>
       i.flatMap {
         case n if n.isInstanceOf[BigInt] => Some(n.asInstanceOf[BigInt])
-        case n                           => None
+        case _                           => None
       }
-    case default => None
+    case _ => None
   }
+}
+
+object ForkBlockNumbers {
+  val Empty: ForkBlockNumbers = ForkBlockNumbers(
+    frontierBlockNumber = 0,
+    homesteadBlockNumber = Long.MaxValue,
+    difficultyBombPauseBlockNumber = Long.MaxValue,
+    difficultyBombContinueBlockNumber = Long.MaxValue,
+    difficultyBombRemovalBlockNumber = Long.MaxValue,
+    eip106BlockNumber = Long.MaxValue,
+    eip150BlockNumber = Long.MaxValue,
+    eip160BlockNumber = Long.MaxValue,
+    eip155BlockNumber = Long.MaxValue,
+    eip161BlockNumber = Long.MaxValue,
+    byzantiumBlockNumber = Long.MaxValue,
+    constantinopleBlockNumber = Long.MaxValue,
+    istanbulBlockNumber = Long.MaxValue,
+    atlantisBlockNumber = Long.MaxValue,
+    aghartaBlockNumber = Long.MaxValue,
+    phoenixBlockNumber = Long.MaxValue,
+    petersburgBlockNumber = Long.MaxValue,
+    ecip1098BlockNumber = Long.MaxValue,
+    ecip1097BlockNumber = Long.MaxValue,
+    ecip1099BlockNumber = Long.MaxValue,
+    ecip1049BlockNumber = None,
+    magnetoBlockNumber = Long.MaxValue
+  )
 }
 
 object BlockchainConfig {
@@ -139,6 +167,8 @@ object BlockchainConfig {
     val allowedMinersPublicKeys = readPubKeySet(blockchainConfig, "allowed-miners")
 
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
+    val magnetoBlockNumber: BigInt = BigInt(blockchainConfig.getString("magneto-block-number"))
+
     val capabilities: List[Capability] =
       blockchainConfig.getStringList("capabilities").asScala.toList.map(Capability.parseUnsafe)
 
@@ -165,7 +195,8 @@ object BlockchainConfig {
         ecip1098BlockNumber = ecip1098BlockNumber,
         ecip1097BlockNumber = ecip1097BlockNumber,
         ecip1049BlockNumber = ecip1049BlockNumber,
-        ecip1099BlockNumber = ecip1099BlockNumber
+        ecip1099BlockNumber = ecip1099BlockNumber,
+        magnetoBlockNumber = magnetoBlockNumber
       ),
       treasuryAddress = treasuryAddress,
       maxCodeSize = maxCodeSize,

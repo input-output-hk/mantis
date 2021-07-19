@@ -1,31 +1,23 @@
 package io.iohk.ethereum.consensus.pow.validators
 
-import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidatorSkeleton
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class PoWBlockHeaderValidator(blockchainConfig: BlockchainConfig)
-    extends BlockHeaderValidatorSkeleton(blockchainConfig) {
-
-  /** The difficulty calculator. This is specific to the mining protocol.
-    */
-  override protected def difficulty: DifficultyCalculator = DifficultyCalculator(blockchainConfig)
-
-  private val ethashBlockHeaderValidator = new EthashBlockHeaderValidator(blockchainConfig)
+object PoWBlockHeaderValidator extends BlockHeaderValidatorSkeleton {
 
   /** A hook where even more mining-specific validation can take place.
     * For example, PoW validation is done here.
     */
   override protected[validators] def validateEvenMore(
       blockHeader: BlockHeader
-  ): Either[BlockHeaderError, BlockHeaderValid] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
     if (isKeccak(blockHeader.number)) KeccakBlockHeaderValidator.validateHeader(blockHeader)
-    else ethashBlockHeaderValidator.validateHeader(blockHeader)
+    else EthashBlockHeaderValidator.validateHeader(blockHeader)
 
-  private def isKeccak(currentBlockNumber: BigInt): Boolean =
+  private def isKeccak(currentBlockNumber: BigInt)(implicit blockchainConfig: BlockchainConfig): Boolean =
     blockchainConfig.forkBlockNumbers.ecip1049BlockNumber match {
       case Some(keccakBlock) => currentBlockNumber >= keccakBlock
       case None              => false

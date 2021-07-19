@@ -12,9 +12,7 @@ import io.iohk.ethereum.consensus.mining.FullMiningConfig
 import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.mining.Mining
-import io.iohk.ethereum.consensus.mining.MiningBuilder
 import io.iohk.ethereum.consensus.mining.MiningConfig
-import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
 import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerProtocol
@@ -44,10 +42,8 @@ class TestmodeMining(
     evmCodeStorage: EvmCodeStorage,
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig,
     miningConfig: MiningConfig,
-    override val difficultyCalculator: DifficultyCalculator,
-    sealEngine: SealEngineType,
+    node: TestNode,
     blockTimestamp: Long = 0
 ) // var, because it can be modified by test_ RPC endpoints
     extends Mining {
@@ -56,29 +52,38 @@ class TestmodeMining(
   override def protocol: Protocol = Protocol.PoW
   override def config: FullMiningConfig[AnyRef] = FullMiningConfig[AnyRef](miningConfig, "")
 
+  override def difficultyCalculator: DifficultyCalculator = DifficultyCalculator
+
   class TestValidators extends Validators {
     override def blockHeaderValidator: BlockHeaderValidator = new BlockHeaderValidator {
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] = Right(BlockHeaderValid)
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] = Right(
+        BlockHeaderValid
+      )
 
-      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+          blockchainConfig: BlockchainConfig
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         Right(BlockHeaderValid)
     }
-    override def signedTransactionValidator: SignedTransactionValidator =
-      new StdSignedTransactionValidator(blockchainConfig)
+    override def signedTransactionValidator: SignedTransactionValidator = StdSignedTransactionValidator
     override def validateBlockBeforeExecution(
         block: Block,
         getBlockHeaderByHash: GetBlockHeaderByHash,
         getNBlocksBack: GetNBlocksBack
+    )(implicit
+        blockchainConfig: BlockchainConfig
     ): Either[BlockExecutionError.ValidationBeforeExecError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
     override def validateBlockAfterExecution(
         block: Block,
         stateRootHash: ByteString,
         receipts: Seq[Receipt],
         gasUsed: BigInt
-    ): Either[BlockExecutionError, BlockExecutionSuccess] = Right(BlockExecutionSuccess)
+    )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] = Right(
+      BlockExecutionSuccess
+    )
     override def blockValidator: BlockValidator = new BlockValidator {
       override def validateBlockAndReceipts(
           blockHeader: BlockHeader,
@@ -91,17 +96,18 @@ class TestmodeMining(
     }
   }
 
-  override def validators: Validators = ValidatorsExecutor.apply(blockchainConfig, Protocol.MockedPow)
+  override def validators: Validators = ValidatorsExecutor.apply(Protocol.MockedPow)
 
   override def blockPreparator: BlockPreparator = new BlockPreparator(
     vm = vm,
     signedTxValidator = validators.signedTransactionValidator,
     blockchain = blockchain,
-    blockchainReader = blockchainReader,
-    blockchainConfig = blockchainConfig
+    blockchainReader = blockchainReader
   ) {
-    override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
-      sealEngine match {
+    override def payBlockReward(block: Block, worldStateProxy: InMemoryWorldStateProxy)(implicit
+        blockchainConfig: BlockchainConfig
+    ): InMemoryWorldStateProxy =
+      node.sealEngine match {
         case SealEngineType.NoProof =>
           super.payBlockReward(block, worldStateProxy)
         case SealEngineType.NoReward =>
@@ -112,7 +118,6 @@ class TestmodeMining(
   override def blockGenerator: NoOmmersBlockGenerator =
     new NoOmmersBlockGenerator(
       evmCodeStorage,
-      blockchainConfig,
       miningConfig,
       blockPreparator,
       difficultyCalculator,
@@ -134,19 +139,4 @@ class TestmodeMining(
   /** Sends msg to the internal miner
     */
   override def sendMiner(msg: MinerProtocol): Unit = {}
-}
-
-trait TestmodeMiningBuilder extends MiningBuilder {
-  self: VmBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningConfigBuilder with StorageBuilder =>
-
-  override lazy val mining = new TestmodeMining(
-    vm,
-    storagesInstance.storages.evmCodeStorage,
-    blockchain,
-    blockchainReader,
-    blockchainConfig,
-    miningConfig,
-    DifficultyCalculator(blockchainConfig),
-    SealEngineType.NoReward
-  )
 }

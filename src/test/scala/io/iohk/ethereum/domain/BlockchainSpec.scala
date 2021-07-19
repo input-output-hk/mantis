@@ -52,11 +52,17 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
+    blockchainWriter.save(
+      validBlock.copy(header = validBlock.header.copy(number = validBlock.number - 1)),
+      Seq.empty,
+      ChainWeight(100, 100),
+      saveAsBestBlock = true
+    )
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
-    blockchain.isInChain(validBlock.hash) === false
+    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
-    blockchain.isInChain(validBlock.hash) should ===(false)
+    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(false)
   }
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {

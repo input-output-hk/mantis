@@ -5,6 +5,7 @@ import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields
+import io.iohk.ethereum.utils.BlockchainConfig
 
 /** Validates a [[io.iohk.ethereum.domain.BlockHeader BlockHeader]].
   */
@@ -12,9 +13,11 @@ trait BlockHeaderValidator {
   def validate(
       blockHeader: BlockHeader,
       getBlockHeaderByHash: GetBlockHeaderByHash
-  ): Either[BlockHeaderError, BlockHeaderValid]
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid]
 
-  def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid]
+  def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Either[BlockHeaderError, BlockHeaderValid]
 }
 
 object BlockHeaderValidator {

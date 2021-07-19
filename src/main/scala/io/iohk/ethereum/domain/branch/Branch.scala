@@ -13,4 +13,6 @@ trait Branch {
   /** Returns a block hash for the block at the given height if any */
   def getHashByBlockNumber(number: BigInt): Option[ByteString]
 
+  /** Checks if given block hash is in this chain. (i.e. is an ancestor of the tip block) */
+  def isInChain(hash: ByteString): Boolean
 }

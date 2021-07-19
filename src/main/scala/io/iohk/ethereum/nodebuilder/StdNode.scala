@@ -13,8 +13,6 @@ import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
-import io.iohk.ethereum.testmode.TestModeServiceBuilder
-import io.iohk.ethereum.testmode.TestmodeMiningBuilder
 import io.iohk.ethereum.utils.Config
 
 /** A standard node is everything Ethereum prescribes except the mining algorithm,
@@ -107,10 +105,3 @@ abstract class BaseNode extends Node {
 }
 
 class StdNode extends BaseNode with StdMiningBuilder
-class TestNode
-    extends BaseNode
-    with TestModeServiceBuilder
-    with TestmodeMiningBuilder
-    with TestServiceBuilder
-    with TestEthBlockServiceBuilder
-    with BlockchainBuilder

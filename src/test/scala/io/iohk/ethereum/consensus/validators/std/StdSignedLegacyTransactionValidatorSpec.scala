@@ -17,14 +17,13 @@ import io.iohk.ethereum.consensus.validators.SignedTransactionValid
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.vm.EvmConfig
 
 class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers {
 
-  val blockchainConfig = Config.blockchains.blockchainConfig
-
-  val signedTransactionValidator = new StdSignedTransactionValidator(blockchainConfig)
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   //From block 0x228943f4ef720ac91ca09c08056d7764c2a1650181925dfaeb484f27e544404e with number 1100000 (tx index 0)
   val txBeforeHomestead: LegacyTransaction = LegacyTransaction(
@@ -87,7 +86,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
         (senderAccountBeforeHomestead, blockHeaderBeforeHomestead)
       else
         (senderAccountAfterHomestead, blockHeaderAfterHomestead)
-    signedTransactionValidator.validate(
+    StdSignedTransactionValidator.validate(
       stx = stx,
       senderAccount = senderAccount,
       blockHeader = blockHeader,
@@ -183,7 +182,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
 
   it should "report a tx with invalid s as having invalid signature" in {
     val signatureWithInvalidS =
-      signedTxAfterHomestead.signature.copy(s = (signedTransactionValidator.secp256k1n / 2 + 1).bigInteger)
+      signedTxAfterHomestead.signature.copy(s = (StdSignedTransactionValidator.secp256k1n / 2 + 1).bigInteger)
     val signedTxWithInvalidSignature = signedTxAfterHomestead.copy(signature = signatureWithInvalidS)
     validateStx(signedTxWithInvalidSignature, fromBeforeHomestead = false) match {
       case Left(TransactionSignatureError) => succeed
@@ -214,7 +213,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
 
   it should "report as invalid a tx with upfront cost higher than the sender's balance" in {
     val senderAccountWithLowBalance = senderAccountAfterHomestead.copy(balance = upfrontGasCost / 2)
-    signedTransactionValidator.validate(
+    StdSignedTransactionValidator.validate(
       stx = signedTxAfterHomestead,
       senderAccount = senderAccountWithLowBalance,
       blockHeader = blockHeaderAfterHomestead,
@@ -238,7 +237,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
   it should "report as invalid a chain specific tx before eip155" in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txBeforeHomestead, keyPair, Some(0x03.toByte))
-    signedTransactionValidator.validate(
+    StdSignedTransactionValidator.validate(
       stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead,
@@ -253,7 +252,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
   it should "report as valid a chain specific tx after eip155" in {
     val keyPair = crypto.generateKeyPair(new SecureRandom)
     val stx = SignedTransaction.sign(txAfterHomestead, keyPair, Some(0x03.toByte))
-    signedTransactionValidator.validate(
+    StdSignedTransactionValidator.validate(
       stx,
       senderAccount = senderAccountAfterHomestead,
       blockHeader = blockHeaderAfterHomestead.copy(number = blockchainConfig.forkBlockNumbers.eip155BlockNumber),

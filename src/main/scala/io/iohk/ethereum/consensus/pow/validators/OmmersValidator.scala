@@ -10,6 +10,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait OmmersValidator {
 
@@ -19,14 +20,14 @@ trait OmmersValidator {
       ommers: Seq[BlockHeader],
       getBlockByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[OmmersError, OmmersValid]
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid]
 
   def validate(
       parentHash: ByteString,
       blockNumber: BigInt,
       ommers: Seq[BlockHeader],
       blockchainReader: BlockchainReader
-  ): Either[OmmersError, OmmersValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
     val bestBranch = blockchainReader.getBestBranch()
