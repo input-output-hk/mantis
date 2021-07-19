@@ -248,6 +248,13 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       "leave return buffer empty" in {
         result.stateOut.returnData shouldEqual ByteString.empty
       }
+
+      "add the new contract to accessed_addresses" in {
+        result.world.getGuaranteedAccount(newAccountAddress())
+        val addr = newAccountAddress()
+
+        result.stateOut.accessedAddresses should contain (addr)
+      }
     }
 
     "initialization code fails" should {

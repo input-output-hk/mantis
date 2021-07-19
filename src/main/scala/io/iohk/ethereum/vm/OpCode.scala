@@ -885,6 +885,7 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
           .withWorld(world2)
           .withStack(resultStack)
           .withReturnData(returnData)
+          .addAccessedAddress(newAddress)
           .step()
 
       case None =>
@@ -902,6 +903,7 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
           .withMemory(memory1)
           .withInternalTxs(internalTx +: result.internalTxs)
           .withReturnData(ByteString.empty)
+          .addAccessedAddress(newAddress)
           .step()
     }
   }
