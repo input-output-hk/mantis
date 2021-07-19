@@ -32,4 +32,10 @@ class BestBranch(
     if (tipBlockHeader.number >= number && number >= 0) {
       bestChainBlockNumberMappingStorage.get(number)
     } else None
+
+  override def isInChain(hash: ByteString): Boolean =
+    (for {
+      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= tipBlockHeader.number
+      hash <- getHashByBlockNumber(header.number)
+    } yield header.hash == hash).getOrElse(false)
 }
