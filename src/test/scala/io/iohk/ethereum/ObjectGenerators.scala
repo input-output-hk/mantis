@@ -82,7 +82,10 @@ trait ObjectGenerators {
 
   def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
 
-  def transactionGen(): Gen[LegacyTransaction] = for {
+  def transactionGen(): Gen[Transaction] =
+    Gen.oneOf(legacyTransactionGen(), typedTransactionGen())
+
+  def legacyTransactionGen(): Gen[LegacyTransaction] = for {
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
@@ -96,6 +99,23 @@ trait ObjectGenerators {
     receivingAddress,
     value,
     payload
+  )
+
+  def typedTransactionGen(): Gen[TransactionWithAccessList] = for {
+    nonce <- bigIntGen
+    gasPrice <- bigIntGen
+    gasLimit <- bigIntGen
+    receivingAddress <- addressGen
+    value <- bigIntGen
+    payload <- byteStringOfLengthNGen(256)
+  } yield TransactionWithAccessList(
+    nonce,
+    gasPrice,
+    gasLimit,
+    receivingAddress,
+    value,
+    payload,
+    Nil
   )
 
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
