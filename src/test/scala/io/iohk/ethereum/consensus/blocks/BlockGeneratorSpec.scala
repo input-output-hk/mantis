@@ -630,6 +630,16 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       payload = ByteString.empty
     )
 
+    val typedTransaction: TypedTransaction = TransactionWithAccessList(
+      nonce = 0,
+      gasPrice = 1,
+      gasLimit = txGasLimit,
+      receivingAddress = Address(testAddress),
+      value = txTransfer,
+      payload = ByteString.empty,
+      accessList = Nil
+    )
+
     //defined in test-genesis-treasury.json
     val treasuryAccount: Address = Address(0xeeeeee)
     val maliciousAccount: Address = Address(0x123)
@@ -639,8 +649,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     lazy val duplicatedSignedTransaction: SignedTransaction =
       SignedTransaction.sign(transaction.copy(gasLimit = 2), keyPair, Some(0x3d.toByte))
 
+    lazy val signedTypedTransaction: SignedTransaction =
+      SignedTransaction.sign(typedTransaction, keyPair, Some(0x3d.toByte))
+
     lazy val signedTransactionWithAddress: SignedTransactionWithSender =
       SignedTransactionWithSender(signedTransaction, Address(keyPair))
+
+    lazy val signedTypedTransactionWithAddress: SignedTransactionWithSender =
+      SignedTransactionWithSender(signedTypedTransaction, Address(keyPair))
 
     val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
       forkBlockNumbers = ForkBlockNumbers.Empty.copy(
