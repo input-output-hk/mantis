@@ -69,8 +69,7 @@ trait MinerSpecSetup extends MiningConfigBuilder with MockFactory with Blockchai
     ),
     pointSign = 0x9d.toByte,
     signatureRandom = ByteString(Hex.decode("beb8226bdb90216ca29967871a6663b56bdd7b86cf3788796b52fd1ea3606698")),
-    signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5")),
-    chainId = 0x3d.toByte
+    signature = ByteString(Hex.decode("2446994156bc1780cb5806e730b171b38307d5de5b9b0d9ad1f9de82e00316b5"))
   )
 
   lazy val mining: PoWMining = buildPoWConsensus().withBlockGenerator(blockGenerator)
