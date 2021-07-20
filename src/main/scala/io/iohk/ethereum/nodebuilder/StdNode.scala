@@ -24,6 +24,37 @@ import io.iohk.ethereum.utils.Config
   * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
   */
 abstract class BaseNode extends Node {
+  def start(): Unit = {
+    startMetricsClient()
+
+    loadGenesisData()
+
+    startPeerManager()
+
+    startPortForwarding()
+
+    startServer()
+
+    startSyncController()
+
+    startMining()
+
+    startDiscoveryManager()
+
+    startJsonRpcHttpServer()
+
+    startJsonRpcIpcServer()
+  }
+
+  private[this] def startMetricsClient(): Unit = {
+    val metricsConfig = MetricsConfig(Config.config)
+    Metrics.configure(metricsConfig) match {
+      case Success(_) =>
+        log.info("Metrics started")
+      case Failure(exception) => throw exception
+    }
+  }
+
   private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
 
@@ -46,35 +77,6 @@ abstract class BaseNode extends Node {
 
   private[this] def startJsonRpcIpcServer(): Unit =
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
-
-  private[this] def startMetricsClient(): Unit = {
-    val metricsConfig = MetricsConfig(Config.config)
-    Metrics.configure(metricsConfig) match {
-      case Success(_) =>
-        log.info("Metrics started")
-      case Failure(exception) => throw exception
-    }
-  }
-
-  def start(): Unit = {
-    startMetricsClient()
-
-    loadGenesisData()
-
-    startPeerManager()
-
-    startPortForwarding()
-    startServer()
-
-    startSyncController()
-
-    startMining()
-
-    startDiscoveryManager()
-
-    startJsonRpcHttpServer()
-    startJsonRpcIpcServer()
-  }
 
   override def shutdown(): Unit = {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
