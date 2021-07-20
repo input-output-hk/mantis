@@ -12,7 +12,6 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import io.iohk.ethereum.utils.Config
 
 object BaseETH6XMessages {
   object Status {
@@ -136,24 +135,41 @@ object BaseETH6XMessages {
 
   object SignedTransactions {
 
-    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
+    lazy val chainId: Byte = 1.toByte //Config.blockchains.blockchainConfig.chainId
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
       override def toRLPEncodable: RLPEncodeable = {
         val receivingAddressBytes = signedTx.tx.receivingAddress
           .map(_.toArray)
           .getOrElse(Array.emptyByteArray)
-        RLPList(
-          signedTx.tx.nonce,
-          signedTx.tx.gasPrice,
-          signedTx.tx.gasLimit,
-          receivingAddressBytes,
-          signedTx.tx.value,
-          signedTx.tx.payload,
-          signedTx.signature.v,
-          signedTx.signature.r,
-          signedTx.signature.s
-        )
+        signedTx.tx match {
+          case TransactionWithAccessList(nonce, gasPrice, gasLimit, _, value, payload, _) =>
+            RLPList(
+              chainId, // TODO improve how chainid is preserved in transactions
+              nonce,
+              gasPrice,
+              gasLimit,
+              receivingAddressBytes,
+              value,
+              payload,
+              RLPList(), // TODO write an implicit RLPCodec
+              signedTx.signature.v,
+              signedTx.signature.r,
+              signedTx.signature.s
+            )
+          case LegacyTransaction(nonce, gasPrice, gasLimit, _, value, payload) =>
+            RLPList(
+              nonce,
+              gasPrice,
+              gasLimit,
+              receivingAddressBytes,
+              value,
+              payload,
+              signedTx.signature.v,
+              signedTx.signature.r,
+              signedTx.signature.s
+            )
+        }
       }
     }
 
@@ -175,6 +191,34 @@ object BaseETH6XMessages {
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case RLPList(
+              _, // TODO improve how chainid is preserved in transactions
+              nonce,
+              gasPrice,
+              gasLimit,
+              (receivingAddress: RLPValue),
+              value,
+              payload,
+              (accessList: RLPList),
+              pointSign,
+              signatureRandom,
+              signature
+            ) =>
+          val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
+          SignedTransaction(
+            TransactionWithAccessList(
+              nonce,
+              gasPrice,
+              gasLimit,
+              receivingAddressOpt,
+              value,
+              payload,
+              Nil // TODO write an implicit RLPCodec
+            ),
+            (pointSign: Int).toByte,
+            signatureRandom,
+            signature
+          )
+        case RLPList(
               nonce,
               gasPrice,
               gasLimit,
@@ -190,8 +234,7 @@ object BaseETH6XMessages {
             LegacyTransaction(nonce, gasPrice, gasLimit, receivingAddressOpt, value, payload),
             (pointSign: Int).toByte,
             signatureRandom,
-            signature,
-            chainId
+            signature
           )
         case _ =>
           throw new RuntimeException("Cannot decode SignedTransaction")
@@ -199,7 +242,14 @@ object BaseETH6XMessages {
     }
 
     implicit class SignedTransactionDec(val bytes: Array[Byte]) extends AnyVal {
-      def toSignedTransaction: SignedTransaction = rawDecode(bytes).toSignedTransaction
+      def toSignedTransaction: SignedTransaction = {
+        val first = bytes(0)
+        (first match {
+          case Transaction.Type01 => rawDecode(bytes.tail)
+          // TODO enforce legacy boundaries
+          case _ => rawDecode(bytes)
+        }).toSignedTransaction
+      }
     }
   }
 

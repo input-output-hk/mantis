@@ -22,30 +22,9 @@ sealed trait Transaction extends Product with Serializable {
 }
 
 object Transaction {
-  val Type01: Int = 1
+  val Type01: Byte = 1.toByte
   val LegacyThresholdLowerBound: Int = 0xc0
   val LegacyThresholdUpperBound: Int = 0xfe
-
-  def typed(
-      nonce: BigInt,
-      gasPrice: BigInt,
-      gasLimit: BigInt,
-      receivingAddress: Address,
-      value: BigInt,
-      payload: ByteString,
-      accessList: Option[List[AccessListItem]]
-  ): Transaction =
-    TransactionWithAccessList(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
-
-  def legacy(
-      nonce: BigInt,
-      gasPrice: BigInt,
-      gasLimit: BigInt,
-      receivingAddress: Address,
-      value: BigInt,
-      payload: ByteString
-  ): Transaction =
-    LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
 
   def withGasLimit(gl: BigInt): Transaction => Transaction = {
     case tx: LegacyTransaction         => tx.copy(gasLimit = gl)
@@ -56,7 +35,6 @@ object Transaction {
 sealed trait TypedTransaction extends Transaction
 
 object LegacyTransaction {
-
   val NonceLength = 32
   val GasLength = 32
   val ValueLength = 32
@@ -70,7 +48,6 @@ object LegacyTransaction {
       payload: ByteString
   ): LegacyTransaction =
     LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
-
 }
 
 case class LegacyTransaction(
@@ -92,6 +69,19 @@ case class LegacyTransaction(
       s"}"
 }
 
+object TransactionWithAccessList {
+  def apply(
+      nonce: BigInt,
+      gasPrice: BigInt,
+      gasLimit: BigInt,
+      receivingAddress: Address,
+      value: BigInt,
+      payload: ByteString,
+      accessList: List[AccessListItem]
+  ): TransactionWithAccessList =
+    TransactionWithAccessList(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
+}
+
 case class TransactionWithAccessList(
     nonce: BigInt,
     gasPrice: BigInt,
@@ -99,7 +89,7 @@ case class TransactionWithAccessList(
     receivingAddress: Option[Address],
     value: BigInt,
     payload: ByteString,
-    accessList: Option[List[AccessListItem]]
+    accessList: List[AccessListItem]
 ) extends TypedTransaction {
   override def toString: String =
     s"TransactionWithAccessList {" +
