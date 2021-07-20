@@ -5,17 +5,16 @@ import akka.util.ByteString
 import org.bouncycastle.util.encoders.Hex
 import org.json4s.CustomSerializer
 import org.json4s.DefaultFormats
-import org.json4s.Extraction
 import org.json4s.Formats
+import org.json4s.JNull
 import org.json4s.JString
 
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.jsonrpc.JsonRpcError
-import io.iohk.ethereum.testmode.EthTransactionResponse
 
 object JsonSerializers {
   implicit val formats: Formats =
-    DefaultFormats + UnformattedDataJsonSerializer + QuantitiesSerializer + AddressJsonSerializer + EthTransactionResponseSerializer
+    DefaultFormats + UnformattedDataJsonSerializer + QuantitiesSerializer + OptionNoneToJNullSerializer + AddressJsonSerializer
 
   object UnformattedDataJsonSerializer
       extends CustomSerializer[ByteString](_ =>
@@ -38,6 +37,14 @@ object JsonSerializers {
         )
       )
 
+  object OptionNoneToJNullSerializer
+      extends CustomSerializer[Option[_]](formats =>
+        (
+          PartialFunction.empty,
+          { case None => JNull }
+        )
+      )
+
   object AddressJsonSerializer
       extends CustomSerializer[Address](_ =>
         (
@@ -54,19 +61,4 @@ object JsonSerializers {
         )
       )
 
-  /** Specific EthTransactionResponse serializer.
-    * It's purpose is to encode the optional "to" field, as requested by
-    * retesteth
-    */
-  object EthTransactionResponseSerializer
-      extends CustomSerializer[EthTransactionResponse](_ =>
-        (
-          PartialFunction.empty,
-          { case tx: EthTransactionResponse =>
-            implicit val formats =
-              DefaultFormats.preservingEmptyValues + UnformattedDataJsonSerializer + QuantitiesSerializer + AddressJsonSerializer
-            Extraction.decompose(tx)
-          }
-        )
-      )
 }
