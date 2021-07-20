@@ -1,15 +1,14 @@
 package io.iohk.ethereum.ledger
 
 import scala.annotation.tailrec
+
 import io.iohk.ethereum.db.storage.EvmCodeStorage
-import io.iohk.ethereum.domain.{
-  Account,
-  BlockHeader,
-  BlockchainImpl,
-  BlockchainReader,
-  SignedTransactionWithSender,
-  Transaction
-}
+import io.iohk.ethereum.domain.Account
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.SignedTransactionWithSender
+import io.iohk.ethereum.domain.Transaction
 import io.iohk.ethereum.ledger.TxResult
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.vm.EvmConfig

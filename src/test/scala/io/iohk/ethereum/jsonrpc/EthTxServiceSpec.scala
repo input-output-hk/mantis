@@ -421,8 +421,7 @@ class EthTxServiceSpec
       ),
       v,
       r,
-      s,
-      0x3d.toByte
+      s
     )
 
     val contractCreatingTransactionSender: Address = SignedTransaction.getSender(contractCreatingTransaction).get

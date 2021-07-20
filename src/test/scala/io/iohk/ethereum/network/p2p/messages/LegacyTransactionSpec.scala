@@ -37,24 +37,21 @@ class LegacyTransactionSpec extends AnyFlatSpec with Matchers {
     validTx,
     pointSign = 28.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
-    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
-    chainId = blockchainConfig.chainId
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
   )
 
   val invalidTransactionSignatureNewSchema: SignedTransaction = SignedTransaction(
     validTx,
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
-    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
-    chainId = blockchainConfig.chainId
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
   )
 
   val invalidStx: SignedTransaction = SignedTransaction(
     validTx.copy(gasPrice = 0),
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
-    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
-    chainId = blockchainConfig.chainId
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
   )
 
   val rawPublicKeyForNewSigningScheme: Array[Byte] =
@@ -77,16 +74,14 @@ class LegacyTransactionSpec extends AnyFlatSpec with Matchers {
     tx = validTransactionForNewSigningScheme,
     pointSign = -98.toByte,
     signatureRandom = ByteString(Hex.decode("1af423b3608f3b4b35e191c26f07175331de22ed8f60d1735f03210388246ade")),
-    signature = ByteString(Hex.decode("4d5b6b9e3955a0db8feec9c518d8e1aae0e1d91a143fbbca36671c3b89b89bc3")),
-    blockchainConfig.chainId
+    signature = ByteString(Hex.decode("4d5b6b9e3955a0db8feec9c518d8e1aae0e1d91a143fbbca36671c3b89b89bc3"))
   )
 
   val stxWithInvalidPointSign: SignedTransaction = SignedTransaction(
     validTx,
     pointSign = 26.toByte,
     signatureRandom = ByteString(Hex.decode("cfe3ad31d6612f8d787c45f115cc5b43fb22bcc210b62ae71dc7cbf0a6bea8df")),
-    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0")),
-    blockchainConfig.chainId
+    signature = ByteString(Hex.decode("57db8998114fae3c337e99dbd8573d4085691880f4576c6c1f6c5bbfe67d6cf0"))
   )
 
   it should "not recover sender public key for new sign encoding schema if there is no chain_id in signed data" in {
@@ -123,8 +118,7 @@ class LegacyTransactionSpec extends AnyFlatSpec with Matchers {
       signatureRandom =
         ByteString(BigInt("61965845294689009770156372156374760022787886965323743865986648153755601564112").toByteArray),
       signature =
-        ByteString(BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").toByteArray),
-      chainId = blockchainConfig.chainId
+        ByteString(BigInt("31606574786494953692291101914709926755545765281581808821704454381804773090106").toByteArray)
     )
 
     SignedTransaction.getSender(stx).get shouldBe Address(
