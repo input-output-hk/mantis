@@ -29,6 +29,8 @@ abstract class BaseNode extends Node {
 
     loadGenesisData()
 
+    verifyStorageConsistency()
+
     startPeerManager()
 
     startPortForwarding()
@@ -57,6 +59,22 @@ abstract class BaseNode extends Node {
 
   private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
+
+  private[this] def verifyStorageConsistency(): Unit = {
+    val step = 1000
+    val bbn = storagesInstance.storages.appStateStorage.getBestBlockNumber()
+    val bnms = storagesInstance.storages.blockNumberMappingStorage
+    val bhs = storagesInstance.storages.blockHeadersStorage
+    Range(0, bbn.intValue, step).foreach { idx =>
+      (for {
+        hash <- bnms.get(idx)
+        _ <- bhs.get(hash)
+      } yield ()).fold {
+        log.error("Database seems to be in inconsistent state, shutting down")
+        shutdown()
+      }(_ => ())
+    }
+  }
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
