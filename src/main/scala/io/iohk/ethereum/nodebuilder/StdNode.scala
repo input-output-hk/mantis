@@ -13,6 +13,7 @@ import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.nodebuilder.tooling.StorageConsistencyChecker
 import io.iohk.ethereum.utils.Config
 
 /** A standard node is everything Ethereum prescribes except the mining algorithm,
@@ -29,7 +30,12 @@ abstract class BaseNode extends Node {
 
     loadGenesisData()
 
-    verifyStorageConsistency()
+    StorageConsistencyChecker.checkStorageConsistency(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.blockNumberMappingStorage,
+      storagesInstance.storages.blockHeadersStorage,
+      shutdown
+    )(log)
 
     startPeerManager()
 
@@ -59,22 +65,6 @@ abstract class BaseNode extends Node {
 
   private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
-
-  private[this] def verifyStorageConsistency(): Unit = {
-    val step = 1000
-    val bbn = storagesInstance.storages.appStateStorage.getBestBlockNumber()
-    val bnms = storagesInstance.storages.blockNumberMappingStorage
-    val bhs = storagesInstance.storages.blockHeadersStorage
-    Range(0, bbn.intValue, step).foreach { idx =>
-      (for {
-        hash <- bnms.get(idx)
-        _ <- bhs.get(hash)
-      } yield ()).fold {
-        log.error("Database seems to be in inconsistent state, shutting down")
-        shutdown()
-      }(_ => ())
-    }
-  }
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
