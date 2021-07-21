@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import akka.actor.typed.ActorSystem
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Failure
@@ -13,6 +15,7 @@ import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.nodebuilder.tooling.PeriodicConsistencyCheck
 import io.iohk.ethereum.nodebuilder.tooling.StorageConsistencyChecker
 import io.iohk.ethereum.utils.Config
 
@@ -25,6 +28,7 @@ import io.iohk.ethereum.utils.Config
   * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
   */
 abstract class BaseNode extends Node {
+
   def start(): Unit = {
     startMetricsClient()
 
@@ -52,6 +56,8 @@ abstract class BaseNode extends Node {
     startJsonRpcHttpServer()
 
     startJsonRpcIpcServer()
+
+    startPeriodicDBConsistencyCheck()
   }
 
   private[this] def startMetricsClient(): Unit = {
@@ -85,6 +91,17 @@ abstract class BaseNode extends Node {
 
   private[this] def startJsonRpcIpcServer(): Unit =
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
+
+  def startPeriodicDBConsistencyCheck(): Unit =
+    ActorSystem(
+      PeriodicConsistencyCheck.start(
+        storagesInstance.storages.appStateStorage,
+        storagesInstance.storages.blockNumberMappingStorage,
+        storagesInstance.storages.blockHeadersStorage,
+        shutdown
+      ),
+      "PeriodicDBConsistencyCheck"
+    )
 
   override def shutdown(): Unit = {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
