@@ -27,13 +27,6 @@ trait Blockchain {
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  /** Get an account for an address and a block number
-    *
-    * @param address address of the account
-    * @param blockNumber the block that determines the state of the account
-    */
-  def getAccount(address: Address, blockNumber: BigInt): Option[Account]
-
   def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
 
   /** Get account storage at given position
@@ -98,9 +91,6 @@ class BlockchainImpl(
 
   override def getLatestCheckpointBlockNumber(): BigInt =
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
-
-  override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
-    getAccountMpt(blockNumber) >>= (_.get(address))
 
   override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
     getAccountMpt(blockNumber) >>= (_.getProof(address))

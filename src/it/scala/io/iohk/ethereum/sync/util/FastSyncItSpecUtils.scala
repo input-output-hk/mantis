@@ -81,7 +81,7 @@ object FastSyncItSpecUtils {
           val accountExpectedCode = ByteString(i.toByteArray)
           val codeHash = kec256(accountExpectedCode)
           val accountExpectedStorageAddresses = (i until i + 20).toList
-          val account = bl.getAccount(accountAddress, blockNumber).get
+          val account = blockchainReader.getAccount(accountAddress, blockNumber).get
           val code = evmCodeStorage.get(codeHash).get
           val storedData = accountExpectedStorageAddresses.map { addr =>
             ByteUtils.toBigInt(bl.getAccountStorageAt(account.storageRoot, addr, ethCompatibleStorage = true))

@@ -100,6 +100,7 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
   def checkAllDataExists(
       nodeData: List[MptNodeData],
       blockchain: Blockchain,
+      blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       blNumber: BigInt
   ): Boolean = {
@@ -108,7 +109,8 @@ object StateSyncUtils extends EphemBlockchainTestSetup {
         true
       } else {
         val dataToCheck = remaining.head
-        val address = blockchain.getAccount(dataToCheck.accountAddress, blNumber)
+        val address =
+          blockchainReader.getAccount(blockchainReader.getBestBranch(), dataToCheck.accountAddress, blNumber)
         val code = address.flatMap(a => evmCodeStorage.get(a.codeHash))
 
         val storageCorrect = dataToCheck.accountStorage.forall { case (key, value) =>

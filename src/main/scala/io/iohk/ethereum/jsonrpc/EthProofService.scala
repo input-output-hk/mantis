@@ -168,7 +168,7 @@ class EthProofService(
     for {
       blockNumber <- resolveBlock(block).map(_.block.number)
       account <- Either.fromOption(
-        blockchain.getAccount(address, blockNumber),
+        blockchainReader.getAccount(blockchainReader.getBestBranch(), address, blockNumber),
         noAccount(address, blockNumber)
       )
       accountProof <- Either.fromOption(

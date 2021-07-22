@@ -151,8 +151,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
-    val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
+    val retrievedAccount = blockchainReader.getAccount(blockchainReader.getBestBranch(), address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
   }
 

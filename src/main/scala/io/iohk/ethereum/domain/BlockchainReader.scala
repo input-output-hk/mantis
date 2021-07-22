@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
@@ -11,7 +10,7 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
-import io.iohk.ethereum.mpt.MptNode
+import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
 import io.iohk.ethereum.utils.Logger
 
 class BlockchainReader(
@@ -141,6 +140,21 @@ class BlockchainReader(
     case EmptyBranch => false
   }
 
+  /** Get an account for an address and a block number
+    *
+    * @param branch branch for which we want to get the account
+    * @param address address of the account
+    * @param blockNumber the block that determines the state of the account
+    */
+  def getAccount(branch: Branch, address: Address, blockNumber: BigInt): Option[Account] = branch match {
+    case BestBranch(_, tipBlockNumber) =>
+      if (blockNumber <= tipBlockNumber)
+        getAccountMpt(blockNumber).flatMap(_.get(address))
+      else
+        None
+    case EmptyBranch => None
+  }
+
   /** Allows to query for a block based on it's number
     *
     * @param number Block number
@@ -159,6 +173,15 @@ class BlockchainReader(
     */
   private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     blockNumberMappingStorage.get(number)
+
+  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
+    getBlockHeaderByNumber(blockNumber).map { bh =>
+      val storage = stateStorage.getBackingStorage(blockNumber)
+      MerklePatriciaTrie[Address, Account](
+        rootHash = bh.stateRoot.toArray,
+        source = storage
+      )
+    }
 }
 
 object BlockchainReader {

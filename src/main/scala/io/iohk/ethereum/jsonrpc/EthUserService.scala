@@ -76,8 +76,8 @@ class EthUserService(
     Task {
       resolveBlock(blockParam)
         .map { case ResolvedBlock(block, _) =>
-          blockchain
-            .getAccount(address, block.header.number)
+          blockchainReader
+            .getAccount(blockchainReader.getBestBranch(), address, block.header.number)
             .getOrElse(Account.empty(blockchainConfig.accountStartNonce))
         }
         .map(makeResponse)
