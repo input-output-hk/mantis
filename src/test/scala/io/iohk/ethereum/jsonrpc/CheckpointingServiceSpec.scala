@@ -3,13 +3,16 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
+
 import monix.execution.Scheduler.Implicits.global
+
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
@@ -20,7 +23,7 @@ import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.domain.branch.{Branch, NewEmptyBranch}
+import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.BlockQueue
 
@@ -183,9 +186,7 @@ class CheckpointingServiceSpec
   trait TestSetup {
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
-    val bestChain: Branch = mock[Branch]
-    (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
-    (blockchainReader.getBestBranchNew _).expects().anyNumberOfTimes().returning(NewEmptyBranch)
+    (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(EmptyBranch)
     val blockQueue: BlockQueue = mock[BlockQueue]
     val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()

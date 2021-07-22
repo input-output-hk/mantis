@@ -189,7 +189,7 @@ object RegularSyncItSpecUtils {
       Task(blockNumber match {
         case Some(bNumber) =>
           blockchainReader
-            .getBlockByNumber(blockchainReader.getBestBranchNew(), bNumber)
+            .getBlockByNumber(blockchainReader.getBestBranch(), bNumber)
             .getOrElse(throw new RuntimeException(s"block by number: $bNumber doesn't exist"))
         case None => blockchainReader.getBestBlock().get
       }).flatMap { block =>

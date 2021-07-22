@@ -1,13 +1,16 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.branch.{BestBranch, BestBranchSubset, Branch, EmptyBranch, NewBranch, NewEmptyBranch}
+import io.iohk.ethereum.domain.branch.BestBranchSubset
+import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -72,25 +75,8 @@ class BlockchainReader(
     val number = getBestBlockNumber()
     blockNumberMappingStorage
       .get(number)
-      .map(hash =>
-        new BestBranch(
-          hash,
-          number,
-          blockNumberMappingStorage,
-          this
-        )
-      )
-      .getOrElse(EmptyBranch)
-
-  }
-
-  /** get the current best stored branch */
-  def getBestBranchNew(): NewBranch = {
-    val number = getBestBlockNumber()
-    blockNumberMappingStorage
-      .get(number)
       .map(hash => BestBranchSubset(hash, number))
-      .getOrElse(NewEmptyBranch)
+      .getOrElse(EmptyBranch)
   }
 
   def getBestBlockNumber(): BigInt = {
@@ -125,7 +111,7 @@ class BlockchainReader(
     getBlockByNumber(0).get
 
   /** Returns a block inside this branch based on its number */
-  def getBlockByNumber(branch: NewBranch, number: BigInt): Option[Block] = branch match {
+  def getBlockByNumber(branch: Branch, number: BigInt): Option[Block] = branch match {
     case BestBranchSubset(_, tipBlockNumber) =>
       if (tipBlockNumber >= number && number >= 0) {
         for {
@@ -133,27 +119,27 @@ class BlockchainReader(
           block <- getBlockByHash(hash)
         } yield block
       } else None
-    case NewEmptyBranch => None
+    case EmptyBranch => None
   }
 
   /** Returns a block hash for the block at the given height if any */
-  def getHashByBlockNumber(branch: NewBranch, number: BigInt): Option[ByteString] = branch match {
+  def getHashByBlockNumber(branch: Branch, number: BigInt): Option[ByteString] = branch match {
     case BestBranchSubset(_, tipBlockNumber) =>
       if (tipBlockNumber >= number && number >= 0) {
         blockNumberMappingStorage.get(number)
       } else None
 
-    case NewEmptyBranch => None
+    case EmptyBranch => None
   }
 
   /** Checks if given block hash is in this chain. (i.e. is an ancestor of the tip block) */
-  def isInChain(branch: NewBranch, hash: ByteString): Boolean = branch match {
+  def isInChain(branch: Branch, hash: ByteString): Boolean = branch match {
     case BestBranchSubset(_, tipBlockNumber) =>
       (for {
         header <- getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
         hash <- getHashByBlockNumber(branch, header.number)
       } yield header.hash == hash).getOrElse(false)
-    case NewEmptyBranch => false
+    case EmptyBranch => false
   }
 
   /** Allows to query for a block based on it's number

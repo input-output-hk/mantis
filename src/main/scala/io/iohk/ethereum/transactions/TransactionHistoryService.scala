@@ -34,7 +34,7 @@ class TransactionHistoryService(
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
       .mapParallelOrdered(10)(blockNr =>
-        Task(blockchainReader.getBlockByNumber(blockchainReader.getBestBranchNew(), blockNr))
+        Task(blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), blockNr))
       )(
         OverflowStrategy.Unbounded
       )

@@ -125,7 +125,7 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.startRegularSync()
       _ <- peer2.startRegularSync()
       _ <- peer2.addCheckpointedBlock(
-        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranchNew(), 25).get
+        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch(), 25).get
       )
       _ <- peer2.waitForRegularSyncLoadLastBlock(length)
       _ <- peer1.connectToPeers(Set(peer2.node))
@@ -183,8 +183,8 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
         )
       )
       (
-        peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranchNew(), blockNumer + 1),
-        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranchNew(), blockNumer + 1)
+        peer1.blockchainReader.getBlockByNumber(peer1.blockchainReader.getBestBranch(), blockNumer + 1),
+        peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch(), blockNumer + 1)
       ) match {
         case (Some(blockP1), Some(blockP2)) =>
           assert(peer1.bl.getChainWeightByHash(blockP1.hash) == peer2.bl.getChainWeightByHash(blockP2.hash))

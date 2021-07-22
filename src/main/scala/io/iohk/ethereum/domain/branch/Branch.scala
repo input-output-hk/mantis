@@ -2,11 +2,8 @@ package io.iohk.ethereum.domain.branch
 
 import akka.util.ByteString
 
-sealed trait NewBranch
+sealed trait Branch
 
-case class BestBranchSubset(tipBlockHash: ByteString, tipBlockNumber: BigInt) extends NewBranch
+case class BestBranchSubset(tipBlockHash: ByteString, tipBlockNumber: BigInt) extends Branch
 
-case object NewEmptyBranch extends NewBranch
-
-/** An interface to manipulate blockchain branches */
-trait Branch {}
+case object EmptyBranch extends Branch

@@ -45,7 +45,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchainWriter.storeBlock(validBlock).commit()
     blockchain.saveBestKnownBlocks(validBlock.number)
-    val block = blockchainReader.getBlockByNumber(blockchainReader.getBestBranchNew(), validBlock.header.number)
+    val block = blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
   }
@@ -59,10 +59,10 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       saveAsBestBlock = true
     )
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
-    blockchainReader.isInChain(blockchainReader.getBestBranchNew(), validBlock.hash) should ===(true)
+    blockchainReader.isInChain(blockchainReader.getBestBranch(), validBlock.hash) should ===(true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
-    blockchainReader.isInChain(blockchainReader.getBestBranchNew(), validBlock.hash) should ===(false)
+    blockchainReader.isInChain(blockchainReader.getBestBranch(), validBlock.hash) should ===(false)
   }
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
@@ -75,7 +75,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
     blockchainReader
-      .getBlockByNumber(blockchainReader.getBestBranchNew(), Fixtures.Blocks.ValidBlock.header.number) shouldBe None
+      .getBlockByNumber(blockchainReader.getBestBranch(), Fixtures.Blocks.ValidBlock.header.number) shouldBe None
     blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash) shouldBe None
   }
 
