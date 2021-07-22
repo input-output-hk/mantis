@@ -59,10 +59,10 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       saveAsBestBlock = true
     )
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
-    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(true)
+    blockchainReader.isInChain(blockchainReader.getBestBranchNew(), validBlock.hash) should ===(true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
-    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(false)
+    blockchainReader.isInChain(blockchainReader.getBestBranchNew(), validBlock.hash) should ===(false)
   }
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {

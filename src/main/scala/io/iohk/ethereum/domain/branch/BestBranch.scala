@@ -14,16 +14,4 @@ class BestBranch(
     tipBlockNumber: BigInt,
     bestChainBlockNumberMappingStorage: BlockNumberMappingStorage,
     blockchainReader: BlockchainReader
-) extends Branch {
-
-  /* The following assumptions are made in this class :
-   *  - The whole branch exists in storage
-   *  - The various metadata and index are consistent
-   */
-
-  override def isInChain(hash: ByteString): Boolean =
-    (for {
-      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
-      hash <- blockchainReader.getHashByBlockNumber(BestBranchSubset(tipBlockHash, tipBlockNumber), header.number)
-    } yield header.hash == hash).getOrElse(false)
-}
+) extends Branch {}

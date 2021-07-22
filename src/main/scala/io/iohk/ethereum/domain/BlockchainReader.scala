@@ -146,6 +146,16 @@ class BlockchainReader(
     case NewEmptyBranch => None
   }
 
+  /** Checks if given block hash is in this chain. (i.e. is an ancestor of the tip block) */
+  def isInChain(branch: NewBranch, hash: ByteString): Boolean = branch match {
+    case BestBranchSubset(_, tipBlockNumber) =>
+      (for {
+        header <- getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
+        hash <- getHashByBlockNumber(branch, header.number)
+      } yield header.hash == hash).getOrElse(false)
+    case NewEmptyBranch => false
+  }
+
   /** Allows to query for a block based on it's number
     *
     * @param number Block number
