@@ -34,12 +34,7 @@ abstract class BaseNode extends Node {
 
     loadGenesisData()
 
-    StorageConsistencyChecker.checkStorageConsistency(
-      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
-      storagesInstance.storages.blockNumberMappingStorage,
-      storagesInstance.storages.blockHeadersStorage,
-      shutdown
-    )(log)
+    runDBConsistencyCheck()
 
     startPeerManager()
 
@@ -71,6 +66,14 @@ abstract class BaseNode extends Node {
 
   private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
+
+  private[this] def runDBConsistencyCheck(): Unit =
+    StorageConsistencyChecker.checkStorageConsistency(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.blockNumberMappingStorage,
+      storagesInstance.storages.blockHeadersStorage,
+      shutdown
+    )(log)
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 

@@ -20,13 +20,16 @@ object PeriodicConsistencyCheck {
       shutdown: () => Unit
   ): Behavior[ConsistencyCheck] =
     Behaviors.withTimers { timers =>
-      timers.startSingleTimer(Tick, 10.minutes)
+      tick(timers)
       PeriodicConsistencyCheck(timers, appStateStorage, blockNumberMappingStorage, blockHeadersStorage, shutdown)
         .check()
     }
 
   sealed trait ConsistencyCheck extends Product with Serializable
   case object Tick extends ConsistencyCheck
+
+  def tick(timers: TimerScheduler[ConsistencyCheck]): Unit =
+    timers.startSingleTimer(Tick, 10.minutes)
 }
 
 case class PeriodicConsistencyCheck(
@@ -46,7 +49,7 @@ case class PeriodicConsistencyCheck(
       blockHeadersStorage,
       shutdown
     )(log)
-    timers.startSingleTimer(Tick, 5.seconds)
+    tick(timers)
     Behaviors.same
   }
 }
