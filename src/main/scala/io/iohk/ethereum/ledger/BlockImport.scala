@@ -318,7 +318,7 @@ class BlockImport(
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
     def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] =
-      blockchainReader.getBestBranch().getBlockByNumber(fromNumber) match {
+      blockchainReader.getBlockByNumber(blockchainReader.getBestBranchNew(), fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
 

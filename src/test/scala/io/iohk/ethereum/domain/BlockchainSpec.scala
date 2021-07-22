@@ -45,7 +45,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchainWriter.storeBlock(validBlock).commit()
     blockchain.saveBestKnownBlocks(validBlock.number)
-    val block = blockchainReader.getBestBranch().getBlockByNumber(validBlock.header.number)
+    val block = blockchainReader.getBlockByNumber(blockchainReader.getBestBranchNew(), validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
   }
@@ -75,8 +75,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
     blockchainReader
-      .getBestBranch()
-      .getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number) shouldBe None
+      .getBlockByNumber(blockchainReader.getBestBranchNew(), Fixtures.Blocks.ValidBlock.header.number) shouldBe None
     blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash) shouldBe None
   }
 

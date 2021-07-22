@@ -3,16 +3,13 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
-
 import monix.execution.Scheduler.Implicits.global
-
 import org.scalacheck.Gen
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
@@ -23,7 +20,7 @@ import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
-import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.{Branch, NewEmptyBranch}
 import io.iohk.ethereum.jsonrpc.CheckpointingService._
 import io.iohk.ethereum.ledger.BlockQueue
 
@@ -54,7 +51,7 @@ class CheckpointingServiceSpec
       val expectedResponse = GetLatestBlockResponse(Some(BlockInfo(block.hash, block.number)))
 
       (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
-      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(*, checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -84,7 +81,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = 0)))
-      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(*, checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -112,7 +109,7 @@ class CheckpointingServiceSpec
       (blockchainReader.getBlockHeaderByHash _)
         .expects(hash)
         .returning(Some(previousCheckpoint.header.copy(number = bestBlockNum)))
-      (bestChain.getBlockByNumber _).expects(*).returning(Some(previousCheckpoint))
+      (blockchainReader.getBlockByNumber _).expects(*, *).returning(Some(previousCheckpoint))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -140,7 +137,7 @@ class CheckpointingServiceSpec
 
       (blockchainReader.getBestBlockNumber _).expects().returning(bestBlockNum)
       (blockchainReader.getBlockHeaderByHash _).expects(hash).returning(None)
-      (bestChain.getBlockByNumber _).expects(checkpointedBlockNum).returning(Some(block))
+      (blockchainReader.getBlockByNumber _).expects(*, checkpointedBlockNum).returning(Some(block))
       val result = service.getLatestBlock(request)
 
       result.runSyncUnsafe() shouldEqual Right(expectedResponse)
@@ -168,14 +165,14 @@ class CheckpointingServiceSpec
     (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (bestChain.getBlockByNumber _)
-      .expects(BigInt(4))
+    (blockchainReader.getBlockByNumber _)
+      .expects(*, BigInt(4))
       .returning(None)
     (blockchainReader.getBestBlockNumber _)
       .expects()
       .returning(7)
-    (bestChain.getBlockByNumber _)
-      .expects(BigInt(4))
+    (blockchainReader.getBlockByNumber _)
+      .expects(*, BigInt(4))
       .returning(Some(block))
 
     val result = service.getLatestBlock(GetLatestBlockRequest(4, None))
@@ -188,6 +185,7 @@ class CheckpointingServiceSpec
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     val bestChain: Branch = mock[Branch]
     (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
+    (blockchainReader.getBestBranchNew _).expects().anyNumberOfTimes().returning(NewEmptyBranch)
     val blockQueue: BlockQueue = mock[BlockQueue]
     val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()

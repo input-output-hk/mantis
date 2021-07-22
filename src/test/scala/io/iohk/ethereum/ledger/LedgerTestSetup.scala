@@ -2,11 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-
 import cats.data.NonEmptyList
-
 import monix.execution.Scheduler
-
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -14,7 +11,6 @@ import org.scalamock.handlers.CallHandler0
 import org.scalamock.handlers.CallHandler1
 import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
-
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
@@ -31,7 +27,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
-import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.{Branch, NewEmptyBranch}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.PC
 import io.iohk.ethereum.ledger.PR
@@ -420,6 +416,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
   (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
+  (blockchainReader.getBestBranchNew _).expects().anyNumberOfTimes().returning(NewEmptyBranch)
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -462,8 +459,8 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] =
     (bestChain.isInChain _).expects(hash).returning(result)
 
-  def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (bestChain.getBlockByNumber _).expects(number).returning(block)
+  def setBlockByNumber(number: BigInt, block: Option[Block]) =
+    (blockchainReader.getBlockByNumber _).expects(*, number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchainReader.genesisHeader).expects().returning(header)

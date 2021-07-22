@@ -21,14 +21,6 @@ class BestBranch(
    *  - The various metadata and index are consistent
    */
 
-  override def getBlockByNumber(number: BigInt): Option[Block] =
-    if (tipBlockNumber >= number && number >= 0) {
-      for {
-        hash <- getHashByBlockNumber(number)
-        block <- blockchainReader.getBlockByHash(hash)
-      } yield block
-    } else None
-
   override def getHashByBlockNumber(number: BigInt): Option[ByteString] =
     if (tipBlockNumber >= number && number >= 0) {
       bestChainBlockNumberMappingStorage.get(number)

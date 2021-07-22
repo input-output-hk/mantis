@@ -280,7 +280,7 @@ class BlockchainImpl(
   ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- blockchainReader.getBestBranch().getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBlockByNumber(blockchainReader.getBestBranchNew(), blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number

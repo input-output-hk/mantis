@@ -7,7 +7,7 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.branch.{BestBranch, Branch, EmptyBranch}
+import io.iohk.ethereum.domain.branch.{BestBranch, BestBranchSubset, Branch, EmptyBranch, NewBranch, NewEmptyBranch}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -84,6 +84,15 @@ class BlockchainReader(
 
   }
 
+  /** get the current best stored branch */
+  def getBestBranchNew(): NewBranch = {
+    val number = getBestBlockNumber()
+    blockNumberMappingStorage
+      .get(number)
+      .map(hash => BestBranchSubset(hash, number))
+      .getOrElse(NewEmptyBranch)
+  }
+
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
     val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
@@ -114,6 +123,18 @@ class BlockchainReader(
 
   def genesisBlock: Block =
     getBlockByNumber(0).get
+
+  /** Returns a block inside this branch based on its number */
+  def getBlockByNumber(branch: NewBranch, number: BigInt): Option[Block] = branch match {
+    case BestBranchSubset(_, tipBlockNumber) =>
+      if (tipBlockNumber >= number && number >= 0) {
+        for {
+          hash <- getHashByBlockNumber(number)
+          block <- getBlockByHash(hash)
+        } yield block
+      } else None
+    case NewEmptyBranch => None
+  }
 
   /** Allows to query for a block based on it's number
     *
