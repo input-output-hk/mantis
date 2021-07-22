@@ -1,16 +1,13 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
-import io.iohk.ethereum.domain.branch.BestBranch
-import io.iohk.ethereum.domain.branch.Branch
-import io.iohk.ethereum.domain.branch.EmptyBranch$
+import io.iohk.ethereum.domain.branch.{BestBranch, Branch, EmptyBranch}
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -71,16 +68,21 @@ class BlockchainReader(
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
   /** get the current best stored branch */
-  def getBestBranch(): Branch =
-    getBestBlock()
-      .map { block =>
+  def getBestBranch(): Branch = {
+    val number = getBestBlockNumber()
+    blockNumberMappingStorage
+      .get(number)
+      .map(hash =>
         new BestBranch(
-          block.header,
+          hash,
+          number,
           blockNumberMappingStorage,
           this
         )
-      }
-      .getOrElse(EmptyBranch$)
+      )
+      .getOrElse(EmptyBranch)
+
+  }
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()

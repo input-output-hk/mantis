@@ -10,7 +10,8 @@ import io.iohk.ethereum.domain.BlockchainReader
   * This implementation uses the existing storage indexes to access blocks by number more efficiently.
   */
 class BestBranch(
-    tipBlockHeader: BlockHeader,
+    tipBlockHash: ByteString,
+    tipBlockNumber: BigInt,
     bestChainBlockNumberMappingStorage: BlockNumberMappingStorage,
     blockchainReader: BlockchainReader
 ) extends Branch {
@@ -21,7 +22,7 @@ class BestBranch(
    */
 
   override def getBlockByNumber(number: BigInt): Option[Block] =
-    if (tipBlockHeader.number >= number && number >= 0) {
+    if (tipBlockNumber >= number && number >= 0) {
       for {
         hash <- getHashByBlockNumber(number)
         block <- blockchainReader.getBlockByHash(hash)
@@ -29,13 +30,13 @@ class BestBranch(
     } else None
 
   override def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    if (tipBlockHeader.number >= number && number >= 0) {
+    if (tipBlockNumber >= number && number >= 0) {
       bestChainBlockNumberMappingStorage.get(number)
     } else None
 
   override def isInChain(hash: ByteString): Boolean =
     (for {
-      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= tipBlockHeader.number
+      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
       hash <- getHashByBlockNumber(header.number)
     } yield header.hash == hash).getOrElse(false)
 }
