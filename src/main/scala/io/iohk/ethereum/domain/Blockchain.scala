@@ -211,7 +211,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (blockchainReader.getBestBranch().getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranchNew(), block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 

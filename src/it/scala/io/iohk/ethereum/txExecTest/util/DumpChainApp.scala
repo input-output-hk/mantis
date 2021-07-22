@@ -104,7 +104,7 @@ object DumpChainApp
   val blockchainReader: BlockchainReader = mock[BlockchainReader]
   val bestChain: Branch = mock[Branch]
   (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
-  (bestChain.getHashByBlockNumber _).expects(*).returning(Some(genesisHash))
+  (blockchainReader.getHashByBlockNumber _).expects(*, *).returning(Some(genesisHash))
 
   val nodeStatus: NodeStatus =
     NodeStatus(key = nodeKey, serverStatus = ServerStatus.NotListening, discoveryStatus = ServerStatus.NotListening)

@@ -136,6 +136,16 @@ class BlockchainReader(
     case NewEmptyBranch => None
   }
 
+  /** Returns a block hash for the block at the given height if any */
+  def getHashByBlockNumber(branch: NewBranch, number: BigInt): Option[ByteString] = branch match {
+    case BestBranchSubset(_, tipBlockNumber) =>
+      if (tipBlockNumber >= number && number >= 0) {
+        blockNumberMappingStorage.get(number)
+      } else None
+
+    case NewEmptyBranch => None
+  }
+
   /** Allows to query for a block based on it's number
     *
     * @param number Block number

@@ -21,14 +21,9 @@ class BestBranch(
    *  - The various metadata and index are consistent
    */
 
-  override def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    if (tipBlockNumber >= number && number >= 0) {
-      bestChainBlockNumberMappingStorage.get(number)
-    } else None
-
   override def isInChain(hash: ByteString): Boolean =
     (for {
       header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
-      hash <- getHashByBlockNumber(header.number)
+      hash <- blockchainReader.getHashByBlockNumber(BestBranchSubset(tipBlockHash, tipBlockNumber), header.number)
     } yield header.hash == hash).getOrElse(false)
 }
