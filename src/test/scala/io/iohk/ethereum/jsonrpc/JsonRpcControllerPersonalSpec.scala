@@ -10,6 +10,8 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.DefaultFormats
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalatest.concurrent.Eventually
@@ -22,6 +24,9 @@ import io.iohk.ethereum.LongPatience
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.PersonalService._
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
 
 class JsonRpcControllerPersonalSpec
     extends TestKit(ActorSystem("JsonRpcControllerPersonalSpec_System"))
@@ -33,6 +38,9 @@ class JsonRpcControllerPersonalSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
+
+  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
+    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   it should "personal_importRawKey" in new JsonRpcControllerFixture {
     val key = "7a44789ed3cd85861c0bbf9693c7e1de1862dd4396c390147ecf1275099c6e6f"

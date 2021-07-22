@@ -8,7 +8,9 @@ import monix.eval.Task
 import monix.execution.Scheduler.Implicits.global
 
 import org.bouncycastle.util.encoders.Hex
+import org.json4s.DefaultFormats
 import org.json4s.Extraction
+import org.json4s.Formats
 import org.json4s.JsonAST._
 import org.json4s.JsonDSL._
 import org.scalatest.concurrent.Eventually
@@ -38,6 +40,9 @@ import io.iohk.ethereum.jsonrpc.ProofService.GetProofResponse
 import io.iohk.ethereum.jsonrpc.ProofService.ProofAccount
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
 import io.iohk.ethereum.jsonrpc.ProofService.StorageValueProof
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.OptionNoneToJNullSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.QuantitiesSerializer
+import io.iohk.ethereum.jsonrpc.serialization.JsonSerializers.UnformattedDataJsonSerializer
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.ommers.OmmersPool.Ommers
@@ -55,6 +60,9 @@ class JsonRpcControllerEthSpec
     with ScalaFutures
     with LongPatience
     with Eventually {
+
+  implicit val formats: Formats = DefaultFormats.preservingEmptyValues + OptionNoneToJNullSerializer +
+    QuantitiesSerializer + UnformattedDataJsonSerializer
 
   it should "eth_protocolVersion" in new JsonRpcControllerFixture {
     val rpcRequest = newJsonRpcRequest("eth_protocolVersion")
