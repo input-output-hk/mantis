@@ -452,13 +452,34 @@ case object CODECOPY extends OpCode(0x39, 3, 0, _.G_verylow) {
 
 case object GASPRICE extends ConstOp(0x3a)(_.env.gasPrice)
 
-case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_extcode) with ConstGas {
+case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
-    val (addr, stack1) = state.stack.pop
-    val codeSize = state.world.getCode(Address(addr)).size
+    val (addrUint, stack1) = state.stack.pop
+    val addr = Address(addrUint)
+    val codeSize = state.world.getCode(addr).size
     val stack2 = stack1.push(UInt256(codeSize))
-    state.withStack(stack2).step()
+    state.withStack(stack2).addAccessedAddress(addr).step()
   }
+
+  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+
+    val eip2929Enabled = isEip2929Enabled(etcFork)
+
+    if (eip2929Enabled) {
+      val (addr, _) = state.stack.pop
+      if (state.accessedAddresses.contains(Address(addr)))
+        state.config.feeSchedule.G_warm_storage_read
+      else
+        state.config.feeSchedule.G_cold_account_access
+    } else
+      state.config.feeSchedule.G_extcode
+  }
+
+  private def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
+
 }
 
 case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) {

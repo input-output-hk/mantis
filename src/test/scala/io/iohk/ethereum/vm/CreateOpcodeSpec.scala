@@ -253,7 +253,7 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
         result.world.getGuaranteedAccount(newAccountAddress())
         val addr = newAccountAddress()
 
-        result.stateOut.accessedAddresses should contain (addr)
+        result.stateOut.accessedAddresses should contain(addr)
       }
     }
 
