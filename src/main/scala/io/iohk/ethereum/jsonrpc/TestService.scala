@@ -3,7 +3,6 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.ByteString
 import akka.util.Timeout
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -11,12 +10,11 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.bouncycastle.util.encoders.Hex
-
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.blockchain.sync.regular.{BlockEnqueued, BlockImportResult, BlockImportedToTop, ChainReorganised}
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
@@ -34,7 +32,6 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
-import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
@@ -261,8 +258,8 @@ class TestService(
       getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(preimageCache)
-            .importBlock(blockForMining.block)
+            .evaluateBranchBlock(preimageCache)
+            .evaluateBranchBlock(blockForMining.block)
         )
         .map { res =>
           log.info("Block mining result: " + res)
@@ -301,8 +298,8 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(preimageCache)
-          .importBlock(value)
+          .evaluateBranchBlock(preimageCache)
+          .evaluateBranchBlock(value)
           .flatMap(handleResult(value))
     }
 

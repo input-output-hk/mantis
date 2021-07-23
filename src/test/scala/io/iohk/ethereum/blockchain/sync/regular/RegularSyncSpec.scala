@@ -8,10 +8,8 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.ByteString
-
 import cats.effect.Resource
 import cats.syntax.traverse._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -20,13 +18,11 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.math.BigInt
-
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.Assertion
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.diagrams.Diagrams
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.ResourceFixtures
@@ -38,6 +34,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
+import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
@@ -293,7 +290,7 @@ class RegularSyncSpec
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
           override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
           (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-          override lazy val blockImport: BlockImport = new FakeImportBlock()
+          override lazy val consensus: Consensus = new FakeConsensus()
           override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
@@ -328,7 +325,7 @@ class RegularSyncSpec
 
           peersClient.setAutoPilot(new BranchResolutionAutoPilot(didResponseWithNewBranch = false, testBlocks))
 
-          Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+          Await.result(consensus.evaluateBranchBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
           regularSync ! SyncProtocol.Start
 
@@ -349,7 +346,7 @@ class RegularSyncSpec
         override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-        override lazy val blockImport: BlockImport = new FakeImportBlock()
+        override lazy val consensus: Consensus = new FakeConsensus()
         override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
@@ -379,7 +376,7 @@ class RegularSyncSpec
 
         peersClient.setAutoPilot(new ForkingAutoPilot(originalBranch, Some(betterBranch)))
 
-        Await.result(blockImport.importBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
+        Await.result(consensus.evaluateBranchBlock(BlockHelpers.genesis).runToFuture, remainingOrDefault)
 
         regularSync ! SyncProtocol.Start
 
@@ -470,7 +467,7 @@ class RegularSyncSpec
 
       "save fetched node" in sync(new Fixture(testSystem) {
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
-        override lazy val blockImport: BlockImport = stub[BlockImport]
+        override lazy val consensus: Consensus = stub[ConsensusImpl]
 
         override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         val failingBlock: Block = testBlocksChunked.head.head
@@ -478,8 +475,8 @@ class RegularSyncSpec
         override lazy val branchResolution: BranchResolution = stub[BranchResolution]
         (blockchainReader.getBestBlockNumber _).when().returns(0)
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).atLeastOnce()
-        (blockImport
-          .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+        (consensus
+          .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
           .when(*, *, *)
           .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
 
@@ -507,7 +504,7 @@ class RegularSyncSpec
 
     "catching the top" should {
       "ignore new blocks if they are too new" in sync(new Fixture(testSystem) {
-        override lazy val blockImport: BlockImport = stub[BlockImport]
+        override lazy val consensus: Consensus = stub[ConsensusImpl]
 
         val newBlock: Block = testBlocks.last
 
@@ -518,7 +515,7 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (blockImport.importBlock(_: Block)(_: Scheduler, _: BlockchainConfig)).verify(*, *, *).never()
+        (consensus.evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig)).verify(*, *, *).never()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
@@ -674,7 +671,7 @@ class RegularSyncSpec
 
         val parentBlock = testBlocks.last
         setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        blockImport.importBlock(parentBlock)(Scheduler.global, implicitly[BlockchainConfig])
+        consensus.evaluateBranchBlock(parentBlock)(Scheduler.global, implicitly[BlockchainConfig])
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)

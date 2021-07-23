@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
@@ -11,11 +10,9 @@ import akka.testkit.TestKitBase
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import akka.util.Timeout
-
 import cats.Eq
 import cats.data.NonEmptyList
 import cats.implicits._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
@@ -26,12 +23,11 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.math.BigInt
 import scala.reflect.ClassTag
-
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
+import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -85,8 +81,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peersClient.ref,
           etcPeerManager.ref,
           peerEventBus.ref,
-          blockImport,
-          blockchain,
+          consensus,
           blockchainReader,
           stateStorage,
           branchResolution,
@@ -106,7 +101,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val testBlocks: List[Block] = BlockHelpers.generateChain(20, BlockHelpers.genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
-    override lazy val blockImport: BlockImport = new TestBlockImport()
+    override lazy val consensus: Consensus = new TestConsensus()
 
     blockchainWriter.save(
       block = BlockHelpers.genesis,
@@ -199,8 +194,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
       results(block.header.hash) = result
 
-    class TestBlockImport
-        extends BlockImport(
+    class TestConsensus
+        extends ConsensusImpl(
           stub[BlockchainImpl],
           stub[BlockchainReader],
           stub[BlockchainWriter],
@@ -209,7 +204,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           stub[BlockExecution],
           stub[Scheduler]
         ) {
-      override def importBlock(
+      override def evaluateBranchBlock(
           block: Block
       )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
         importedBlocksSet.add(block)
@@ -315,8 +310,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit def eqInstanceForPeersClientRequest[T <: Message]: Eq[PeersClient.Request[T]] =
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
 
-    class FakeImportBlock extends TestBlockImport {
-      override def importBlock(
+    class FakeConsensus extends TestConsensus {
+      override def evaluateBranchBlock(
           block: Block
       )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
         val result: BlockImportResult = if (didTryToImportBlock(block)) {
@@ -359,7 +354,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
-    override lazy val blockImport: BlockImport = stub[BlockImport]
+    override lazy val consensus: Consensus = stub[ConsensusImpl]
 
     var blockFetcher: ActorRef = _
 
@@ -369,8 +364,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     override lazy val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
 
-    (blockImport
-      .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+    (consensus
+      .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
       .when(*, *, *)
       .onCall { (block, _, _) =>
         if (block == newBlock) {

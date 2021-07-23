@@ -6,9 +6,9 @@ import akka.actor.ActorRef
 import akka.actor.PoisonPill
 import akka.actor.Props
 import akka.actor.Scheduler
-
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -18,21 +18,20 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
-import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class SyncController(
-    appStateStorage: AppStateStorage,
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
+    appStateStorage: AppStateStorage,
     evmCodeStorage: EvmCodeStorage,
     stateStorage: StateStorage,
     nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
-    blockImport: BlockImport,
+    consensus: Consensus,
     validators: Validators,
     peerEventBus: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -124,8 +123,7 @@ class SyncController(
         peersClient,
         etcPeerManager,
         peerEventBus,
-        blockImport,
-        blockchain,
+        consensus,
         blockchainReader,
         stateStorage,
         new BranchResolution(blockchain, blockchainReader),
@@ -148,15 +146,15 @@ class SyncController(
 object SyncController {
   // scalastyle:off parameter.number
   def props(
-      appStateStorage: AppStateStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockchainWriter: BlockchainWriter,
+      appStateStorage: AppStateStorage,
       evmCodeStorage: EvmCodeStorage,
       stateStorage: StateStorage,
       nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
-      blockImport: BlockImport,
+      consensus: Consensus,
       validators: Validators,
       peerEventBus: ActorRef,
       pendingTransactionsManager: ActorRef,
@@ -168,15 +166,15 @@ object SyncController {
   ): Props =
     Props(
       new SyncController(
-        appStateStorage,
         blockchain,
         blockchainReader,
         blockchainWriter,
+        appStateStorage,
         evmCodeStorage,
         stateStorage,
         nodeStorage,
         syncStateStorage,
-        blockImport,
+        consensus,
         validators,
         peerEventBus,
         pendingTransactionsManager,

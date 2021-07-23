@@ -4,14 +4,11 @@ import akka.actor.ActorRef
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter._
 import akka.util.ByteString
-
 import cats.effect.Resource
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
-
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
@@ -30,7 +27,7 @@ import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.FullMiningConfig
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
-import io.iohk.ethereum.consensus.pow
+import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl, pow}
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -103,8 +100,8 @@ object RegularSyncItSpecUtils {
         mining.blockPreparator,
         blockValidation
       )
-    lazy val blockImport: BlockImport =
-      new BlockImport(
+    lazy val blockImport: Consensus =
+      new ConsensusImpl(
         bl,
         blockchainReader,
         blockchainWriter,
@@ -146,7 +143,6 @@ object RegularSyncItSpecUtils {
       BlockImporter.props(
         fetcher.toClassic,
         blockImport,
-        bl,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),
@@ -165,7 +161,6 @@ object RegularSyncItSpecUtils {
         etcPeerManager,
         peerEventBus,
         blockImport,
-        bl,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),

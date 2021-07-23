@@ -10,7 +10,6 @@ import akka.actor.Scheduler
 import akka.actor.SupervisorStrategy
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
-
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
@@ -19,12 +18,11 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockIm
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
-import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -34,8 +32,7 @@ class RegularSync(
     peersClient: ActorRef,
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef,
-    blockImport: BlockImport,
-    blockchain: Blockchain,
+    consensus: Consensus,
     blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
     branchResolution: BranchResolution,
@@ -66,8 +63,7 @@ class RegularSync(
     context.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
-        blockImport,
-        blockchain,
+        consensus,
         blockchainReader,
         stateStorage,
         branchResolution,
@@ -140,8 +136,7 @@ object RegularSync {
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
-      blockImport: BlockImport,
-      blockchain: Blockchain,
+      consensus: Consensus,
       blockchainReader: BlockchainReader,
       stateStorage: StateStorage,
       branchResolution: BranchResolution,
@@ -158,8 +153,7 @@ object RegularSync {
         peersClient,
         etcPeerManager,
         peerEventBus,
-        blockImport,
-        blockchain,
+        consensus,
         blockchainReader,
         stateStorage,
         branchResolution,

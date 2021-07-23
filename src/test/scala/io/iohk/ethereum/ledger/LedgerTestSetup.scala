@@ -2,11 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-
 import cats.data.NonEmptyList
-
 import monix.execution.Scheduler
-
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -15,11 +12,11 @@ import org.scalamock.handlers.CallHandler1
 import org.scalamock.handlers.CallHandler2
 import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
-
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.mining.TestMining
@@ -35,9 +32,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
-import io.iohk.ethereum.ledger.PC
-import io.iohk.ethereum.ledger.PR
-import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.BlockchainConfig
@@ -289,7 +283,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  override lazy val blockImport: BlockImport = mkBlockImport()
+  override lazy val consensus: Consensus = mkConsensus()
 
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
@@ -375,12 +369,12 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     )
   }
 
-  lazy val failBlockImport: BlockImport = mkBlockImport(validators = FailHeaderValidation)
+  lazy val failConsensus: Consensus = mkConsensus(validators = FailHeaderValidation)
 
-  lazy val blockImportNotFailingAfterExecValidation: BlockImport = {
+  lazy val blockImportNotFailingAfterExecValidation: Consensus = {
     val consensuz = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
-    new BlockImport(
+    new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
@@ -473,8 +467,8 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
 
-  lazy val blockImportWithMockedBlockExecution: BlockImport =
-    mkBlockImport(blockExecutionOpt = Some(mock[BlockExecution]))
+  lazy val blockImportWithMockedBlockExecution: Consensus =
+    mkConsensus(blockExecutionOpt = Some(mock[BlockExecution]))
 }
 
 trait CheckpointHelpers {
@@ -490,6 +484,6 @@ trait OmmersTestSetup extends EphemBlockchain {
       new StdOmmersValidator(blockHeaderValidator)
   }
 
-  override lazy val blockImportWithMockedBlockExecution: BlockImport =
-    mkBlockImport(validators = OmmerValidation, blockExecutionOpt = Some(mock[BlockExecution]))
+  override lazy val blockImportWithMockedBlockExecution: Consensus =
+    mkConsensus(validators = OmmerValidation, blockExecutionOpt = Some(mock[BlockExecution]))
 }

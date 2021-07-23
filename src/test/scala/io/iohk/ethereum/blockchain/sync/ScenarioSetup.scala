@@ -1,14 +1,13 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.util.concurrent.Executors
-
 import monix.execution.Scheduler
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContextExecutor
-
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
 import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.mining.StdTestMiningBuilder
@@ -16,7 +15,6 @@ import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
-import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
@@ -71,13 +69,13 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected def newTestMining(validators: Validators = mining.validators, vm: VMImpl = mining.vm): Mining =
     mining.withValidators(validators).withVM(vm)
 
-  protected def mkBlockImport(
+  protected def mkConsensus(
       validators: Validators = validators,
       blockExecutionOpt: Option[BlockExecution] = None
-  ): BlockImport = {
+  ): Consensus = {
     val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
-    new BlockImport(
+    new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
