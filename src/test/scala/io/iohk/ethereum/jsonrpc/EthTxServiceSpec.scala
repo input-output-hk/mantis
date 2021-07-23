@@ -174,7 +174,7 @@ class EthTxServiceSpec
   }
 
   it should "return average gas price" in new TestSetup {
-    blockchain.saveBestKnownBlocks(42)
+    blockchain.saveBestKnownBlocks(ByteString.empty, 42)
     blockchainWriter
       .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
       .commit()
@@ -185,7 +185,7 @@ class EthTxServiceSpec
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
@@ -220,7 +220,7 @@ class EthTxServiceSpec
 
   it should "getRawTransactionByBlockNumberAndIndex return transaction by index" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.header.number)
+    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)

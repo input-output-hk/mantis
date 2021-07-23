@@ -1136,7 +1136,7 @@ class FastSync(
         val bestReceivedBlock = fullBlocks.maxBy(_.number)
         val lastStoredBestBlockNumber = appStateStorage.getBestBlockNumber()
         if (lastStoredBestBlockNumber < bestReceivedBlock.number) {
-          blockchain.saveBestKnownBlocks(bestReceivedBlock.number)
+          blockchain.saveBestKnownBlocks(bestReceivedBlock.hash, bestReceivedBlock.number)
           appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
         }
         syncState = syncState.copy(lastFullBlockNumber = bestReceivedBlock.number.max(lastStoredBestBlockNumber))

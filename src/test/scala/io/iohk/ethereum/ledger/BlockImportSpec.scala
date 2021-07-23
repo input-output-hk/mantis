@@ -194,7 +194,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     //saving to cache the value of the best block from the initial chain. This recreates the bug ETCM-626, where (possibly) because of the thread of execution
     // dying before updating the storage but after updating the cache, inconsistency is created
-    blockchain.saveBestKnownBlocks(oldBlock4.number)
+    blockchain.saveBestKnownBlocks(oldBlock4.hash, oldBlock4.number)
 
     blockchainReader.getBestBlock() shouldBe Some(ancestorForValidation)
   }

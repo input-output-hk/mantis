@@ -299,9 +299,9 @@ class BlockImport(
       case BlockData(block, _, _) if block.hasCheckpoint => block.number
     }.maximumOption
 
-    val bestNumber = oldBranch.last.block.header.number
-    blockchain.saveBestKnownBlocks(bestNumber, checkpointNumber)
-    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestNumber))
+    val bestHeader = oldBranch.last.block.header
+    blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
+    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestHeader.number))
 
     newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
       blockQueue.removeSubtree(block.header.hash)

@@ -1,12 +1,19 @@
 package io.iohk.ethereum.db.storage
 
+import akka.util.ByteString
+import boopickle.Default.Unpickle
+import boopickle.Pickler
+import boopickle.DefaultBasic._
+
 import java.math.BigInteger
-
 import scala.collection.immutable.ArraySeq
-
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage._
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
+import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
+import io.iohk.ethereum.utils.Hex
+import io.iohk.ethereum.utils.Picklers._
 
 /** This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
@@ -26,6 +33,16 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
 
   def getBestBlockNumber(): BigInt =
     getBigInt(Keys.BestBlockNumber)
+
+  def getBestBlockData(): BestBlockInfo =
+    BestBlockInfo( // FIXME default value for hash ?
+      get(Keys.BestBlockHash).map(v => ByteString(Hex.decode(v))).getOrElse(ByteString.empty),
+      getBigInt(Keys.BestBlockNumber)
+    )
+
+  def putBestBlockData(b: BestBlockInfo): DataSourceBatchUpdate =
+    put(Keys.BestBlockNumber, b.number.toString)
+      .and(put(Keys.BestBlockHash, Hex.toHexString(b.hash.toArray)))
 
   def putBestBlockNumber(bestBlockNumber: BigInt): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
@@ -72,9 +89,17 @@ object AppStateStorage {
 
   object Keys {
     val BestBlockNumber = "BestBlockNumber"
+    val BestBlockHash = "BestBlockHash"
     val FastSyncDone = "FastSyncDone"
     val EstimatedHighestBlock = "EstimatedHighestBlock"
     val SyncStartingBlock = "SyncStartingBlock"
     val LatestCheckpointBlockNumber = "LatestCheckpointBlockNumber"
   }
+
+  implicit private val bestBlockDataPickler: Pickler[BestBlockInfo] = generatePickler[BestBlockInfo]
+  private val bestBlockDataSerializer = (bestBlockData: BestBlockInfo) =>
+    compactPickledBytes(Pickle.intoBytes(bestBlockData))
+  private val bestBlockDataDeserializer =
+    (byteSequenceToBuffer _).andThen(Unpickle[BestBlockInfo].fromBytes)
+
 }

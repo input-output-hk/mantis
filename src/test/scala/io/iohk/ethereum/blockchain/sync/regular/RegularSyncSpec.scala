@@ -736,7 +736,7 @@ class RegularSyncSpec
           goToTop()
 
           val num: BigInt = 42
-          blockchain.saveBestKnownBlocks(num, Some(num))
+          blockchain.saveBestKnownBlocks(testBlocks.head.hash, num, Some(num))
 
           etcPeerManager.expectMsg(GetHandshakedPeers)
           etcPeerManager.reply(HandshakedPeers(handshakedPeers))

@@ -1,10 +1,12 @@
 package io.iohk.ethereum.domain
 
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
+
 import java.util.concurrent.atomic.AtomicReference
 
-class BlockchainMetadata(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt) {
+class BlockchainMetadata(bestBlockData: BestBlockInfo, latestCheckpointNumber: BigInt) {
   lazy val bestKnownBlockAndLatestCheckpoint: AtomicReference[BestBlockLatestCheckpointNumbers] =
-    new AtomicReference(BestBlockLatestCheckpointNumbers(bestBlockNumber, latestCheckpointNumber))
+    new AtomicReference(BestBlockLatestCheckpointNumbers(bestBlockData, latestCheckpointNumber))
 }
 
-case class BestBlockLatestCheckpointNumbers(bestBlockNumber: BigInt, latestCheckpointNumber: BigInt)
+case class BestBlockLatestCheckpointNumbers(bestBlockInfo: BestBlockInfo, latestCheckpointNumber: BigInt)

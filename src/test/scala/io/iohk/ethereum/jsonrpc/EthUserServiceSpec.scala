@@ -49,7 +49,7 @@ class EthUserServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.number)
 
     val response = ethUserService.getCode(GetCodeRequest(address, BlockParam.Latest))
 
@@ -71,7 +71,7 @@ class EthUserServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.number)
 
     val response = ethUserService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
@@ -84,7 +84,7 @@ class EthUserServiceSpec
     val newBlockHeader = blockToRequest.header
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.header.number)
 
     val response = ethUserService.getBalance(GetBalanceRequest(address, BlockParam.Latest))
 
@@ -114,7 +114,7 @@ class EthUserServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.number)
 
     val response = ethUserService.getStorageAt(GetStorageAtRequest(address, 333, BlockParam.Latest))
     response.runSyncUnsafe().map(v => UInt256(v.value)) shouldEqual Right(UInt256(123))
@@ -132,7 +132,7 @@ class EthUserServiceSpec
     val newBlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.number)
 
     val response = ethUserService.getTransactionCount(GetTransactionCountRequest(address, BlockParam.Latest))
 

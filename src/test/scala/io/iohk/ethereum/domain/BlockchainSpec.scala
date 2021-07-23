@@ -44,7 +44,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchainWriter.storeBlock(validBlock).commit()
-    blockchain.saveBestKnownBlocks(validBlock.number)
+    blockchain.saveBestKnownBlocks(validBlock.hash, validBlock.number)
     val block = blockchainReader.getBestBranch().getBlockByNumber(validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
@@ -61,7 +61,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
     blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(true)
     // simulation of node restart
-    blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
+    blockchain.saveBestKnownBlocks(validBlock.header.parentHash, validBlock.header.number - 1)
     blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(false)
   }
 

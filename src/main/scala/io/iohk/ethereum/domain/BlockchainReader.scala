@@ -84,7 +84,7 @@ class BlockchainReader(
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
-    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockInfo.number
     log.debug(
       "Current best saved block number {}. Current best known block number {}",
       bestSavedBlockNumber,

@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
@@ -12,6 +11,7 @@ import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
 import io.iohk.ethereum.utils.Logger
 
 class BlockchainWriter(
@@ -33,13 +33,13 @@ class BlockchainWriter(
         block.header.number,
         block.header.number
       )
-      saveBestKnownBlockAndLatestCheckpointNumber(block.header.number, block.header.number)
+      saveBestKnownBlockAndLatestCheckpointNumber(block.header.hash, block.header.number, block.header.number)
     } else if (saveAsBestBlock) {
       log.debug(
         "New best known block number - {}",
         block.header.number
       )
-      saveBestKnownBlock(block.header.number)
+      saveBestKnownBlock(block.header.hash, block.header.number)
     }
 
     log.debug("Saving new block {} to database", block.idTag)
@@ -59,8 +59,10 @@ class BlockchainWriter(
   def storeChainWeight(blockHash: ByteString, weight: ChainWeight): DataSourceBatchUpdate =
     chainWeightStorage.put(blockHash, weight)
 
-  private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
-    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
+  private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
+    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.updateAndGet(v =>
+      v.copy(bestBlockInfo = BestBlockInfo(bestBlockHash, bestBlockNumber))
+    )
 
   /** Persists a block in the underlying Blockchain Database
     * Note: all store* do not update the database immediately, rather they create
@@ -88,23 +90,27 @@ class BlockchainWriter(
         updates.and(transactionMappingStorage.put(tx.hash, TransactionLocation(blockHash, index)))
     }
 
-  private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit =
+  private def saveBestKnownBlockAndLatestCheckpointNumber(
+      bestBlockHash: ByteString,
+      number: BigInt,
+      latestCheckpointNumber: BigInt
+  ): Unit =
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.set(
-      BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
+      BestBlockLatestCheckpointNumbers(BestBlockInfo(bestBlockHash, number), latestCheckpointNumber)
     )
 
   private def persistBestBlocksData(): Unit = {
-    val currentBestBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
+    val currentBestBlockInfo = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockInfo
     val currentBestCheckpointNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
     log.debug(
       "Persisting app info data into database. Persisted block number is {}. " +
         "Persisted checkpoint number is {}",
-      currentBestBlockNumber,
+      currentBestBlockInfo.number,
       currentBestCheckpointNumber
     )
 
     appStateStorage
-      .putBestBlockNumber(currentBestBlockNumber)
+      .putBestBlockData(currentBestBlockInfo)
       .and(appStateStorage.putLatestCheckpointBlockNumber(currentBestCheckpointNumber))
       .commit()
   }
