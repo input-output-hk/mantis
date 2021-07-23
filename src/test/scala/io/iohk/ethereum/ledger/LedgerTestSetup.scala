@@ -467,8 +467,8 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
 
-  lazy val blockImportWithMockedBlockExecution: Consensus =
-    mkConsensus(blockExecutionOpt = Some(mock[BlockExecution]))
+  def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): Consensus =
+    mkConsensus(blockExecutionOpt = Some(blockExecutionMock))
 }
 
 trait CheckpointHelpers {
@@ -484,6 +484,6 @@ trait OmmersTestSetup extends EphemBlockchain {
       new StdOmmersValidator(blockHeaderValidator)
   }
 
-  override lazy val blockImportWithMockedBlockExecution: Consensus =
-    mkConsensus(validators = OmmerValidation, blockExecutionOpt = Some(mock[BlockExecution]))
+  override def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): Consensus =
+    mkConsensus(validators = OmmerValidation, blockExecutionOpt = Some(blockExecutionMock))
 }

@@ -69,28 +69,32 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected def newTestMining(validators: Validators = mining.validators, vm: VMImpl = mining.vm): Mining =
     mining.withValidators(validators).withVM(vm)
 
+  protected def mkBlockExecution(validators: Validators = validators) = {
+    val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
+    new BlockExecution(
+      blockchain,
+      blockchainReader,
+      blockchainWriter,
+      storagesInstance.storages.evmCodeStorage,
+      consensuz.blockPreparator,
+      blockValidation
+    )
+  }
+
   protected def mkConsensus(
       validators: Validators = validators,
       blockExecutionOpt: Option[BlockExecution] = None
   ): Consensus = {
-    val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
+    val testMining = mining.withValidators(validators).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
     new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
       blockQueue,
       blockValidation,
-      blockExecutionOpt.getOrElse(
-        new BlockExecution(
-          blockchain,
-          blockchainReader,
-          blockchainWriter,
-          storagesInstance.storages.evmCodeStorage,
-          consensuz.blockPreparator,
-          blockValidation
-        )
-      ),
+      blockExecutionOpt.getOrElse(mkBlockExecution(validators)),
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
   }

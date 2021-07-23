@@ -4,13 +4,19 @@ import akka.util.ByteString
 
 import scala.concurrent.duration._
 import scala.language.postfixOps
-
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.blockchain.sync.regular.{
+  BlockEnqueued,
+  BlockImportFailed,
+  BlockImportedToTop,
+  ChainReorganised,
+  DuplicateBlock,
+  UnknownParent
+}
 import io.iohk.ethereum.consensus.mining._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
@@ -34,12 +40,12 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(blockImport.importBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensus.evaluateBranchBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(blockImport.importBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensus.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
   }
 
   it should "import a block to top of the main chain" in new ImportBlockTestSetup {
@@ -66,7 +72,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .returning(storagesInstance.storages.stateStorage.getBackingStorage(6))
 
     expectBlockSaved(block, Seq.empty[Receipt], newWeight, saveAsBestBlock = true)
-    whenReady(blockImportNotFailingAfterExecValidation.importBlock(block).runToFuture) {
+    whenReady(blockImportNotFailingAfterExecValidation.evaluateBranchBlock(block).runToFuture) {
       _ shouldEqual BlockImportedToTop(List(blockData))
     }
   }
@@ -99,7 +105,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockQueue.removeSubtree _).expects(*)
 
-    whenReady(blockImport.importBlock(block).runToFuture)(_ shouldBe a[BlockImportFailed])
+    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(_ shouldBe a[BlockImportFailed])
   }
 
   // scalastyle:off magic.number
@@ -128,13 +134,17 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
     val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
 
-    (blockImportWithMockedBlockExecution.blockExecution
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
       .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
       .expects(newBranch, *, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock3).runToFuture)(_ shouldEqual BlockEnqueued)
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { result =>
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock3).runToFuture)(
+      _ shouldEqual BlockEnqueued
+    )
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
@@ -178,13 +188,17 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
     val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
 
-    (blockImportWithMockedBlockExecution.blockExecution
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
       .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
       .expects(newBranch, *, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock3).runToFuture)(_ shouldEqual BlockEnqueued)
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock2).runToFuture) { result =>
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock3).runToFuture)(
+      _ shouldEqual BlockEnqueued
+    )
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
@@ -222,13 +236,17 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val newBranch = List(newBlock2, newBlock3)
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
 
-    (blockImportWithMockedBlockExecution.blockExecution
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
       .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
       .expects(newBranch, *, *)
       .returning((List(blockData2), Some(execError)))
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock3).runToFuture)(_ shouldEqual BlockEnqueued)
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock2).runToFuture) {
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock3).runToFuture)(
+      _ shouldEqual BlockEnqueued
+    )
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock2).runToFuture) {
       _ shouldBe a[BlockImportFailed]
     }
 
@@ -254,7 +272,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(blockImport.importBlock(newBlock).runToFuture)(_ shouldEqual UnknownParent)
+    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture)(_ shouldEqual UnknownParent)
   }
 
   it should "validate blocks prior to import" in new ImportBlockTestSetup {
@@ -272,7 +290,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(blockImport.importBlock(newBlock).runToFuture) {
+    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture) {
       _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
     }
   }
@@ -283,7 +301,7 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBestBlock(genesisBlock)
     setBlockExists(genesisBlock, inChain = true, inQueue = true)
 
-    whenReady(failBlockImport.importBlock(genesisBlock).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(failConsensus.evaluateBranchBlock(genesisBlock).runToFuture)(_ shouldEqual DuplicateBlock)
   }
 
   it should "correctly import block with ommers and ancestor in block queue " in new OmmersTestSetup {
@@ -320,13 +338,17 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
     val blockData3 = BlockData(newBlock3WithOmmer, Seq.empty[Receipt], newWeight3)
 
-    (blockImportWithMockedBlockExecution.blockExecution
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
       .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
       .expects(newBranch, *, *)
       .returning((List(blockData2, blockData3), None))
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock2).runToFuture)(_ shouldEqual BlockEnqueued)
-    whenReady(blockImportWithMockedBlockExecution.importBlock(newBlock3WithOmmer).runToFuture) { result =>
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock2).runToFuture)(
+      _ shouldEqual BlockEnqueued
+    )
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock3WithOmmer).runToFuture) { result =>
       result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
     }
 
@@ -349,12 +371,14 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(parentBlock, Nil, weightParent, saveAsBestBlock = true)
     blockchainWriter.save(regularBlock, Nil, weightRegular, saveAsBestBlock = true)
 
-    (blockImportWithMockedBlockExecution.blockExecution
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
       .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
       .expects(List(checkpointBlock), *, *)
       .returning((List(BlockData(checkpointBlock, Nil, weightCheckpoint)), None))
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(checkpointBlock).runToFuture) { result =>
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(checkpointBlock).runToFuture) { result =>
       result shouldEqual ChainReorganised(
         List(regularBlock),
         List(checkpointBlock),
@@ -382,7 +406,10 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(parentBlock, Nil, weightParent, saveAsBestBlock = true)
     blockchainWriter.save(checkpointBlock, Nil, weightCheckpoint, saveAsBestBlock = true)
 
-    whenReady(blockImportWithMockedBlockExecution.importBlock(regularBlock).runToFuture)(_ shouldEqual BlockEnqueued)
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mock[BlockExecution])
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(regularBlock).runToFuture)(
+      _ shouldEqual BlockEnqueued
+    )
 
     blockchainReader.getBestBlock().get shouldEqual checkpointBlock
   }
