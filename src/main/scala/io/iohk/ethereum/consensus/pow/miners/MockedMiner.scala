@@ -25,7 +25,6 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.Mi
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningError
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
@@ -34,7 +33,6 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 
 class MockedMiner(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockCreator: PoWBlockCreator,
     syncEventListener: ActorRef,
@@ -122,7 +120,6 @@ object MockedMiner {
   case object MineBlock
 
   private[pow] def props(
-      blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockCreator: PoWBlockCreator,
       syncEventListener: ActorRef,
@@ -130,7 +127,6 @@ object MockedMiner {
   ): Props =
     Props(
       new MockedMiner(
-        blockchain,
         blockchainReader,
         blockCreator,
         syncEventListener,
@@ -148,7 +144,6 @@ object MockedMiner {
           ommersPool = node.ommersPool
         )
         val minerProps = props(
-          blockchain = node.blockchain,
           blockchainReader = node.blockchainReader,
           blockCreator = blockCreator,
           syncEventListener = node.syncController,

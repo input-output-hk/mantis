@@ -254,7 +254,6 @@ class StateSyncSpec
       system.actorOf(
         SyncStateSchedulerActor.props(
           SyncStateScheduler(
-            blockchain,
             blockchainReader,
             getNewStorages.storages.evmCodeStorage,
             getNewStorages.storages.stateStorage,

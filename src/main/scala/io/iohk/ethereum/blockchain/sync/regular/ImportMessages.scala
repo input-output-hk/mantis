@@ -4,7 +4,6 @@ import akka.event.Logging._
 import akka.util.ByteString
 
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.utils.ByteStringUtils._

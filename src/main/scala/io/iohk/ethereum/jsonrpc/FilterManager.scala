@@ -25,7 +25,6 @@ import io.iohk.ethereum.utils.FilterConfig
 import io.iohk.ethereum.utils.TxPoolConfig
 
 class FilterManager(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockGenerator: BlockGenerator,
     keyStore: KeyStore,
@@ -278,7 +277,6 @@ class FilterManager(
 
 object FilterManager {
   def props(
-      blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockGenerator: BlockGenerator,
       keyStore: KeyStore,
@@ -288,7 +286,6 @@ object FilterManager {
   ): Props =
     Props(
       new FilterManager(
-        blockchain,
         blockchainReader,
         blockGenerator,
         keyStore,
