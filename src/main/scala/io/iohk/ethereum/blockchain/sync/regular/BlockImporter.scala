@@ -7,19 +7,17 @@ import akka.actor.ActorRef
 import akka.actor.NotInfluenceReceiveTimeout
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
-
 import cats.data.NonEmptyList
 import cats.implicits._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
-
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
@@ -37,8 +35,7 @@ import io.iohk.ethereum.utils.FunctorOps._
 
 class BlockImporter(
     fetcher: ActorRef,
-    blockImport: BlockImport,
-    blockchain: Blockchain,
+    consensus: Consensus,
     blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
     branchResolution: BranchResolution,
@@ -50,6 +47,7 @@ class BlockImporter(
     configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
+
   import BlockImporter._
   import configBuilder._
 
@@ -199,8 +197,8 @@ class BlockImporter(
       Task.now((importedBlocks, None))
     } else {
       val restOfBlocks = blocks.tail
-      blockImport
-        .importBlock(blocks.head)
+      consensus
+        .evaluateBranchBlock(blocks.head)
         .flatMap {
           case BlockImportedToTop(_) =>
             tryImportBlocks(restOfBlocks, blocks.head :: importedBlocks)
@@ -238,7 +236,7 @@ class BlockImporter(
     def doLog(entry: ImportMessages.LogEntry): Unit = log.log(entry._1, entry._2)
     importWith(
       Task(doLog(importMessages.preImport()))
-        .flatMap(_ => blockImport.importBlock(block))
+        .flatMap(_ => consensus.evaluateBranchBlock(block))
         .tap((importMessages.messageForImportResult _).andThen(doLog))
         .tap {
           case BlockImportedToTop(importedBlocksData) =>
@@ -330,8 +328,7 @@ object BlockImporter {
   // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
-      blockImport: BlockImport,
-      blockchain: Blockchain,
+      consensus: Consensus,
       blockchainReader: BlockchainReader,
       stateStorage: StateStorage,
       branchResolution: BranchResolution,
@@ -345,8 +342,7 @@ object BlockImporter {
     Props(
       new BlockImporter(
         fetcher,
-        blockImport,
-        blockchain,
+        consensus,
         blockchainReader,
         stateStorage,
         branchResolution,
