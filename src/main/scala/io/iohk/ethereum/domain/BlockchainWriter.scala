@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
@@ -11,6 +10,7 @@ import io.iohk.ethereum.db.storage.ChainWeightStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
 import io.iohk.ethereum.utils.Logger
 
 class BlockchainWriter(
@@ -31,14 +31,14 @@ class BlockchainWriter(
         block.header.number
       )
       appStateStorage
-        .putBestBlockNumber(block.header.number)
+        .putBestBlockData(BestBlockInfo(block.header.hash, block.header.number))
         .and(appStateStorage.putLatestCheckpointBlockNumber(block.header.number))
     } else if (saveAsBestBlock) {
       log.debug(
         "New best known block number - {}",
         block.header.number
       )
-      appStateStorage.putBestBlockNumber(block.header.number)
+      appStateStorage.putBestBlockData(BestBlockInfo(block.header.hash, block.header.number))
     } else {
       appStateStorage.emptyBatchUpdate
     }

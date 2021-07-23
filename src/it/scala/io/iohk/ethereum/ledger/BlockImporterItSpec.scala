@@ -107,7 +107,7 @@ class BlockImporterItSpec
     blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
     blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
     // simulation of node restart
-    blockchain.saveBestKnownBlocks(blockchainReader.getBestBlockNumber() - 1)
+    blockchain.saveBestKnownBlocks(oldBlock3.header.hash, oldBlock3.number)
     blockchainWriter.save(newBlock4ParentOldBlock3, Nil, newBlock4WeightParentOldBlock3, saveAsBestBlock = true)
 
     //not reorganising anymore until oldBlock4(not part of the chain anymore), no block/ommer validation when not part of the chain, resolveBranch is returning UnknownBranch

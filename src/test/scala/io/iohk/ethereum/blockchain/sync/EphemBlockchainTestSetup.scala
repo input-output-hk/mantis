@@ -1,5 +1,6 @@
 package io.iohk.ethereum.blockchain.sync
 
+import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.db.components.EphemDataSourceComponent
 import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning

@@ -1,12 +1,11 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import scala.annotation.tailrec
-
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
@@ -64,7 +63,11 @@ trait Blockchain {
 
   def removeBlock(hash: ByteString): Unit
 
-  def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
+  def saveBestKnownBlocks(
+      bestBlockHash: ByteString,
+      bestBlockNumber: BigInt,
+      latestCheckpointNumber: Option[BigInt] = None
+  ): Unit
 
 }
 
@@ -126,20 +129,28 @@ class BlockchainImpl(
 
   def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
-  override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit =
+  override def saveBestKnownBlocks(
+      bestBlockHash: ByteString,
+      bestBlockNumber: BigInt,
+      latestCheckpointNumber: Option[BigInt] = None
+  ): Unit =
     latestCheckpointNumber match {
       case Some(number) =>
-        saveBestKnownBlockAndLatestCheckpointNumber(bestBlockNumber, number)
+        saveBestKnownBlockAndLatestCheckpointNumber(bestBlockHash, bestBlockNumber, number)
       case None =>
-        saveBestKnownBlock(bestBlockNumber)
+        saveBestKnownBlock(bestBlockHash, bestBlockNumber)
     }
 
-  private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
-    appStateStorage.putBestBlockNumber(bestBlockNumber).commit()
+  private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
+    appStateStorage.putBestBlockData(BestBlockInfo(bestBlockHash, bestBlockNumber)).commit()
 
-  private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit =
+  private def saveBestKnownBlockAndLatestCheckpointNumber(
+      bestBlockHash: ByteString,
+      number: BigInt,
+      latestCheckpointNumber: BigInt
+  ): Unit =
     appStateStorage
-      .putBestBlockNumber(number)
+      .putBestBlockData(BestBlockInfo(bestBlockHash, number))
       .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
       .commit()
 
@@ -171,7 +182,8 @@ class BlockchainImpl(
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
-    val newBestBlockNumber: BigInt = (bestBlockNumber - 1).max(0)
+    val potientialNewBestBlockNumber: BigInt = (block.number - 1).max(0)
+    val potientialNewBestBlockHash: ByteString = block.header.parentHash
     val newLatestCheckpointNumber: BigInt =
       if (block.hasCheckpoint && block.number == latestCheckpointNumber) {
         findPreviousCheckpointBlockNumber(block.number, block.number)
@@ -187,8 +199,8 @@ class BlockchainImpl(
       into the case of having an incomplete best block and so an inconsistent db
      */
     val bestBlockNumberUpdates =
-      if (appStateStorage.getBestBlockNumber() > newBestBlockNumber)
-        appStateStorage.putBestBlockNumber(newBestBlockNumber)
+      if (appStateStorage.getBestBlockNumber() > potientialNewBestBlockNumber)
+        appStateStorage.putBestBlockData(BestBlockInfo(potientialNewBestBlockHash, potientialNewBestBlockNumber))
       else appStateStorage.emptyBatchUpdate
     val latestCheckpointNumberUpdates =
       if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)
@@ -197,7 +209,7 @@ class BlockchainImpl(
 
     log.debug(
       "Persisting app info data into database. Persisted block number is {}. Persisted checkpoint number is {}",
-      newBestBlockNumber,
+      potientialNewBestBlockNumber,
       newLatestCheckpointNumber
     )
 
@@ -215,7 +227,7 @@ class BlockchainImpl(
     log.debug(
       "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
       ByteStringUtils.hash2string(blockHash),
-      newBestBlockNumber,
+      potientialNewBestBlockNumber,
       newLatestCheckpointNumber
     )
   }
