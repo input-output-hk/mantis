@@ -1,12 +1,6 @@
-package io.iohk.ethereum.ledger
+package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-
-import scala.concurrent.duration._
-import scala.language.postfixOps
-import org.scalatest.concurrent.ScalaFutures
-import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.{
@@ -18,17 +12,30 @@ import io.iohk.ethereum.blockchain.sync.regular.{
   UnknownParent
 }
 import io.iohk.ethereum.consensus.mining._
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.mpt.LeafNode
-import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.ledger.{
+  BlockData,
+  BlockExecution,
+  CheckpointHelpers,
+  EphemBlockchain,
+  MockBlockchain,
+  OmmersTestSetup,
+  TestSetupWithVmAndValidators
+}
+import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
+import org.scalatest.concurrent.ScalaFutures
+import org.scalatest.flatspec.AnyFlatSpec
+import org.scalatest.matchers.should.Matchers
 
-class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
+class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
