@@ -155,6 +155,9 @@ class BlockchainReader(
     case EmptyBranch => None
   }
 
+  def getAccountProof(branch: Branch, address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
+    getAccountMpt(blockNumber).flatMap(_.getProof(address))
+
   /** Allows to query for a block based on it's number
     *
     * @param number Block number

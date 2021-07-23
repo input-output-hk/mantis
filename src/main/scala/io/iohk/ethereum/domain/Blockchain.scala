@@ -27,8 +27,6 @@ trait Blockchain {
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
 
-  def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
-
   /** Get account storage at given position
     *
     * @param rootHash storage root hash
@@ -91,18 +89,6 @@ class BlockchainImpl(
 
   override def getLatestCheckpointBlockNumber(): BigInt =
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
-
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
-    getAccountMpt(blockNumber) >>= (_.getProof(address))
-
-  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
-    blockchainReader.getBlockHeaderByNumber(blockNumber).map { bh =>
-      val storage = stateStorage.getBackingStorage(blockNumber)
-      MerklePatriciaTrie[Address, Account](
-        rootHash = bh.stateRoot.toArray,
-        source = storage
-      )
-    }
 
   override def getAccountStorageAt(
       rootHash: ByteString,

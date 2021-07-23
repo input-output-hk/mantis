@@ -172,7 +172,9 @@ class EthProofService(
         noAccount(address, blockNumber)
       )
       accountProof <- Either.fromOption(
-        blockchain.getAccountProof(address, blockNumber).map(_.map(asRlpSerializedNode)),
+        blockchainReader
+          .getAccountProof(blockchainReader.getBestBranch(), address, blockNumber)
+          .map(_.map(asRlpSerializedNode)),
         noAccountProof(address, blockNumber)
       )
       storageProof = getStorageProof(account, storageKeys)
