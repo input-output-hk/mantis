@@ -21,9 +21,9 @@ class ContractTest extends AnyFlatSpec with Matchers {
     lazy val testBlockchainStorages = FixtureProvider.prepareStorages(2, fixtures)
 
     //block only with ether transfers
-    val blockValidation =
+    override lazy val blockValidation =
       new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-    val blockExecution =
+    override lazy val blockExecution =
       new BlockExecution(
         blockchain,
         blockchainReader,
