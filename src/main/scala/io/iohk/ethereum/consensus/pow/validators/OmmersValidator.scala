@@ -2,14 +2,15 @@ package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.utils.BlockchainConfig
 
 trait OmmersValidator {
 
@@ -19,18 +20,21 @@ trait OmmersValidator {
       ommers: Seq[BlockHeader],
       getBlockByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[OmmersError, OmmersValid]
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid]
 
   def validate(
       parentHash: ByteString,
       blockNumber: BigInt,
       ommers: Seq[BlockHeader],
       blockchainReader: BlockchainReader
-  ): Either[OmmersError, OmmersValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
+    val bestBranch = blockchainReader.getBestBranch()
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) => ((blockNumber - n) until blockNumber).toList.flatMap(blockchainReader.getBlockByNumber)
+      (_, n) =>
+        ((blockNumber - n) until blockNumber).toList
+          .flatMap(nb => bestBranch.getBlockByNumber(nb))
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }

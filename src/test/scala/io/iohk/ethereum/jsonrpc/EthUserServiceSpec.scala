@@ -143,9 +143,9 @@ class EthUserServiceSpec
     lazy val ethUserService = new EthUserService(
       blockchain,
       blockchainReader,
-      consensus,
+      mining,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig
+      this
     )
     val blockToRequest: Block = Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
   }

@@ -17,9 +17,9 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.MiningConfigs
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.ECDSASignature
@@ -67,7 +67,7 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     .returns(null)
     .anyNumberOfTimes()
 
-  override lazy val consensus: TestConsensus = buildTestConsensus()
+  override lazy val mining: TestMining = buildTestMining()
     .withValidators(validators)
     .withBlockGenerator(blockGenerator)
 
@@ -77,17 +77,15 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ommersPool: TestProbe = TestProbe()
   val filterManager: TestProbe = TestProbe()
 
-  val ethashConfig = ConsensusConfigs.ethashConfig
-  override lazy val consensusConfig = ConsensusConfigs.consensusConfig
-  val fullConsensusConfig = ConsensusConfigs.fullConsensusConfig
+  val ethashConfig = MiningConfigs.ethashConfig
+  override lazy val miningConfig = MiningConfigs.miningConfig
+  val fullMiningConfig = MiningConfigs.fullMiningConfig
   val getTransactionFromPoolTimeout: FiniteDuration = 5.seconds
 
   val filterConfig: FilterConfig = new FilterConfig {
     override val filterTimeout: FiniteDuration = Timeouts.normalTimeout
     override val filterManagerQueryTimeout: FiniteDuration = Timeouts.normalTimeout
   }
-
-  val currentProtocolVersion = 63
 
   val appStateStorage: AppStateStorage = mock[AppStateStorage]
   val web3Service = new Web3Service
@@ -97,31 +95,31 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
     blockchain,
     blockchainReader,
     blockchainConfig,
-    consensus,
+    mining,
     stxLedger,
     keyStore,
     syncingController.ref,
-    Capability("eth", currentProtocolVersion.toByte),
+    Capability.ETH63,
     Timeouts.shortTimeout
   )
 
   val ethMiningService = new EthMiningService(
     blockchainReader,
-    blockchainConfig,
-    consensus,
+    mining,
     config,
     ommersPool.ref,
     syncingController.ref,
     pendingTransactionsManager.ref,
-    getTransactionFromPoolTimeout
+    getTransactionFromPoolTimeout,
+    this
   )
 
-  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
+  val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
 
   val ethTxService = new EthTxService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     pendingTransactionsManager.ref,
     getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage
@@ -130,9 +128,9 @@ class JsonRpcControllerFixture(implicit system: ActorSystem)
   val ethUserService = new EthUserService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     storagesInstance.storages.evmCodeStorage,
-    blockchainConfig
+    this
   )
 
   val ethFilterService = new EthFilterService(

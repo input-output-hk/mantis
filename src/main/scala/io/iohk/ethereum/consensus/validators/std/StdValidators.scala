@@ -4,8 +4,8 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Receipt
@@ -13,6 +13,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
+import io.iohk.ethereum.utils.BlockchainConfig
 
 /** Implements validators that adhere to the original [[io.iohk.ethereum.consensus.validators.Validators Validators]]
   * interface.
@@ -30,7 +31,7 @@ final class StdValidators(
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
     StdValidators.validateBlockBeforeExecution(
       self = this,
       block = block,
@@ -43,7 +44,7 @@ final class StdValidators(
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
     StdValidators.validateBlockAfterExecution(
       self = this,
       block = block,
@@ -59,7 +60,7 @@ object StdValidators {
       block: Block,
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] = {
 
     val header = block.header
     val body = block.body

@@ -4,8 +4,8 @@ import java.util.concurrent.atomic.AtomicReference
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.ConsensusConfig
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.pow.blocks.Ommers
 import io.iohk.ethereum.consensus.pow.blocks.OmmersSeqEnc
 import io.iohk.ethereum.consensus.validators.std.MptListValidator.intByteArraySerializable
@@ -28,15 +28,14 @@ import io.iohk.ethereum.utils.ByteUtils.or
 /** This is a skeleton for a generic [[io.iohk.ethereum.consensus.blocks.BlockGenerator BlockGenerator]].
   */
 abstract class BlockGeneratorSkeleton(
-    blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     difficultyCalc: DifficultyCalculator,
     _blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends TestBlockGenerator {
 
-  protected val headerExtraData = consensusConfig.headerExtraData
+  protected val headerExtraData = miningConfig.headerExtraData
 
-  protected val blockCacheSize = consensusConfig.blockCacheSize
+  protected val blockCacheSize = miningConfig.blockCacheSize
 
   protected val cache: AtomicReference[List[PendingBlockAndState]] = new AtomicReference(Nil)
 
@@ -48,7 +47,7 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Long,
       x: Ommers
-  ): BlockHeader = {
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader = {
     val extraFields =
       if (blockNumber >= blockchainConfig.forkBlockNumbers.ecip1097BlockNumber)
         HefPostEcip1097(None)
@@ -84,8 +83,9 @@ abstract class BlockGeneratorSkeleton(
       beneficiary: Address,
       blockTimestamp: Long,
       x: X
-  ): BlockHeader
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader
 
+  // scalastyle:off parameter.number
   protected def prepareBlock(
       evmCodeStorage: EvmCodeStorage,
       parent: Block,
@@ -95,7 +95,7 @@ abstract class BlockGeneratorSkeleton(
       blockPreparator: BlockPreparator,
       x: X,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = {
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState = {
 
     val blockTimestamp = blockTimestampProvider.getEpochSecond
     val header = prepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)

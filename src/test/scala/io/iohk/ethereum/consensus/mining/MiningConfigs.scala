@@ -1,4 +1,4 @@
-package io.iohk.ethereum.consensus
+package io.iohk.ethereum.consensus.mining
 
 import akka.util.ByteString
 
@@ -7,7 +7,7 @@ import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.domain.Address
 
 /** Provides utility values used throughout tests */
-object ConsensusConfigs {
+object MiningConfigs {
   final val blockCacheSize = 30
   final val coinbaseAddressNum = 42
   final val coinbase: Address = Address(coinbaseAddressNum)
@@ -20,7 +20,7 @@ object ConsensusConfigs {
     mineRounds = 100000
   )
 
-  final val consensusConfig: ConsensusConfig = new ConsensusConfig(
+  final val miningConfig: MiningConfig = new MiningConfig(
     protocol = Protocol.PoW,
     coinbase = coinbase,
     headerExtraData = ByteString.empty,
@@ -28,5 +28,5 @@ object ConsensusConfigs {
     miningEnabled = false
   )
 
-  final val fullConsensusConfig: FullConsensusConfig[EthashConfig] = FullConsensusConfig(consensusConfig, ethashConfig)
+  final val fullMiningConfig: FullMiningConfig[EthashConfig] = FullMiningConfig(miningConfig, ethashConfig)
 }

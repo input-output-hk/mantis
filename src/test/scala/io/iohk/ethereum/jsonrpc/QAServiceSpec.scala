@@ -11,8 +11,8 @@ import org.scalamock.scalatest.AsyncMockFactory
 
 import io.iohk.ethereum._
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
@@ -31,7 +31,7 @@ class QAServiceSpec
 
   "QAService" should "send msg to miner and return miner's response" in testCaseM { fixture =>
     import fixture._
-    (testConsensus.askMiner _)
+    (testMining.askMiner _)
       .expects(mineBlocksMsg)
       .returning(Task.now(MiningOrdered))
       .atLeastOnce()
@@ -41,7 +41,7 @@ class QAServiceSpec
 
   it should "send msg to miner and return InternalError in case of problems" in testCaseM { fixture =>
     import fixture._
-    (testConsensus.askMiner _)
+    (testMining.askMiner _)
       .expects(mineBlocksMsg)
       .returning(Task.raiseError(new ClassCastException("error")))
       .atLeastOnce()
@@ -103,18 +103,18 @@ class QAServiceSpec
   }
 
   class Fixture extends BlockchainConfigBuilder {
-    protected trait TestConsensus extends Consensus {
+    protected trait TestMining extends Mining {
       override type Config = EthashConfig
     }
 
-    lazy val testConsensus: TestConsensus = mock[TestConsensus]
+    lazy val testMining: TestMining = mock[TestMining]
     lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
     lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
     lazy val syncController: TestProbe = TestProbe()
     lazy val checkpointBlockGenerator = new CheckpointBlockGenerator()
 
     lazy val qaService = new QAService(
-      testConsensus,
+      testMining,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,

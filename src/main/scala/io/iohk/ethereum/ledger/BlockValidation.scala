@@ -2,21 +2,24 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Receipt
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class BlockValidation(
-    consensus: Consensus,
+    mining: Mining,
     blockchainReader: BlockchainReader,
     blockQueue: BlockQueue
 ) {
 
-  def validateBlockBeforeExecution(block: Block): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
-    consensus.validators.validateBlockBeforeExecution(
+  def validateBlockBeforeExecution(
+      block: Block
+  )(implicit blockchainConfig: BlockchainConfig): Either[ValidationBeforeExecError, BlockExecutionSuccess] =
+    mining.validators.validateBlockBeforeExecution(
       block = block,
       getBlockHeaderByHash = getBlockHeaderFromChainOrQueue,
       getNBlocksBack = getNBlocksBackFromChainOrQueue
@@ -41,7 +44,9 @@ class BlockValidation(
           val remaining = n - queuedBlocks.length - 1
 
           val numbers = (block.header.number - remaining) until block.header.number
-          val blocks = (numbers.toList.flatMap(blockchainReader.getBlockByNumber) :+ block) ::: queuedBlocks
+          val bestBranch = blockchainReader.getBestBranch()
+          val blocks =
+            (numbers.toList.flatMap(nb => bestBranch.getBlockByNumber(nb)) :+ block) ::: queuedBlocks
           blocks
       }
     }
@@ -52,8 +57,8 @@ class BlockValidation(
       stateRootHash: ByteString,
       receipts: Seq[Receipt],
       gasUsed: BigInt
-  ): Either[BlockExecutionError, BlockExecutionSuccess] =
-    consensus.validators.validateBlockAfterExecution(
+  )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockExecutionSuccess] =
+    mining.validators.validateBlockAfterExecution(
       block = block,
       stateRootHash = stateRootHash,
       receipts = receipts,

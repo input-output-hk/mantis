@@ -13,16 +13,16 @@ import scala.concurrent.duration.Duration
 import scala.concurrent.duration.FiniteDuration
 
 import org.bouncycastle.util.encoders.Hex
-import org.scalamock.handlers.CallHandler3
+import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
 
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
-import io.iohk.ethereum.consensus.ConsensusConfigBuilder
-import io.iohk.ethereum.consensus.FullConsensusConfig
-import io.iohk.ethereum.consensus.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.FullMiningConfig
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
+import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
@@ -32,11 +32,13 @@ import io.iohk.ethereum.jsonrpc.EthMiningService
 import io.iohk.ethereum.jsonrpc.EthMiningService.SubmitHashRateResponse
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.VMImpl
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 
-trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
+trait MinerSpecSetup extends MiningConfigBuilder with MockFactory with BlockchainConfigBuilder {
   implicit val classicSystem: ClassicSystem = ClassicSystem()
   implicit val scheduler: Scheduler = Scheduler(classicSystem.dispatcher)
   val parentActor: TestProbe = TestProbe()
@@ -71,29 +73,28 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
     chainId = 0x3d.toByte
   )
 
-  lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
-  lazy val blockchainConfig = Config.blockchains.blockchainConfig
-  lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
+  lazy val mining: PoWMining = buildPoWConsensus().withBlockGenerator(blockGenerator)
+  implicit override lazy val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+  lazy val difficultyCalc = EthashDifficultyCalculator
   val blockForMiningTimestamp: Long = System.currentTimeMillis()
 
   protected def getParentBlock(parentBlockNumber: Int): Block =
     origin.copy(header = origin.header.copy(number = parentBlockNumber))
 
-  def buildPoWConsensus(): PoWConsensus = {
+  def buildPoWConsensus(): PoWMining = {
     val mantisConfig = Config.config
     val specificConfig = EthashConfig(mantisConfig)
 
-    val fullConfig = FullConsensusConfig(consensusConfig, specificConfig)
+    val fullConfig = FullMiningConfig(miningConfig, specificConfig)
 
-    val validators = ValidatorsExecutor(blockchainConfig, consensusConfig.protocol)
+    val validators = ValidatorsExecutor(miningConfig.protocol)
 
     val additionalPoWData = NoAdditionalPoWData
-    PoWConsensus(
+    PoWMining(
       vm,
       evmCodeStorage,
       blockchain,
       blockchainReader,
-      blockchainConfig,
       fullConfig,
       validators,
       additionalPoWData
@@ -107,7 +108,7 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
       BlockHeader(
         parentHash = parentHeader.hash,
         ommersHash = ByteString(Hex.decode("1dcc4de8dec75d7aab85b567b6ccd41ad312451b948a7413f0a142fd40d49347")),
-        beneficiary = consensusConfig.coinbase.bytes,
+        beneficiary = miningConfig.coinbase.bytes,
         stateRoot = parentHeader.stateRoot,
         transactionsRoot = parentHeader.transactionsRoot,
         receiptsRoot = parentHeader.receiptsRoot,
@@ -117,15 +118,22 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
         gasLimit = calculateGasLimit(UInt256(parentHeader.gasLimit)),
         gasUsed = BigInt(0),
         unixTimestamp = blockForMiningTimestamp,
-        extraData = consensusConfig.headerExtraData,
+        extraData = miningConfig.headerExtraData,
         mixHash = ByteString.empty,
         nonce = ByteString.empty
       ),
       BlockBody(transactions, Nil)
     )
 
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, Nil, consensusConfig.coinbase, Nil, None)
+    (blockGenerator
+      .generateBlock(
+        _: Block,
+        _: Seq[SignedTransaction],
+        _: Address,
+        _: Seq[BlockHeader],
+        _: Option[InMemoryWorldStateProxy]
+      )(_: BlockchainConfig))
+      .expects(parentBlock, Nil, miningConfig.coinbase, Nil, None, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
       .atLeastOnce()
 
@@ -143,10 +151,10 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
       parentBlock: Block,
       withTransactions: Boolean,
       resultBlock: Block
-  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
+  ): CallHandler4[Block, Boolean, Option[InMemoryWorldStateProxy], BlockchainConfig, Task[PendingBlockAndState]] =
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
-      .expects(parentBlock, withTransactions, *)
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy])(_: BlockchainConfig))
+      .expects(parentBlock, withTransactions, *, *)
       .returning(
         Task.now(PendingBlockAndState(PendingBlock(resultBlock, Nil), fakeWorld))
       )
@@ -156,10 +164,10 @@ trait MinerSpecSetup extends ConsensusConfigBuilder with MockFactory {
       parentBlock: Block,
       withTransactions: Boolean,
       resultBlock: Block
-  ): CallHandler3[Block, Boolean, Option[InMemoryWorldStateProxy], Task[PendingBlockAndState]] =
+  ): CallHandler4[Block, Boolean, Option[InMemoryWorldStateProxy], BlockchainConfig, Task[PendingBlockAndState]] =
     (blockCreator
-      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy]))
-      .expects(where { (parent, withTxs, _) =>
+      .getBlockForMining(_: Block, _: Boolean, _: Option[InMemoryWorldStateProxy])(_: BlockchainConfig))
+      .expects(where { (parent, withTxs, _, _) =>
         parent == parentBlock && withTxs == withTransactions
       })
       .returning(

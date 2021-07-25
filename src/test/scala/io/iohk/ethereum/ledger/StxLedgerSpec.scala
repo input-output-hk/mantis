@@ -35,7 +35,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val simulationResult: TxResult =
       stxLedger.simulateTransaction(stxFromAddress, genesisHeader, None)
     val executionResult: TxResult =
-      consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
+      mining.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(stxFromAddress, genesisHeader, None)
 
@@ -46,7 +46,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     estimationResult shouldEqual minGasLimitRequiredForFailingTransaction
 
     // Execute transaction with gasLimit lesser by one that estimated minimum
-    val errorExecResult: TxResult = consensus.blockPreparator.executeTransaction(
+    val errorExecResult: TxResult = mining.blockPreparator.executeTransaction(
       stx.copy(tx = stx.tx.copy(gasLimit = estimationResult - 1)),
       fromAddress,
       genesisHeader,
@@ -65,7 +65,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val stx = SignedTransaction(tx, fakeSignature)
 
     val executionResult: TxResult =
-      consensus.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
+      mining.blockPreparator.executeTransaction(stx, fromAddress, genesisHeader, worldWithAccount)
     val estimationResult: BigInt =
       stxLedger.binarySearchGasEstimation(SignedTransactionWithSender(stx, fromAddress), genesisHeader, None)
 
@@ -82,7 +82,7 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
     val newBlock: Block = genesisBlock.copy(header = block.header.copy(number = 1, parentHash = genesisHash))
 
     val preparedBlock: PreparedBlock =
-      consensus.blockPreparator.prepareBlock(
+      mining.blockPreparator.prepareBlock(
         storagesInstance.storages.evmCodeStorage,
         newBlock,
         genesisBlock.header,
@@ -120,15 +120,14 @@ class StxLedgerSpec extends AnyFlatSpec with Matchers with Logger {
 // scalastyle:off magic.number line.size.limit
 trait ScenarioSetup extends EphemBlockchainTestSetup {
 
-  override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
-    forkBlockNumbers = ForkBlockNumbers(
+  implicit override lazy val blockchainConfig: BlockchainConfig = BlockchainConfig(
+    forkBlockNumbers = ForkBlockNumbers.Empty.copy(
       eip155BlockNumber = 0,
       eip161BlockNumber = 0,
       frontierBlockNumber = 0,
       homesteadBlockNumber = 0,
       difficultyBombPauseBlockNumber = 0,
       difficultyBombContinueBlockNumber = 0,
-      difficultyBombRemovalBlockNumber = Long.MaxValue,
       eip150BlockNumber = 0,
       eip160BlockNumber = 0,
       eip106BlockNumber = 0,
@@ -140,9 +139,7 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       phoenixBlockNumber = 0,
       petersburgBlockNumber = 0,
       ecip1098BlockNumber = 0,
-      ecip1097BlockNumber = 0,
-      ecip1099BlockNumber = Long.MaxValue,
-      ecip1049BlockNumber = None
+      ecip1097BlockNumber = 0
     ),
     chainId = 0x03.toByte,
     networkId = 1,
@@ -163,8 +160,8 @@ trait ScenarioSetup extends EphemBlockchainTestSetup {
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig,
-      consensus.blockPreparator
+      mining.blockPreparator,
+      this
     )
 
   val emptyWorld: InMemoryWorldStateProxy =

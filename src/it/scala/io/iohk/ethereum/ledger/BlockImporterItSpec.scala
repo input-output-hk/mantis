@@ -26,8 +26,6 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
@@ -35,6 +33,7 @@ import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Config.SyncConfig
 
@@ -67,7 +66,8 @@ class BlockImporterItSpec
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
         pendingTransactionsManagerProbe.ref,
-        supervisor.ref
+        supervisor.ref,
+        this
       )
     )
 
@@ -180,7 +180,8 @@ class BlockImporterItSpec
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
         pendingTransactionsManagerProbe.ref,
-        supervisor.ref
+        supervisor.ref,
+        this
       )
     )
 
@@ -232,15 +233,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
   )
 
   override protected lazy val successValidators: Validators = new Mocks.MockValidatorsAlwaysSucceed {
-    override val ommersValidator: OmmersValidator = (
-        parentHash: ByteString,
-        blockNumber: BigInt,
-        ommers: Seq[BlockHeader],
-        getBlockHeaderByHash: GetBlockHeaderByHash,
-        getNBlocksBack: GetNBlocksBack
-    ) =>
-      new StdOmmersValidator(blockHeaderValidator)
-        .validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
+    override val ommersValidator: OmmersValidator = new StdOmmersValidator(blockHeaderValidator)
   }
 
   override lazy val blockImport: BlockImport = mkBlockImport(
@@ -251,14 +244,13 @@ class TestFixture extends TestSetupWithVmAndValidators {
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
-        consensus.blockPreparator,
-        new BlockValidation(consensus, blockchainReader, blockQueue)
+        mining.blockPreparator,
+        new BlockValidation(mining, blockchainReader, blockQueue)
       ) {
         override def executeAndValidateBlock(
             block: Block,
             alreadyValidated: Boolean = false
-        ): Either[BlockExecutionError, Seq[Receipt]] =
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
           Right(BlockResult(emptyWorld).receipts)
       }
     )
@@ -276,7 +268,8 @@ class TestFixture extends TestSetupWithVmAndValidators {
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
       pendingTransactionsManagerProbe.ref,
-      supervisor.ref
+      supervisor.ref,
+      this
     )
   )
 

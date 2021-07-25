@@ -16,7 +16,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfig
+import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.crypto
@@ -209,7 +209,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate block before eip155 and filter out chain specific tx" in new TestSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
+    implicit override lazy val blockchainConfig = BlockchainConfig(
       chainId = 0x3d.toByte,
       networkId = 1,
       customGenesisFileOpt = Some("test-genesis.json"),
@@ -224,28 +224,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       gasTieBreaker = false,
       ethCompatibleStorage = true,
       treasuryAddress = Address(0),
-      forkBlockNumbers = ForkBlockNumbers(
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
-        eip155BlockNumber = Long.MaxValue,
-        eip106BlockNumber = Long.MaxValue,
-        byzantiumBlockNumber = Long.MaxValue,
-        constantinopleBlockNumber = Long.MaxValue,
-        istanbulBlockNumber = Long.MaxValue,
-        eip160BlockNumber = Long.MaxValue,
-        eip150BlockNumber = Long.MaxValue,
-        eip161BlockNumber = Long.MaxValue,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        ecip1098BlockNumber = Long.MaxValue,
-        ecip1097BlockNumber = Long.MaxValue,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        difficultyBombRemovalBlockNumber = 5900000
       )
     )
 
@@ -255,8 +239,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -292,29 +275,14 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
   }
 
   it should "generate correct block with (without empty accounts) after EIP-161" in new TestSetup {
-    override lazy val blockchainConfig = BlockchainConfig(
-      forkBlockNumbers = ForkBlockNumbers(
+    implicit override lazy val blockchainConfig = BlockchainConfig(
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         frontierBlockNumber = 0,
         homesteadBlockNumber = 1150000,
-        eip155BlockNumber = Long.MaxValue,
-        eip106BlockNumber = Long.MaxValue,
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
         difficultyBombRemovalBlockNumber = 5900000,
-        byzantiumBlockNumber = Long.MaxValue,
-        constantinopleBlockNumber = Long.MaxValue,
-        istanbulBlockNumber = Long.MaxValue,
-        eip160BlockNumber = Long.MaxValue,
-        eip150BlockNumber = Long.MaxValue,
-        eip161BlockNumber = 0,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        ecip1098BlockNumber = Long.MaxValue,
-        ecip1097BlockNumber = Long.MaxValue,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        eip161BlockNumber = 0
       ),
       chainId = 0x3d.toByte,
       networkId = 1,
@@ -338,8 +306,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 
@@ -544,7 +511,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
             )
           )
 
-        override lazy val consensusConfig = buildConsensusConfig()
+        override lazy val miningConfig = buildMiningConfig()
       }
       import testSetup._
 
@@ -575,7 +542,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -591,7 +558,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -614,7 +581,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = maliciousAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
     val block = {
       import producer._
@@ -630,7 +597,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
           treasuryAddress = treasuryAccount,
           customGenesisFileOpt = Some("test-genesis-treasury.json")
         )
-      override lazy val consensusConfig = buildConsensusConfig()
+      override lazy val miningConfig = buildMiningConfig()
     }
 
     {
@@ -676,28 +643,12 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       SignedTransactionWithSender(signedTransaction, Address(keyPair))
 
     val baseBlockchainConfig: BlockchainConfig = BlockchainConfig(
-      forkBlockNumbers = ForkBlockNumbers(
-        frontierBlockNumber = 0,
+      forkBlockNumbers = ForkBlockNumbers.Empty.copy(
         homesteadBlockNumber = 1150000,
         eip155BlockNumber = 0,
-        eip106BlockNumber = Long.MaxValue,
-        byzantiumBlockNumber = Long.MaxValue,
         difficultyBombPauseBlockNumber = 3000000,
         difficultyBombContinueBlockNumber = 5000000,
-        difficultyBombRemovalBlockNumber = 5900000,
-        constantinopleBlockNumber = Long.MaxValue,
-        istanbulBlockNumber = Long.MaxValue,
-        eip160BlockNumber = Long.MaxValue,
-        eip150BlockNumber = Long.MaxValue,
-        eip161BlockNumber = Long.MaxValue,
-        atlantisBlockNumber = Long.MaxValue,
-        aghartaBlockNumber = Long.MaxValue,
-        phoenixBlockNumber = Long.MaxValue,
-        petersburgBlockNumber = Long.MaxValue,
-        ecip1098BlockNumber = Long.MaxValue,
-        ecip1097BlockNumber = Long.MaxValue,
-        ecip1099BlockNumber = Long.MaxValue,
-        ecip1049BlockNumber = None
+        difficultyBombRemovalBlockNumber = 5900000
       ),
       chainId = 0x3d.toByte,
       networkId = 1,
@@ -714,14 +665,13 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       ethCompatibleStorage = true,
       treasuryAddress = Address(0)
     )
-    override lazy val blockchainConfig = baseBlockchainConfig
+    implicit override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
 
     val genesisDataLoader =
       new GenesisDataLoader(
         blockchainReader,
         blockchainWriter,
-        storagesInstance.storages.stateStorage,
-        blockchainConfig
+        storagesInstance.storages.stateStorage
       )
     genesisDataLoader.loadGenesisData()
 
@@ -734,22 +684,21 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     override lazy val validators: ValidatorsExecutor = powValidators
 
-    override lazy val consensusConfig: ConsensusConfig =
-      buildConsensusConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
+    override lazy val miningConfig: MiningConfig =
+      buildMiningConfig().copy(headerExtraData = headerExtraData, blockCacheSize = blockCacheSize)
 
     lazy val blockGenerator: TestBlockGenerator =
-      consensus.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
+      mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     lazy val blockValidation =
-      new BlockValidation(consensus, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
     lazy val blockExecution =
       new BlockExecution(
         blockchain,
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       )
 

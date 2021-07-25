@@ -21,21 +21,23 @@ import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.ConsensusConfigs
-import io.iohk.ethereum.consensus.TestConsensus
 import io.iohk.ethereum.consensus.blocks.PendingBlock
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.MiningConfigs
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.blocks.PoWBlockGenerator
 import io.iohk.ethereum.consensus.pow.blocks.RestrictedPoWBlockGeneratorImpl
 import io.iohk.ethereum.consensus.pow.difficulty.EthashDifficultyCalculator
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.BlockHeader.getEncodedWithoutNonce
 import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.EthMiningService._
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
@@ -44,6 +46,7 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.nodebuilder.ApisBuilder
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config
 
@@ -59,8 +62,15 @@ class EthMiningServiceSpec
 
     ethMiningService.getMining(GetMiningRequest()).runSyncUnsafe() shouldEqual Right(GetMiningResponse(false))
 
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *, *)
+    (blockGenerator
+      .generateBlock(
+        _: Block,
+        _: Seq[SignedTransaction],
+        _: Address,
+        _: Seq[BlockHeader],
+        _: Option[InMemoryWorldStateProxy]
+      )(_: BlockchainConfig))
+      .expects(parentBlock, *, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
@@ -97,8 +107,15 @@ class EthMiningServiceSpec
 
   it should "return if node is mining after time out" in new TestSetup {
 
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, *, *, *, *)
+    (blockGenerator
+      .generateBlock(
+        _: Block,
+        _: Seq[SignedTransaction],
+        _: Address,
+        _: Seq[BlockHeader],
+        _: Option[InMemoryWorldStateProxy]
+      )(_: BlockchainConfig))
+      .expects(parentBlock, *, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchainWriter.storeBlock(parentBlock).commit()
     ethMiningService.getWork(GetWorkRequest())
@@ -112,8 +129,15 @@ class EthMiningServiceSpec
 
   it should "return requested work" in new TestSetup {
 
-    (blockGenerator.generateBlock _)
-      .expects(parentBlock, Nil, *, *, *)
+    (blockGenerator
+      .generateBlock(
+        _: Block,
+        _: Seq[SignedTransaction],
+        _: Address,
+        _: Seq[BlockHeader],
+        _: Option[InMemoryWorldStateProxy]
+      )(_: BlockchainConfig))
+      .expects(parentBlock, Nil, *, *, *, *)
       .returning(PendingBlockAndState(PendingBlock(block, Nil), fakeWorld))
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -128,18 +152,17 @@ class EthMiningServiceSpec
   }
 
   it should "generate and submit work when generating block for mining with restricted ethash generator" in new TestSetup {
-    val testConsensus = buildTestConsensus()
+    val testMining = buildTestMining()
     override lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
-      blockPreparator = testConsensus.blockPreparator,
-      difficultyCalc,
+      miningConfig = miningConfig,
+      blockPreparator = testMining.blockPreparator,
+      EthashDifficultyCalculator,
       minerKey
     )
-    override lazy val consensus: TestConsensus = testConsensus.withBlockGenerator(restrictedGenerator)
+    override lazy val mining: TestMining = testMining.withBlockGenerator(restrictedGenerator)
 
     blockchainWriter.save(parentBlock, Nil, ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty), true)
 
@@ -188,7 +211,7 @@ class EthMiningServiceSpec
   it should "return correct coinbase" in new TestSetup {
 
     val response = ethMiningService.getCoinbase(GetCoinbaseRequest())
-    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(consensusConfig.coinbase))
+    response.runSyncUnsafe() shouldEqual Right(GetCoinbaseResponse(miningConfig.coinbase))
   }
 
   it should "accept and report hashrate" in new TestSetup {
@@ -233,8 +256,8 @@ class EthMiningServiceSpec
   class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
-    override lazy val consensus: TestConsensus = buildTestConsensus().withBlockGenerator(blockGenerator)
-    override lazy val consensusConfig = ConsensusConfigs.consensusConfig
+    override lazy val mining: TestMining = buildTestMining().withBlockGenerator(blockGenerator)
+    override lazy val miningConfig = MiningConfigs.miningConfig
 
     val syncingController: TestProbe = TestProbe()
     val pendingTransactionsManager: TestProbe = TestProbe()
@@ -247,16 +270,13 @@ class EthMiningServiceSpec
       ByteStringUtils.string2hash("00f7500a7178548b8a4488f78477660b548c9363e16b584c21e0208b3f1e0dc61f")
     )
 
-    lazy val difficultyCalc = new EthashDifficultyCalculator(blockchainConfig)
-
     lazy val restrictedGenerator = new RestrictedPoWBlockGeneratorImpl(
       evmCodeStorage = storagesInstance.storages.evmCodeStorage,
       validators = MockValidatorsAlwaysSucceed,
       blockchainReader = blockchainReader,
-      blockchainConfig = blockchainConfig,
-      consensusConfig = consensusConfig,
-      blockPreparator = consensus.blockPreparator,
-      difficultyCalc,
+      miningConfig = miningConfig,
+      blockPreparator = mining.blockPreparator,
+      EthashDifficultyCalculator,
       minerKey
     )
 
@@ -264,13 +284,13 @@ class EthMiningServiceSpec
 
     lazy val ethMiningService = new EthMiningService(
       blockchainReader,
-      blockchainConfig,
-      consensus,
+      mining,
       jsonRpcConfig,
       ommersPool.ref,
       syncingController.ref,
       pendingTransactionsManager.ref,
-      getTransactionFromPoolTimeout
+      getTransactionFromPoolTimeout,
+      this
     )
 
     val difficulty = 131072

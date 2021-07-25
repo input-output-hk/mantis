@@ -6,7 +6,7 @@ import org.json4s.JObject
 import org.json4s.JString
 import org.json4s.JValue
 
-import io.iohk.ethereum.consensus.Protocol
+import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.jsonrpc.serialization.JsonEncoder
 
 case class JsonRpcError(code: Int, message: String, data: Option[JValue])
@@ -45,8 +45,8 @@ object JsonRpcError extends JsonMethodsImplicits {
   //
   // Note Error Code "2", "Action not allowed" could be a candidate here, but the description they provide
   //      probably does not match this use-case.
-  final val ConsensusIsNotEthash: JsonRpcError =
-    JsonRpcError(200, s"The consensus algorithm is not ${Protocol.Names.PoW}", None)
+  final val MiningIsNotEthash: JsonRpcError =
+    JsonRpcError(200, s"The mining algorithm is not ${Protocol.Names.PoW}", None)
 
   def executionError(reasons: List[EthCustomError]): JsonRpcError = JsonRpcError(3, "Execution error", reasons)
   val NodeNotFound: JsonRpcError = executionError(List(EthCustomError.DoesntExist("State node")))

@@ -15,7 +15,8 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
     if (!doHeadersFormChain(headers)) {
       InvalidBranch
     } else {
-      val knownParentOrGenesis = blockchain
+      val knownParentOrGenesis = blockchainReader
+        .getBestBranch()
         .isInChain(headers.head.parentHash) || headers.head.hash == blockchainReader.genesisHeader.hash
 
       if (!knownParentOrGenesis)
@@ -72,10 +73,12 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
     }
   }
 
-  private def getTopBlocksFromNumber(from: BigInt): List[Block] =
+  private def getTopBlocksFromNumber(from: BigInt): List[Block] = {
+    val bestBranch = blockchainReader.getBestBranch()
     (from to blockchainReader.getBestBlockNumber())
-      .flatMap(blockchainReader.getBlockByNumber)
+      .flatMap(nb => bestBranch.getBlockByNumber(nb))
       .toList
+  }
 }
 
 sealed trait BranchResolutionResult

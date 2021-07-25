@@ -8,6 +8,9 @@ import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
+import io.iohk.ethereum.domain.branch.BestBranch
+import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.EmptyBranch$
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -48,30 +51,11 @@ class BlockchainReader(
       body <- getBlockBodyByHash(hash)
     } yield Block(header, body)
 
-  /** Returns a block hash given a block number
-    *
-    * @param number Number of the searchead block
-    * @return Block hash if found
-    */
-  def getHashByBlockNumber(number: BigInt): Option[ByteString] =
-    blockNumberMappingStorage.get(number)
-
   def getBlockHeaderByNumber(number: BigInt): Option[BlockHeader] =
     for {
       hash <- getHashByBlockNumber(number)
       header <- getBlockHeaderByHash(hash)
     } yield header
-
-  /** Allows to query for a block based on it's number
-    *
-    * @param number Block number
-    * @return Block if it exists
-    */
-  def getBlockByNumber(number: BigInt): Option[Block] =
-    for {
-      hash <- getHashByBlockNumber(number)
-      block <- getBlockByHash(hash)
-    } yield block
 
   /** Returns MPT node searched by it's hash
     * @param hash Node Hash
@@ -85,6 +69,18 @@ class BlockchainReader(
     * @return Receipts if found
     */
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
+
+  /** get the current best stored branch */
+  def getBestBranch(): Branch =
+    getBestBlock()
+      .map { block =>
+        new BestBranch(
+          block.header,
+          blockNumberMappingStorage,
+          this
+        )
+      }
+      .getOrElse(EmptyBranch$)
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
@@ -116,6 +112,25 @@ class BlockchainReader(
 
   def genesisBlock: Block =
     getBlockByNumber(0).get
+
+  /** Allows to query for a block based on it's number
+    *
+    * @param number Block number
+    * @return Block if it exists
+    */
+  private def getBlockByNumber(number: BigInt): Option[Block] =
+    for {
+      hash <- getHashByBlockNumber(number)
+      block <- getBlockByHash(hash)
+    } yield block
+
+  /** Returns a block hash given a block number
+    *
+    * @param number Number of the searchead block
+    * @return Block hash if found
+    */
+  private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
+    blockNumberMappingStorage.get(number)
 }
 
 object BlockchainReader {

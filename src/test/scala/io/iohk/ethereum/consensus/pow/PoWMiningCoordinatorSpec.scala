@@ -78,7 +78,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchainReader,
-            Some(0)
+            Some(0),
+            this
           ),
           "KeccakMining"
         )
@@ -105,7 +106,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchainReader,
-            Some(0)
+            Some(0),
+            this
           ),
           "AutomaticMining"
         )
@@ -130,7 +132,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchainReader,
-            Some(0)
+            Some(0),
+            this
           ),
           "AlwaysAttemptToMine"
         )
@@ -156,7 +159,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
             ethMiningService,
             blockCreator,
             blockchainReader,
-            Some(0)
+            Some(0),
+            this
           ),
           "StoppingMining"
         )
@@ -173,7 +177,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
   }
 
   class TestSetup(coordinatorName: String) extends MinerSpecSetup {
-    override lazy val consensus: PoWConsensus = buildPoWConsensus().withBlockGenerator(blockGenerator)
+    override lazy val mining: PoWMining = buildPoWConsensus().withBlockGenerator(blockGenerator)
 
     val parentBlockNumber: Int = 23499
     override val origin: Block = Block(
@@ -193,7 +197,7 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
     override val blockCreator = new PoWBlockCreator(
       pendingTransactionsManager = pendingTransactionsManager.ref,
       getTransactionFromPoolTimeout = getTransactionFromPoolTimeout,
-      consensus = consensus,
+      mining = mining,
       ommersPool = ommersPool.ref
     )
 
@@ -203,7 +207,8 @@ class PoWMiningCoordinatorSpec extends ScalaTestWithActorTestKit with AnyFreeSpe
         ethMiningService,
         blockCreator,
         blockchainReader,
-        None
+        None,
+        this
       ),
       coordinatorName
     )

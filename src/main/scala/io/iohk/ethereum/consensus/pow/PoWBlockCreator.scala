@@ -16,26 +16,26 @@ import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransactionsResponse
 import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class PoWBlockCreator(
     val pendingTransactionsManager: ActorRef,
     val getTransactionFromPoolTimeout: FiniteDuration,
-    consensus: PoWConsensus,
+    mining: PoWMining,
     ommersPool: ActorRef
 ) extends TransactionPicker {
 
-  lazy val fullConsensusConfig = consensus.config
+  lazy val fullConsensusConfig = mining.config
   private lazy val consensusConfig = fullConsensusConfig.generic
   lazy val miningConfig = fullConsensusConfig.specific
   private lazy val coinbase: Address = consensusConfig.coinbase
-  private lazy val blockGenerator: PoWBlockGenerator = consensus.blockGenerator
-  lazy val blockchainConfig = consensus.blockchainConfig
+  private lazy val blockGenerator: PoWBlockGenerator = mining.blockGenerator
 
   def getBlockForMining(
       parentBlock: Block,
       withTransactions: Boolean = true,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy] = None
-  ): Task[PendingBlockAndState] = {
+  )(implicit blockchainConfig: BlockchainConfig): Task[PendingBlockAndState] = {
     val transactions = if (withTransactions) getTransactionsFromPool else Task.now(PendingTransactionsResponse(Nil))
     Task.parZip2(getOmmersFromPool(parentBlock.hash), transactions).map { case (ommers, pendingTxs) =>
       blockGenerator.generateBlock(

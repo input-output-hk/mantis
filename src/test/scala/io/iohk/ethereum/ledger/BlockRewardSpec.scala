@@ -24,7 +24,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   it should "pay to the miner if no ommers included" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
     val beforeExecutionBalance: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
     afterRewardWorldState
       .getGuaranteedAccount(Address(block.header.beneficiary))
@@ -34,16 +34,16 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
   // scalastyle:off magic.number
   it should "be paid to the miner even if the account doesn't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef))
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
     val expectedRewardAsBigInt =
-      consensus.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
+      mining.blockPreparator.blockRewardCalculator.calculateMiningReward(block.header.number, 0)
     val expectedReward = UInt256(expectedRewardAsBigInt)
     afterRewardWorldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance shouldEqual expectedReward
   }
 
   it should "be paid if ommers are included in block" in new TestSetup {
     val block = sampleBlock(validAccountAddress, Seq(validAccountAddress2, validAccountAddress3))
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
 
     val beforeExecutionBalance1: BigInt = worldState.getGuaranteedAccount(Address(block.header.beneficiary)).balance
     val beforeExecutionBalance2: BigInt =
@@ -65,7 +65,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   it should "be paid if ommers are included in block even if accounts don't exist" in new TestSetup {
     val block = sampleBlock(Address(0xdeadbeef), Seq(Address(0x1111), Address(0x2222)))
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
     afterRewardWorldState
       .getGuaranteedAccount(Address(block.header.beneficiary))
       .balance shouldEqual minerTwoOmmersReward
@@ -79,7 +79,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   it should "be calculated correctly after byzantium fork" in new TestSetup {
     val block: Block = sampleBlockAfterByzantium(validAccountAddress)
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
     val address = Address(block.header.beneficiary)
     val beforeExecutionBalance: BigInt = worldState.getGuaranteedAccount(address).balance
     afterRewardWorldState
@@ -94,7 +94,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val ommer1Address = Address(block.body.uncleNodesList.head.beneficiary)
     val ommer2Address = Address(block.body.uncleNodesList(1).beneficiary)
 
-    val afterRewardWorldState: InMemoryWorldStateProxy = consensus.blockPreparator.payBlockReward(block, worldState)
+    val afterRewardWorldState: InMemoryWorldStateProxy = mining.blockPreparator.payBlockReward(block, worldState)
 
     val beforeExecutionBalance1: BigInt = worldState.getGuaranteedAccount(minerAddress).balance
     val beforeExecutionBalance2: BigInt = worldState.getGuaranteedAccount(ommer1Address).balance
@@ -118,9 +118,9 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
 
   it should "correctly distribute block reward according to ECIP1098" in new TestSetup {
     val blockNoPostTreasury = blockchainConfig.forkBlockNumbers.ecip1098BlockNumber + 1
-    val blockReward = consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(sampleBlockNumber)
+    val blockReward = mining.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(sampleBlockNumber)
     val blockRewardPostTreasury =
-      consensus.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(blockNoPostTreasury)
+      mining.blockPreparator.blockRewardCalculator.calculateMiningRewardForBlock(blockNoPostTreasury)
 
     val table = Table[Boolean, BigInt, BigInt, BigInt](
       ("contract deployed", "miner reward", "treasury reward", "block no"),
@@ -154,7 +154,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
         worldBeforeExecution.getAccount(treasuryAddress).fold(UInt256.Zero)(_.balance)
 
       val afterRewardWorldState: InMemoryWorldStateProxy =
-        consensus.blockPreparator.payBlockReward(block, worldBeforeExecution)
+        mining.blockPreparator.payBlockReward(block, worldBeforeExecution)
       val afterExecutionMinerBalance = afterRewardWorldState.getAccount(minerAddress).fold(UInt256.Zero)(_.balance)
       val afterExecutionTreasuryBalance =
         afterRewardWorldState.getAccount(treasuryAddress).fold(UInt256.Zero)(_.balance)
@@ -182,7 +182,7 @@ class BlockRewardSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyC
     val treasuryAddress = validAccountAddress2
     val baseBlockchainConfig = Config.blockchains.blockchainConfig
     private val forkBlockNumbers: ForkBlockNumbers = baseBlockchainConfig.forkBlockNumbers
-    override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
+    implicit override lazy val blockchainConfig: BlockchainConfig = baseBlockchainConfig
       .copy(
         treasuryAddress = treasuryAddress,
         forkBlockNumbers = forkBlockNumbers

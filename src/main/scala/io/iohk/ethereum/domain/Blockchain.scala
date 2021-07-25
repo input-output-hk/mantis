@@ -78,12 +78,6 @@ trait Blockchain {
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
-  /** Strict check if given block hash is in chain
-    * Using any of getXXXByHash is not always accurate - after restart the best block is often lower than before restart
-    * The result of that is returning data of blocks which we don't consider as a part of the chain anymore
-    * @param hash block hash
-    */
-  def isInChain(hash: ByteString): Boolean
 }
 
 class BlockchainImpl(
@@ -99,12 +93,6 @@ class BlockchainImpl(
     blockchainMetadata: BlockchainMetadata
 ) extends Blockchain
     with Logger {
-
-  override def isInChain(hash: ByteString): Boolean =
-    (for {
-      header <- blockchainReader.getBlockHeaderByHash(hash) if header.number <= blockchainReader.getBestBlockNumber()
-      hash <- blockchainReader.getHashByBlockNumber(header.number)
-    } yield header.hash == hash).getOrElse(false)
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
@@ -223,7 +211,7 @@ class BlockchainImpl(
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
-      if (blockchainReader.getHashByBlockNumber(block.number).contains(blockHash))
+      if (blockchainReader.getBestBranch().getHashByBlockNumber(block.number).contains(blockHash))
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
@@ -292,7 +280,7 @@ class BlockchainImpl(
   ): BigInt =
     if (blockNumberToCheck > 0) {
       val maybePreviousCheckpointBlockNumber = for {
-        currentBlock <- blockchainReader.getBlockByNumber(blockNumberToCheck)
+        currentBlock <- blockchainReader.getBestBranch().getBlockByNumber(blockNumberToCheck)
         if currentBlock.hasCheckpoint &&
           currentBlock.number < latestCheckpointBlockNumber
       } yield currentBlock.number

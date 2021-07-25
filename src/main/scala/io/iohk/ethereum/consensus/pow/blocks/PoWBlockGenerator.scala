@@ -4,10 +4,10 @@ import java.util.function.UnaryOperator
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.ConsensusConfig
-import io.iohk.ethereum.consensus.ConsensusMetrics
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.difficulty.DifficultyCalculator
+import io.iohk.ethereum.consensus.mining.MiningConfig
+import io.iohk.ethereum.consensus.mining.MiningMetrics
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -30,14 +30,12 @@ class PoWBlockGeneratorImpl(
     evmCodeStorage: EvmCodeStorage,
     validators: ValidatorsExecutor,
     blockchainReader: BlockchainReader,
-    blockchainConfig: BlockchainConfig,
-    consensusConfig: ConsensusConfig,
+    miningConfig: MiningConfig,
     val blockPreparator: BlockPreparator,
     difficultyCalc: DifficultyCalculator,
     blockTimestampProvider: BlockTimestampProvider = DefaultBlockTimestampProvider
 ) extends BlockGeneratorSkeleton(
-      blockchainConfig,
-      consensusConfig,
+      miningConfig,
       difficultyCalc,
       blockTimestampProvider
     )
@@ -52,14 +50,14 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       blockTimestamp: Long,
       x: Ommers
-  ): BlockHeader =
+  )(implicit blockchainConfig: BlockchainConfig): BlockHeader =
     defaultPrepareHeader(blockNumber, parent, beneficiary, blockTimestamp, x)
 
   /** An empty `X` */
   def emptyX: Ommers = Nil
 
   def getPrepared(powHeaderHash: ByteString): Option[PendingBlock] =
-    ConsensusMetrics.MinedBlockEvaluationTimer.record { () =>
+    MiningMetrics.MinedBlockEvaluationTimer.record { () =>
       cache
         .getAndUpdate(new UnaryOperator[List[PendingBlockAndState]] {
           override def apply(t: List[PendingBlockAndState]): List[PendingBlockAndState] =
@@ -79,32 +77,33 @@ class PoWBlockGeneratorImpl(
       beneficiary: Address,
       x: Ommers,
       initialWorldStateBeforeExecution: Option[InMemoryWorldStateProxy]
-  ): PendingBlockAndState = ConsensusMetrics.PoWBlockGeneratorTiming.record { () =>
-    val pHeader = parent.header
-    val blockNumber = pHeader.number + 1
-    val parentHash = pHeader.hash
+  )(implicit blockchainConfig: BlockchainConfig): PendingBlockAndState = MiningMetrics.PoWBlockGeneratorTiming.record {
+    () =>
+      val pHeader = parent.header
+      val blockNumber = pHeader.number + 1
+      val parentHash = pHeader.hash
 
-    val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
-      case Left(_)  => emptyX
-      case Right(_) => x
-    }
+      val ommers = validators.ommersValidator.validate(parentHash, blockNumber, x, blockchainReader) match {
+        case Left(_)  => emptyX
+        case Right(_) => x
 
-    val prepared = prepareBlock(
-      evmCodeStorage,
-      parent,
-      transactions,
-      beneficiary,
-      blockNumber,
-      blockPreparator,
-      ommers,
-      initialWorldStateBeforeExecution
-    )
+      }
+      val prepared = prepareBlock(
+        evmCodeStorage,
+        parent,
+        transactions,
+        beneficiary,
+        blockNumber,
+        blockPreparator,
+        ommers,
+        initialWorldStateBeforeExecution
+      )
 
-    cache.updateAndGet { t: List[PendingBlockAndState] =>
-      (prepared :: t).take(blockCacheSize)
-    }
+      cache.updateAndGet { t: List[PendingBlockAndState] =>
+        (prepared :: t).take(blockCacheSize)
+      }
 
-    prepared
+      prepared
   }
 
   def withBlockTimestampProvider(blockTimestampProvider: BlockTimestampProvider): PoWBlockGeneratorImpl =
@@ -112,8 +111,7 @@ class PoWBlockGeneratorImpl(
       evmCodeStorage,
       validators,
       blockchainReader,
-      blockchainConfig,
-      consensusConfig,
+      miningConfig,
       blockPreparator,
       difficultyCalc,
       blockTimestampProvider

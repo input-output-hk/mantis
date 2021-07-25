@@ -25,8 +25,9 @@ import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.blockchain.sync.SyncController
-import io.iohk.ethereum.consensus._
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
+import io.iohk.ethereum.consensus.mining.MiningBuilder
+import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
@@ -58,9 +59,6 @@ import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.ommers.OmmersPool
 import io.iohk.ethereum.security.SSLContextBuilder
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.testmode.TestEthBlockServiceWrapper
-import io.iohk.ethereum.testmode.TestModeServiceBuilder
-import io.iohk.ethereum.testmode.TestmodeConsensusBuilder
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -68,7 +66,8 @@ import io.iohk.ethereum.utils._
 
 // scalastyle:off number.of.types
 trait BlockchainConfigBuilder {
-  lazy val blockchainConfig = Config.blockchains.blockchainConfig
+  protected lazy val initBlockchainConfig = Config.blockchains.blockchainConfig
+  implicit def blockchainConfig: BlockchainConfig = initBlockchainConfig
 }
 
 trait VmConfigBuilder {
@@ -192,15 +191,10 @@ trait BlockQueueBuilder {
 }
 
 trait BlockImportBuilder {
-  self: BlockchainBuilder
-    with BlockQueueBuilder
-    with ConsensusBuilder
-    with BlockchainConfigBuilder
-    with ActorSystemBuilder
-    with StorageBuilder =>
+  self: BlockchainBuilder with BlockQueueBuilder with MiningBuilder with ActorSystemBuilder with StorageBuilder =>
 
   lazy val blockImport: BlockImport = {
-    val blockValidation = new BlockValidation(consensus, blockchainReader, blockQueue)
+    val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,
       blockchainReader,
@@ -212,8 +206,7 @@ trait BlockImportBuilder {
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        blockchainConfig,
-        consensus.blockPreparator,
+        mining.blockPreparator,
         blockValidation
       ),
       Scheduler(system.dispatchers.lookup("validation-context"))
@@ -411,14 +404,14 @@ trait FilterManagerBuilder {
     with PendingTransactionsManagerBuilder
     with FilterConfigBuilder
     with TxPoolConfigBuilder
-    with ConsensusBuilder =>
+    with MiningBuilder =>
 
   lazy val filterManager: ActorRef =
     system.actorOf(
       FilterManager.props(
         blockchain,
         blockchainReader,
-        consensus.blockGenerator,
+        mining.blockGenerator,
         keyStore,
         pendingTransactionsManager,
         filterConfig,
@@ -434,44 +427,13 @@ trait DebugServiceBuilder {
   lazy val debugService = new DebugService(peerManager, etcPeerManager)
 }
 
-trait TestServiceBuilder {
-  self: BlockchainBuilder
-    with PendingTransactionsManagerBuilder
-    with ConsensusConfigBuilder
-    with BlockchainConfigBuilder
-    with VmBuilder
-    with TestmodeConsensusBuilder
-    with TestModeServiceBuilder
-    with StorageBuilder =>
-
-  lazy val testService =
-    new TestService(
-      blockchain,
-      blockchainReader,
-      blockchainWriter,
-      storagesInstance.storages.stateStorage,
-      storagesInstance.storages.evmCodeStorage,
-      pendingTransactionsManager,
-      consensusConfig,
-      testModeComponentsProvider,
-      blockchainConfig,
-      storagesInstance.storages.transactionMappingStorage
-    )(scheduler)
-}
-
-trait TestEthBlockServiceBuilder extends EthBlocksServiceBuilder {
-  self: BlockchainBuilder with TestModeServiceBuilder with ConsensusBuilder with BlockQueueBuilder =>
-  override lazy val ethBlocksService =
-    new TestEthBlockServiceWrapper(blockchain, blockchainReader, consensus, blockQueue)
-}
-
 trait EthProofServiceBuilder {
-  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder =>
+  self: StorageBuilder with BlockchainBuilder with BlockchainConfigBuilder with MiningBuilder =>
 
   lazy val ethProofService: ProofService = new EthProofService(
     blockchain,
     blockchainReader,
-    consensus.blockGenerator,
+    mining.blockGenerator,
     blockchainConfig.ethCompatibleStorage
   )
 }
@@ -480,7 +442,7 @@ trait EthInfoServiceBuilder {
   self: StorageBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with StxLedgerBuilder
     with KeyStoreBuilder
     with SyncControllerBuilder
@@ -490,7 +452,7 @@ trait EthInfoServiceBuilder {
     blockchain,
     blockchainReader,
     blockchainConfig,
-    consensus,
+    mining,
     stxLedger,
     keyStore,
     syncController,
@@ -502,7 +464,7 @@ trait EthInfoServiceBuilder {
 trait EthMiningServiceBuilder {
   self: BlockchainBuilder
     with BlockchainConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with JSONRpcConfigBuilder
     with OmmersPoolBuilder
     with SyncControllerBuilder
@@ -511,26 +473,26 @@ trait EthMiningServiceBuilder {
 
   lazy val ethMiningService = new EthMiningService(
     blockchainReader,
-    blockchainConfig,
-    consensus,
+    mining,
     jsonRpcConfig,
     ommersPool,
     syncController,
     pendingTransactionsManager,
-    txPoolConfig.getTransactionFromPoolTimeout
+    txPoolConfig.getTransactionFromPoolTimeout,
+    this
   )
 }
 trait EthTxServiceBuilder {
   self: BlockchainBuilder
     with PendingTransactionsManagerBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with TxPoolConfigBuilder
     with StorageBuilder =>
 
   lazy val ethTxService = new EthTxService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     pendingTransactionsManager,
     txPoolConfig.getTransactionFromPoolTimeout,
     storagesInstance.storages.transactionMappingStorage
@@ -538,20 +500,20 @@ trait EthTxServiceBuilder {
 }
 
 trait EthBlocksServiceBuilder {
-  self: BlockchainBuilder with ConsensusBuilder with BlockQueueBuilder =>
+  self: BlockchainBuilder with MiningBuilder with BlockQueueBuilder =>
 
-  lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, consensus, blockQueue)
+  lazy val ethBlocksService = new EthBlocksService(blockchain, blockchainReader, mining, blockQueue)
 }
 
 trait EthUserServiceBuilder {
-  self: BlockchainBuilder with BlockchainConfigBuilder with ConsensusBuilder with StorageBuilder =>
+  self: BlockchainBuilder with BlockchainConfigBuilder with MiningBuilder with StorageBuilder =>
 
   lazy val ethUserService = new EthUserService(
     blockchain,
     blockchainReader,
-    consensus,
+    mining,
     storagesInstance.storages.evmCodeStorage,
-    blockchainConfig
+    this
   )
 }
 
@@ -577,13 +539,13 @@ trait PersonalServiceBuilder {
     blockchain,
     blockchainReader,
     pendingTransactionsManager,
-    blockchainConfig,
-    txPoolConfig
+    txPoolConfig,
+    this
   )
 }
 
 trait QaServiceBuilder {
-  self: ConsensusBuilder
+  self: MiningBuilder
     with SyncControllerBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
@@ -591,7 +553,7 @@ trait QaServiceBuilder {
 
   lazy val qaService =
     new QAService(
-      consensus,
+      mining,
       blockchainReader,
       checkpointBlockGenerator,
       blockchainConfig,
@@ -670,9 +632,7 @@ trait JSONRpcControllerBuilder {
     with CheckpointingServiceBuilder
     with MantisServiceBuilder =>
 
-  private lazy val testService =
-    if (Config.testmode) Some(this.asInstanceOf[TestServiceBuilder].testService)
-    else None
+  protected def testService: Option[TestService] = None
 
   lazy val jsonRpcController =
     new JsonRpcController(
@@ -737,7 +697,7 @@ trait JSONRpcIpcServerBuilder {
 }
 
 trait OmmersPoolBuilder {
-  self: ActorSystemBuilder with BlockchainBuilder with ConsensusConfigBuilder =>
+  self: ActorSystemBuilder with BlockchainBuilder with MiningConfigBuilder =>
 
   lazy val ommersPoolSize: Int = 30 // FIXME For this we need EthashConfig, which means Ethash consensus
   lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, ommersPoolSize))
@@ -754,7 +714,7 @@ trait StxLedgerBuilder {
     with BlockchainBuilder
     with StorageBuilder
     with SyncConfigBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with ActorSystemBuilder =>
 
   lazy val stxLedger: StxLedger =
@@ -762,8 +722,8 @@ trait StxLedgerBuilder {
       blockchain,
       blockchainReader,
       storagesInstance.storages.evmCodeStorage,
-      blockchainConfig,
-      consensus.blockPreparator
+      mining.blockPreparator,
+      this
     )
 }
 
@@ -776,6 +736,7 @@ trait SyncControllerBuilder {
   self: ActorSystemBuilder
     with ServerActorBuilder
     with BlockchainBuilder
+    with BlockchainConfigBuilder
     with BlockImportBuilder
     with NodeStatusBuilder
     with StorageBuilder
@@ -786,7 +747,7 @@ trait SyncControllerBuilder {
     with EtcPeerManagerActorBuilder
     with SyncConfigBuilder
     with ShutdownHookBuilder
-    with ConsensusBuilder
+    with MiningBuilder
     with BlacklistBuilder =>
 
   lazy val syncController: ActorRef = system.actorOf(
@@ -800,13 +761,14 @@ trait SyncControllerBuilder {
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
       blockImport,
-      consensus.validators,
+      mining.validators,
       peerEventBus,
       pendingTransactionsManager,
       ommersPool,
       etcPeerManager,
       blacklist,
-      syncConfig
+      syncConfig,
+      this
     ),
     "sync-controller"
   )
@@ -866,22 +828,22 @@ trait ShutdownHookBuilder {
 object ShutdownHookBuilder extends ShutdownHookBuilder with Logger
 
 trait GenesisDataLoaderBuilder {
-  self: BlockchainBuilder with StorageBuilder with BlockchainConfigBuilder =>
+  self: BlockchainBuilder with StorageBuilder =>
 
   lazy val genesisDataLoader =
     new GenesisDataLoader(
       blockchainReader,
       blockchainWriter,
-      storagesInstance.storages.stateStorage,
-      blockchainConfig
+      storagesInstance.storages.stateStorage
     )
+
 }
 
-/** Provides the basic functionality of a Node, except the consensus algorithm.
+/** Provides the basic functionality of a Node, except the mining algorithm.
   * The latter is loaded dynamically based on configuration.
   *
-  * @see [[io.iohk.ethereum.consensus.ConsensusBuilder ConsensusBuilder]],
-  *      [[io.iohk.ethereum.consensus.ConsensusConfigBuilder ConsensusConfigBuilder]]
+  * @see [[MiningBuilder MiningBuilder]],
+  *      [[MiningConfigBuilder ConsensusConfigBuilder]]
   */
 trait Node
     extends SecureRandomBuilder
@@ -941,8 +903,8 @@ trait Node
     with KnownNodesManagerBuilder
     with SyncConfigBuilder
     with VmBuilder
-    with ConsensusBuilder
-    with ConsensusConfigBuilder
+    with MiningBuilder
+    with MiningConfigBuilder
     with StxLedgerBuilder
     with KeyStoreConfigBuilder
     with AsyncConfigBuilder

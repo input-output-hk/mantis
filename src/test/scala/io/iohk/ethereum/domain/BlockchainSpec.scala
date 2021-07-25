@@ -44,18 +44,25 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchainWriter.storeBlock(validBlock).commit()
-    val block = blockchainReader.getBlockByNumber(validBlock.header.number)
+    blockchain.saveBestKnownBlocks(validBlock.number)
+    val block = blockchainReader.getBestBranch().getBlockByNumber(validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
   }
 
   it should "be able to do strict check of block existence in the chain" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
+    blockchainWriter.save(
+      validBlock.copy(header = validBlock.header.copy(number = validBlock.number - 1)),
+      Seq.empty,
+      ChainWeight(100, 100),
+      saveAsBestBlock = true
+    )
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
-    blockchain.isInChain(validBlock.hash) === false
+    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(true)
     // simulation of node restart
     blockchain.saveBestKnownBlocks(validBlock.header.number - 1)
-    blockchain.isInChain(validBlock.hash) should ===(false)
+    blockchainReader.getBestBranch().isInChain(validBlock.hash) should ===(false)
   }
 
   it should "be able to query a stored blockHeader by it's number" in new EphemBlockchainTestSetup {
@@ -67,8 +74,10 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   }
 
   it should "not return a value if not stored" in new EphemBlockchainTestSetup {
-    blockchainReader.getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number).isEmpty should ===(true)
-    blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash).isEmpty should ===(true)
+    blockchainReader
+      .getBestBranch()
+      .getBlockByNumber(Fixtures.Blocks.ValidBlock.header.number) shouldBe None
+    blockchainReader.getBlockByHash(Fixtures.Blocks.ValidBlock.header.hash) shouldBe None
   }
 
   it should "be able to store a block with checkpoint and retrieve it and checkpoint" in new EphemBlockchainTestSetup {

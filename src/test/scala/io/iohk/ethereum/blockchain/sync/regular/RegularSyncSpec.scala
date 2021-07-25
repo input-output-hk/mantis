@@ -54,13 +54,13 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.Subscribe
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier.MessageClassifier
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages
+import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETC64.NewBlock
 import io.iohk.ethereum.network.p2p.messages.ETH62._
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
-import io.iohk.ethereum.network.p2p.messages.ProtocolFamily
-import io.iohk.ethereum.network.p2p.messages.ProtocolVersions
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 class RegularSyncSpec
@@ -479,8 +479,8 @@ class RegularSyncSpec
         (blockchainReader.getBestBlockNumber _).when().returns(0)
         (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil)).atLeastOnce()
         (blockImport
-          .importBlock(_: Block)(_: Scheduler))
-          .when(*, *)
+          .importBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+          .when(*, *, *)
           .returns(Task.now(BlockImportFailedDueToMissingNode(new MissingNodeException(failingBlock.hash))))
 
         var saveNodeWasCalled: Boolean = false
@@ -518,7 +518,7 @@ class RegularSyncSpec
 
         Thread.sleep(remainingOrDefault.toMillis)
 
-        (blockImport.importBlock(_: Block)(_: Scheduler)).verify(*, *).never()
+        (blockImport.importBlock(_: Block)(_: Scheduler, _: BlockchainConfig)).verify(*, *, *).never()
       })
 
       "retry fetch of block that failed to import" in sync(new Fixture(testSystem) {
@@ -674,7 +674,7 @@ class RegularSyncSpec
 
         val parentBlock = testBlocks.last
         setImportResult(parentBlock, Task.eval(BlockImportedToTop(Nil)))
-        blockImport.importBlock(parentBlock)(Scheduler.global)
+        blockImport.importBlock(parentBlock)(Scheduler.global, implicitly[BlockchainConfig])
 
         val checkpointBlock = checkpointBlockGenerator.generate(parentBlock, checkpoint)
         val newCheckpointMsg = NewCheckpoint(checkpointBlock)
@@ -711,7 +711,7 @@ class RegularSyncSpec
           val peerWithETH63: (Peer, PeerInfo) = {
             val id = peerId(handshakedPeers.size)
             val peer = getPeer(id)
-            val peerInfo = getPeerInfo(peer, ProtocolFamily.ETH, ProtocolVersions.ETH63.version)
+            val peerInfo = getPeerInfo(peer, Capability.ETH63)
             (peer, peerInfo)
           }
 

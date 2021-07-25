@@ -13,8 +13,9 @@ import scala.concurrent.duration._
 
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.consensus.blocks.PendingBlockAndState
+import io.iohk.ethereum.consensus.mining.wrongMiningArgument
 import io.iohk.ethereum.consensus.pow.PoWBlockCreator
-import io.iohk.ethereum.consensus.pow.PoWConsensus
+import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.miners.MinerProtocol._
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlock
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MineBlocks
@@ -23,11 +24,11 @@ import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.Mi
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MinerNotSupported
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningError
 import io.iohk.ethereum.consensus.pow.miners.MockedMiner.MockedMinerResponses.MiningOrdered
-import io.iohk.ethereum.consensus.wrongConsensusArgument
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
+import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.nodebuilder.Node
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
@@ -36,9 +37,11 @@ class MockedMiner(
     blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockCreator: PoWBlockCreator,
-    syncEventListener: ActorRef
+    syncEventListener: ActorRef,
+    configBuilder: BlockchainConfigBuilder
 ) extends Actor
     with ActorLogging {
+  import configBuilder._
   import akka.pattern.pipe
   implicit val scheduler: Scheduler = Scheduler(context.dispatcher)
 
@@ -122,35 +125,38 @@ object MockedMiner {
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockCreator: PoWBlockCreator,
-      syncEventListener: ActorRef
+      syncEventListener: ActorRef,
+      configBuilder: BlockchainConfigBuilder
   ): Props =
     Props(
       new MockedMiner(
         blockchain,
         blockchainReader,
         blockCreator,
-        syncEventListener
+        syncEventListener,
+        configBuilder
       )
     ).withDispatcher(BlockForgerDispatcherId)
 
   def apply(node: Node): ActorRef =
-    node.consensus match {
-      case consensus: PoWConsensus =>
+    node.mining match {
+      case mining: PoWMining =>
         val blockCreator = new PoWBlockCreator(
           pendingTransactionsManager = node.pendingTransactionsManager,
           getTransactionFromPoolTimeout = node.txPoolConfig.getTransactionFromPoolTimeout,
-          consensus = consensus,
+          mining = mining,
           ommersPool = node.ommersPool
         )
         val minerProps = props(
           blockchain = node.blockchain,
           blockchainReader = node.blockchainReader,
           blockCreator = blockCreator,
-          syncEventListener = node.syncController
+          syncEventListener = node.syncController,
+          configBuilder = node
         )
         node.system.actorOf(minerProps)
-      case consensus =>
-        wrongConsensusArgument[PoWConsensus](consensus)
+      case mining =>
+        wrongMiningArgument[PoWMining](mining)
     }
 
   // TODO to be removed in ETCM-773

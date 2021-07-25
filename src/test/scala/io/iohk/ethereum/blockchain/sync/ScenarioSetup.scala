@@ -9,10 +9,10 @@ import scala.concurrent.ExecutionContextExecutor
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.Protocol
-import io.iohk.ethereum.consensus.StdTestConsensusBuilder
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.mining.Mining
+import io.iohk.ethereum.consensus.mining.Protocol
+import io.iohk.ethereum.consensus.mining.StdTestMiningBuilder
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
@@ -26,13 +26,13 @@ import io.iohk.ethereum.nodebuilder._
   * Specifically it relates to the creation and wiring of the several components of a
   * [[io.iohk.ethereum.nodebuilder.Node Node]].
   */
-trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
+trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected lazy val executionContextExecutor: ExecutionContextExecutor =
     ExecutionContext.fromExecutor(Executors.newFixedThreadPool(4))
   protected lazy val monixScheduler: Scheduler = Scheduler(executionContextExecutor)
   protected lazy val successValidators: Validators = Mocks.MockValidatorsAlwaysSucceed
   protected lazy val failureValidators: Validators = Mocks.MockValidatorsAlwaysFail
-  protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(blockchainConfig, Protocol.PoW)
+  protected lazy val powValidators: ValidatorsExecutor = ValidatorsExecutor(Protocol.PoW)
 
   /** The default validators for the test cases.
     * Override this if you want to alter the behaviour of consensus
@@ -51,12 +51,10 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     * We redefine it here in order to take into account different validators and vm
     * that a test case may need.
     *
-    * @note We use the refined type [[io.iohk.ethereum.consensus.TestConsensus TestConsensus]]
-    *       instead of just [[io.iohk.ethereum.consensus.Consensus Consensus]].
-    *
+    * @note We use the refined type [[TestMining]] instead of just [[Mining]].
     * @note If you override this, consensus will pick up automatically.
     */
-  override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators).withVM(vm)
+  override lazy val mining: TestMining = buildTestMining().withValidators(validators).withVM(vm)
 
   /** Reuses the existing consensus instance and creates a new one
     * by overriding its `validators` and `vm`.
@@ -70,14 +68,14 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
     * @note The existing consensus instance will continue to live independently and will still be
     *       the instance provided by the cake.
     */
-  protected def newTestConsensus(validators: Validators = consensus.validators, vm: VMImpl = consensus.vm): Consensus =
-    consensus.withValidators(validators).withVM(vm)
+  protected def newTestMining(validators: Validators = mining.validators, vm: VMImpl = mining.vm): Mining =
+    mining.withValidators(validators).withVM(vm)
 
   protected def mkBlockImport(
       validators: Validators = validators,
       blockExecutionOpt: Option[BlockExecution] = None
   ): BlockImport = {
-    val consensuz = consensus.withValidators(validators).withVM(new Mocks.MockVM())
+    val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
     new BlockImport(
       blockchain,
@@ -91,7 +89,6 @@ trait ScenarioSetup extends StdTestConsensusBuilder with StxLedgerBuilder {
           blockchainReader,
           blockchainWriter,
           storagesInstance.storages.evmCodeStorage,
-          blockchainConfig,
           consensuz.blockPreparator,
           blockValidation
         )

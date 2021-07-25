@@ -79,7 +79,9 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
 
   it should "report failure if there is an ommer which that is not parent of an ancestor" in new BlockUtils {
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) => ((ommersBlockNumber - n) until ommersBlockNumber).toList.flatMap(blockchainReader.getBlockByNumber)
+      (_, n) =>
+        ((ommersBlockNumber - n) until ommersBlockNumber).toList
+          .flatMap(nb => blockchainReader.getBestBranch().getBlockByNumber(nb))
 
     ommersValidator.validateOmmersAncestors(
       ommersBlockParentHash,
@@ -134,7 +136,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
   // scalastyle:off magic.number
   trait BlockUtils extends EphemBlockchainTestSetup {
 
-    val ommersValidator = new StdOmmersValidator(new PoWBlockHeaderValidator(blockchainConfig))
+    val ommersValidator = new StdOmmersValidator(PoWBlockHeaderValidator)
 
     val ommerInvalidBranch: BlockHeader = BlockHeader(
       parentHash = ByteString(Hex.decode("fd07e36cfaf327801e5696134b12345f6a89fb1e8f017f2411a29d0ae810ab8b")),
@@ -462,6 +464,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       .and(blockchainWriter.storeBlock(block95))
       .and(blockchainWriter.storeBlock(block96))
       .commit()
+    blockchain.saveBestKnownBlocks(block96.number)
 
   }
 }

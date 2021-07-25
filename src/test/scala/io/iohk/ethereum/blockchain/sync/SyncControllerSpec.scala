@@ -24,8 +24,8 @@ import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.fast.FastSync.SyncState
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.TestConsensus
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderPoWError
@@ -45,6 +45,7 @@ import io.iohk.ethereum.network.p2p.messages.ETH63.GetNodeData.GetNodeDataEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.GetReceipts.GetReceiptsEnc
 import io.iohk.ethereum.network.p2p.messages.ETH63.NodeData
 import io.iohk.ethereum.network.p2p.messages.ETH63.Receipts
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config.SyncConfig
 
 // scalastyle:off file.size.limit
@@ -136,10 +137,12 @@ class SyncControllerSpec
         override def validate(
             blockHeader: BlockHeader,
             getBlockHeaderByHash: GetBlockHeaderByHash
-        ): Either[BlockHeaderError, BlockHeaderValid] =
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
           Left(HeaderPoWError)
 
-        override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+            blockchainConfig: BlockchainConfig
+        ): Either[BlockHeaderError, BlockHeaderValid] =
           Left(HeaderPoWError)
       }
     }
@@ -184,14 +187,16 @@ class SyncControllerSpec
         override def validate(
             blockHeader: BlockHeader,
             getBlockHeaderByHash: GetBlockHeaderByHash
-        ): Either[BlockHeaderError, BlockHeaderValid] =
+        )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
           if (blockHeader.number == invalidBlockNNumber) {
             Left(HeaderParentNotFoundError)
           } else {
             Right(BlockHeaderValid)
           }
 
-        override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+        override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+            blockchainConfig: BlockchainConfig
+        ): Either[BlockHeaderError, BlockHeaderValid] =
           Right(BlockHeaderValid)
       }
     }
@@ -265,14 +270,16 @@ class SyncControllerSpec
       override def validate(
           blockHeader: BlockHeader,
           getBlockHeaderByHash: GetBlockHeaderByHash
-      ): Either[BlockHeaderError, BlockHeaderValid] =
+      )(implicit blockchainConfig: BlockchainConfig): Either[BlockHeaderError, BlockHeaderValid] =
         if (blockHeader.number != 399500 + 10) {
           Right(BlockHeaderValid)
         } else {
           Left(HeaderParentNotFoundError)
         }
 
-      override def validateHeaderOnly(blockHeader: BlockHeader): Either[BlockHeaderError, BlockHeaderValid] =
+      override def validateHeaderOnly(blockHeader: BlockHeader)(implicit
+          blockchainConfig: BlockchainConfig
+      ): Either[BlockHeaderError, BlockHeaderValid] =
         Right(BlockHeaderValid)
     }
   }) { testSetup =>
@@ -509,7 +516,7 @@ class SyncControllerSpec
 
     override lazy val validators: Validators = _validators
 
-    override lazy val consensus: TestConsensus = buildTestConsensus().withValidators(validators)
+    override lazy val mining: TestMining = buildTestMining().withValidators(validators)
 
     //+ cake overrides
 
@@ -557,6 +564,7 @@ class SyncControllerSpec
           etcPeerManager.ref,
           blacklist,
           syncConfig,
+          this,
           externalSchedulerOpt = Some(system.scheduler)
         )
       )

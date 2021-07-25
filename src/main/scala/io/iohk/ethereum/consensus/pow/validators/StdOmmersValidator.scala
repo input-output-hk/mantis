@@ -2,8 +2,8 @@ package io.iohk.ethereum.consensus.pow.validators
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.consensus.GetBlockHeaderByHash
-import io.iohk.ethereum.consensus.GetNBlocksBack
+import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
+import io.iohk.ethereum.consensus.mining.GetNBlocksBack
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersError._
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator.OmmersValid
@@ -11,6 +11,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError
 import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends OmmersValidator {
 
@@ -42,7 +43,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
       ommers: Seq[BlockHeader],
       getBlockHeaderByHash: GetBlockHeaderByHash,
       getNBlocksBack: GetNBlocksBack
-  ): Either[OmmersError, OmmersValid] =
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] =
     if (ommers.isEmpty)
       Right(OmmersValid)
     else
@@ -73,7 +74,7 @@ class StdOmmersValidator(blockHeaderValidator: BlockHeaderValidator) extends Omm
   private def validateOmmersHeaders(
       ommers: Seq[BlockHeader],
       getBlockParentsHeaderByHash: GetBlockHeaderByHash
-  ): Either[OmmersError, OmmersValid] = {
+  )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
     val validationsResult: Seq[Either[BlockHeaderError, BlockHeaderValid]] =
       ommers.map(blockHeaderValidator.validate(_, getBlockParentsHeaderByHash))
 
