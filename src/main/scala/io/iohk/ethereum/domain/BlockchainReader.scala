@@ -180,7 +180,7 @@ class BlockchainReader(
 
   /** Returns a block hash given a block number
     *
-    * @param number Number of the searchead block
+    * @param number Number of the searched block
     * @return Block hash if found
     */
   private def getHashByBlockNumber(number: BigInt): Option[ByteString] =
