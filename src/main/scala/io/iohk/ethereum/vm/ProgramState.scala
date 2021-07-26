@@ -134,10 +134,10 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     copy(error = Some(RevertOccurs), returnData = data, halted = true)
 
   def addAccessedAddress(addr: Address): ProgramState[W, S] =
-    copy(accessedAddresses = accessedAddresses.+(addr))
+    copy(accessedAddresses = accessedAddresses. +(addr))
 
   def addAccessedStorageKey(addr: Address, storageKey: BigInt): ProgramState[W, S] =
-    copy(accessedStorageKeys = accessedStorageKeys.+((addr, storageKey)))
+    copy(accessedStorageKeys = accessedStorageKeys. +((addr, storageKey)))
 
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
