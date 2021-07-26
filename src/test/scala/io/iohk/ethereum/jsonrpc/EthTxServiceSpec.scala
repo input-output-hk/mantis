@@ -174,10 +174,12 @@ class EthTxServiceSpec
   }
 
   it should "return average gas price" in new TestSetup {
-    blockchain.saveBestKnownBlocks(ByteString.empty, 42)
+    private val block: Block =
+      Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)
     blockchainWriter
-      .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
+      .storeBlock(block)
       .commit()
+    blockchain.saveBestKnownBlocks(block.hash, block.number)
 
     val response = ethTxService.getGetGasPrice(GetGasPriceRequest())
     response.runSyncUnsafe() shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))

@@ -2,6 +2,7 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 import scala.annotation.tailrec
+
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain

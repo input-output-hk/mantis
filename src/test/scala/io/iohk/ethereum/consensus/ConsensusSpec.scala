@@ -22,6 +22,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
 import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockQueue.Leaf

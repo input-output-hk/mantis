@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
@@ -13,7 +12,7 @@ import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{Hex, Logger}
 
 class BlockchainReader(
     blockHeadersStorage: BlockHeadersStorage,
@@ -84,9 +83,17 @@ class BlockchainReader(
 
   //returns the best known block if it's available in the storage
   def getBestBlock(): Option[Block] = {
-    val bestBlockNumber = getBestBlockNumber()
-    log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber)
+    val bestKnownBlockinfo = appStateStorage.getBestBlockInfo()
+    log.debug("Trying to get best block with number {}", bestKnownBlockinfo.number)
+    val bestBlock = getBlockByHash(bestKnownBlockinfo.hash)
+    if (bestBlock.isEmpty) {
+      log.error(
+        "Best block {} (number: {}) not found in storage.",
+        Hex.toHexString(bestKnownBlockinfo.hash.toArray),
+        bestKnownBlockinfo.number
+      )
+    }
+    bestBlock
   }
 
   def genesisHeader: BlockHeader =
