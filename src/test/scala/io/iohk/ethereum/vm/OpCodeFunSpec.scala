@@ -322,7 +322,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
-        val expectedState = stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+        val expectedState = stateIn.addAccessedAddress(Address(addr)).withStack(stateOut.stack).withMemory(stateOut.memory).step()
         stateOut shouldEqual expectedState
       }
     }
