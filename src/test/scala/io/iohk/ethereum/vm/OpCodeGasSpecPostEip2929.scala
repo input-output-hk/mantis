@@ -73,7 +73,8 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
       ).sample.get
       // Pick an address (small, so it fits into memory) that is not on the precompiles list
-      val addr = getUInt256Gen(max = 1000).map(Address(_)).retryUntil(!initState.accessedAddresses.contains(_)).sample.get
+      val addr =
+        getUInt256Gen(max = 1000).map(Address(_)).retryUntil(!initState.accessedAddresses.contains(_)).sample.get
       val stackIn = Stack.empty().push(Seq(size, Zero, Zero, addr.toUInt256))
       val memIn = Memory.empty.store(addr.toUInt256, Array.fill[Byte](size.toInt)(-1))
       val stateIn = initState.withStack(stackIn).withMemory(memIn).copy(gas = expectedGas)
