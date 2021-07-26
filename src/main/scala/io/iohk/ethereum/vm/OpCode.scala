@@ -199,6 +199,8 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
 
   protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = _ =>
     true
+
+  protected def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
 }
 
 sealed trait ConstGas { self: OpCode =>
@@ -478,23 +480,36 @@ case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_zero) {
       state.config.feeSchedule.G_extcode
   }
 
-  private def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
-
 }
 
-case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) {
+case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_zero) {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
-    val codeCopy = OpCode.sliceBytes(state.world.getCode(Address(address)), codeOffset, size)
+    val addr = Address(address)
+    val codeCopy = OpCode.sliceBytes(state.world.getCode(addr), codeOffset, size)
     val mem1 = state.memory.store(memOffset, codeCopy)
-    state.withStack(stack1).withMemory(mem1).step()
+    state.withStack(stack1).withMemory(mem1).addAccessedAddress(addr).step()
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, memOffset, _, size), _) = state.stack.pop(4)
     val memCost = state.config.calcMemCost(state.memory.size, memOffset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
-    memCost + copyCost
+
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+    val eip2929Enabled = isEip2929Enabled(etcFork)
+
+    val accessCost = if (eip2929Enabled) {
+      val (addr, _) = state.stack.pop
+      if (state.accessedAddresses.contains(Address(addr))) {
+        state.config.feeSchedule.G_warm_storage_read
+      } else {
+        state.config.feeSchedule.G_cold_account_access
+      }
+    } else
+      state.config.feeSchedule.G_extcode
+    memCost + copyCost + accessCost
   }
 }
 
