@@ -1,5 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
+import akka.actor.typed.ActorSystem
+
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Failure
@@ -13,6 +15,8 @@ import io.iohk.ethereum.metrics.MetricsConfig
 import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.ServerActor
 import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
+import io.iohk.ethereum.nodebuilder.tooling.PeriodicConsistencyCheck
+import io.iohk.ethereum.nodebuilder.tooling.StorageConsistencyChecker
 import io.iohk.ethereum.utils.Config
 
 /** A standard node is everything Ethereum prescribes except the mining algorithm,
@@ -24,8 +28,52 @@ import io.iohk.ethereum.utils.Config
   * @see [[io.iohk.ethereum.nodebuilder.Node Node]]
   */
 abstract class BaseNode extends Node {
+
+  def start(): Unit = {
+    startMetricsClient()
+
+    loadGenesisData()
+
+    runDBConsistencyCheck()
+
+    startPeerManager()
+
+    startPortForwarding()
+
+    startServer()
+
+    startSyncController()
+
+    startMining()
+
+    startDiscoveryManager()
+
+    startJsonRpcHttpServer()
+
+    startJsonRpcIpcServer()
+
+    startPeriodicDBConsistencyCheck()
+  }
+
+  private[this] def startMetricsClient(): Unit = {
+    val metricsConfig = MetricsConfig(Config.config)
+    Metrics.configure(metricsConfig) match {
+      case Success(_) =>
+        log.info("Metrics started")
+      case Failure(exception) => throw exception
+    }
+  }
+
   private[this] def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
+
+  private[this] def runDBConsistencyCheck(): Unit =
+    StorageConsistencyChecker.checkStorageConsistency(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.blockNumberMappingStorage,
+      storagesInstance.storages.blockHeadersStorage,
+      shutdown
+    )(log)
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
@@ -47,34 +95,16 @@ abstract class BaseNode extends Node {
   private[this] def startJsonRpcIpcServer(): Unit =
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
 
-  private[this] def startMetricsClient(): Unit = {
-    val metricsConfig = MetricsConfig(Config.config)
-    Metrics.configure(metricsConfig) match {
-      case Success(_) =>
-        log.info("Metrics started")
-      case Failure(exception) => throw exception
-    }
-  }
-
-  def start(): Unit = {
-    startMetricsClient()
-
-    loadGenesisData()
-
-    startPeerManager()
-
-    startPortForwarding()
-    startServer()
-
-    startSyncController()
-
-    startMining()
-
-    startDiscoveryManager()
-
-    startJsonRpcHttpServer()
-    startJsonRpcIpcServer()
-  }
+  def startPeriodicDBConsistencyCheck(): Unit =
+    ActorSystem(
+      PeriodicConsistencyCheck.start(
+        storagesInstance.storages.appStateStorage,
+        storagesInstance.storages.blockNumberMappingStorage,
+        storagesInstance.storages.blockHeadersStorage,
+        shutdown
+      ),
+      "PeriodicDBConsistencyCheck"
+    )
 
   override def shutdown(): Unit = {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
