@@ -44,8 +44,9 @@ class ConsensusImpl(
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
-    * @param block                 block to be imported
-    * @param blockExecutionContext threadPool on which the execution should be run
+    * @param block                   block to be imported
+    * @param blockExecutionScheduler threadPool on which the execution should be run
+    * @param blockchainConfig        blockchain configuration
     * @return One of:
     *   - [[BlockImportedToTop]] - if the block was added as the new best block
     *   - [[BlockEnqueued]]      - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
@@ -59,8 +60,8 @@ class ConsensusImpl(
     blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
-            .map(_ => DuplicateBlock)
+          log.debug("Ignoring duplicated block: {}", block.idTag)
+          Task.now(DuplicateBlock)
         } else {
           val hash = bestBlock.header.hash
           blockchain.getChainWeightByHash(hash) match {
@@ -68,26 +69,32 @@ class ConsensusImpl(
               val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
                 importToTop(block, bestBlock, weight)
               } else {
-                reorganise(block, bestBlock, weight)
+                reorganiseOrEnqueue(block, bestBlock, weight)
               }
               importResult.foreach(measureBlockMetrics)
               importResult
-            case None =>
-              log.error(
-                "Getting total difficulty for current best block with hash: {} failed",
-                bestBlock.header.hashAsHexString
-              )
-              Task.now(
-                BlockImportFailed(
-                  s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
-                )
-              )
+            case None => returnNoTotalDifficulty(bestBlock)
           }
         }
-      case None =>
-        log.error("Getting current best block failed")
-        Task.now(BlockImportFailed("Couldn't find the current best block"))
+      case None => returnNoBestBlock()
     }
+
+  private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
+    log.error(
+      "Getting total difficulty for current best block with hash: {} failed",
+      bestBlock.header.hashAsHexString
+    )
+    Task.now(
+      BlockImportFailed(
+        s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+      )
+    )
+  }
+
+  private def returnNoBestBlock(): Task[BlockImportFailed] = {
+    log.error("Getting current best block failed")
+    Task.now(BlockImportFailed("Couldn't find the current best block"))
+  }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
@@ -97,7 +104,7 @@ class ConsensusImpl(
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
-    newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
+    newBlock.number == currentBestBlock.number + 1 && newBlock.parentHash == currentBestBlock.hash
 
   private def measureBlockMetrics(importResult: BlockImportResult): Unit =
     importResult match {
@@ -120,10 +127,10 @@ class ConsensusImpl(
         .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
         .executeOn(blockExecutionScheduler)
 
-    Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
+    Task.map2(validationResult, importResult) { case (validationResult, importResult) =>
       validationResult.fold(
         error => {
-          log.error("Error while validation block before execution: {}", error.reason)
+          log.error("Error while validating block before execution: {}", error.reason)
           handleImportTopValidationError(error, block, importResult)
         },
         _ => importResult
@@ -131,6 +138,12 @@ class ConsensusImpl(
     }
   }
 
+  /** *
+    * Open for discussion: this is code that was in BlockImport. Even thought is tested (before) that only one block
+    * is being added to the blockchain, this code assumes that the import may be of more than one block (a branch)
+    * and because it is assuming that it may be dealing with a branch the code to handle errors assumes several scenarios.
+    * Is there is reason for this over-complication?
+    */
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight)(implicit
       blockchainConfig: BlockchainConfig
   ): BlockImportResult = {
@@ -143,8 +156,7 @@ class ConsensusImpl(
     executionResult match {
       case Some((importedBlocks, maybeError, topBlocks)) =>
         val result = maybeError match {
-          case None =>
-            BlockImportedToTop(importedBlocks)
+          case None => BlockImportedToTop(importedBlocks)
 
           case Some(MPTError(reason)) if reason.isInstanceOf[MissingNodeException] =>
             BlockImportFailedDueToMissingNode(reason.asInstanceOf[MissingNodeException])
@@ -159,15 +171,15 @@ class ConsensusImpl(
             }
             BlockImportedToTop(importedBlocks)
         }
-        log.debug(
-          "{}", {
-            val result = importedBlocks.map { blockData =>
-              val header = blockData.block.header
-              s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
-            }
-            result.toString
-          }
-        )
+
+        importedBlocks.foreach { blockData =>
+          val header = blockData.block.header
+          log.debug(
+            "Imported new block ({}: {}) to the top of chain \n",
+            header.number,
+            Hex.toHexString(header.hash.toArray)
+          )
+        }
 
         result
 
@@ -204,11 +216,11 @@ class ConsensusImpl(
         BlockImportFailed(reason.toString)
     }
 
-  private def reorganise(
+  private def reorganiseOrEnqueue(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
     Task.evalOnce {
       blockValidation
         .validateBlockBeforeExecution(block)
@@ -217,7 +229,6 @@ class ConsensusImpl(
           _ =>
             blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
               case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
-                log.debug("Found a better chain, about to reorganise")
                 reorganiseChainFromQueue(leafHash)
 
               case _ =>
@@ -236,7 +247,7 @@ class ConsensusImpl(
   private def reorganiseChainFromQueue(
       queuedLeaf: ByteString
   )(implicit blockchainConfig: BlockchainConfig): BlockImportResult = {
-    log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
+    log.info("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchainReader.getBestBlockNumber()
 
