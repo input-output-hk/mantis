@@ -26,7 +26,7 @@ import io.iohk.ethereum.ledger.{
   OmmersTestSetup,
   TestSetupWithVmAndValidators
 }
-import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie}
+import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie, NullNode}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
@@ -40,7 +40,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
 
-  "Importing blocks" should "ignore existing block" in new ImportBlockTestSetup {
+  "Consensus" should "ignore duplicated block" in new ImportBlockTestSetup {
     val block1: Block = getBlock()
     val block2: Block = getBlock()
 
@@ -55,7 +55,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     whenReady(consensus.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
   }
 
-  it should "import a block to top of the main chain" in new ImportBlockTestSetup {
+  it should "import a block to the top of the main chain" in new ImportBlockTestSetup {
     val block: Block = getBlock(6, parent = bestBlock.header.hash)
     val difficulty: BigInt = block.header.difficulty
     val hash: ByteString = block.header.hash
@@ -112,7 +112,39 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockQueue.removeSubtree _).expects(*)
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(_ shouldBe a[BlockImportFailed])
+    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+      _ shouldBe BlockImportFailed("MPTError(io.iohk.ethereum.mpt.MerklePatriciaTrie$MPTException: Invalid Node)")
+    )
+  }
+
+  it should "handle no best block available error when importing to top" in new ImportBlockTestSetup {
+    val block: Block = getBlock(6, parent = bestBlock.header.hash)
+
+    setBlockExists(block, inChain = false, inQueue = false)
+    (blockchainReader.getBestBlock _).expects().returning(None)
+    setChainWeightForBlock(bestBlock, currentWeight)
+
+    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+      _ shouldBe BlockImportFailed("Couldn't find the current best block")
+    )
+  }
+
+  it should "handle total difficulty error when importing to top" in new ImportBlockTestSetup {
+    val block: Block = getBlock(6, parent = bestBlock.header.hash)
+
+    setBlockExists(block, inChain = false, inQueue = false)
+    setBestBlock(bestBlock)
+    (blockchain.getChainWeightByHash _).expects(*).returning(None)
+
+    (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
+
+    whenReady(consensus.evaluateBranchBlock(block).runToFuture) { result =>
+      result shouldBe a[BlockImportFailed]
+      result
+        .asInstanceOf[BlockImportFailed]
+        .error
+        .should(startWith("Couldn't get total difficulty for current best block"))
+    }
   }
 
   // scalastyle:off magic.number
