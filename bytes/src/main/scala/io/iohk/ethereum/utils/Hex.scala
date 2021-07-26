@@ -1,7 +1,5 @@
 package io.iohk.ethereum.utils
 
-import akka.util.ByteString
-
 object Hex {
   def toHexString(bytes: Array[Byte]): String =
     bytes.map("%02x".format(_)).mkString

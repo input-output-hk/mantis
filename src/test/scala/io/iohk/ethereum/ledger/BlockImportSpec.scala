@@ -17,6 +17,7 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFou
 import io.iohk.ethereum.consensus.validators._
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.appstate.BestBlockInfo
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
 import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
@@ -171,6 +172,9 @@ class BlockImportSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
 
     val ancestorForValidation: Block = getBlock(0, difficulty = 1)
+    storagesInstance.storages.appStateStorage
+      .putBestBlockData(BestBlockInfo(ancestorForValidation.hash, ancestorForValidation.number))
+      .commit()
     blockchainWriter.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
 
     val oldBranch = List(oldBlock2, oldBlock3, oldBlock4)

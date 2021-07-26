@@ -176,7 +176,7 @@ trait BlockchainBuilder {
 
   private lazy val blockchainMetadata: BlockchainMetadata =
     new BlockchainMetadata(
-      storagesInstance.storages.appStateStorage.getBestBlockData(),
+      storagesInstance.storages.appStateStorage.getBestBlockInfo(),
       storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
     )
   lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)

@@ -139,7 +139,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   )
 
   val blockchainMetadata = new BlockchainMetadata(
-    storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+    storagesInstance.storages.appStateStorage.getBestBlockInfo(),
     storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
   )
   val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)

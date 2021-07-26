@@ -98,13 +98,14 @@ class BlockchainReader(
 
   //returns the best known block if it's available in the storage, otherwise the best stored block
   def getBestBlock(): Option[Block] = {
-    val bestBlockNumber = getBestBlockNumber()
-    log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber).orElse(
-      getBlockByNumber(
-        appStateStorage.getBestBlockNumber()
-      )
-    )
+    val bestKnownBlockinfo = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockInfo
+    log.debug("Trying to get best block with number {}", bestKnownBlockinfo.number)
+    getBlockByHash(bestKnownBlockinfo.hash)
+      .orElse {
+        val bestBlockInfo = appStateStorage.getBestBlockInfo()
+        log.warn("Falling back to best block in storage number {}", bestBlockInfo.number)
+        getBlockByHash(bestBlockInfo.hash)
+      }
   }
 
   def genesisHeader: BlockHeader =

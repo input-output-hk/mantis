@@ -413,10 +413,10 @@ class JsonRpcControllerEthSpec
   }
 
   it should "eth_gasPrice" in new JsonRpcControllerFixture {
-    blockchainWriter
-      .storeBlock(Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body))
-      .commit()
-    blockchain.saveBestKnownBlocks(ByteString.empty, 42)
+    private val block: Block =
+      Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)
+    blockchainWriter.storeBlock(block).commit()
+    blockchain.saveBestKnownBlocks(block.hash, 42)
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_gasPrice")
 
