@@ -3,16 +3,20 @@ package io.iohk.ethereum.ledger
 import akka.actor.ActorRef
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
+
 import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.duration._
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.NormalPatience

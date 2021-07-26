@@ -1,35 +1,43 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import cats.implicits._
-import io.iohk.ethereum.blockchain.sync.regular.{
-  BlockEnqueued,
-  BlockImportFailed,
-  BlockImportFailedDueToMissingNode,
-  BlockImportResult,
-  BlockImportedToTop,
-  ChainReorganised,
-  DuplicateBlock
-}
-import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, BlockchainReader, BlockchainWriter, ChainWeight}
-import io.iohk.ethereum.ledger.BlockExecutionError.{MPTError, ValidationBeforeExecError}
-import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.ledger.{
-  BlockData,
-  BlockExecution,
-  BlockExecutionError,
-  BlockExecutionSuccess,
-  BlockMetrics,
-  BlockQueue,
-  BlockValidation
-}
-import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Logger}
+
 import monix.eval.Task
 import monix.execution.Scheduler
-import org.bouncycastle.util.encoders.Hex
 
 import scala.annotation.tailrec
+
+import org.bouncycastle.util.encoders.Hex
+
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailedDueToMissingNode
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
+import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockExecutionError
+import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
+import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
+import io.iohk.ethereum.ledger.BlockMetrics
+import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.ledger.BlockValidation
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Logger
 
 class ConsensusImpl(
     blockchain: BlockchainImpl,

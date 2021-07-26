@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
-import io.iohk.ethereum.domain.{Block, ChainWeight}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 

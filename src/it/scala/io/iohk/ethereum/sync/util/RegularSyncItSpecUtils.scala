@@ -4,11 +4,14 @@ import akka.actor.ActorRef
 import akka.actor.typed
 import akka.actor.typed.scaladsl.adapter._
 import akka.util.ByteString
+
 import cats.effect.Resource
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
+
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.PeersClient
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
@@ -23,11 +26,13 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.FullMiningConfig
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.consensus.mining.Protocol.NoAdditionalPoWData
-import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl, pow}
+import io.iohk.ethereum.consensus.pow
 import io.iohk.ethereum.consensus.pow.EthashConfig
 import io.iohk.ethereum.consensus.pow.PoWMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor

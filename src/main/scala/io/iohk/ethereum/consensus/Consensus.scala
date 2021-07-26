@@ -1,10 +1,11 @@
 package io.iohk.ethereum.consensus
 
+import monix.eval.Task
+import monix.execution.Scheduler
+
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.utils.BlockchainConfig
-import monix.eval.Task
-import monix.execution.Scheduler
 
 /** This file documents the original interface that was designed at ETCM-1018
   * but implements a different one to be used as a stepping stone to the new architecture

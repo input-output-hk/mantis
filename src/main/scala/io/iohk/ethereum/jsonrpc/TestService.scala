@@ -3,6 +3,7 @@ package io.iohk.ethereum.jsonrpc
 import akka.actor.ActorRef
 import akka.util.ByteString
 import akka.util.Timeout
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -10,11 +11,16 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
+
 import org.bouncycastle.util.encoders.Hex
+
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
-import io.iohk.ethereum.blockchain.sync.regular.{BlockEnqueued, BlockImportResult, BlockImportedToTop, ChainReorganised}
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto

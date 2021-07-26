@@ -1,8 +1,11 @@
 package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
-import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
+
 import monix.execution.Scheduler
+
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage

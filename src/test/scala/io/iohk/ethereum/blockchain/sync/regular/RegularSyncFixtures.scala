@@ -1,6 +1,7 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
@@ -10,9 +11,11 @@ import akka.testkit.TestKitBase
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import akka.util.Timeout
+
 import cats.Eq
 import cats.data.NonEmptyList
 import cats.implicits._
+
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
@@ -23,11 +26,14 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.math.BigInt
 import scala.reflect.ClassTag
+
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._

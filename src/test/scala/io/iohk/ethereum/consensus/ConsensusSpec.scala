@@ -1,38 +1,38 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-import io.iohk.ethereum.Mocks
-import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
-import io.iohk.ethereum.blockchain.sync.regular.{
-  BlockEnqueued,
-  BlockImportFailed,
-  BlockImportedToTop,
-  ChainReorganised,
-  DuplicateBlock
-}
-import io.iohk.ethereum.consensus.mining._
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
-import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.domain._
-import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.ledger.{
-  BlockData,
-  BlockExecution,
-  CheckpointHelpers,
-  EphemBlockchain,
-  MockBlockchain,
-  OmmersTestSetup,
-  TestSetupWithVmAndValidators
-}
-import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie}
-import io.iohk.ethereum.utils.BlockchainConfig
+
+import scala.concurrent.duration._
+import scala.language.postfixOps
+
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import scala.concurrent.duration._
-import scala.language.postfixOps
+import io.iohk.ethereum.Mocks
+import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
+import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.consensus.mining._
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
+import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
+import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.domain._
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.ledger.CheckpointHelpers
+import io.iohk.ethereum.ledger.EphemBlockchain
+import io.iohk.ethereum.ledger.MockBlockchain
+import io.iohk.ethereum.ledger.OmmersTestSetup
+import io.iohk.ethereum.ledger.TestSetupWithVmAndValidators
+import io.iohk.ethereum.mpt.LeafNode
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 

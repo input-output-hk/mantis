@@ -2,8 +2,11 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
+
 import cats.data.NonEmptyList
+
 import monix.execution.Scheduler
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -12,11 +15,13 @@ import org.scalamock.handlers.CallHandler1
 import org.scalamock.handlers.CallHandler2
 import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.{Consensus, ConsensusImpl}
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.mining.TestMining
