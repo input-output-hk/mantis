@@ -1,6 +1,7 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+import cats.implicits._
 import io.iohk.ethereum.blockchain.sync.regular.{
   BlockEnqueued,
   BlockImportFailed,
@@ -8,10 +9,8 @@ import io.iohk.ethereum.blockchain.sync.regular.{
   BlockImportResult,
   BlockImportedToTop,
   ChainReorganised,
-  DuplicateBlock,
-  UnknownParent
+  DuplicateBlock
 }
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainImpl, BlockchainReader, BlockchainWriter, ChainWeight}
 import io.iohk.ethereum.ledger.BlockExecutionError.{MPTError, ValidationBeforeExecError}
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
@@ -19,6 +18,7 @@ import io.iohk.ethereum.ledger.{
   BlockData,
   BlockExecution,
   BlockExecutionError,
+  BlockExecutionSuccess,
   BlockMetrics,
   BlockQueue,
   BlockValidation
@@ -63,21 +63,43 @@ class ConsensusImpl(
           log.debug("Ignoring duplicated block: {}", block.idTag)
           Task.now(DuplicateBlock)
         } else {
-          val hash = bestBlock.header.hash
-          blockchain.getChainWeightByHash(hash) match {
+          blockchain.getChainWeightByHash(bestBlock.header.hash) match {
             case Some(weight) =>
-              val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
-                importToTop(block, bestBlock, weight)
-              } else {
-                reorganiseOrEnqueue(block, bestBlock, weight)
+              doBlockPreValidation(block).flatMap {
+                case Left(error) => Task.now(BlockImportFailed(error.reason.toString))
+                case Right(_)    => handleBlockImport(block, bestBlock, weight)
               }
-              importResult.foreach(measureBlockMetrics)
-              importResult
             case None => returnNoTotalDifficulty(bestBlock)
           }
         }
       case None => returnNoBestBlock()
     }
+
+  private def handleBlockImport(block: Block, bestBlock: Block, weight: ChainWeight)(implicit
+      blockExecutionScheduler: Scheduler,
+      blockchainConfig: BlockchainConfig
+  ): Task[BlockImportResult] = {
+    val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
+      importToTop(block, bestBlock, weight)
+    } else {
+      reorganiseOrEnqueue(block, bestBlock, weight)
+    }
+    importResult.foreach(measureBlockMetrics)
+    importResult
+  }
+
+  private def doBlockPreValidation(block: Block)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Task[Either[ValidationBeforeExecError, BlockExecutionSuccess]] =
+    Task
+      .evalOnce {
+        val validationResult = blockValidation.validateBlockBeforeExecution(block)
+        validationResult.left.foreach { error =>
+          log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
+        }
+        validationResult
+      }
+      .executeOn(validationScheduler)
 
   private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
     log.error(
@@ -119,24 +141,10 @@ class ConsensusImpl(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-    val validationResult =
-      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
-    val importResult =
-      Task
-        .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
-        .executeOn(blockExecutionScheduler)
-
-    Task.map2(validationResult, importResult) { case (validationResult, importResult) =>
-      validationResult.fold(
-        error => {
-          log.error("Error while validating block before execution: {}", error.reason)
-          handleImportTopValidationError(error, block, importResult)
-        },
-        _ => importResult
-      )
-    }
-  }
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+    Task
+      .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
+      .executeOn(blockExecutionScheduler)
 
   /** *
     * Open for discussion: this is code that was in BlockImport. Even thought is tested (before) that only one block
@@ -188,54 +196,18 @@ class ConsensusImpl(
     }
   }
 
-  private def handleImportTopValidationError(
-      error: ValidationBeforeExecError,
-      block: Block,
-      blockImportResult: BlockImportResult
-  ): BlockImportResult = {
-    blockImportResult match {
-      case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach { blockData =>
-          val hash = blockData.block.header.hash
-          blockQueue.removeSubtree(hash)
-          blockchain.removeBlock(hash, withState = true)
-        }
-      case _ => ()
-    }
-    handleBlockValidationError(error, block)
-  }
-
-  private def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult =
-    error match {
-      case ValidationBeforeExecError(HeaderParentNotFoundError) =>
-        log.debug(s"Block(${block.idTag}) has unknown parent")
-        UnknownParent
-
-      case ValidationBeforeExecError(reason) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
-        BlockImportFailed(reason.toString)
-    }
-
   private def reorganiseOrEnqueue(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
-    Task.evalOnce {
-      blockValidation
-        .validateBlockBeforeExecution(block)
-        .fold(
-          error => handleBlockValidationError(error, block),
-          _ =>
-            blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
-              case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
-                reorganiseChainFromQueue(leafHash)
+  )(implicit blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+    Task.evalOnce(blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
+      case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
+        reorganiseChainFromQueue(leafHash)
 
-              case _ =>
-                BlockEnqueued
-            }
-        )
-    }
+      case _ =>
+        BlockEnqueued
+    })
 
   /** Once a better branch was found this attempts to reorganise the chain
     *
@@ -318,7 +290,6 @@ class ConsensusImpl(
       blockchainWriter.save(block, receipts, weight, saveAsBestBlock = false)
     }
 
-    import cats.implicits._
     val checkpointNumber = oldBranch.collect {
       case BlockData(block, _, _) if block.hasCheckpoint => block.number
     }.maximumOption

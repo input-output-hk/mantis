@@ -8,8 +8,7 @@ import io.iohk.ethereum.blockchain.sync.regular.{
   BlockImportFailed,
   BlockImportedToTop,
   ChainReorganised,
-  DuplicateBlock,
-  UnknownParent
+  DuplicateBlock
 }
 import io.iohk.ethereum.consensus.mining._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.{HeaderDifficultyError, HeaderParentNotFoundError}
@@ -26,7 +25,7 @@ import io.iohk.ethereum.ledger.{
   OmmersTestSetup,
   TestSetupWithVmAndValidators
 }
-import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie, NullNode}
+import io.iohk.ethereum.mpt.{LeafNode, MerklePatriciaTrie}
 import io.iohk.ethereum.utils.BlockchainConfig
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
@@ -245,7 +244,8 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(blockData2.block, blockData2.receipts, blockData2.weight, saveAsBestBlock = true)
     blockchainWriter.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
 
-    //saving to cache the value of the best block from the initial chain. This recreates the bug ETCM-626, where (possibly) because of the thread of execution
+    // saving to cache the value of the best block from the initial chain. This recreates the bug ETCM-626,
+    // where (possibly) because of the thread of execution
     // dying before updating the storage but after updating the cache, inconsistency is created
     blockchain.saveBestKnownBlocks(oldBlock4.number)
 
@@ -311,7 +311,9 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture)(_ shouldEqual UnknownParent)
+    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture)(
+      _ shouldEqual BlockImportFailed("HeaderParentNotFoundError")
+    )
   }
 
   it should "validate blocks prior to import" in new ImportBlockTestSetup {
