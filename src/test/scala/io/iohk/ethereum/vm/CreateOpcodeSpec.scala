@@ -250,8 +250,8 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       }
 
       "add the new contract to accessed_addresses" in {
-        result.world.getGuaranteedAccount(newAccountAddress())
         val addr = newAccountAddress()
+        result.world.getGuaranteedAccount(addr)
 
         result.stateOut.accessedAddresses should contain(addr)
       }
