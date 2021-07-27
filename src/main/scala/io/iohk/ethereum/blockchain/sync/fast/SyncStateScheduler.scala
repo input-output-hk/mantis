@@ -407,11 +407,11 @@ object SyncStateScheduler {
             // needs to be provided
             go(
               currentRequests - parent,
-              currentBatch + (parent -> (parentRequest.resolvedData.getOrElse(
+              currentBatch + (parent -> ((parentRequest.resolvedData.getOrElse(
                 throw new IllegalStateException(
                   s"Critical error. Parent ${parentRequest.nodeHash} without resolved data"
                 )
-              ), parentRequest.requestType)),
+              ), parentRequest.requestType))),
               parentsToCheck.tail ++ parentRequest.parents
             )
           } else {
@@ -424,7 +424,7 @@ object SyncStateScheduler {
         }
 
       val newActive = activeRequest - request.nodeHash
-      val newMemBatch = memBatch + (request.nodeHash -> (request.resolvedData.get, request.requestType))
+      val newMemBatch = memBatch + (request.nodeHash -> ((request.resolvedData.get, request.requestType)))
 
       val (newRequests, newBatch) = go(newActive, newMemBatch, request.parents)
       copy(activeRequest = newRequests, memBatch = newBatch)

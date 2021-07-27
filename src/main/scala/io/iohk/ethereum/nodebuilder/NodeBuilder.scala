@@ -804,7 +804,7 @@ trait PortForwardingBuilder {
 
 trait ShutdownHookBuilder {
   self: Logger =>
-  def shutdown(): Unit = {
+  def shutdown: () => Unit = () => {
     /* No default behaviour during shutdown. */
   }
 

@@ -82,7 +82,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends N
           StoredNode.withoutReferences(nodeEncoded) -> StoredNodeSnapshot(nodeKey, None)
         ) // if it's new, return an empty stored node
 
-      storedNodes + (nodeKey -> (storedNode.incrementReferences(1, blockNumber), snapshot))
+      storedNodes + (nodeKey -> ((storedNode.incrementReferences(1, blockNumber), snapshot)))
     }
 
   private def prepareRemovalChanges(
@@ -94,7 +94,7 @@ class ReferenceCountNodeStorage(nodeStorage: NodesStorage, bn: BigInt) extends N
       val maybeStoredNode: Option[(StoredNode, StoredNodeSnapshot)] = getFromChangesOrStorage(nodeKey, storedNodes)
 
       maybeStoredNode.fold(storedNodes) { case (storedNode, snapshot) =>
-        storedNodes + (nodeKey -> (storedNode.decrementReferences(1, blockNumber), snapshot))
+        storedNodes + (nodeKey -> ((storedNode.decrementReferences(1, blockNumber), snapshot)))
       }
     }
 
