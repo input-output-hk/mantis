@@ -6,12 +6,15 @@ import akka.actor.typed.scaladsl.ActorContext
 import akka.actor.typed.scaladsl.Behaviors
 import akka.actor.{ActorRef => ClassicActorRef}
 import akka.util.ByteString
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.util.Failure
 import scala.util.Success
+
 import org.slf4j.Logger
+
 import io.iohk.ethereum.blockchain.sync.PeersClient.BestPeer
 import io.iohk.ethereum.blockchain.sync.PeersClient.Request
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.FetchCommand
@@ -39,9 +42,13 @@ class HeadersFetcher(
 
   override def onMessage(message: HeadersFetcherCommand): Behavior[HeadersFetcherCommand] =
     message match {
-      case FetchHeaders(block: Either[BigInt, ByteString], amount: BigInt) =>
+      case FetchHeadersByNumber(block: BigInt, amount: BigInt) =>
         log.debug("Start fetching headers from block {}", block)
-        requestHeaders(block, amount)
+        requestHeaders(Left(block), amount)
+        Behaviors.same
+      case FetchHeadersByHash(block: ByteString, amount: BigInt) =>
+        log.debug("Start fetching headers from block {}", block)
+        requestHeaders(Right(block), amount)
         Behaviors.same
       case AdaptedMessage(peer, BlockHeaders(headers)) =>
         log.debug("Fetched {} headers starting from block {}", headers.size, headers.headOption.map(_.number))
@@ -82,7 +89,8 @@ object HeadersFetcher {
     Behaviors.setup(context => new HeadersFetcher(peersClient, syncConfig, supervisor, context))
 
   sealed trait HeadersFetcherCommand
-  final case class FetchHeaders(block: Either[BigInt, ByteString], amount: BigInt) extends HeadersFetcherCommand
+  final case class FetchHeadersByNumber(block: BigInt, amount: BigInt) extends HeadersFetcherCommand
+  final case class FetchHeadersByHash(block: ByteString, amount: BigInt) extends HeadersFetcherCommand
   final case object RetryHeadersRequest extends HeadersFetcherCommand
   final private case class AdaptedMessage[T <: Message](peer: Peer, msg: T) extends HeadersFetcherCommand
 }

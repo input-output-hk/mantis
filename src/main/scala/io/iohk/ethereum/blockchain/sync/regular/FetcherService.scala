@@ -1,17 +1,24 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import akka.util.ByteString
+
 import cats.data.EitherT
-import io.iohk.ethereum.domain.{Block, BlockBody, BlockHeader, BlockchainReader}
-import io.iohk.ethereum.network.Peer
-import io.iohk.ethereum.network.p2p.messages.ETH62.{BlockBodies, BlockHeaders}
-import monix.eval.Task
-import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.RequestFailed
-import io.iohk.ethereum.consensus.validators.BlockValidator
-import io.iohk.ethereum.utils.Config.SyncConfig
 import cats.implicits._
 
+import monix.eval.Task
+
 import scala.annotation.tailrec
+
+import io.iohk.ethereum.blockchain.sync.PeerRequestHandler.RequestFailed
+import io.iohk.ethereum.consensus.validators.BlockValidator
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockBody
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
+import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
+import io.iohk.ethereum.utils.Config.SyncConfig
 
 //not used atm, a part of the future ExecutionSync
 class FetcherService(validator: BlockValidator, blockchainReader: BlockchainReader, syncConfig: SyncConfig) {
@@ -24,9 +31,9 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
 
   private def requestBodies(hashes: Seq[ByteString]): Task[Either[RequestFailed, BlockBodies]] = ???
 
-  private def requestStateNode(hash: ByteString): Task[Either[RequestFailed, Seq[ByteString]]] = ???
+//TODO: add private def requestStateNode(hash: ByteString): Task[Either[RequestFailed, Seq[ByteString]]] = ???
 
-  private def placeBlockInQueue(block: Block, peer: Peer): Unit = ???
+  private def placeBlockInPeerStream(block: Block, peer: Peer): Peer = ???
 
   def fetchBlocksUntil(
       peer: Peer,
@@ -55,7 +62,7 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
       peer: Peer,
       amount: BigInt,
       block: Either[BigInt, ByteString]
-  ): EitherT[Task, RequestFailed, Unit] =
+  ): EitherT[Task, RequestFailed, Peer] =
     for {
       headers <- EitherT(requestHeaders(block, amount))
       bodies <- EitherT(requestBodies(headers.headers.map(_.hash)))
@@ -63,8 +70,8 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
         bodiesAreOrderedSubsetOfRequested(headers.headers, bodies.bodies),
         RequestFailed(peer, "Unmatching bodies")
       )
-      _ = blocks.foreach(placeBlockInQueue(_, peer))
-    } yield ()
+      _ = blocks.foreach(placeBlockInPeerStream(_, peer))
+    } yield peer
 
   // Checks that the received block bodies are an ordered subset of the ones requested
   @tailrec
@@ -77,8 +84,7 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
       case (Seq(), _ +: _) => None
       case (_, Seq())      => Some(matchedBlocks)
       case (header +: remainingHeaders, body +: remainingBodies) =>
-        val doMatch = validator.validateHeaderAndBody(header, body).isRight
-        if (doMatch)
+        if (validator.validateHeaderAndBody(header, body).isRight)
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
         else
           bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
