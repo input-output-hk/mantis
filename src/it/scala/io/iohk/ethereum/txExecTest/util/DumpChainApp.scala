@@ -119,7 +119,11 @@ object DumpChainApp
       override val forkResolverOpt: Option[ForkResolver] = DumpChainApp.forkResolverOpt
       override val nodeStatusHolder: AtomicReference[NodeStatus] = DumpChainApp.nodeStatusHolder
       override val peerConfiguration: PeerConfiguration = peerConfig
+      // FIXME: Selecting value blockchain from object DumpChainApp, which extends scala.DelayedInit, is likely to yield an uninitialized value
+      @annotation.nowarn
       override val blockchain: Blockchain = DumpChainApp.blockchain
+      // FIXME: Selecting value blockchainReader from object DumpChainApp, which extends scala.DelayedInit, is likely to yield an uninitialized value
+      @annotation.nowarn
       override val blockchainReader: BlockchainReader = DumpChainApp.blockchainReader
       override val appStateStorage: AppStateStorage = storagesInstance.storages.appStateStorage
       override val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig

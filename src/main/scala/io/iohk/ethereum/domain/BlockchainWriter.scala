@@ -93,7 +93,7 @@ class BlockchainWriter(
       BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
     )
 
-  private def persistBestBlocksData(): Unit = {
+  private def persistBestBlocksData: () => Unit = () => {
     val currentBestBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
     val currentBestCheckpointNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
     log.debug(

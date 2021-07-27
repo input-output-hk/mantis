@@ -63,12 +63,15 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     "-unchecked",
     "-deprecation",
     "-feature",
-    //    "-Xfatal-warnings", // disabled until unused are removed
+    // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
+    // cat={warning-name}:ws prints a summary with the number of warnings of the given type
+    // any:e turns all remaining warnings into errors
+    "-Wconf:cat=deprecation:ws,cat=lint-package-object-classes:ws,cat=unused:ws,cat=lint-infer-any:ws,cat=lint-byname-implicit:ws,cat=other-match-analysis:ws,any:e",
     "-Ywarn-unused",
     "-Xlint",
     "-encoding",
     "utf-8"
-  ),
+  ) ++ Seq("-Ypatmat-exhaust-depth", "off"),
   scalacOptions ++= (if (mantisDev) Seq.empty else compilerOptimizationsForProd),
   (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(

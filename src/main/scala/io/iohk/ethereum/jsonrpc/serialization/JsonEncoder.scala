@@ -10,6 +10,7 @@ import org.json4s.JValue
 
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits
 
+@FunctionalInterface
 trait JsonEncoder[T] {
   def encodeJson(t: T): JValue
 }

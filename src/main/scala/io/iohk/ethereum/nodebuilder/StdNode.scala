@@ -106,7 +106,7 @@ abstract class BaseNode extends Node {
       "PeriodicDBConsistencyCheck"
     )
 
-  override def shutdown(): Unit = {
+  override def shutdown: () => Unit = () => {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
       case Failure(e) => log.warn("Error while shutting down...", e)
       case Success(_) =>
