@@ -184,14 +184,19 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
     else if (state.stack.size - delta + alpha > state.stack.maxSize)
       state.withError(StackOverflow)
     else {
-      val constGas: BigInt = constGasFn(state.config.feeSchedule)
-
-      val gas: BigInt = constGas + varGas(state)
+      val gas: BigInt = calcGas(state)
       if (gas > state.gas)
         state.copy(gas = 0).withError(OutOfGas)
       else
         exec(state).spendGas(gas)
     }
+
+  protected def calcGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt =
+    constGas(state) + varGas(state)
+
+  protected def constGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = constGasFn(
+    state.config.feeSchedule
+  )
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt
 
@@ -203,8 +208,52 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
   protected def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
 }
 
+trait AddrAccessGas { self: OpCode =>
+
+  private def coldGasFn: FeeSchedule => BigInt = _.G_cold_account_access
+  private def warmGasFn: FeeSchedule => BigInt = _.G_warm_storage_read
+
+  override protected def constGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+    val eip2929Enabled = isEip2929Enabled(etcFork)
+    if (eip2929Enabled) {
+      val addr = address(state)
+      if (state.accessedAddresses.contains(addr))
+        warmGasFn(state.config.feeSchedule)
+      else
+        coldGasFn(state.config.feeSchedule)
+    } else
+      constGasFn(state.config.feeSchedule)
+  }
+
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
+
+}
+
 sealed trait ConstGas { self: OpCode =>
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = 0
+}
+
+sealed trait AddressAccessOpGas extends ConstGas { self: OpCode =>
+  override protected def calcGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+
+    val eip2929Enabled = isEip2929Enabled(etcFork)
+
+    if (eip2929Enabled) {
+      val addr = address(state)
+      if (state.accessedAddresses.contains(addr))
+        state.config.feeSchedule.G_warm_storage_read
+      else
+        state.config.feeSchedule.G_cold_account_access
+    } else
+      constGasFn(state.config.feeSchedule)
+  }
+
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
+
 }
 
 case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
@@ -367,7 +416,8 @@ case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
   }
 }
 
-case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with ConstGas {
+case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with AddrAccessGas with ConstGas {
+
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (accountAddress, stack1) = state.stack.pop
     val address = Address(accountAddress)
@@ -397,7 +447,12 @@ case object EXTCODEHASH extends OpCode(0x3f, 1, 1, _.G_balance) with ConstGas {
       }
 
     val stack2 = stack1.push(codeHash)
-    state.withStack(stack2).step()
+    state.withStack(stack2).addAccessedAddress(address).step()
+  }
+
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address = {
+    val (accountAddress, _) = state.stack.pop
+    Address(accountAddress)
   }
 }
 
@@ -454,7 +509,7 @@ case object CODECOPY extends OpCode(0x39, 3, 0, _.G_verylow) {
 
 case object GASPRICE extends ConstOp(0x3a)(_.env.gasPrice)
 
-case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_zero) {
+case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_extcode) with AddrAccessGas with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (addrUint, stack1) = state.stack.pop
     val addr = Address(addrUint)
@@ -463,26 +518,14 @@ case object EXTCODESIZE extends OpCode(0x3b, 1, 1, _.G_zero) {
     state.withStack(stack2).addAccessedAddress(addr).step()
   }
 
-  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-
-    val currentBlockNumber = state.env.blockHeader.number
-    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
-
-    val eip2929Enabled = isEip2929Enabled(etcFork)
-
-    if (eip2929Enabled) {
-      val (addr, _) = state.stack.pop
-      if (state.accessedAddresses.contains(Address(addr)))
-        state.config.feeSchedule.G_warm_storage_read
-      else
-        state.config.feeSchedule.G_cold_account_access
-    } else
-      state.config.feeSchedule.G_extcode
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address = {
+    val (accountAddress, _) = state.stack.pop
+    Address(accountAddress)
   }
-
 }
 
-case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_zero) {
+case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_extcode) with AddrAccessGas {
+
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(address, memOffset, codeOffset, size), stack1) = state.stack.pop(4)
     val addr = Address(address)
@@ -491,25 +534,16 @@ case object EXTCODECOPY extends OpCode(0x3c, 4, 0, _.G_zero) {
     state.withStack(stack1).withMemory(mem1).addAccessedAddress(addr).step()
   }
 
-  protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+  override protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val (Seq(_, memOffset, _, size), _) = state.stack.pop(4)
     val memCost = state.config.calcMemCost(state.memory.size, memOffset, size)
     val copyCost = state.config.feeSchedule.G_copy * wordsForBytes(size)
+    memCost + copyCost
+  }
 
-    val currentBlockNumber = state.env.blockHeader.number
-    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
-    val eip2929Enabled = isEip2929Enabled(etcFork)
-
-    val accessCost = if (eip2929Enabled) {
-      val (addr, _) = state.stack.pop
-      if (state.accessedAddresses.contains(Address(addr))) {
-        state.config.feeSchedule.G_warm_storage_read
-      } else {
-        state.config.feeSchedule.G_cold_account_access
-      }
-    } else
-      state.config.feeSchedule.G_extcode
-    memCost + copyCost + accessCost
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address = {
+    val (Seq(accountAddress, _, _, _), _) = state.stack.pop(4)
+    Address(accountAddress)
   }
 }
 

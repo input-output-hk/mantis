@@ -48,6 +48,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     ADDRESS -> G_base,
     BALANCE -> G_balance,
     EXTCODEHASH -> G_balance,
+    EXTCODESIZE -> G_extcode,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
@@ -579,16 +580,6 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
       }
     }
 
-  }
-
-  test(EXTCODESIZE) { op =>
-    val stateGen = getProgramStateGen(
-      stackGen = getStackGen(elems = 1)
-    )
-    forAll(stateGen) { stateIn =>
-      val stateOut = op.execute(stateIn)
-      verifyGas(G_extcode, stateIn, stateOut)
-    }
   }
 
   verifyAllOpCodesRegistered(except = CREATE, CREATE2, CALL, CALLCODE, DELEGATECALL, STATICCALL, INVALID)
