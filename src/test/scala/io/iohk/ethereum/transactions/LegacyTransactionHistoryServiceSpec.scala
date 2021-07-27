@@ -160,7 +160,7 @@ class LegacyTransactionHistoryServiceSpec
       )
 
       def makeReceipts(block: Block): Seq[Receipt] =
-        block.body.transactionList.map(tx => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
+        block.body.transactionList.map(_ => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
 
       for {
         _ <- Task {

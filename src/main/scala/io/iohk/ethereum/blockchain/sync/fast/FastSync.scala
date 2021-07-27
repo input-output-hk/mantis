@@ -941,7 +941,7 @@ class FastSync(
       }
 
     def assignBlockchainWork(peerWithInfo: PeerWithInfo): Unit = {
-      val PeerWithInfo(peer, peerInfo) = peerWithInfo
+      val PeerWithInfo(peer, _) = peerWithInfo
       log.debug(s"Assigning blockchain work for peer [{}]", peer.id.value)
       if (syncState.receiptsQueue.nonEmpty) {
         requestReceipts(peer)

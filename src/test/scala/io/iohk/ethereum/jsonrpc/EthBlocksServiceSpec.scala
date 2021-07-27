@@ -412,7 +412,7 @@ class EthBlocksServiceSpec
     )
   }
 
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup {
+  class TestSetup() extends MockFactory with EphemBlockchainTestSetup {
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val appStateStorage: AppStateStorage = mock[AppStateStorage]
 

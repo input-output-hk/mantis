@@ -6,18 +6,11 @@ import akka.util.ByteString
 
 import scala.collection.immutable.ArraySeq
 
-import boopickle.Default.Unpickle
-import boopickle.DefaultBasic._
-import boopickle.Pickler
-
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage._
 import io.iohk.ethereum.domain.appstate.BestBlockInfo
-import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
-import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 import io.iohk.ethereum.utils.Hex
-import io.iohk.ethereum.utils.Picklers._
 
 /** This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
