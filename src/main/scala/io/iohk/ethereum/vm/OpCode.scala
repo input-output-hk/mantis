@@ -386,12 +386,18 @@ case object SHA3 extends OpCode(0x20, 2, 1, _.G_sha3) {
 
 case object ADDRESS extends ConstOp(0x30)(_.env.ownerAddr.toUInt256)
 
-case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with ConstGas {
+case object BALANCE extends OpCode(0x31, 1, 1, _.G_balance) with AddrAccessGas with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (accountAddress, stack1) = state.stack.pop
-    val accountBalance = state.world.getBalance(Address(accountAddress))
+    val addr = Address(accountAddress)
+    val accountBalance = state.world.getBalance(addr)
     val stack2 = stack1.push(accountBalance)
-    state.withStack(stack2).step()
+    state.withStack(stack2).addAccessedAddress(addr).step()
+  }
+
+  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address = {
+    val (accountAddress, _) = state.stack.pop
+    Address(accountAddress)
   }
 }
 
