@@ -407,11 +407,16 @@ object SyncStateScheduler {
             // needs to be provided
             go(
               currentRequests - parent,
-              currentBatch + (parent -> ((parentRequest.resolvedData.getOrElse(
-                throw new IllegalStateException(
-                  s"Critical error. Parent ${parentRequest.nodeHash} without resolved data"
+              currentBatch + (parent -> (
+                (
+                  parentRequest.resolvedData.getOrElse(
+                    throw new IllegalStateException(
+                      s"Critical error. Parent ${parentRequest.nodeHash} without resolved data"
+                    )
+                  ),
+                  parentRequest.requestType
                 )
-              ), parentRequest.requestType))),
+              )),
               parentsToCheck.tail ++ parentRequest.parents
             )
           } else {
