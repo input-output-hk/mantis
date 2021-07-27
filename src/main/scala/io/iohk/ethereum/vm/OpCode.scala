@@ -172,7 +172,7 @@ object OpCode {
   * @param delta number of words to be popped from stack
   * @param alpha number of words to be pushed to stack
   */
-abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constGasFn: FeeSchedule => BigInt)
+abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val baseGasFn: FeeSchedule => BigInt)
     extends Product
     with Serializable {
   def this(code: Int, pop: Int, push: Int, constGasFn: FeeSchedule => BigInt) = this(code.toByte, pop, push, constGasFn)
@@ -193,9 +193,9 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
     }
 
   protected def calcGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt =
-    constGas(state) + varGas(state)
+    baseGas(state) + varGas(state)
 
-  protected def constGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = constGasFn(
+  protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = baseGasFn(
     state.config.feeSchedule
   )
 
@@ -213,7 +213,7 @@ trait AddrAccessGas { self: OpCode =>
   private def coldGasFn: FeeSchedule => BigInt = _.G_cold_account_access
   private def warmGasFn: FeeSchedule => BigInt = _.G_warm_storage_read
 
-  override protected def constGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+  override protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
     val currentBlockNumber = state.env.blockHeader.number
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
     val eip2929Enabled = isEip2929Enabled(etcFork)
@@ -224,7 +224,7 @@ trait AddrAccessGas { self: OpCode =>
       else
         coldGasFn(state.config.feeSchedule)
     } else
-      constGasFn(state.config.feeSchedule)
+      baseGasFn(state.config.feeSchedule)
   }
 
   protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
@@ -240,8 +240,8 @@ case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
     state.withReturnData(ByteString.empty).halt
 }
 
-sealed abstract class UnaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
-    extends OpCode(code, 1, 1, constGasFn)
+sealed abstract class UnaryOp(code: Int, baseGasFn: FeeSchedule => BigInt)(val f: UInt256 => UInt256)
+    extends OpCode(code, 1, 1, baseGasFn)
     with ConstGas {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
@@ -252,8 +252,8 @@ sealed abstract class UnaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val 
   }
 }
 
-sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256) => UInt256)
-    extends OpCode(code.toByte, 2, 1, constGasFn) {
+sealed abstract class BinaryOp(code: Int, baseGasFn: FeeSchedule => BigInt)(val f: (UInt256, UInt256) => UInt256)
+    extends OpCode(code.toByte, 2, 1, baseGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b), stack1) = state.stack.pop(2)
@@ -263,9 +263,9 @@ sealed abstract class BinaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(val
   }
 }
 
-sealed abstract class TernaryOp(code: Int, constGasFn: FeeSchedule => BigInt)(
+sealed abstract class TernaryOp(code: Int, baseGasFn: FeeSchedule => BigInt)(
     val f: (UInt256, UInt256, UInt256) => UInt256
-) extends OpCode(code.toByte, 3, 1, constGasFn) {
+) extends OpCode(code.toByte, 3, 1, baseGasFn) {
 
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (Seq(a, b, c), stack1) = state.stack.pop(3)
@@ -894,7 +894,7 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
 
     //FIXME: to avoid calculating this twice, we could adjust state.gas prior to execution in OpCode#execute
     //not sure how this would affect other opcodes [EC-243]
-    val availableGas = state.gas - (constGasFn(state.config.feeSchedule) + varGas(state))
+    val availableGas = state.gas - (baseGasFn(state.config.feeSchedule) + varGas(state))
     val startGas = state.config.gasCap(availableGas)
     val (initCode, memory1) = state.memory.load(inOffset, inSize)
     val world1 = state.world.increaseNonce(state.ownAddress)

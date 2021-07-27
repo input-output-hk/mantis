@@ -124,7 +124,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
   test(constGasOps: _*) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = op.delta),
-      gasGen = getBigIntGen(max = op.constGasFn(config.feeSchedule) * 2)
+      gasGen = getBigIntGen(max = op.baseGasFn(config.feeSchedule) * 2)
     )
 
     forAll(stateGen) { stateIn =>
