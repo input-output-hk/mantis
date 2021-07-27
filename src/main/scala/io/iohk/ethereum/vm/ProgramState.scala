@@ -45,6 +45,8 @@ object ProgramState {
   * @param staticCtx                  a flag to indicate static context (EIP-214)
   * @param error                      indicates whether the program terminated abnormally
   * @param originalWorld              state of the world at the beginning og the current transaction, read-only,
+  * @param accessedAddresses          set of addresses which have already been accessed in this transaction (EIP-2929)
+  * @param accessedStorageKeys        set of storage slots which have already been accessed in this transaction (EIP-2929)
   *                                   needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
