@@ -235,27 +235,6 @@ sealed trait ConstGas { self: OpCode =>
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = 0
 }
 
-sealed trait AddressAccessOpGas extends ConstGas { self: OpCode =>
-  override protected def calcGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val currentBlockNumber = state.env.blockHeader.number
-    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
-
-    val eip2929Enabled = isEip2929Enabled(etcFork)
-
-    if (eip2929Enabled) {
-      val addr = address(state)
-      if (state.accessedAddresses.contains(addr))
-        state.config.feeSchedule.G_warm_storage_read
-      else
-        state.config.feeSchedule.G_cold_account_access
-    } else
-      constGasFn(state.config.feeSchedule)
-  }
-
-  protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
-
-}
-
 case object STOP extends OpCode(0x00, 0, 0, _.G_zero) with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] =
     state.withReturnData(ByteString.empty).halt
