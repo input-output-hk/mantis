@@ -191,6 +191,6 @@ class CheckpointingServiceSpec
     val syncController: TestProbe = TestProbe()
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val service =
-      new CheckpointingService(blockchain, blockchainReader, blockQueue, checkpointBlockGenerator, syncController.ref)
+      new CheckpointingService(blockchainReader, blockQueue, checkpointBlockGenerator, syncController.ref)
   }
 }
