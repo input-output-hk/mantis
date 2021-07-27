@@ -68,6 +68,8 @@ object BlockchainConfigForEvm {
     val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul, Berlin = Value
   }
 
+  def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
+
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._
     BlockchainConfigForEvm(

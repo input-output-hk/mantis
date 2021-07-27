@@ -13,6 +13,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.EthFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm._
 
 // scalastyle:off magic.number
 // scalastyle:off number.of.types
@@ -205,7 +206,6 @@ abstract class OpCode(val code: Byte, val delta: Int, val alpha: Int, val constG
   protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]: ProgramState[W, S] => Boolean = _ =>
     true
 
-  protected def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
 }
 
 trait AddrAccessGas { self: OpCode =>
