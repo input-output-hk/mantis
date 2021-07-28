@@ -1,14 +1,17 @@
 package io.iohk.ethereum.jsonrpc
 
 import java.time.Duration
+
 import akka.actor.ActorSystem
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import monix.execution.Scheduler.Implicits.global
 
 import scala.concurrent.duration.FiniteDuration
 import scala.reflect.ClassTag
+
 import com.miguno.akka.testing.VirtualTime
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.matchers.MatcherBase
@@ -18,11 +21,11 @@ import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.WithActorSystemShutDown
-import io.iohk.ethereum.blockchain.sync.StateSyncUtils.blockchainReader
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain._
@@ -454,7 +457,6 @@ class PersonalServiceSpec
     val personal =
       new PersonalService(
         keyStore,
-        blockchain,
         blockchainReader,
         txPool.ref,
         txPoolConfig,

@@ -171,6 +171,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
     //unhappy path
     val wrongAddress = Address(666)
@@ -199,6 +200,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
     val wrongAddress = Address(666)
     val retrievedAccountProofWrong =

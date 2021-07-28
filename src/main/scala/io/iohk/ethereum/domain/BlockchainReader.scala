@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
@@ -10,7 +11,8 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
-import io.iohk.ethereum.mpt.{MerklePatriciaTrie, MptNode}
+import io.iohk.ethereum.mpt.MerklePatriciaTrie
+import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
 class BlockchainReader(
@@ -156,7 +158,14 @@ class BlockchainReader(
   }
 
   def getAccountProof(branch: Branch, address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
-    getAccountMpt(blockNumber).flatMap(_.getProof(address))
+    branch match {
+      case BestBranch(_, tipBlockNumber) =>
+        if (blockNumber <= tipBlockNumber)
+          getAccountMpt(blockNumber).flatMap(_.getProof(address))
+        else
+          None
+      case EmptyBranch => None
+    }
 
   /** Allows to query for a block based on it's number
     *

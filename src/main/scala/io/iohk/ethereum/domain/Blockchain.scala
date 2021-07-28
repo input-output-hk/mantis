@@ -2,9 +2,6 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 
-import cats.instances.option._
-import cats.syntax.flatMap._
-
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate

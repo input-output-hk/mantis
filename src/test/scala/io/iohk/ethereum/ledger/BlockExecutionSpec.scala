@@ -480,11 +480,11 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       val blockHeader: BlockHeader = validBlockHeader.copy(stateRoot = expectedStateRoot)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      assert(seqFailingValidators.forall { validators =>
+      assert(seqFailingValidators.forall { _ =>
         val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
 
         blockExecResult.left.forall {
-          case e: BlockExecutionError.ValidationBeforeExecError => true
+          case _: BlockExecutionError.ValidationBeforeExecError => true
           case _                                                => false
         }
       })
