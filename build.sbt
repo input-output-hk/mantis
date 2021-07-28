@@ -62,7 +62,15 @@ val fatalWarnings = Seq(
     "-Wconf:any:w"
   }
   else {
-    "-Wconf:cat=deprecation:ws,cat=lint-package-object-classes:ws,cat=unused:ws,cat=lint-infer-any:ws,cat=lint-byname-implicit:ws,cat=other-match-analysis:ws,any:e"
+    "-Wconf:" ++ Seq(
+      // Let's turn those gradually into errors:
+      "cat=deprecation:ws",
+      "cat=lint-package-object-classes:ws",
+      "cat=unused:ws",
+      "cat=lint-infer-any:ws",
+      "cat=lint-byname-implicit:ws",
+      "cat=other-match-analysis:ws",
+      "any:e").mkString(",")
   }) ++ Seq("-Ypatmat-exhaust-depth", "off")
 
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
