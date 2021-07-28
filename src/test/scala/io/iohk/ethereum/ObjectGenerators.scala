@@ -82,6 +82,11 @@ trait ObjectGenerators {
 
   def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
 
+  def accessListItemGen(): Gen[AccessListItem] = for {
+    address <- addressGen
+    storageKeys <- Gen.listOf(bigIntGen)
+  } yield AccessListItem(address, storageKeys)
+
   def transactionGen(): Gen[Transaction] =
     Gen.oneOf(legacyTransactionGen(), typedTransactionGen())
 
@@ -108,6 +113,7 @@ trait ObjectGenerators {
     receivingAddress <- addressGen
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
+    accessList <- Gen.listOf(accessListItemGen())
   } yield TransactionWithAccessList(
     nonce,
     gasPrice,
@@ -115,7 +121,7 @@ trait ObjectGenerators {
     receivingAddress,
     value,
     payload,
-    Nil
+    accessList
   )
 
   def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
@@ -165,6 +171,13 @@ trait ObjectGenerators {
         SignedTransaction.sign(tx, senderKeys, chainId)
       }
     }
+  }
+
+  def signedTxGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[SignedTransaction] = {
+    val senderKeys = crypto.generateKeyPair(secureRandom)
+    for {
+      tx <- transactionGen()
+    } yield SignedTransaction.sign(tx, senderKeys, chainId)
   }
 
   def genKey(rnd: SecureRandom): Gen[AsymmetricCipherKeyPair] =

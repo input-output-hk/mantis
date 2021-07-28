@@ -17,7 +17,6 @@ import scodec.Err
 import scodec.bits.BitVector
 import scodec.bits.ByteVector
 
-import io.iohk.ethereum.domain.AccessListItem
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPCodec
 import io.iohk.ethereum.rlp.RLPCodec.Ops
@@ -77,8 +76,6 @@ trait ContentCodecs {
           Node(id, address)
       }
     )
-
-  implicit val accessListItemCodec: RLPCodec[AccessListItem] = ???
 
   // https://github.com/ethereum/devp2p/blob/master/enr.md#rlp-encoding
   // content = [seq, k, v, ...]

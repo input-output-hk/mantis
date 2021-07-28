@@ -12,6 +12,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.rlp.RLPCodec.Ops
 
 object BaseETH6XMessages {
   object Status {
@@ -48,6 +49,24 @@ object BaseETH6XMessages {
     }
 
   }
+
+  implicit val addressCodec: RLPCodec[Address] =
+    implicitly[RLPCodec[Array[Byte]]].xmap(Address(_), _.toArray)
+
+  implicit val accessListItemCodec: RLPCodec[AccessListItem] =
+    RLPCodec.instance[AccessListItem](
+      { case AccessListItem(address, storageKeys) =>
+        RLPList(address, toRlpList(storageKeys))
+      },
+      {
+        case r: RLPList if r.items.isEmpty => AccessListItem(null, List.empty)
+
+        case RLPList(rlpAddress, rlpStorageKeys: RLPList) =>
+          val address = rlpAddress.decodeAs[Address]("address ")
+          val storageKeys = fromRlpList[BigInt](rlpStorageKeys).toList
+          AccessListItem(address, storageKeys)
+      }
+    )
 
   /** used by eth61, eth62, eth63
     */
@@ -138,12 +157,20 @@ object BaseETH6XMessages {
     lazy val chainId: Byte = 1.toByte //Config.blockchains.blockchainConfig.chainId
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
+
+      override def toBytes: Array[Byte] =
+        signedTx.tx match {
+          // transaction with access list encoding is defined in eip2930
+          case _: TransactionWithAccessList => Transaction.Type01 +: (super.toBytes: Array[Byte])
+          case _: LegacyTransaction         => super.toBytes
+        }
+
       override def toRLPEncodable: RLPEncodeable = {
         val receivingAddressBytes = signedTx.tx.receivingAddress
           .map(_.toArray)
           .getOrElse(Array.emptyByteArray)
         signedTx.tx match {
-          case TransactionWithAccessList(nonce, gasPrice, gasLimit, _, value, payload, _) =>
+          case TransactionWithAccessList(nonce, gasPrice, gasLimit, _, value, payload, accessList) =>
             RLPList(
               chainId, // TODO improve how chainid is preserved in transactions
               nonce,
@@ -152,7 +179,7 @@ object BaseETH6XMessages {
               receivingAddressBytes,
               value,
               payload,
-              RLPList(), // TODO write an implicit RLPCodec
+              toRlpList(accessList),
               signedTx.signature.v,
               signedTx.signature.r,
               signedTx.signature.s
@@ -189,6 +216,7 @@ object BaseETH6XMessages {
     }
 
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
+
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case RLPList(
               _, // TODO improve how chainid is preserved in transactions
@@ -212,7 +240,7 @@ object BaseETH6XMessages {
               receivingAddressOpt,
               value,
               payload,
-              Nil // TODO write an implicit RLPCodec
+              fromRlpList[AccessListItem](accessList).toList
             ),
             (pointSign: Int).toByte,
             signatureRandom,
