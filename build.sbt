@@ -66,7 +66,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
     // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
     // cat={warning-name}:ws prints a summary with the number of warnings of the given type
     // any:e turns all remaining warnings into errors
-    if (sys.env.get("MANTIS_FULL_WARNS").contains("true")) {
+    if (sys.env.get("MANTIS_FULL_WARNS").contains("true") || nixBuild) {
       "-Wconf:any:w"
     }
     else {
