@@ -42,7 +42,8 @@ object EvmConfig {
       (blockchainConfig.aghartaBlockNumber, 7, AghartaConfigBuilder),
       (blockchainConfig.petersburgBlockNumber, 8, PetersburgConfigBuilder),
       (blockchainConfig.istanbulBlockNumber, 9, IstanbulConfigBuilder),
-      (blockchainConfig.phoenixBlockNumber, 9, PhoenixConfigBuilder)
+      (blockchainConfig.phoenixBlockNumber, 9, PhoenixConfigBuilder),
+      (blockchainConfig.magnetoBlockNumber, 10, MagnetoConfigBuilder)
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -61,6 +62,7 @@ object EvmConfig {
   val ConstantinopleOpCodes: OpCodeList = OpCodeList(OpCodes.ConstantinopleOpCodes)
   val AghartaOpCodes = ConstantinopleOpCodes
   val PhoenixOpCodes: OpCodeList = OpCodeList(OpCodes.PhoenixOpCodes)
+  val MagnetoOpCodes: OpCodeList = PhoenixOpCodes
 
   val FrontierConfigBuilder: EvmConfigBuilder = config =>
     EvmConfig(
@@ -130,6 +132,12 @@ object EvmConfig {
     AghartaConfigBuilder(config).copy(
       feeSchedule = new ethereum.vm.FeeSchedule.PhoenixFeeSchedule,
       opCodeList = PhoenixOpCodes
+    )
+
+  val MagnetoConfigBuilder: EvmConfigBuilder = config =>
+    PhoenixConfigBuilder(config).copy(
+      feeSchedule = new ethereum.vm.FeeSchedule.MagnetoFeeSchedule,
+      opCodeList = MagnetoOpCodes
     )
 
   case class OpCodeList(opCodes: List[OpCode]) {
@@ -251,6 +259,9 @@ object FeeSchedule {
     override val G_copy = 3
     override val G_blockhash = 20
     override val G_extcode = 20
+    override val G_cold_sload = 2100
+    override val G_cold_account_access = 2600
+    override val G_warm_storage_read = 100
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
@@ -283,6 +294,10 @@ object FeeSchedule {
     override val G_txdatanonzero = 16
   }
 
+  class MagnetoFeeSchedule extends PhoenixFeeSchedule {
+    override val G_sload: BigInt = G_warm_storage_read
+    override val G_sreset: BigInt = 5000 - G_cold_sload
+  }
 }
 
 trait FeeSchedule {
@@ -321,4 +336,7 @@ trait FeeSchedule {
   val G_copy: BigInt
   val G_blockhash: BigInt
   val G_extcode: BigInt
+  val G_cold_sload: BigInt
+  val G_cold_account_access: BigInt
+  val G_warm_storage_read: BigInt
 }

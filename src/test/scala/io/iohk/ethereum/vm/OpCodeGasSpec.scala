@@ -48,10 +48,10 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     ADDRESS -> G_base,
     BALANCE -> G_balance,
     EXTCODEHASH -> G_balance,
+    EXTCODESIZE -> G_extcode,
     CALLVALUE -> G_base,
     CALLDATALOAD -> G_verylow,
     CALLDATASIZE -> G_base,
-    EXTCODESIZE -> G_extcode,
     BLOCKHASH -> G_blockhash,
     COINBASE -> G_base,
     TIMESTAMP -> G_base,
@@ -124,7 +124,7 @@ class OpCodeGasSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
   test(constGasOps: _*) { op =>
     val stateGen = getProgramStateGen(
       stackGen = getStackGen(elems = op.delta),
-      gasGen = getBigIntGen(max = op.constGasFn(config.feeSchedule) * 2)
+      gasGen = getBigIntGen(max = op.baseGasFn(config.feeSchedule) * 2)
     )
 
     forAll(stateGen) { stateIn =>

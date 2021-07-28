@@ -6,6 +6,7 @@ object Fixtures {
   val PetersburgBlockNumber = 400
   val PhoenixBlockNumber = 600
   val IstanbulBlockNumber = 600
+  val MagnetoBlockNumber = 700
 
   val blockchainConfig: BlockchainConfigForEvm = BlockchainConfigForEvm(
     // block numbers are irrelevant
@@ -23,6 +24,7 @@ object Fixtures {
     aghartaBlockNumber = 0,
     petersburgBlockNumber = PetersburgBlockNumber,
     phoenixBlockNumber = PhoenixBlockNumber,
+    magnetoBlockNumber = MagnetoBlockNumber,
     chainId = 0x3d.toByte
   )
 

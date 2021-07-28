@@ -6,6 +6,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Agharta
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Atlantis
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.BeforeAtlantis
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Magneto
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Phoenix
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.BeforeByzantium
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Byzantium
@@ -35,13 +36,15 @@ case class BlockchainConfigForEvm(
     aghartaBlockNumber: BigInt,
     petersburgBlockNumber: BigInt,
     phoenixBlockNumber: BigInt,
+    magnetoBlockNumber: BigInt,
     chainId: Byte
 ) {
   def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match {
     case _ if blockNumber < atlantisBlockNumber => BeforeAtlantis
     case _ if blockNumber < aghartaBlockNumber  => Atlantis
     case _ if blockNumber < phoenixBlockNumber  => Agharta
-    case _ if blockNumber >= phoenixBlockNumber => Phoenix
+    case _ if blockNumber < magnetoBlockNumber  => Phoenix
+    case _ if blockNumber >= magnetoBlockNumber => Magneto
   }
 
   def ethForkForBlockNumber(blockNumber: BigInt): BlockchainConfigForEvm.EthForks.Value = blockNumber match {
@@ -65,6 +68,8 @@ object BlockchainConfigForEvm {
     val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul, Berlin = Value
   }
 
+  def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
+
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._
     BlockchainConfigForEvm(
@@ -82,6 +87,7 @@ object BlockchainConfigForEvm {
       aghartaBlockNumber = forkBlockNumbers.aghartaBlockNumber,
       petersburgBlockNumber = forkBlockNumbers.petersburgBlockNumber,
       phoenixBlockNumber = forkBlockNumbers.phoenixBlockNumber,
+      magnetoBlockNumber = forkBlockNumbers.magnetoBlockNumber,
       chainId = chainId
     )
   }

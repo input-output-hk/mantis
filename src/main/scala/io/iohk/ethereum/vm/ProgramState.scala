@@ -19,7 +19,12 @@ object ProgramState {
       world = context.world,
       staticCtx = context.staticCtx,
       addressesToDelete = context.initialAddressesToDelete,
-      originalWorld = context.originalWorld
+      originalWorld = context.originalWorld,
+      accessedAddresses = PrecompiledContracts.getContracts(context).keySet ++ Set(
+        context.originAddr,
+        context.recipientAddr.getOrElse(context.callerAddr)
+      ),
+      accessedStorageKeys = Set.empty
     )
 }
 
@@ -40,6 +45,8 @@ object ProgramState {
   * @param staticCtx                  a flag to indicate static context (EIP-214)
   * @param error                      indicates whether the program terminated abnormally
   * @param originalWorld              state of the world at the beginning og the current transaction, read-only,
+  * @param accessedAddresses          set of addresses which have already been accessed in this transaction (EIP-2929)
+  * @param accessedStorageKeys        set of storage slots which have already been accessed in this transaction (EIP-2929)
   *                                   needed for https://eips.ethereum.org/EIPS/eip-1283
   */
 case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
@@ -58,7 +65,9 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
     halted: Boolean = false,
     staticCtx: Boolean = false,
     error: Option[ProgramError] = None,
-    originalWorld: W
+    originalWorld: W,
+    accessedAddresses: Set[Address],
+    accessedStorageKeys: Set[(Address, BigInt)]
 ) {
 
   def config: EvmConfig = env.evmConfig
@@ -125,6 +134,12 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
 
   def revert(data: ByteString): ProgramState[W, S] =
     copy(error = Some(RevertOccurs), returnData = data, halted = true)
+
+  def addAccessedAddress(addr: Address): ProgramState[W, S] =
+    copy(accessedAddresses = accessedAddresses + addr)
+
+  def addAccessedStorageKey(addr: Address, storageKey: BigInt): ProgramState[W, S] =
+    copy(accessedStorageKeys = accessedStorageKeys + ((addr, storageKey)))
 
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](

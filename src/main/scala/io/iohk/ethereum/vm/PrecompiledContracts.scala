@@ -63,17 +63,21 @@ object PrecompiledContracts {
 
   private def getContract(context: ProgramContext[_, _]): Option[PrecompiledContract] =
     context.recipientAddr.flatMap { addr =>
-      val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
-      val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
-
-      if (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix) {
-        istanbulPhoenixContracts.get(addr)
-      } else if (ethFork >= EthForks.Byzantium || etcFork >= EtcForks.Atlantis) {
-        // byzantium and atlantis hard fork introduce the same set of precompiled contracts
-        byzantiumAtlantisContracts.get(addr)
-      } else
-        contracts.get(addr)
+      getContracts(context).get(addr)
     }
+
+  def getContracts(context: ProgramContext[_, _]): Map[Address, PrecompiledContract] = {
+    val ethFork = context.evmConfig.blockchainConfig.ethForkForBlockNumber(context.blockHeader.number)
+    val etcFork = context.evmConfig.blockchainConfig.etcForkForBlockNumber(context.blockHeader.number)
+
+    if (ethFork >= EthForks.Istanbul || etcFork >= EtcForks.Phoenix) {
+      istanbulPhoenixContracts
+    } else if (ethFork >= EthForks.Byzantium || etcFork >= EtcForks.Atlantis) {
+      // byzantium and atlantis hard fork introduce the same set of precompiled contracts
+      byzantiumAtlantisContracts
+    } else
+      contracts
+  }
 
   sealed trait PrecompiledContract {
     protected def exec(inputData: ByteString): Option[ByteString]

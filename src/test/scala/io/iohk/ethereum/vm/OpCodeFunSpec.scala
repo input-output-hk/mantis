@@ -179,13 +179,14 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
   test(EXTCODEHASH) { op =>
     forAll(getProgramStateGen(), getByteStringGen(0, 256)) { (stateIn, extCode) =>
+      val (addr, _) = stateIn.stack.pop
       val stateOut = executeOp(op, stateIn)
       withStackVerification(op, stateIn, stateOut) {
         val (_, stack1) = stateIn.stack.pop
-        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+        stateOut shouldEqual stateIn.addAccessedAddress(Address(addr)).withStack(stack1.push(UInt256.Zero)).step()
       }
 
-      val (addr, stack1) = stateIn.stack.pop
+      val (_, stack1) = stateIn.stack.pop
       val codeHash = kec256(extCode)
 
       val account = Account(codeHash = codeHash)
@@ -199,7 +200,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         // if account is empty we should push 0 onto stack
         val toPushOnStack = if (codeHash == Account.EmptyCodeHash) UInt256.Zero else UInt256(codeHash)
         val stack2 = stack1.push(toPushOnStack)
-        stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
+        stateOutWithAccount shouldEqual stateInWithAccount.addAccessedAddress(Address(addr)).withStack(stack2).step()
       }
     }
   }
@@ -275,13 +276,14 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
     val codeGen = getByteStringGen(0, 512)
 
     forAll(stateGen, codeGen) { (stateIn, extCode) =>
+      val (addr, _) = stateIn.stack.pop
       val stateOut = executeOp(op, stateIn)
       withStackVerification(op, stateIn, stateOut) {
         val (_, stack1) = stateIn.stack.pop
-        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+        stateOut shouldEqual stateIn.addAccessedAddress(Address(addr)).withStack(stack1.push(UInt256.Zero)).step()
       }
 
-      val (addr, stack1) = stateIn.stack.pop
+      val (_, stack1) = stateIn.stack.pop
       val program = Program(extCode)
       val world1 = stateIn.world.saveCode(Address(addr), program.code)
 
@@ -290,7 +292,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
       withStackVerification(op, stateInWithExtCode, stateOutWithExtCode) {
         val stack2 = stack1.push(UInt256(extCode.size))
-        stateOutWithExtCode shouldEqual stateInWithExtCode.withStack(stack2).step()
+        stateOutWithExtCode shouldEqual stateInWithExtCode.addAccessedAddress(Address(addr)).withStack(stack2).step()
       }
     }
   }
@@ -321,7 +323,8 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val (storedInMem, _) = stateOut.memory.load(memOffset, size)
         code shouldEqual storedInMem
 
-        val expectedState = stateIn.withStack(stateOut.stack).withMemory(stateOut.memory).step()
+        val expectedState =
+          stateIn.addAccessedAddress(Address(addr)).withStack(stateOut.stack).withMemory(stateOut.memory).step()
         stateOut shouldEqual expectedState
       }
     }
