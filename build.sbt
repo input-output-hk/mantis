@@ -44,6 +44,27 @@ val `scala-2.12` = "2.12.13"
 val `scala-2.13` = "2.13.6"
 val supportedScalaVersions = List(`scala-2.12`, `scala-2.13`)
 
+val baseScalacOptions = Seq(
+  "-unchecked",
+  "-deprecation",
+  "-feature",
+  "-Ywarn-unused",
+  "-Xlint",
+  "-encoding",
+  "utf-8"
+)
+
+// https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
+// cat={warning-name}:ws prints a summary with the number of warnings of the given type
+// any:e turns all remaining warnings into errors
+val fatalWarnings = Seq(
+  if (sys.env.get("MANTIS_FULL_WARNS").contains("true")) {
+    "-Wconf:any:w"
+  }
+  else {
+    "-Wconf:cat=deprecation:ws,cat=lint-package-object-classes:ws,cat=unused:ws,cat=lint-infer-any:ws,cat=lint-byname-implicit:ws,cat=other-match-analysis:ws,any:e"
+  }) ++ Seq("-Ypatmat-exhaust-depth", "off")
+
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
   organization := "io.iohk",
@@ -59,24 +80,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   resolvers += "Sonatype OSS Snapshots".at("https://oss.sonatype.org/content/repositories/snapshots"),
   (Test / testOptions) += Tests
     .Argument(TestFrameworks.ScalaTest, "-l", "EthashMinerSpec"), // miner tests disabled by default,
-  scalacOptions := Seq(
-    "-unchecked",
-    "-deprecation",
-    "-feature",
-    // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
-    // cat={warning-name}:ws prints a summary with the number of warnings of the given type
-    // any:e turns all remaining warnings into errors
-    if (sys.env.get("MANTIS_FULL_WARNS").contains("true") || nixBuild) {
-      "-Wconf:any:w"
-    }
-    else {
-      "-Wconf:cat=deprecation:ws,cat=lint-package-object-classes:ws,cat=unused:ws,cat=lint-infer-any:ws,cat=lint-byname-implicit:ws,cat=other-match-analysis:ws,any:e"
-    } ,
-    "-Ywarn-unused",
-    "-Xlint",
-    "-encoding",
-    "utf-8"
-  ) ++ Seq("-Ypatmat-exhaust-depth", "off"),
+  scalacOptions := baseScalacOptions ++ fatalWarnings,
   scalacOptions ++= (if (mantisDev) Seq.empty else compilerOptimizationsForProd),
   (Compile / console / scalacOptions) ~= (_.filterNot(
     Set(
@@ -84,6 +88,7 @@ def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
       "-Xfatal-warnings"
     )
   )),
+  (Compile / doc / scalacOptions) := baseScalacOptions,
   scalacOptions ~= (options => if (mantisDev) options.filterNot(_ == "-Xfatal-warnings") else options),
   Test / parallelExecution := true,
   (Test / testOptions) += Tests.Argument("-oDG"),
