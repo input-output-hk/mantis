@@ -27,7 +27,7 @@ import io.iohk.ethereum.proof.ProofVerifyResult.ValidProof
 class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
 
   val dataSource: EphemDataSource = EphemDataSource()
-  val (stateStorage, emptyNodeStorage, _) = StateStorage.createTestStateStorage(dataSource)
+  val (stateStorage, emptyNodeStorage, cachedNodeStorage) = StateStorage.createTestStateStorage(dataSource)
   val emptyEphemNodeStorage: MptStorage = stateStorage.getBackingStorage(0)
   val emptyMpt: MerklePatriciaTrie[Array[Byte], Array[Byte]] =
     MerklePatriciaTrie[Array[Byte], Array[Byte]](emptyEphemNodeStorage)
@@ -484,7 +484,7 @@ class MerklePatriciaTrieSuite extends AnyFunSuite with ScalaCheckPropertyChecks 
 
     val pruningOffset = 10
 
-    val (stateStorage, nodeStorage, cachedNodeStorage) =
+    val (stateStorage, _, cachedNodeStorage) =
       StateStorage.createTestStateStorage(EphemDataSource(), BasicPruning(40))
 
     val referenceCountBlock0 = stateStorage.getBackingStorage(0)

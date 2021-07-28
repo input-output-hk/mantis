@@ -23,14 +23,14 @@ import io.iohk.ethereum.utils.Config.NodeCacheConfig
 class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
 
   "ReadOnlyNodeStorage" should "not update dataSource" in new TestSetup {
-    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+    val readOnlyNodeStorage = archiveStateStorage.getReadOnlyStorage
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
     dataSource.storage.size shouldEqual 0
   }
 
   it should "be able to persist to underlying storage when needed" in new TestSetup {
-    val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
-    val readOnlyNodeStorage = stateStorage.getReadOnlyStorage
+    val (nodeKey, _) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val readOnlyNodeStorage = archiveStateStorage.getReadOnlyStorage
 
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
 
@@ -41,12 +41,11 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
 
     readOnlyNodeStorage.persist()
 
-    stateStorage.forcePersist(GenesisDataLoad)
     dataSource.storage.size shouldEqual 1
   }
 
   it should "be able to persist to underlying storage when Genesis loading" in new TestSetup {
-    val (nodeKey, nodeVal) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val (nodeKey, _) = MptStorage.collapseNode(Some(newLeaf))._2.head
     val readOnlyNodeStorage = cachedStateStorage.getReadOnlyStorage
 
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
@@ -65,7 +64,7 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
   trait TestSetup {
     val newLeaf: LeafNode = LeafNode(ByteString(1), ByteString(1))
     val dataSource: EphemDataSource = EphemDataSource()
-    val (stateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
+    val (archiveStateStorage, nodeStorage, cachedStorage) = StateStorage.createTestStateStorage(dataSource)
 
     object TestCacheConfig extends NodeCacheConfig {
       override val maxSize: Long = 100
@@ -76,7 +75,6 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
     val testCache: Cache[NodeHash, NodeEncoded] = MapCache.createTestCache[NodeHash, NodeEncoded](10)
     val newCachedNodeStorage = new CachedNodeStorage(newNodeStorage, testCache)
 
-    val cachedStateStorage: StateStorage =
-      StateStorage(InMemoryPruning(10), newNodeStorage, newCachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), newNodeStorage, lruCache)
   }
 }
