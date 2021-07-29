@@ -621,7 +621,6 @@ class SyncControllerSpec
             this
 
           case SendMessage(msg: GetReceiptsEnc, peer) if !onlyPivot =>
-            msg.underlyingMsg
             if (failedReceiptsTries > 0) {
               sender ! MessageFromPeer(Receipts(Seq()), peer)
               this.copy(failedReceiptsTries = failedReceiptsTries - 1)
@@ -632,7 +631,6 @@ class SyncControllerSpec
             }
 
           case SendMessage(msg: GetBlockBodiesEnc, peer) if !onlyPivot =>
-            msg.underlyingMsg
             if (failedBodiesTries > 0) {
               sender ! MessageFromPeer(BlockBodies(Seq()), peer)
               this.copy(failedBodiesTries = failedBodiesTries - 1)
@@ -644,7 +642,6 @@ class SyncControllerSpec
 
           case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
             stateDownloadStarted = true
-            msg.underlyingMsg
             if (!failedNodeRequest) {
               sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)
             }

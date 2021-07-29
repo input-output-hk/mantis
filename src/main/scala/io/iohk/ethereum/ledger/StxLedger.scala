@@ -84,7 +84,7 @@ object StxLedger {
     * @return minimal value for which provided function do not return error
     */
   @tailrec
-  private[ledger] def binaryChop[Error](min: BigInt, max: BigInt)(f: BigInt => Option[Error]): BigInt = {
+  private[ledger] def binaryChop[Err](min: BigInt, max: BigInt)(f: BigInt => Option[Err]): BigInt = {
     assert(min <= max)
 
     if (min == max)

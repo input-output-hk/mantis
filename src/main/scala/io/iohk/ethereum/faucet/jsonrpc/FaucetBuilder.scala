@@ -100,7 +100,7 @@ trait FaucetJsonRpcHttpServerBuilder {
 trait ShutdownHookBuilder {
   self: ActorSystemBuilder with FaucetConfigBuilder with Logger =>
 
-  def shutdown(): Unit =
+  def shutdown: () => Unit = () =>
     Await.ready(
       system
         .terminate()
