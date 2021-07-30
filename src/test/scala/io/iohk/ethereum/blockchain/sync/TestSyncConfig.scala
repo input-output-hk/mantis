@@ -27,6 +27,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     receiptsPerRequest = 10,
     minPeersToChoosePivotBlock = 2,
     peersToChoosePivotBlockMargin = 0,
+    peersToFetchFrom = 5,
     peerResponseTimeout = 1.second,
     peersScanInterval = 1.hour,
     fastSyncThrottle = 100.milliseconds,

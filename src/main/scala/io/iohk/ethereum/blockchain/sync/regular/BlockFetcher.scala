@@ -307,7 +307,7 @@ class BlockFetcher(
   private def fetchHeaders(state: BlockFetcherState): Unit = {
     val blockNr = state.nextBlockToFetch
     val amount = syncConfig.blockHeadersPerRequest
-    headersFetcher ! HeadersFetcher.FetchHeaders(blockNr, amount)
+    headersFetcher ! HeadersFetcher.FetchHeadersByNumber(blockNr, amount)
   }
 
   private def tryFetchBodies(fetcherState: BlockFetcherState): BlockFetcherState =
