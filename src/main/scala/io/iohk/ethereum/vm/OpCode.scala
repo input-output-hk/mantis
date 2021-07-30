@@ -164,6 +164,24 @@ object OpCode {
     val end = (offset + size).min(bytes.size).toInt
     bytes.slice(start, end).padToByteString(size.toInt, 0.toByte)
   }
+
+  def addressAccessCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], address: Address)(
+      preGasFn: FeeSchedule => BigInt,
+      postColdGasFn: FeeSchedule => BigInt,
+      postWarmGasFn: FeeSchedule => BigInt
+  ): BigInt = {
+    val currentBlockNumber = state.env.blockHeader.number
+    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
+    val eip2929Enabled = isEip2929Enabled(etcFork)
+    if (eip2929Enabled) {
+      val addr = address
+      if (state.accessedAddresses.contains(addr))
+        postWarmGasFn(state.config.feeSchedule)
+      else
+        postColdGasFn(state.config.feeSchedule)
+    } else
+      preGasFn(state.config.feeSchedule)
+  }
 }
 
 /** Base class for all the opcodes of the EVM
@@ -213,22 +231,10 @@ trait AddrAccessGas { self: OpCode =>
   private def coldGasFn: FeeSchedule => BigInt = _.G_cold_account_access
   private def warmGasFn: FeeSchedule => BigInt = _.G_warm_storage_read
 
-  override protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
-    val currentBlockNumber = state.env.blockHeader.number
-    val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
-    val eip2929Enabled = isEip2929Enabled(etcFork)
-    if (eip2929Enabled) {
-      val addr = address(state)
-      if (state.accessedAddresses.contains(addr))
-        warmGasFn(state.config.feeSchedule)
-      else
-        coldGasFn(state.config.feeSchedule)
-    } else
-      baseGasFn(state.config.feeSchedule)
-  }
+  override protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt =
+    OpCode.addressAccessCost(state, address(state))(baseGasFn, coldGasFn, warmGasFn)
 
   protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
-
 }
 
 sealed trait ConstGas { self: OpCode =>
@@ -1065,6 +1071,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withInternalTxs(internalTx +: result.internalTxs)
           .withLogs(result.logs)
           .withReturnData(result.returnData)
+          .addAccessedAddress(toAddr)
           .step()
     }
   }
@@ -1159,7 +1166,9 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       else 0
 
     val c_xfer: BigInt = if (endowment.isZero) 0 else state.config.feeSchedule.G_callvalue
-    state.config.feeSchedule.G_call + c_xfer + c_new
+
+    val callCost: BigInt = OpCode.addressAccessCost(state, to)(_.G_call, _.G_cold_account_access, _.G_warm_storage_read)
+    callCost + c_xfer + c_new
   }
 }
 
