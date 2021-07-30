@@ -12,6 +12,7 @@ import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
 import org.scalamock.handlers.CallHandler0
 import org.scalamock.handlers.CallHandler1
+import org.scalamock.handlers.CallHandler2
 import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
 
@@ -32,6 +33,7 @@ import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.branch.Branch
+import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationAfterExecError
 import io.iohk.ethereum.ledger.PC
 import io.iohk.ethereum.ledger.PR
@@ -416,10 +418,9 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
 
-  val bestChain: Branch = mock[Branch]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
-  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(bestChain)
+  (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(EmptyBranch)
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
@@ -459,11 +460,11 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       .expects(block, receipts, weight, saveAsBestBlock)
       .once()
 
-  def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler1[ByteString, Boolean] =
-    (bestChain.isInChain _).expects(hash).returning(result)
+  def setHeaderInChain(hash: ByteString, result: Boolean = true): CallHandler2[Branch, ByteString, Boolean] =
+    (blockchainReader.isInChain _).expects(*, hash).returning(result)
 
-  def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler1[BigInt, Option[Block]] =
-    (bestChain.getBlockByNumber _).expects(number).returning(block)
+  def setBlockByNumber(number: BigInt, block: Option[Block]): CallHandler2[Branch, BigInt, Option[Block]] =
+    (blockchainReader.getBlockByNumber _).expects(*, number).returning(block)
 
   def setGenesisHeader(header: BlockHeader): Unit =
     (() => blockchainReader.genesisHeader).expects().returning(header)

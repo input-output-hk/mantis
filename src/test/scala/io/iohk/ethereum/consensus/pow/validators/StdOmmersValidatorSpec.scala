@@ -81,7 +81,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
     val getNBlocksBack: (ByteString, Int) => List[Block] =
       (_, n) =>
         ((ommersBlockNumber - n) until ommersBlockNumber).toList
-          .flatMap(nb => blockchainReader.getBestBranch().getBlockByNumber(nb))
+          .flatMap(nb => blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), nb))
 
     ommersValidator.validateOmmersAncestors(
       ommersBlockParentHash,

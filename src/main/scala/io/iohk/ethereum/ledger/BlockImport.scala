@@ -86,7 +86,7 @@ class BlockImport(
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
     newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
 
-  private def measureBlockMetrics(importResult: BlockImportResult)(implicit blockchainConfig: BlockchainConfig): Unit =
+  private def measureBlockMetrics(importResult: BlockImportResult): Unit =
     importResult match {
       case BlockImportedToTop(blockImportData) =>
         blockImportData.foreach(blockData => BlockMetrics.measure(blockData.block, blockchainReader.getBlockByHash))
@@ -318,7 +318,7 @@ class BlockImport(
   private def removeBlocksUntil(parent: ByteString, fromNumber: BigInt): List[BlockData] = {
     @tailrec
     def removeBlocksUntil(parent: ByteString, fromNumber: BigInt, acc: List[BlockData]): List[BlockData] =
-      blockchainReader.getBestBranch().getBlockByNumber(fromNumber) match {
+      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), fromNumber) match {
         case Some(block) if block.header.hash == parent || fromNumber == 0 =>
           acc
 

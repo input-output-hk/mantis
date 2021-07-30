@@ -10,7 +10,7 @@ import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
-import io.iohk.ethereum.domain.branch.EmptyBranch$
+import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Logger
 
@@ -71,16 +71,14 @@ class BlockchainReader(
   def getReceiptsByHash(blockhash: ByteString): Option[Seq[Receipt]] = receiptStorage.get(blockhash)
 
   /** get the current best stored branch */
-  def getBestBranch(): Branch =
-    getBestBlock()
-      .map { block =>
-        new BestBranch(
-          block.header,
-          blockNumberMappingStorage,
-          this
-        )
-      }
-      .getOrElse(EmptyBranch$)
+  def getBestBranch(): Branch = {
+    val number = getBestBlockNumber()
+    blockNumberMappingStorage
+      .get(number)
+      .orElse(blockNumberMappingStorage.get(appStateStorage.getBestBlockNumber()))
+      .map(hash => BestBranch(hash, number))
+      .getOrElse(EmptyBranch)
+  }
 
   def getBestBlockNumber(): BigInt = {
     val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
@@ -112,6 +110,36 @@ class BlockchainReader(
 
   def genesisBlock: Block =
     getBlockByNumber(0).get
+
+  /** Returns a block inside this branch based on its number */
+  def getBlockByNumber(branch: Branch, number: BigInt): Option[Block] = branch match {
+    case BestBranch(_, tipBlockNumber) if tipBlockNumber >= number && number >= 0 =>
+      for {
+        hash <- getHashByBlockNumber(number)
+        block <- getBlockByHash(hash)
+      } yield block
+    case EmptyBranch | BestBranch(_, _) => None
+  }
+
+  /** Returns a block hash for the block at the given height if any */
+  def getHashByBlockNumber(branch: Branch, number: BigInt): Option[ByteString] = branch match {
+    case BestBranch(_, tipBlockNumber) =>
+      if (tipBlockNumber >= number && number >= 0) {
+        blockNumberMappingStorage.get(number)
+      } else None
+
+    case EmptyBranch => None
+  }
+
+  /** Checks if given block hash is in this chain. (i.e. is an ancestor of the tip block) */
+  def isInChain(branch: Branch, hash: ByteString): Boolean = branch match {
+    case BestBranch(_, tipBlockNumber) =>
+      (for {
+        header <- getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
+        hashFromBestChain <- getHashByBlockNumber(branch, header.number)
+      } yield header.hash == hashFromBestChain).getOrElse(false)
+    case EmptyBranch => false
+  }
 
   /** Allows to query for a block based on it's number
     *

@@ -9,7 +9,6 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.ledger.BlockQueue
@@ -17,7 +16,6 @@ import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
 
 class CheckpointingService(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     blockQueue: BlockQueue,
     checkpointBlockGenerator: CheckpointBlockGenerator,
@@ -36,7 +34,7 @@ class CheckpointingService(
       req.parentCheckpoint.forall(blockchainReader.getBlockHeaderByHash(_).exists(_.number < blockToReturnNum))
 
     Task {
-      blockchainReader.getBestBranch().getBlockByNumber(blockToReturnNum)
+      blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), blockToReturnNum)
     }.flatMap {
       case Some(b) if isValidParent =>
         Task.now(Right(GetLatestBlockResponse(Some(BlockInfo(b.hash, b.number)))))

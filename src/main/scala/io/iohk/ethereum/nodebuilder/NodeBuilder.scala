@@ -570,7 +570,6 @@ trait CheckpointingServiceBuilder {
 
   lazy val checkpointingService =
     new CheckpointingService(
-      blockchain,
       blockchainReader,
       blockQueue,
       checkpointBlockGenerator,

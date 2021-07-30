@@ -2,17 +2,8 @@ package io.iohk.ethereum.domain.branch
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.domain.Block
+sealed trait Branch
 
-/** An interface to manipulate blockchain branches */
-trait Branch {
+case class BestBranch(tipBlockHash: ByteString, tipBlockNumber: BigInt) extends Branch
 
-  /** Returns a block inside this branch based on its number */
-  def getBlockByNumber(number: BigInt): Option[Block]
-
-  /** Returns a block hash for the block at the given height if any */
-  def getHashByBlockNumber(number: BigInt): Option[ByteString]
-
-  /** Checks if given block hash is in this chain. (i.e. is an ancestor of the tip block) */
-  def isInChain(hash: ByteString): Boolean
-}
+case object EmptyBranch extends Branch
