@@ -113,14 +113,12 @@ class BlockchainReader(
 
   /** Returns a block inside this branch based on its number */
   def getBlockByNumber(branch: Branch, number: BigInt): Option[Block] = branch match {
-    case BestBranch(_, tipBlockNumber) =>
-      if (tipBlockNumber >= number && number >= 0) {
-        for {
-          hash <- getHashByBlockNumber(number)
-          block <- getBlockByHash(hash)
-        } yield block
-      } else None
-    case EmptyBranch => None
+    case BestBranch(_, tipBlockNumber) if tipBlockNumber >= number && number >= 0 =>
+      for {
+        hash <- getHashByBlockNumber(number)
+        block <- getBlockByHash(hash)
+      } yield block
+    case EmptyBranch | BestBranch(_, _) => None
   }
 
   /** Returns a block hash for the block at the given height if any */
@@ -138,8 +136,8 @@ class BlockchainReader(
     case BestBranch(_, tipBlockNumber) =>
       (for {
         header <- getBlockHeaderByHash(hash) if header.number <= tipBlockNumber
-        hash <- getHashByBlockNumber(branch, header.number)
-      } yield header.hash == hash).getOrElse(false)
+        hashFromBestChain <- getHashByBlockNumber(branch, header.number)
+      } yield header.hash == hashFromBestChain).getOrElse(false)
     case EmptyBranch => false
   }
 
