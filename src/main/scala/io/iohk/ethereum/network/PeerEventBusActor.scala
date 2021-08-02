@@ -1,9 +1,17 @@
 package io.iohk.ethereum.network
 
+import akka.NotUsed
 import akka.actor.Actor
 import akka.actor.ActorRef
 import akka.actor.Props
+import akka.actor.Terminated
 import akka.event.ActorEventBus
+import akka.stream.OverflowStrategy
+import akka.stream.WatchedActorTerminatedException
+import akka.stream.scaladsl.Source
+import akka.util.Timeout
+
+import scala.concurrent.Future
 
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
@@ -11,9 +19,36 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccess
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
+import io.iohk.ethereum.network.p2p.messages.Codes
 
 object PeerEventBusActor {
   def props: Props = Props(new PeerEventBusActor)
+
+  /** Handle subscription to the peer event bus via Akka Streams.
+    *
+    * @param peerEventBus ref to PeerEventBusActor
+    * @param messageClassifier specify which messages to subscribe to
+    * @return Source that subscribes to the peer event bus on materialization
+    *   and unsubscribes on cancellation. It will complete when the event bus
+    *   actor terminates.
+    *
+    *   Note:
+    *   - subscription is asynchronous so it may miss messages when starting.
+    *   - it does not complete when a specified peerId disconnects.
+    */
+  def messageSource(peerEventBus: ActorRef, messageClassifier: MessageClassifier): Source[MessageFromPeer, NotUsed] =
+    Source
+      .fromMaterializer { (mat, _) =>
+        import mat.executionContext
+        val (actorRef, src) = Source
+          .actorRef[MessageFromPeer](1, OverflowStrategy.fail)
+          .watch(peerEventBus)
+          .preMaterialize()(mat)
+        peerEventBus
+          .tell(Subscribe(messageClassifier), actorRef)
+        src
+      }
+      .mapMaterializedValue(_ => NotUsed)
 
   sealed trait PeerSelector {
     def contains(peerId: PeerId): Boolean
@@ -28,7 +63,6 @@ object PeerEventBusActor {
     case class WithId(peerId: PeerId) extends PeerSelector {
       override def contains(p: PeerId): Boolean = p == peerId
     }
-
   }
 
   sealed trait SubscriptionClassifier
@@ -196,20 +230,28 @@ object PeerEventBusActor {
   case class Unsubscribe(from: Option[SubscriptionClassifier] = None)
 
   case class Publish(ev: PeerEvent)
-
 }
 
 class PeerEventBusActor extends Actor {
-
   import PeerEventBusActor._
 
   val peerEventBus: PeerEventBus = new PeerEventBus
 
   override def receive: Receive = {
-    case Subscribe(to)           => peerEventBus.subscribe(sender(), to)
-    case Unsubscribe(Some(from)) => peerEventBus.unsubscribe(sender(), from)
-    case Unsubscribe(None)       => peerEventBus.unsubscribe(sender())
-    case Publish(ev: PeerEvent)  => peerEventBus.publish(ev)
-  }
+    case Subscribe(to) =>
+      peerEventBus.subscribe(sender(), to)
+      context.watch(sender())
 
+    case Unsubscribe(Some(from)) =>
+      peerEventBus.unsubscribe(sender(), from)
+
+    case Unsubscribe(None) =>
+      peerEventBus.unsubscribe(sender())
+
+    case Publish(ev: PeerEvent) =>
+      peerEventBus.publish(ev)
+
+    case Terminated(ref) =>
+      peerEventBus.unsubscribe(ref)
+  }
 }

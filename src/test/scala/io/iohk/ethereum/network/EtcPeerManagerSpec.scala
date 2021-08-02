@@ -328,20 +328,20 @@ class EtcPeerManagerSpec extends AnyFlatSpec with Matchers {
 
     val peer1Probe: TestProbe = TestProbe()
     val peer1: Peer =
-      Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, Some(fakeNodeId))
+      Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 1), peer1Probe.ref, false, nodeId = Some(fakeNodeId))
     val peer1Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
     val peer1InfoETC64: PeerInfo = initialPeerInfoETC64.withForkAccepted(false)
     val peer2Probe: TestProbe = TestProbe()
     val peer2: Peer =
-      Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, Some(fakeNodeId))
+      Peer(PeerId("peer2"), new InetSocketAddress("127.0.0.1", 2), peer2Probe.ref, false, nodeId = Some(fakeNodeId))
     val peer2Info: PeerInfo = initialPeerInfo.withForkAccepted(false)
     val peer3Probe: TestProbe = TestProbe()
     val peer3: Peer =
-      Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, Some(fakeNodeId))
+      Peer(PeerId("peer3"), new InetSocketAddress("127.0.0.1", 3), peer3Probe.ref, false, nodeId = Some(fakeNodeId))
 
     val freshPeerProbe: TestProbe = TestProbe()
     val freshPeer: Peer =
-      Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, Some(fakeNodeId))
+      Peer(PeerId(""), new InetSocketAddress("127.0.0.1", 4), freshPeerProbe.ref, false, nodeId = Some(fakeNodeId))
     val freshPeerInfo: PeerInfo = initialPeerInfo.withForkAccepted(false)
 
     val peerManager: TestProbe = TestProbe()

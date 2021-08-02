@@ -3,8 +3,11 @@ package io.iohk.ethereum.network
 import java.net.InetSocketAddress
 import java.net.URI
 
+import akka.NotUsed
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
+import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
@@ -21,6 +24,7 @@ import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.handshaker.Handshaker.NextMessage
 import io.iohk.ethereum.network.p2p._
 import io.iohk.ethereum.network.p2p.messages.Capability
+import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.WireProtocol._
 import io.iohk.ethereum.network.rlpx.AuthHandshaker
 import io.iohk.ethereum.network.rlpx.RLPxConnectionHandler
@@ -289,7 +293,17 @@ class PeerActor[R <: HandshakeResult](
   class HandshakedPeer(remoteNodeId: ByteString, rlpxConnection: RLPxConnection, handshakeResult: R) {
 
     val peerId: PeerId = PeerId(Hex.toHexString(remoteNodeId.toArray))
-    val peer: Peer = Peer(peerId, peerAddress, self, incomingConnection, Some(remoteNodeId))
+    val source: Source[Message, NotUsed] = PeerEventBusActor
+      .messageSource(
+        peerEventBus,
+        PeerEventBusActor.SubscriptionClassifier
+          .MessageClassifier(
+            Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
+            PeerEventBusActor.PeerSelector.WithId(peerId)
+          )
+      )
+      .map(_.message)
+    val peer: Peer = Peer(peerId, peerAddress, self, incomingConnection, source, Some(remoteNodeId))
     peerEventBus ! Publish(PeerHandshakeSuccessful(peer, handshakeResult))
 
     /** main behavior of actor that handles peer communication and subscriptions for messages
