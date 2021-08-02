@@ -37,6 +37,7 @@ import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.FunctorOps._
 import io.iohk.ethereum.utils.Logger
 
 class ConsensusImpl(
@@ -100,12 +101,11 @@ class ConsensusImpl(
       blockchainConfig: BlockchainConfig
   ): Task[Either[ValidationBeforeExecError, BlockExecutionSuccess]] =
     Task
-      .evalOnce {
-        val validationResult = blockValidation.validateBlockBeforeExecution(block)
-        validationResult.left.foreach { error =>
+      .evalOnce(blockValidation.validateBlockBeforeExecution(block))
+      .tap {
+        case Left(error) =>
           log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
-        }
-        validationResult
+        case Right(_) => log.debug("Block with hash {} validated successfully", block.hash)
       }
       .executeOn(validationScheduler)
 
