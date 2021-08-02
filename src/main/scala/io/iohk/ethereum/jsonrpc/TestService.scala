@@ -264,7 +264,7 @@ class TestService(
       getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .evaluateBranchBlock(preimageCache)
+            .getConsensus(preimageCache)
             .evaluateBranchBlock(blockForMining.block)
         )
         .map { res =>
@@ -304,7 +304,7 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .evaluateBranchBlock(preimageCache)
+          .getConsensus(preimageCache)
           .evaluateBranchBlock(value)
           .flatMap(handleResult(value))
     }

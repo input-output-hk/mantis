@@ -29,7 +29,7 @@ class TestModeComponentsProvider(
     node: TestNode
 ) {
 
-  def evaluateBranchBlock(
+  def getConsensus(
       preimageCache: collection.concurrent.Map[ByteString, UInt256]
   ): Consensus = {
     val consensuz = consensus()
