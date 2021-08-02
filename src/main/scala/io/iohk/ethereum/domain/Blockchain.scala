@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
@@ -183,8 +184,8 @@ class BlockchainImpl(
         removeBlockNumberMapping(block.number)
       else blockNumberMappingStorage.emptyBatchUpdate
 
-    val potientialNewBestBlockNumber: BigInt = (block.number - 1).max(0)
-    val potientialNewBestBlockHash: ByteString = block.header.parentHash
+    val potentialNewBestBlockNumber: BigInt = (block.number - 1).max(0)
+    val potentialNewBestBlockHash: ByteString = block.header.parentHash
     val newLatestCheckpointNumber: BigInt =
       if (block.hasCheckpoint && block.number == latestCheckpointNumber) {
         findPreviousCheckpointBlockNumber(block.number, block.number)
@@ -200,8 +201,8 @@ class BlockchainImpl(
       into the case of having an incomplete best block and so an inconsistent db
      */
     val bestBlockNumberUpdates =
-      if (appStateStorage.getBestBlockNumber() > potientialNewBestBlockNumber)
-        appStateStorage.putBestBlockData(BestBlockInfo(potientialNewBestBlockHash, potientialNewBestBlockNumber))
+      if (appStateStorage.getBestBlockNumber() > potentialNewBestBlockNumber)
+        appStateStorage.putBestBlockData(BestBlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
       else appStateStorage.emptyBatchUpdate
     val latestCheckpointNumberUpdates =
       if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)
@@ -210,7 +211,7 @@ class BlockchainImpl(
 
     log.debug(
       "Persisting app info data into database. Persisted block number is {}. Persisted checkpoint number is {}",
-      potientialNewBestBlockNumber,
+      potentialNewBestBlockNumber,
       newLatestCheckpointNumber
     )
 
@@ -228,7 +229,7 @@ class BlockchainImpl(
     log.debug(
       "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
       ByteStringUtils.hash2string(blockHash),
-      potientialNewBestBlockNumber,
+      potentialNewBestBlockNumber,
       newLatestCheckpointNumber
     )
   }
