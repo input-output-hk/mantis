@@ -2,9 +2,6 @@ package io.iohk.ethereum.domain
 
 import akka.util.ByteString
 
-import cats.instances.option._
-import cats.syntax.flatMap._
-
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
@@ -26,15 +23,6 @@ trait Blockchain {
 
   type S <: Storage[S]
   type WS <: WorldStateProxy[WS, S]
-
-  /** Get an account for an address and a block number
-    *
-    * @param address address of the account
-    * @param blockNumber the block that determines the state of the account
-    */
-  def getAccount(address: Address, blockNumber: BigInt): Option[Account]
-
-  def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]]
 
   /** Get account storage at given position
     *
@@ -98,21 +86,6 @@ class BlockchainImpl(
 
   override def getLatestCheckpointBlockNumber(): BigInt =
     blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
-
-  override def getAccount(address: Address, blockNumber: BigInt): Option[Account] =
-    getAccountMpt(blockNumber) >>= (_.get(address))
-
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] =
-    getAccountMpt(blockNumber) >>= (_.getProof(address))
-
-  private def getAccountMpt(blockNumber: BigInt): Option[MerklePatriciaTrie[Address, Account]] =
-    blockchainReader.getBlockHeaderByNumber(blockNumber).map { bh =>
-      val storage = stateStorage.getBackingStorage(blockNumber)
-      MerklePatriciaTrie[Address, Account](
-        rootHash = bh.stateRoot.toArray,
-        source = storage
-      )
-    }
 
   override def getAccountStorageAt(
       rootHash: ByteString,

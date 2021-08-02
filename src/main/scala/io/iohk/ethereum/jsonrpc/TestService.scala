@@ -377,7 +377,11 @@ class TestService(
     } else {
       val accountBatch: Seq[(ByteString, Address)] = accountHashWithAdresses.view
         .dropWhile { case (hash, _) => UInt256(hash) < UInt256(request.parameters.addressHash) }
-        .filter { case (_, address) => blockchain.getAccount(address, blockOpt.get.header.number).isDefined }
+        .filter { case (_, address) =>
+          blockchainReader
+            .getAccount(blockchainReader.getBestBranch(), address, blockOpt.get.header.number)
+            .isDefined
+        }
         .take(request.parameters.maxResults + 1)
         .to(Seq)
 
@@ -414,7 +418,11 @@ class TestService(
 
     (for {
       block <- blockOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
-      accountOpt = blockchain.getAccount(Address(request.parameters.address), block.header.number)
+      accountOpt = blockchainReader.getAccount(
+        blockchainReader.getBestBranch(),
+        Address(request.parameters.address),
+        block.header.number
+      )
       account <- accountOpt.toRight(StorageRangeResponse(complete = false, Map.empty, None))
 
     } yield {

@@ -31,7 +31,6 @@ import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
-import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerEventBusActor
@@ -178,8 +177,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ) {
     override lazy val hash: ByteString = genesisHash
   }
-
-  override def getAccountProof(address: Address, blockNumber: BigInt): Option[Vector[MptNode]] = None
 
   override def getStorageProofAt(
       rootHash: NodeHash,

@@ -536,7 +536,6 @@ trait PersonalServiceBuilder {
 
   lazy val personalService = new PersonalService(
     keyStore,
-    blockchain,
     blockchainReader,
     pendingTransactionsManager,
     txPoolConfig,

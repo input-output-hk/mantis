@@ -14,7 +14,6 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.jsonrpc.AkkaTaskOps._
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
@@ -77,7 +76,6 @@ object PersonalService {
 
 class PersonalService(
     keyStore: KeyStore,
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     txPool: ActorRef,
     txPoolConfig: TxPoolConfig,
@@ -231,7 +229,7 @@ class PersonalService(
   }
 
   private def getCurrentAccount(address: Address): Option[Account] =
-    blockchain.getAccount(address, blockchainReader.getBestBlockNumber())
+    blockchainReader.getAccount(blockchainReader.getBestBranch(), address, blockchainReader.getBestBlockNumber())
 
   private def getMessageToSign(message: ByteString) = {
     val prefixed: Array[Byte] =

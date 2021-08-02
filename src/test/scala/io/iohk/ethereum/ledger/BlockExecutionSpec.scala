@@ -161,7 +161,11 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val checkpoint = ObjectGenerators.fakeCheckpointGen(2, 5).sample.get
         val blockWithCheckpoint =
           new CheckpointBlockGenerator().generate(Block(validBlockParentHeader, validBlockBodyWithNoTxs), checkpoint)
-        val treasuryAccountBefore = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
+        val treasuryAccountBefore = blockchainReader.getAccount(
+          blockchainReader.getBestBranch(),
+          blockchainConfig.treasuryAddress,
+          blockWithCheckpoint.number
+        )
 
         val mockValidators = MockValidatorsAlwaysSucceed
         val newMining: TestMining = mining.withVM(vm).withValidators(mockValidators)
@@ -180,8 +184,16 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val (blocks, error) =
           blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
         val beneficiaryAccount =
-          blockchain.getAccount(Address(blockWithCheckpoint.header.beneficiary), blockWithCheckpoint.number)
-        val treasuryAccountAfter = blockchain.getAccount(blockchainConfig.treasuryAddress, blockWithCheckpoint.number)
+          blockchainReader.getAccount(
+            blockchainReader.getBestBranch(),
+            Address(blockWithCheckpoint.header.beneficiary),
+            blockWithCheckpoint.number
+          )
+        val treasuryAccountAfter = blockchainReader.getAccount(
+          blockchainReader.getBestBranch(),
+          blockchainConfig.treasuryAddress,
+          blockWithCheckpoint.number
+        )
 
         beneficiaryAccount.isDefined shouldBe false
         treasuryAccountBefore shouldBe treasuryAccountAfter
@@ -468,11 +480,11 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       val blockHeader: BlockHeader = validBlockHeader.copy(stateRoot = expectedStateRoot)
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-      assert(seqFailingValidators.forall { validators =>
+      assert(seqFailingValidators.forall { _ =>
         val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
 
         blockExecResult.left.forall {
-          case e: BlockExecutionError.ValidationBeforeExecError => true
+          case _: BlockExecutionError.ValidationBeforeExecError => true
           case _                                                => false
         }
       })

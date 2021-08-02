@@ -29,6 +29,7 @@ import io.iohk.ethereum.WithActorSystemShutDown
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain._
+import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.jsonrpc.JsonRpcError._
 import io.iohk.ethereum.jsonrpc.PersonalService._
 import io.iohk.ethereum.keystore.KeyStore
@@ -125,7 +126,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (blockchainReader.getAccount _).expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -146,7 +147,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (blockchainReader.getAccount _).expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -179,7 +180,7 @@ class PersonalServiceSpec
     personal.unlockAccount(UnlockAccountRequest(address, passphrase, None)).runSyncUnsafe(taskTimeout)
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (blockchainReader.getAccount _).expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionRequest(tx)
@@ -338,7 +339,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (blockchainReader.getAccount _).expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber - 1)
 
     val req = SendTransactionWithPassphraseRequest(tx, passphrase)
@@ -357,7 +358,7 @@ class PersonalServiceSpec
       .returning(Right(wallet))
 
     (blockchainReader.getBestBlockNumber _).expects().returning(1234)
-    (blockchain.getAccount _).expects(address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
+    (blockchainReader.getAccount _).expects(*, address, BigInt(1234)).returning(Some(Account(nonce, 2 * txValue)))
     new Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body)
     (blockchainReader.getBestBlockNumber _).expects().returning(forkBlockNumbers.eip155BlockNumber)
 
@@ -451,11 +452,11 @@ class PersonalServiceSpec
 
     val txPool: TestProbe = TestProbe()
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
+    (blockchainReader.getBestBranch _).expects().returning(EmptyBranch).anyNumberOfTimes()
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
     val personal =
       new PersonalService(
         keyStore,
-        blockchain,
         blockchainReader,
         txPool.ref,
         txPoolConfig,

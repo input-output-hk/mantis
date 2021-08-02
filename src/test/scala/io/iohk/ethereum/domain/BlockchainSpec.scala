@@ -151,8 +151,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
-    val retrievedAccount = blockchain.getAccount(address, headerWithAcc.number)
+    val retrievedAccount = blockchainReader.getAccount(blockchainReader.getBestBranch(), address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
   }
 
@@ -170,17 +171,20 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
     //unhappy path
     val wrongAddress = Address(666)
-    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    val retrievedAccountProofWrong =
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch(), wrongAddress, headerWithAcc.number)
     //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes that we iterated
     retrievedAccountProofWrong.isDefined shouldBe true
     retrievedAccountProofWrong.size shouldBe 1
     mptWithAcc.get(wrongAddress) shouldBe None
 
     //happy path
-    val retrievedAccountProof = blockchain.getAccountProof(address, headerWithAcc.number)
+    val retrievedAccountProof =
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch(), address, headerWithAcc.number)
     retrievedAccountProof.isDefined shouldBe true
     retrievedAccountProof.map { proof =>
       MptProofVerifier.verifyProof(mptWithAcc.getRootHash, address, proof) shouldBe ValidProof
@@ -196,9 +200,11 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
+    blockchain.saveBestKnownBlocks(headerWithAcc.number)
 
     val wrongAddress = Address(666)
-    val retrievedAccountProofWrong = blockchain.getAccountProof(wrongAddress, headerWithAcc.number)
+    val retrievedAccountProofWrong =
+      blockchainReader.getAccountProof(blockchainReader.getBestBranch(), wrongAddress, headerWithAcc.number)
     //the account doesn't exist, so we can't retrieve it, but we do receive a proof of non-existence with a full path of nodes(root node) that we iterated
     (retrievedAccountProofWrong.getOrElse(Vector.empty).toList match {
       case _ @HashNode(_) :: Nil => true
