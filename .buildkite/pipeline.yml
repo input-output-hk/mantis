@@ -1,3 +1,6 @@
+env:
+  BUILDKITE_CLEAN_CHECKOUT: "true"
+
 steps:
   - label: ":nix::point_right::pipeline:"
     command: |
@@ -6,8 +9,6 @@ steps:
       | buildkite-agent pipeline upload --no-interpolation
     agents:
       queue: project42
-    timeout_in_minutes: 60
-  - wait
   - label: "Mantis Automation"
     command:
     - "curl https://raw.githubusercontent.com/input-output-hk/mantis-automation/main/.buildkite/pipeline_erc20_pr.yml -o automation.yml"
