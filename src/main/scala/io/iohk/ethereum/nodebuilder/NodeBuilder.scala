@@ -2,13 +2,10 @@ package io.iohk.ethereum.nodebuilder
 
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
-
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.util.ByteString
-
 import cats.implicits._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -17,17 +14,13 @@ import scala.concurrent.duration._
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
-
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.blockchain.sync.SyncController
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ConsensusAdapter
-import io.iohk.ethereum.consensus.ConsensusImpl
+import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter, ConsensusImpl}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.MiningBuilder
 import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
@@ -217,6 +210,9 @@ trait ConsensusBuilder {
       blockValidation,
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
+
+  lazy val consensusAdapter: ConsensusAdapter =
+    new ConsensusAdapter(consensus)
 }
 
 trait ForkResolverBuilder {

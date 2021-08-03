@@ -10,7 +10,6 @@ import akka.actor.Scheduler
 import akka.actor.SupervisorStrategy
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
-
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
@@ -19,7 +18,6 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.InternalLastBlockIm
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.db.storage.StateStorage

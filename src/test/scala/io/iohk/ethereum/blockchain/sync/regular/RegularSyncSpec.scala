@@ -8,10 +8,8 @@ import akka.testkit.TestActor.AutoPilot
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.ByteString
-
 import cats.effect.Resource
 import cats.syntax.traverse._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
@@ -20,13 +18,11 @@ import scala.concurrent.Future
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 import scala.math.BigInt
-
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.Assertion
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.diagrams.Diagrams
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.ResourceFixtures
@@ -38,9 +34,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ConsensusAdapter
-import io.iohk.ethereum.consensus.ConsensusImpl
+import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter}
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
