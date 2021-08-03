@@ -1,11 +1,8 @@
 package io.iohk.ethereum.testmode
 
 import akka.util.ByteString
-
 import monix.execution.Scheduler
-
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ConsensusImpl
+import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter, ConsensusImpl}
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
@@ -31,7 +28,7 @@ class TestModeComponentsProvider(
 
   def getConsensus(
       preimageCache: collection.concurrent.Map[ByteString, UInt256]
-  ): Consensus = {
+  ): ConsensusAdapter = {
     val consensuz = consensus()
     val blockValidation = new BlockValidation(consensuz, blockchainReader, node.blockQueue)
     val blockExecution =
@@ -45,14 +42,16 @@ class TestModeComponentsProvider(
         (key: UInt256) => preimageCache.put(crypto.kec256(key.bytes), key)
       )
 
-    new ConsensusImpl(
-      blockchain,
-      blockchainReader,
-      blockchainWriter,
-      node.blockQueue,
-      blockValidation,
-      blockExecution,
-      validationExecutionContext
+    new ConsensusAdapter(
+      new ConsensusImpl(
+        blockchain,
+        blockchainReader,
+        blockchainWriter,
+        node.blockQueue,
+        blockValidation,
+        blockExecution,
+        validationExecutionContext
+      )
     )
   }
 

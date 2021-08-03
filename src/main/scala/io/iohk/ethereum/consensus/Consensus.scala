@@ -12,8 +12,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
   * still in progress
   */
 trait Consensus {
-  def evaluateBranchBlock(
-      block: Block
+  def evaluateBranch(
+      block: Seq[Block]
   )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult]
 
   /** Original interface from ETCM-1018, for temporary documentation purposes

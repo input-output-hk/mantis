@@ -1,7 +1,6 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
 import java.net.InetSocketAddress
-
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.actor.PoisonPill
@@ -11,11 +10,9 @@ import akka.testkit.TestKitBase
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import akka.util.Timeout
-
 import cats.Eq
 import cats.data.NonEmptyList
 import cats.implicits._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 import monix.reactive.Observable
@@ -26,14 +23,11 @@ import scala.concurrent.duration.DurationInt
 import scala.concurrent.duration.FiniteDuration
 import scala.math.BigInt
 import scala.reflect.ClassTag
-
 import org.scalamock.scalatest.AsyncMockFactory
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ConsensusImpl
+import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter, ConsensusImpl}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -87,7 +81,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peersClient.ref,
           etcPeerManager.ref,
           peerEventBus.ref,
-          consensus,
+          consensusAdapter,
           blockchainReader,
           stateStorage,
           branchResolution,
@@ -210,11 +204,12 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           stub[BlockExecution],
           stub[Scheduler]
         ) {
-      override def evaluateBranchBlock(
-          block: Block
+      override def evaluateBranch(
+          branch: Seq[Block]
       )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-        importedBlocksSet.add(block)
-        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
+        // TODO have a real implementation ETCM-1069
+        importedBlocksSet.add(branch.head)
+        results(branch.head.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(branch.head)))
       }
     }
 
@@ -317,9 +312,11 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
 
     class FakeConsensus extends TestConsensus {
-      override def evaluateBranchBlock(
-          block: Block
+      override def evaluateBranch(
+          branch: Seq[Block]
       )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+        // TODO have a real implementation ETCM-1069
+        val block = branch.head
         val result: BlockImportResult = if (didTryToImportBlock(block)) {
           DuplicateBlock
         } else {
@@ -360,7 +357,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
-    override lazy val consensus: Consensus = stub[ConsensusImpl]
+    override lazy val consensusAdapter: ConsensusAdapter = stub[ConsensusAdapter]
 
     var blockFetcher: ActorRef = _
 
@@ -370,7 +367,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     override lazy val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
 
-    (consensus
+    (consensusAdapter
       .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
       .when(*, *, *)
       .onCall { (block, _, _) =>

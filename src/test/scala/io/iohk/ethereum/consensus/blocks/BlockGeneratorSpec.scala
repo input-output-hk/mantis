@@ -109,7 +109,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    consensus.evaluateBranchBlock(fullBlock).runSyncUnsafe()
+    consensusAdapter.evaluateBranchBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(

@@ -557,7 +557,7 @@ class SyncControllerSpec
           storagesInstance.storages.stateStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
-          consensus,
+          consensusAdapter,
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,

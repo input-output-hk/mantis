@@ -2,11 +2,8 @@ package io.iohk.ethereum.ledger
 
 import akka.util.ByteString
 import akka.util.ByteString.{empty => bEmpty}
-
 import cats.data.NonEmptyList
-
 import monix.execution.Scheduler
-
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
 import org.bouncycastle.util.encoders.Hex
@@ -15,13 +12,11 @@ import org.scalamock.handlers.CallHandler1
 import org.scalamock.handlers.CallHandler2
 import org.scalamock.handlers.CallHandler4
 import org.scalamock.scalatest.MockFactory
-
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.ConsensusImpl
+import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter, ConsensusImpl}
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.GetBlockHeaderByHash
 import io.iohk.ethereum.consensus.mining.TestMining
@@ -287,7 +282,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 
   implicit val schedulerContext: Scheduler = Scheduler.fixedPool("ledger-test-pool", 4)
 
-  override lazy val consensus: Consensus = mkConsensus()
+  override lazy val consensusAdapter: ConsensusAdapter = mkConsensus()
 
   def randomHash(): ByteString =
     ObjectGenerators.byteStringOfLengthNGen(32).sample.get
@@ -373,12 +368,12 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     )
   }
 
-  lazy val failConsensus: Consensus = mkConsensus(validators = FailHeaderValidation)
+  lazy val failConsensus: ConsensusAdapter = mkConsensus(validators = FailHeaderValidation)
 
-  lazy val blockImportNotFailingAfterExecValidation: Consensus = {
-    val consensuz = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
-    val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
-    new ConsensusImpl(
+  lazy val blockImportNotFailingAfterExecValidation: ConsensusAdapter = {
+    val testMining = mining.withValidators(NotFailAfterExecValidation).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
+    val consensus = new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
@@ -389,7 +384,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         blockchainReader,
         blockchainWriter,
         storagesInstance.storages.evmCodeStorage,
-        consensuz.blockPreparator,
+        testMining.blockPreparator,
         blockValidation
       ) {
         override def executeAndValidateBlock(
@@ -410,6 +405,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       },
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
+    new ConsensusAdapter(consensus)
   }
 }
 
@@ -471,7 +467,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
   override lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, SyncConfig(Config.config))
 
-  def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): Consensus =
+  def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): ConsensusAdapter =
     mkConsensus(blockExecutionOpt = Some(blockExecutionMock))
 }
 
@@ -488,6 +484,6 @@ trait OmmersTestSetup extends EphemBlockchain {
       new StdOmmersValidator(blockHeaderValidator)
   }
 
-  override def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): Consensus =
+  override def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): ConsensusAdapter =
     mkConsensus(validators = OmmerValidation, blockExecutionOpt = Some(blockExecutionMock))
 }

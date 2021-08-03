@@ -46,12 +46,12 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(consensus.evaluateBranchBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensusAdapter.evaluateBranchBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(consensus.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensusAdapter.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
   }
 
   it should "import a block to the top of the main chain" in new ImportBlockTestSetup {
@@ -111,7 +111,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockQueue.removeSubtree _).expects(*)
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture)(
       _ shouldBe BlockImportFailed("MPTError(io.iohk.ethereum.mpt.MerklePatriciaTrie$MPTException: Invalid Node)")
     )
   }
@@ -123,7 +123,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockchainReader.getBestBlock _).expects().returning(None)
     setChainWeightForBlock(bestBlock, currentWeight)
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture)(
       _ shouldBe BlockImportFailed("Couldn't find the current best block")
     )
   }
@@ -137,7 +137,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture) { result =>
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture) { result =>
       result shouldBe a[BlockImportFailed]
       result
         .asInstanceOf[BlockImportFailed]
@@ -256,7 +256,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(newBlock).runToFuture)(
       _ shouldEqual BlockImportFailed("HeaderParentNotFoundError")
     )
   }
@@ -276,7 +276,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture) {
+    whenReady(consensusAdapter.evaluateBranchBlock(newBlock).runToFuture) {
       _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
     }
   }

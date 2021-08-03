@@ -63,9 +63,10 @@ class ConsensusImpl(
     *   - [[DuplicateBlock]]     - block already exists either in the main chain or in the queue
     *   - [[BlockImportFailed]]  - block failed to execute (when importing to top or reorganising the chain)
     */
-  override def evaluateBranchBlock(
-      block: Block
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+  override def evaluateBranch(
+      branch: Seq[Block]
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+    val block = branch.head
     blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
@@ -83,6 +84,7 @@ class ConsensusImpl(
         }
       case None => returnNoBestBlock()
     }
+  }
 
   private def handleBlockImport(block: Block, bestBlock: Block, weight: ChainWeight)(implicit
       blockExecutionScheduler: Scheduler,
