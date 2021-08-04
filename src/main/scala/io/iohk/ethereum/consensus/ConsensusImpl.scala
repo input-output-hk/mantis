@@ -45,9 +45,7 @@ class ConsensusImpl(
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
-    blockValidation: BlockValidation,
-    blockExecution: BlockExecution,
-    validationScheduler: Scheduler // Can't be implicit because of importToTop method and ambiguous of Scheduler
+    blockExecution: BlockExecution
 ) extends Consensus
     with Logger {
 
@@ -74,12 +72,8 @@ class ConsensusImpl(
           Task.now(DuplicateBlock)
         } else {
           blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
-            case Some(weight) =>
-              doBlockPreValidation(block).flatMap {
-                case Left(error) => Task.now(BlockImportFailed(error.reason.toString))
-                case Right(_)    => handleBlockImport(block, bestBlock, weight)
-              }
-            case None => returnNoTotalDifficulty(bestBlock)
+            case Some(weight) => handleBlockImport(block, bestBlock, weight)
+            case None         => returnNoTotalDifficulty(bestBlock)
           }
         }
       case None => returnNoBestBlock()
@@ -98,18 +92,6 @@ class ConsensusImpl(
     importResult.foreach(measureBlockMetrics)
     importResult
   }
-
-  private def doBlockPreValidation(block: Block)(implicit
-      blockchainConfig: BlockchainConfig
-  ): Task[Either[ValidationBeforeExecError, BlockExecutionSuccess]] =
-    Task
-      .evalOnce(blockValidation.validateBlockBeforeExecution(block))
-      .tap {
-        case Left(error) =>
-          log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
-        case Right(_) => log.debug("Block with hash {} validated successfully", block.hash)
-      }
-      .executeOn(validationScheduler)
 
   private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
     log.error(

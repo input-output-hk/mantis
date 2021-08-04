@@ -48,10 +48,12 @@ class TestModeComponentsProvider(
         blockchainReader,
         blockchainWriter,
         node.blockQueue,
-        blockValidation,
-        blockExecution,
-        validationExecutionContext
-      )
+        blockExecution
+      ),
+      blockchainReader,
+      node.blockQueue,
+      blockValidation,
+      validationExecutionContext
     )
   }
 

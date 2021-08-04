@@ -200,9 +200,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           stub[BlockchainReader],
           stub[BlockchainWriter],
           stub[BlockQueue],
-          stub[BlockValidation],
-          stub[BlockExecution],
-          stub[Scheduler]
+          stub[BlockExecution]
         ) {
       override def evaluateBranch(
           branch: Seq[Block]
@@ -311,30 +309,24 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit def eqInstanceForPeersClientRequest[T <: Message]: Eq[PeersClient.Request[T]] =
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
 
-    class FakeConsensus extends TestConsensus {
-      override def evaluateBranch(
-          branch: Seq[Block]
-      )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-        // TODO have a real implementation ETCM-1069
-        val block = branch.head
-        val result: BlockImportResult = if (didTryToImportBlock(block)) {
-          DuplicateBlock
+    def fakeEvaluateBlock(
+        block: Block
+    )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+      val result: BlockImportResult = if (didTryToImportBlock(block)) {
+        DuplicateBlock
+      } else {
+        if (importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))) {
+          importedBlocksSet.add(block)
+          BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
+        } else if (block.number > bestBlock.number) {
+          importedBlocksSet.add(block)
+          BlockEnqueued
         } else {
-          if (
-            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-          ) {
-            importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-          } else if (block.number > bestBlock.number) {
-            importedBlocksSet.add(block)
-            BlockEnqueued
-          } else {
-            BlockImportFailed("foo")
-          }
+          BlockImportFailed("foo")
         }
-
-        Task.now(result)
       }
+
+      Task.now(result)
     }
 
     class FakeBranchResolution extends BranchResolution(stub[BlockchainReader]) {

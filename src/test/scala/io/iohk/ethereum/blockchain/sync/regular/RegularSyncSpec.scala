@@ -290,8 +290,11 @@ class RegularSyncSpec
           override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
           override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
           (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-          override lazy val consensus: Consensus = new FakeConsensus()
-          override lazy val consensusAdapter: ConsensusAdapter = new ConsensusAdapter(consensus)
+          override lazy val consensusAdapter: ConsensusAdapter = stub[ConsensusAdapter]
+          (consensusAdapter
+            .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+            .when(*, *, *)
+            .onCall((block, scheduler, conf) => fakeEvaluateBlock(block)(scheduler, conf))
           override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
@@ -347,7 +350,11 @@ class RegularSyncSpec
         override lazy val blockchainReader: BlockchainReader = stub[BlockchainReader]
         override lazy val blockchain: BlockchainImpl = stub[BlockchainImpl]
         (blockchainReader.getBestBlockNumber _).when().onCall(() => bestBlock.number)
-        override lazy val consensus: Consensus = new FakeConsensus()
+        override lazy val consensusAdapter: ConsensusAdapter = stub[ConsensusAdapter]
+        (consensusAdapter
+          .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+          .when(*, *, *)
+          .onCall((block, scheduler, conf) => fakeEvaluateBlock(block)(scheduler, conf))
         override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
