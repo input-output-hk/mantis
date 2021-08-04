@@ -55,7 +55,7 @@ abstract class BaseNode extends Node {
     startPeriodicDBConsistencyCheck()
   }
 
-  private[this] def startMetricsClient(): Unit = {
+  def startMetricsClient(): Unit = {
     val metricsConfig = MetricsConfig(Config.config)
     Metrics.configure(metricsConfig) match {
       case Success(_) =>
@@ -64,10 +64,10 @@ abstract class BaseNode extends Node {
     }
   }
 
-  private[this] def loadGenesisData(): Unit =
+  def loadGenesisData(): Unit =
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
 
-  private[this] def runDBConsistencyCheck(): Unit =
+  def runDBConsistencyCheck(): Unit =
     StorageConsistencyChecker.checkStorageConsistency(
       storagesInstance.storages.appStateStorage.getBestBlockNumber(),
       storagesInstance.storages.blockNumberMappingStorage,
@@ -75,24 +75,24 @@ abstract class BaseNode extends Node {
       shutdown
     )(log)
 
-  private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
+  def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
-  private[this] def startServer(): Unit = server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
+  def startServer(): Unit = server ! ServerActor.StartServer(networkConfig.Server.listenAddress)
 
-  private[this] def startSyncController(): Unit = syncController ! SyncProtocol.Start
+  def startSyncController(): Unit = syncController ! SyncProtocol.Start
 
-  private[this] def startMining(): Unit = mining.startProtocol(this)
+  def startMining(): Unit = mining.startProtocol(this)
 
-  private[this] def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
+  def startDiscoveryManager(): Unit = peerDiscoveryManager ! PeerDiscoveryManager.Start
 
-  private[this] def startJsonRpcHttpServer(): Unit =
+  def startJsonRpcHttpServer(): Unit =
     maybeJsonRpcHttpServer match {
       case Right(jsonRpcServer) if jsonRpcConfig.httpServerConfig.enabled => jsonRpcServer.run()
       case Left(error) if jsonRpcConfig.httpServerConfig.enabled          => log.error(error)
       case _                                                              => //Nothing
     }
 
-  private[this] def startJsonRpcIpcServer(): Unit =
+  def startJsonRpcIpcServer(): Unit =
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
 
   def startPeriodicDBConsistencyCheck(): Unit =
