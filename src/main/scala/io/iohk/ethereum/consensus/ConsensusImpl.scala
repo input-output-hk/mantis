@@ -333,7 +333,7 @@ class ConsensusImpl(
             weight <- blockchain.getChainWeightByHash(hash)
           } yield BlockData(block, receipts, weight)
 
-          blockchain.removeBlock(hash, withState = true)
+          blockchain.removeBlock(hash)
 
           removeBlocksUntil(parent, fromNumber - 1, blockDataOpt.map(_ :: acc).getOrElse(acc))
 

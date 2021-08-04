@@ -62,7 +62,7 @@ trait Blockchain {
 
   def getLatestCheckpointBlockNumber(): BigInt
 
-  def removeBlock(hash: ByteString, withState: Boolean): Unit
+  def removeBlock(hash: ByteString): Unit
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit
 
@@ -77,15 +77,13 @@ class BlockchainImpl(
     protected val transactionMappingStorage: TransactionMappingStorage,
     protected val appStateStorage: AppStateStorage,
     protected val stateStorage: StateStorage,
-    blockchainReader: BlockchainReader,
-    blockchainMetadata: BlockchainMetadata
+    blockchainReader: BlockchainReader
 ) extends Blockchain
     with Logger {
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
-  override def getLatestCheckpointBlockNumber(): BigInt =
-    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().latestCheckpointNumber
+  override def getLatestCheckpointBlockNumber(): BigInt = appStateStorage.getLatestCheckpointBlockNumber()
 
   override def getAccountStorageAt(
       rootHash: ByteString,
@@ -128,22 +126,6 @@ class BlockchainImpl(
 
   def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
 
-  private def persistBestBlocksData(): Unit = {
-    val currentBestBlockNumber = blockchainReader.getBestBlockNumber()
-    val currentBestCheckpointNumber = getLatestCheckpointBlockNumber()
-    log.debug(
-      "Persisting app info data into database. Persisted block number is {}. " +
-        "Persisted checkpoint number is {}",
-      currentBestBlockNumber,
-      currentBestCheckpointNumber
-    )
-
-    appStateStorage
-      .putBestBlockNumber(currentBestBlockNumber)
-      .and(appStateStorage.putLatestCheckpointBlockNumber(currentBestCheckpointNumber))
-      .commit()
-  }
-
   override def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit =
     latestCheckpointNumber match {
       case Some(number) =>
@@ -153,28 +135,29 @@ class BlockchainImpl(
     }
 
   private def saveBestKnownBlock(bestBlockNumber: BigInt): Unit =
-    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.updateAndGet(_.copy(bestBlockNumber = bestBlockNumber))
+    appStateStorage.putBestBlockNumber(bestBlockNumber).commit()
 
   private def saveBestKnownBlockAndLatestCheckpointNumber(number: BigInt, latestCheckpointNumber: BigInt): Unit =
-    blockchainMetadata.bestKnownBlockAndLatestCheckpoint.set(
-      BestBlockLatestCheckpointNumbers(number, latestCheckpointNumber)
-    )
+    appStateStorage
+      .putBestBlockNumber(number)
+      .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
+      .commit()
 
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)
 
-  override def removeBlock(blockHash: ByteString, withState: Boolean): Unit = {
+  override def removeBlock(blockHash: ByteString): Unit = {
     val maybeBlock = blockchainReader.getBlockByHash(blockHash)
 
     maybeBlock match {
-      case Some(block) => removeBlock(block, withState)
+      case Some(block) => removeBlock(block)
       case None =>
         log.warn(s"Attempted removing block with hash ${ByteStringUtils.hash2string(blockHash)} that we don't have")
     }
   }
 
   // scalastyle:off method.length
-  private def removeBlock(block: Block, withState: Boolean): Unit = {
+  private def removeBlock(block: Block): Unit = {
     val blockHash = block.hash
 
     log.debug(s"Trying to remove block ${block.idTag}")
@@ -229,17 +212,12 @@ class BlockchainImpl(
       .and(latestCheckpointNumberUpdates)
       .commit()
 
-    saveBestKnownBlocks(newBestBlockNumber, Some(newLatestCheckpointNumber))
     log.debug(
       "Removed block with hash {}. New best block number - {}, new best checkpoint block number - {}",
       ByteStringUtils.hash2string(blockHash),
       newBestBlockNumber,
       newLatestCheckpointNumber
     )
-
-    // not transactional part
-    if (withState)
-      stateStorage.onBlockRollback(block.number, bestBlockNumber)(() => persistBestBlocksData())
   }
   // scalastyle:on method.length
 
@@ -288,8 +266,7 @@ trait BlockchainStorages {
 object BlockchainImpl {
   def apply(
       storages: BlockchainStorages,
-      blockchainReader: BlockchainReader,
-      metadata: BlockchainMetadata
+      blockchainReader: BlockchainReader
   ): BlockchainImpl =
     new BlockchainImpl(
       blockHeadersStorage = storages.blockHeadersStorage,
@@ -300,7 +277,6 @@ object BlockchainImpl {
       transactionMappingStorage = storages.transactionMappingStorage,
       appStateStorage = storages.appStateStorage,
       stateStorage = storages.stateStorage,
-      blockchainReader = blockchainReader,
-      blockchainMetadata = metadata
+      blockchainReader = blockchainReader
     )
 }

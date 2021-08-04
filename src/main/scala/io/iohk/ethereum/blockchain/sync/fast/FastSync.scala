@@ -567,16 +567,13 @@ class FastSync(
     }
 
     // TODO [ETCM-676]: Move to blockchain and make sure it's atomic
-    private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
+    private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit =
       // TODO (maybe ETCM-77): Manage last checkpoint number too
-      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1).max(0)).commit()
-
       (startBlock to ((startBlock - blocksToDiscard).max(1)) by -1).foreach { n =>
         blockchainReader.getBlockHeaderByNumber(n).foreach { headerToRemove =>
-          blockchain.removeBlock(headerToRemove.hash, withState = false)
+          blockchain.removeBlock(headerToRemove.hash)
         }
       }
-    }
 
     private def validateHeader(header: BlockHeader, peer: Peer): Either[HeaderProcessingResult, BlockHeader] = {
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
@@ -790,7 +787,7 @@ class FastSync(
             |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedIds.size} blacklisted).
             |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
             |""".stripMargin.replace("\n", " "),
-        appStateStorage.getBestBlockNumber()
+        blockchainReader.getBestBlockNumber()
       )
       log.debug(
         s"""|Connection status: connected({})/
@@ -1136,9 +1133,8 @@ class FastSync(
 
       if (fullBlocks.nonEmpty) {
         val bestReceivedBlock = fullBlocks.maxBy(_.number)
-        val lastStoredBestBlockNumber = appStateStorage.getBestBlockNumber()
+        val lastStoredBestBlockNumber = blockchainReader.getBestBlockNumber()
         if (lastStoredBestBlockNumber < bestReceivedBlock.number) {
-          blockchain.saveBestKnownBlocks(bestReceivedBlock.number)
           // TODO ETCM-1089 move direct calls to storages to blockchain or blockchain writer
           appStateStorage
             .putBestBlockNumber(bestReceivedBlock.number)
