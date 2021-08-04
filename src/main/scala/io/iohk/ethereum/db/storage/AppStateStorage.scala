@@ -37,7 +37,7 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
       getBigInt(Keys.BestBlockNumber)
     )
 
-  def putBestBlockData(b: BestBlockInfo): DataSourceBatchUpdate =
+  def putBestBlockInfo(b: BestBlockInfo): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, b.number.toString)
       .and(put(Keys.BestBlockHash, Hex.toHexString(b.hash.toArray)))
 

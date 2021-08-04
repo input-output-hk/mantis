@@ -144,7 +144,7 @@ class BlockchainImpl(
     }
 
   private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
-    appStateStorage.putBestBlockData(BestBlockInfo(bestBlockHash, bestBlockNumber)).commit()
+    appStateStorage.putBestBlockInfo(BestBlockInfo(bestBlockHash, bestBlockNumber)).commit()
 
   private def saveBestKnownBlockAndLatestCheckpointNumber(
       bestBlockHash: ByteString,
@@ -152,7 +152,7 @@ class BlockchainImpl(
       latestCheckpointNumber: BigInt
   ): Unit =
     appStateStorage
-      .putBestBlockData(BestBlockInfo(bestBlockHash, number))
+      .putBestBlockInfo(BestBlockInfo(bestBlockHash, number))
       .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
       .commit()
 
@@ -202,7 +202,7 @@ class BlockchainImpl(
      */
     val bestBlockNumberUpdates =
       if (appStateStorage.getBestBlockNumber() > potentialNewBestBlockNumber)
-        appStateStorage.putBestBlockData(BestBlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
+        appStateStorage.putBestBlockInfo(BestBlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
       else appStateStorage.emptyBatchUpdate
     val latestCheckpointNumberUpdates =
       if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)

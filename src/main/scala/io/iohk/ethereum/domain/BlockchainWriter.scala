@@ -32,14 +32,14 @@ class BlockchainWriter(
         block.header.number
       )
       appStateStorage
-        .putBestBlockData(BestBlockInfo(block.header.hash, block.header.number))
+        .putBestBlockInfo(BestBlockInfo(block.header.hash, block.header.number))
         .and(appStateStorage.putLatestCheckpointBlockNumber(block.header.number))
     } else if (saveAsBestBlock) {
       log.debug(
         "New best known block number - {}",
         block.header.number
       )
-      appStateStorage.putBestBlockData(BestBlockInfo(block.header.hash, block.header.number))
+      appStateStorage.putBestBlockInfo(BestBlockInfo(block.header.hash, block.header.number))
     } else {
       appStateStorage.emptyBatchUpdate
     }

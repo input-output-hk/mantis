@@ -416,7 +416,7 @@ class JsonRpcControllerEthSpec
     private val block: Block =
       Block(Fixtures.Blocks.Block3125369.header.copy(number = 42), Fixtures.Blocks.Block3125369.body)
     blockchainWriter.storeBlock(block).commit()
-    blockchain.saveBestKnownBlocks(block.hash, 42)
+    blockchain.saveBestKnownBlocks(block.hash, block.number)
 
     val request: JsonRpcRequest = newJsonRpcRequest("eth_gasPrice")
 
