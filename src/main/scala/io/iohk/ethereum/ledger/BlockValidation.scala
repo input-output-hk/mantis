@@ -44,7 +44,8 @@ class BlockValidation(
           val remaining = n - queuedBlocks.length - 1
           val remainingBlocks = Iterator
             .iterate(blockchainReader.getBlockByHash(highestBlockInStorage.header.parentHash))(
-              _.flatMap(p => blockchainReader.getBlockByHash(p.header.parentHash))
+              _.filter(_.number > 0) // avoid trying to fetch parent of genesis
+                .flatMap(p => blockchainReader.getBlockByHash(p.header.parentHash))
             )
             .take(remaining)
             .collect { case Some(block) => block }
