@@ -9,6 +9,8 @@ import scala.concurrent.ExecutionContextExecutor
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.mining.StdTestMiningBuilder
@@ -16,7 +18,6 @@ import io.iohk.ethereum.consensus.mining.TestMining
 import io.iohk.ethereum.consensus.pow.validators.ValidatorsExecutor
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.ledger.BlockExecution
-import io.iohk.ethereum.ledger.BlockImport
 import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.ledger.VMImpl
 import io.iohk.ethereum.nodebuilder._
@@ -71,28 +72,32 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected def newTestMining(validators: Validators = mining.validators, vm: VMImpl = mining.vm): Mining =
     mining.withValidators(validators).withVM(vm)
 
-  protected def mkBlockImport(
-      validators: Validators = validators,
-      blockExecutionOpt: Option[BlockExecution] = None
-  ): BlockImport = {
+  protected def mkBlockExecution(validators: Validators = validators): BlockExecution = {
     val consensuz = mining.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(consensuz, blockchainReader, blockQueue)
-    new BlockImport(
+    new BlockExecution(
+      blockchain,
+      blockchainReader,
+      blockchainWriter,
+      storagesInstance.storages.evmCodeStorage,
+      consensuz.blockPreparator,
+      blockValidation
+    )
+  }
+
+  protected def mkConsensus(
+      validators: Validators = validators,
+      blockExecutionOpt: Option[BlockExecution] = None
+  ): Consensus = {
+    val testMining = mining.withValidators(validators).withVM(new Mocks.MockVM())
+    val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
+    new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
       blockQueue,
       blockValidation,
-      blockExecutionOpt.getOrElse(
-        new BlockExecution(
-          blockchain,
-          blockchainReader,
-          blockchainWriter,
-          storagesInstance.storages.evmCodeStorage,
-          consensuz.blockPreparator,
-          blockValidation
-        )
-      ),
+      blockExecutionOpt.getOrElse(mkBlockExecution(validators)),
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
   }

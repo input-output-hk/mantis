@@ -21,7 +21,6 @@ class TestNode extends BaseNode {
       blockchainReader,
       blockchainWriter,
       storagesInstance.storages.evmCodeStorage,
-      syncConfig,
       scheduler,
       miningConfig,
       vm,

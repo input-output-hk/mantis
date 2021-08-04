@@ -26,6 +26,8 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.FullMiningConfig
 import io.iohk.ethereum.consensus.mining.MiningConfig
@@ -103,8 +105,8 @@ object RegularSyncItSpecUtils {
         mining.blockPreparator,
         blockValidation
       )
-    lazy val blockImport: BlockImport =
-      new BlockImport(
+    lazy val blockImport: Consensus =
+      new ConsensusImpl(
         bl,
         blockchainReader,
         blockchainWriter,
@@ -146,7 +148,6 @@ object RegularSyncItSpecUtils {
       BlockImporter.props(
         fetcher.toClassic,
         blockImport,
-        bl,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),
@@ -165,7 +166,6 @@ object RegularSyncItSpecUtils {
         etcPeerManager,
         peerEventBus,
         blockImport,
-        bl,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(bl, blockchainReader),

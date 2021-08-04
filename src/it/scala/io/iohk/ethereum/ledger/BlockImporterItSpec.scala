@@ -26,6 +26,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
+import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
@@ -57,8 +58,7 @@ class BlockImporterItSpec
     override val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        mkBlockImport(validators = successValidators),
-        blockchain,
+        mkConsensus(validators = successValidators),
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(blockchain, blockchainReader),
@@ -171,8 +171,7 @@ class BlockImporterItSpec
     override val blockImporter = system.actorOf(
       BlockImporter.props(
         fetcherProbe.ref,
-        mkBlockImport(validators = successValidators),
-        blockchain,
+        mkConsensus(validators = successValidators),
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(blockchain, blockchainReader),
@@ -236,7 +235,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
     override val ommersValidator: OmmersValidator = new StdOmmersValidator(blockHeaderValidator)
   }
 
-  override lazy val blockImport: BlockImport = mkBlockImport(
+  override lazy val consensus: Consensus = mkConsensus(
     validators = successValidators,
     blockExecutionOpt = Some(
       new BlockExecution(
@@ -259,8 +258,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
   val blockImporter: ActorRef = system.actorOf(
     BlockImporter.props(
       fetcherProbe.ref,
-      blockImport,
-      blockchain,
+      consensus,
       blockchainReader,
       storagesInstance.storages.stateStorage,
       new BranchResolution(blockchain, blockchainReader),

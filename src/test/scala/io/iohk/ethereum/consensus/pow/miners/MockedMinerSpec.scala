@@ -222,7 +222,6 @@ class MockedMinerSpec
 
     val miner: TestActorRef[Nothing] = TestActorRef(
       MockedMiner.props(
-        blockchain,
         blockchainReader,
         blockCreator,
         sync.ref,

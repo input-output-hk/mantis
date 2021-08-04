@@ -316,7 +316,6 @@ class SyncStateSchedulerSpec
       val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, freshBlockchainMetadata)
       (
         SyncStateScheduler(
-          freshBlockchain,
           freshBlockchainReader,
           freshStorage.storages.evmCodeStorage,
           freshStorage.storages.stateStorage,

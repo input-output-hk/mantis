@@ -178,7 +178,6 @@ class FastSync(
       SyncStateSchedulerActor
         .props(
           SyncStateScheduler(
-            blockchain,
             blockchainReader,
             evmCodeStorage,
             stateStorage,
