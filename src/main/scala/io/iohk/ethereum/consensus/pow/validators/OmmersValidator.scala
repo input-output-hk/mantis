@@ -32,9 +32,9 @@ trait OmmersValidator {
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
     val bestBranch = blockchainReader.getBestBranch()
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) =>
+      (tailBlockHash, n) =>
         Iterator
-          .iterate(blockchainReader.getBlockByHash(parentHash))(
+          .iterate(blockchainReader.getBlockByHash(tailBlockHash))(
             _.flatMap(block => blockchainReader.getBlockByHash(block.header.parentHash))
           )
           .take(n)
