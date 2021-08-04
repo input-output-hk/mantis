@@ -67,14 +67,9 @@ class ConsensusImpl(
     val block = branch.head
     blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
-        if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          log.debug("Ignoring duplicated block: {}", block.idTag)
-          Task.now(DuplicateBlock)
-        } else {
-          blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
-            case Some(weight) => handleBlockImport(block, bestBlock, weight)
-            case None         => returnNoTotalDifficulty(bestBlock)
-          }
+        blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
+          case Some(weight) => handleBlockImport(block, bestBlock, weight)
+          case None         => returnNoTotalDifficulty(bestBlock)
         }
       case None => returnNoBestBlock()
     }
@@ -108,13 +103,6 @@ class ConsensusImpl(
   private def returnNoBestBlock(): Task[BlockImportFailed] = {
     log.error("Getting current best block failed")
     Task.now(BlockImportFailed("Couldn't find the current best block"))
-  }
-
-  private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
-    val hash = block.hash
-    blockchainReader.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(
-      hash
-    )
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =

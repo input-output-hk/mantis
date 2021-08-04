@@ -35,6 +35,8 @@ class ConsensusAdapter(
               consensus.evaluateBranch(Seq(block))
           }
         }
+      case None =>
+        Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
 
   private def doBlockPreValidation(block: Block)(implicit
