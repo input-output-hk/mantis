@@ -57,13 +57,11 @@ object FixtureProvider {
       override val transactionMappingStorage: TransactionMappingStorage = new TransactionMappingStorage(dataSource)
       override val appStateStorage: AppStateStorage = new AppStateStorage(dataSource)
       val nodeStorage: NodeStorage = new NodeStorage(dataSource)
-      val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
       val pruningMode: PruningMode = ArchivePruning
       override val stateStorage: StateStorage =
         StateStorage(
           pruningMode,
           nodeStorage,
-          cachedNodeStorage,
           new LruCache[NodeHash, HeapEntry](
             Config.InMemoryPruningNodeCacheConfig,
             Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))

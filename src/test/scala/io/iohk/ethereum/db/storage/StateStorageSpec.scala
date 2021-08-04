@@ -179,13 +179,12 @@ class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckProperty
     val lruCache = new LruCache[NodeHash, HeapEntry](TestCacheConfig)
 
     val archiveNodeStorage = new ArchiveNodeStorage(nodeStorage)
-    val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, cachedNodeStorage, lruCache)
+    val archiveStateStorage: StateStorage = StateStorage(ArchivePruning, nodeStorage, lruCache)
 
     val refCountNodeStorage = new ReferenceCountNodeStorage(nodeStorage, 10)
-    val referenceCounteStateStorage: StateStorage =
-      StateStorage(BasicPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val referenceCounteStateStorage: StateStorage = StateStorage(BasicPruning(10), nodeStorage, lruCache)
 
-    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, cachedNodeStorage, lruCache)
+    val cachedStateStorage: StateStorage = StateStorage(InMemoryPruning(10), nodeStorage, lruCache)
     val cachedPrunedNodeStorage = new CachedReferenceCountedStorage(nodeStorage, lruCache, changeLog, 10)
   }
 }

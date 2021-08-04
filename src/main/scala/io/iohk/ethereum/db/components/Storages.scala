@@ -31,8 +31,6 @@ object Storages {
 
       override val nodeStorage: NodeStorage = new NodeStorage(dataSource)
 
-      val cachedNodeStorage: CachedNodeStorage = new CachedNodeStorage(nodeStorage, caches.nodeCache)
-
       override val fastSyncStateStorage: FastSyncStateStorage = new FastSyncStateStorage(dataSource)
 
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSource)
@@ -50,7 +48,6 @@ object Storages {
         StateStorage(
           pruningMode,
           nodeStorage,
-          cachedNodeStorage,
           new LruCache[NodeHash, HeapEntry](
             Config.InMemoryPruningNodeCacheConfig,
             Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))

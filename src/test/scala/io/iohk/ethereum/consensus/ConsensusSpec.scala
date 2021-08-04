@@ -249,7 +249,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     // dying before updating the storage but after updating the cache, inconsistency is created
     blockchain.saveBestKnownBlocks(oldBlock4.number)
 
-    blockchainReader.getBestBlock() shouldBe Some(ancestorForValidation)
+    blockchainReader.getBestBlock() shouldBe Some(newBlock3)
   }
 
   it should "handle error when trying to reorganise chain" in new EphemBlockchain {
