@@ -10,6 +10,7 @@ import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
+import akka.testkit.TestActor
 import akka.testkit.TestProbe
 import akka.util.ByteString
 
@@ -31,7 +32,6 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
-import akka.testkit.TestActor
 
 class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
