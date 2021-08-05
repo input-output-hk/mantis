@@ -39,9 +39,8 @@ object PeerEventBusActor {
   def messageSource(peerEventBus: ActorRef, messageClassifier: MessageClassifier): Source[MessageFromPeer, NotUsed] =
     Source
       .fromMaterializer { (mat, _) =>
-        import mat.executionContext
         val (actorRef, src) = Source
-          .actorRef[MessageFromPeer](1, OverflowStrategy.fail)
+          .actorRef[MessageFromPeer](PartialFunction.empty, PartialFunction.empty, 1, OverflowStrategy.fail)
           .watch(peerEventBus)
           .preMaterialize()(mat)
         peerEventBus

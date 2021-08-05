@@ -31,6 +31,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
+import akka.testkit.TestActor
 
 class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
@@ -63,15 +64,22 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures 
     val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
     val classifier2 = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
 
-    val completeOnTermination =
-      Flow[MessageFromPeer].recoverWithRetries(1, { case _: WatchedActorTerminatedException => Source.empty })
+    val peerEventBusProbe = TestProbe()(system)
+    peerEventBusProbe.setAutoPilot { (sender: ActorRef, msg: Any) =>
+      peerEventBusActor.tell(msg, sender)
+      TestActor.KeepRunning
+    }
 
-    val stream1 =
-      PeerEventBusActor.messageSource(peerEventBusActor, classifier1).via(completeOnTermination).runWith(Sink.seq)
-    val stream2 =
-      PeerEventBusActor.messageSource(peerEventBusActor, classifier2).via(completeOnTermination).runWith(Sink.seq)
+    val seqOnTermination = Flow[MessageFromPeer]
+      .recoverWithRetries(1, { case _: WatchedActorTerminatedException => Source.empty })
+      .toMat(Sink.seq)(Keep.right)
 
-    Thread.sleep(100) // stream is not subscribed right away
+    val stream1 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier1).runWith(seqOnTermination)
+    val stream2 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier2).runWith(seqOnTermination)
+
+    // wait for subscription to be done
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
@@ -79,7 +87,7 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures 
     val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("99"))
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
 
-    peerEventBusActor ! PoisonPill
+    peerEventBusProbe.ref ! PoisonPill
 
     whenReady(stream1)(_ shouldEqual Seq(msgFromPeer))
     whenReady(stream2)(_ shouldEqual Seq(msgFromPeer, msgFromPeer2))
