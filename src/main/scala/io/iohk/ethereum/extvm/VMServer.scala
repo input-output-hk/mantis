@@ -193,21 +193,38 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
   // scalastyle:off magic.number
   private def constructBlockchainConfig(conf: msg.EthereumConfig): BlockchainConfigForEvm =
     BlockchainConfigForEvm(
-      frontierBlockNumber = conf.frontierBlockNumber,
-      homesteadBlockNumber = conf.homesteadBlockNumber,
-      eip150BlockNumber = conf.eip150BlockNumber,
-      eip160BlockNumber = conf.eip160BlockNumber,
-      eip161BlockNumber = conf.eip161BlockNumber,
-      byzantiumBlockNumber = BigInt(4370000), //TODO include byzantium block number in protobuf
-      constantinopleBlockNumber = BigInt(10000000), //TODO include constantinople block number in protobuf
-      istanbulBlockNumber = BigInt(10000000), //TODO include istanbul block number in protobuf
-      maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
-      accountStartNonce = conf.accountStartNonce,
-      atlantisBlockNumber = BigInt(8772000), //TODO include atlantis block number in protobuf
-      aghartaBlockNumber = BigInt(9573000), //TODO include agharta block number in protobuf
-      petersburgBlockNumber = BigInt(10000000), //TODO include petersburg block number in protobuf
-      phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
-      magnetoBlockNumber = BigInt(13189133), //TODO include magneto block number in protobuf
-      chainId = 0x3d.toByte //TODO include chainId in protobuf
+      0,
+      0,
+      0,
+      0,
+      1000000000000000000L,
+      1000000000000000000L,
+      1000000000000000000L,
+      1000000000000000000L,
+      Some(24576),
+      0,
+      0,
+      0,
+      1000000000000000000L,
+      0,
+      1000000000000000000L,
+      42
     )
+//      frontierBlockNumber = conf.frontierBlockNumber,
+//      homesteadBlockNumber = conf.homesteadBlockNumber,
+//      eip150BlockNumber = conf.eip150BlockNumber,
+//      eip160BlockNumber = conf.eip160BlockNumber,
+//      eip161BlockNumber = conf.eip161BlockNumber,
+//      byzantiumBlockNumber = BigInt(4370000), //TODO include byzantium block number in protobuf
+//      constantinopleBlockNumber = BigInt(10000000), //TODO include constantinople block number in protobuf
+//      istanbulBlockNumber = BigInt(10000000), //TODO include istanbul block number in protobuf
+//      maxCodeSize = if (conf.maxCodeSize.isEmpty) None else Some(bigintFromGByteString(conf.maxCodeSize)),
+//      accountStartNonce = conf.accountStartNonce,
+//      atlantisBlockNumber = BigInt(8772000), //TODO include atlantis block number in protobuf
+//      aghartaBlockNumber = BigInt(9573000), //TODO include agharta block number in protobuf
+//      petersburgBlockNumber = BigInt(10000000), //TODO include petersburg block number in protobuf
+//      phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
+//      magnetoBlockNumber = BigInt(13189133), //TODO include magneto block number in protobuf
+//      chainId = 0x3d.toByte //TODO include chainId in protobuf
+//    )
 }
