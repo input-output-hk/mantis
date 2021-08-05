@@ -1,13 +1,26 @@
 package io.iohk.ethereum.consensus
 
+import cats.data.NonEmptyList
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailedDueToMissingNode
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.blockchain.sync.regular.UnknownParent
+import io.iohk.ethereum.consensus.Consensus.ConsensusError
+import io.iohk.ethereum.consensus.Consensus.ConsensusErrorDueToMissingNode
+import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranch
+import io.iohk.ethereum.consensus.Consensus.KeptCurrentBestBranch
+import io.iohk.ethereum.consensus.Consensus.SelectedNewBestBranch
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
@@ -24,6 +37,7 @@ import io.iohk.ethereum.utils.Logger
 class ConsensusAdapter(
     consensus: Consensus,
     blockchainReader: BlockchainReader,
+    blockchain: Blockchain,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     validationScheduler: Scheduler
@@ -36,15 +50,45 @@ class ConsensusAdapter(
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
           log.debug("Ignoring duplicated block: {}", block.idTag)
           Task.now(DuplicateBlock)
+        } else if (blockchainReader.getChainWeightByHash(bestBlock.header.hash).isEmpty) {
+          // This part is not really needed except for compatibility as a missing chain weight
+          // would indicate an inconsistent database
+          returnNoTotalDifficulty(bestBlock)
         } else {
           doBlockPreValidation(block).flatMap {
             case Left(error) =>
               Task.now(BlockImportFailed(error.reason.toString))
             case Right(BlockExecutionSuccess) =>
-              consensus.evaluateBranch(Seq(block))
+              enqueueAndGetBranch(block, bestBlock.number) match {
+                case None =>
+//                  Task.now(
+//                    BlockImportFailed(
+//                      s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch"
+//                    )
+//                  )
+                  Task.now(BlockEnqueued)
+                case Some(newBranch) =>
+                  consensus
+                    .evaluateBranch(newBranch)
+                    .map {
+                      case SelectedNewBestBranch(oldBranch, newBranch, weights) =>
+                        oldBranch.foreach(blockQueue.enqueueBlock(_))
+                        ChainReorganised(oldBranch, newBranch, weights)
+                      case ExtendedCurrentBestBranch(blockImportData) =>
+                        BlockImportedToTop(blockImportData)
+                      case KeptCurrentBestBranch =>
+                        newBranch.toList.foreach(blockQueue.enqueueBlock(_))
+                        BlockEnqueued
+                      case ConsensusError(err) =>
+                        BlockImportFailed(err)
+                      case ConsensusErrorDueToMissingNode(reason) =>
+                        BlockImportFailedDueToMissingNode(reason)
+                    }
+              }
           }
         }
       case None =>
+        // TODO ETCM-1069 remove duplication with ConsensusImpl
         log.error("Couldn't find the current best block")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
@@ -70,5 +114,23 @@ class ConsensusAdapter(
     blockchainReader.getBlockByHash(hash).isDefined &&
     block.number <= currentBestBlockNumber ||
     blockQueue.isQueued(hash)
+  }
+
+  private def enqueueAndGetBranch(block: Block, bestBlockNumber: BigInt): Option[NonEmptyList[Block]] =
+    blockQueue
+      .enqueueBlock(block, bestBlockNumber)
+      .map(topBlock => blockQueue.getBranch(topBlock.hash, dequeue = true))
+      .flatMap(NonEmptyList.fromList)
+
+  private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
+    log.error(
+      "Getting total difficulty for current best block with hash: {} failed",
+      bestBlock.header.hashAsHexString
+    )
+    Task.now(
+      BlockImportFailed(
+        s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+      )
+    )
   }
 }

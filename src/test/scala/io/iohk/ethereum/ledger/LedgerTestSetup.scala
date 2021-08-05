@@ -411,6 +411,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     new ConsensusAdapter(
       consensus,
       blockchainReader,
+      blockchain,
       blockQueue,
       blockValidation,
       Scheduler(system.dispatchers.lookup("validation-context"))
@@ -427,8 +428,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
-  class MockBlockQueue extends BlockQueue(null, 10, 10)
-  override lazy val blockQueue: BlockQueue = mock[MockBlockQueue]
+  override lazy val blockQueue: BlockQueue = mock[BlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
     (blockchainReader.getBlockByHash _)
@@ -450,7 +450,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     setChainWeightByHash(block.hash, weight)
 
   def setChainWeightByHash(hash: ByteString, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
-    (blockchainReader.getChainWeightByHash _).expects(hash).returning(Some(weight))
+    (blockchainReader.getChainWeightByHash _).expects(hash).anyNumberOfTimes().returning(Some(weight))
 
   def expectBlockSaved(
       block: Block,

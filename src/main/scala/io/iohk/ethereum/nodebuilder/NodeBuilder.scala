@@ -213,6 +213,7 @@ trait ConsensusBuilder {
     new ConsensusAdapter(
       consensus,
       blockchainReader,
+      blockchain,
       blockQueue,
       blockValidation,
       Scheduler(system.dispatchers.lookup("validation-context"))

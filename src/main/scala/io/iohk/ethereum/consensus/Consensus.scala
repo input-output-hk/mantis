@@ -1,10 +1,15 @@
 package io.iohk.ethereum.consensus
 
+import cats.data.NonEmptyList
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.consensus.Consensus.ConsensusResult
 import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /** This file documents the original interface that was designed at ETCM-1018
@@ -13,8 +18,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
   */
 trait Consensus {
   def evaluateBranch(
-      block: Seq[Block]
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult]
+      block: NonEmptyList[Block]
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[ConsensusResult]
 
   /** Original interface from ETCM-1018, for temporary documentation purposes
     */
@@ -66,4 +71,18 @@ trait Consensus {
     */
 //  private def attemptToSetNewBestBranch(branch: UpdatedBranch): Either[BlockExecutionError, Boolean] = ???
 
+}
+
+object Consensus {
+  sealed trait ConsensusResult
+
+  case class ExtendedCurrentBestBranch(blockImportData: List[BlockData]) extends ConsensusResult
+
+  case class SelectedNewBestBranch(oldBranch: List[Block], newBranch: List[Block], weights: List[ChainWeight])
+      extends ConsensusResult
+
+  case object KeptCurrentBestBranch extends ConsensusResult
+
+  case class ConsensusError(err: String) extends ConsensusResult
+  case class ConsensusErrorDueToMissingNode(reason: MissingNodeException) extends ConsensusResult
 }
