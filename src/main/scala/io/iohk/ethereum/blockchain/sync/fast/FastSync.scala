@@ -35,6 +35,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFi
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
@@ -54,6 +55,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
     val appStateStorage: AppStateStorage,
+    val blockNumberMappingStorage: BlockNumberMappingStorage,
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
@@ -1137,11 +1139,14 @@ class FastSync(
         val lastStoredBestBlockNumber = appStateStorage.getBestBlockNumber()
         if (lastStoredBestBlockNumber < bestReceivedBlock.number) {
           blockchain.saveBestKnownBlocks(bestReceivedBlock.number)
-          appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
+          // TODO ETCM-1089 move direct calls to storages to blockchain or blockchain writer
+          appStateStorage
+            .putBestBlockNumber(bestReceivedBlock.number)
+            .and(blockNumberMappingStorage.put(bestReceivedBlock.number, bestReceivedBlock.hash))
+            .commit()
         }
         syncState = syncState.copy(lastFullBlockNumber = bestReceivedBlock.number.max(lastStoredBestBlockNumber))
       }
-
     }
   }
 }
@@ -1152,6 +1157,7 @@ object FastSync {
   def props(
       fastSyncStateStorage: FastSyncStateStorage,
       appStateStorage: AppStateStorage,
+      blockNumberMappingStorage: BlockNumberMappingStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockchainWriter: BlockchainWriter,
@@ -1170,6 +1176,7 @@ object FastSync {
       new FastSync(
         fastSyncStateStorage,
         appStateStorage,
+        blockNumberMappingStorage,
         blockchain,
         blockchainReader,
         blockchainWriter,

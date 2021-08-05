@@ -756,6 +756,7 @@ trait SyncControllerBuilder {
       blockchainReader,
       blockchainWriter,
       storagesInstance.storages.appStateStorage,
+      storagesInstance.storages.blockNumberMappingStorage,
       storagesInstance.storages.evmCodeStorage,
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.nodeStorage,
