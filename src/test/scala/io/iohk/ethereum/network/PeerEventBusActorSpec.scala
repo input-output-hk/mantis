@@ -82,10 +82,13 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures 
     peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
-    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
+    peerEventBusProbe.ref ! PeerEventBusActor.Publish(msgFromPeer)
 
     val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("99"))
-    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
+    peerEventBusProbe.ref ! PeerEventBusActor.Publish(msgFromPeer2)
+
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Publish]
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Publish]
 
     peerEventBusProbe.ref ! PoisonPill
 
