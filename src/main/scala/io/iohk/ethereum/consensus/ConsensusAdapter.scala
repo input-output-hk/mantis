@@ -13,9 +13,11 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
 import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
 import io.iohk.ethereum.blockchain.sync.regular.UnknownParent
+import io.iohk.ethereum.consensus.Consensus.BranchExecutionFailure
 import io.iohk.ethereum.consensus.Consensus.ConsensusError
 import io.iohk.ethereum.consensus.Consensus.ConsensusErrorDueToMissingNode
 import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranch
+import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranchPartially
 import io.iohk.ethereum.consensus.Consensus.KeptCurrentBestBranch
 import io.iohk.ethereum.consensus.Consensus.SelectedNewBestBranch
 import io.iohk.ethereum.domain.Block
@@ -61,11 +63,6 @@ class ConsensusAdapter(
             case Right(BlockExecutionSuccess) =>
               enqueueAndGetBranch(block, bestBlock.number) match {
                 case None =>
-//                  Task.now(
-//                    BlockImportFailed(
-//                      s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch"
-//                    )
-//                  )
                   Task.now(BlockEnqueued)
                 case Some(newBranch) =>
                   consensus
@@ -76,11 +73,21 @@ class ConsensusAdapter(
                         ChainReorganised(oldBranch, newBranch, weights)
                       case ExtendedCurrentBestBranch(blockImportData) =>
                         BlockImportedToTop(blockImportData)
+                      case ExtendedCurrentBestBranchPartially(
+                            blockImportData,
+                            BranchExecutionFailure(failingBlockHash, error)
+                          ) =>
+                        blockQueue.removeSubtree(failingBlockHash)
+                        log.warn("extended best branch partially because of error: {}")
+                        BlockImportedToTop(blockImportData)
                       case KeptCurrentBestBranch =>
                         newBranch.toList.foreach(blockQueue.enqueueBlock(_))
                         BlockEnqueued
-                      case ConsensusError(err) =>
-                        BlockImportFailed(err)
+                      case BranchExecutionFailure(failingBlockHash, error) =>
+                        blockQueue.removeSubtree(failingBlockHash)
+                        BlockImportFailed(error)
+                      case ConsensusError(error) =>
+                        BlockImportFailed(error)
                       case ConsensusErrorDueToMissingNode(reason) =>
                         BlockImportFailedDueToMissingNode(reason)
                     }

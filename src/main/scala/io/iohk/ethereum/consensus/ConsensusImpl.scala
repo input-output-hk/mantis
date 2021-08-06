@@ -109,13 +109,10 @@ class ConsensusImpl(
         // TODO ETCM-1069 do something with importedBlocks
         ConsensusErrorDueToMissingNode(reason.asInstanceOf[MissingNodeException])
       case (Nil, Some(error)) =>
-        blockQueue.removeSubtree(branch.head.header.hash)
-        ConsensusError(error.toString)
-      case (importedBlocks, Some(_)) =>
-        branch.toList.drop(importedBlocks.length).headOption.foreach { failedBlock =>
-          blockQueue.removeSubtree(failedBlock.header.hash)
-        }
-        ExtendedCurrentBestBranch(importedBlocks)
+        BranchExecutionFailure(branch.head.header.hash, error.toString)
+      case (importedBlocks, Some(error)) =>
+        val failingBlock = branch.toList.drop(importedBlocks.length).headOption.get
+        ExtendedCurrentBestBranchPartially(importedBlocks, BranchExecutionFailure(failingBlock.hash, error.toString))
     }
 
   private def reorganise(newBranch: NonEmptyList[Block], parentWeight: ChainWeight, parentHash: ByteString)(implicit

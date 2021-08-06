@@ -1,5 +1,7 @@
 package io.iohk.ethereum.consensus
 
+import akka.util.ByteString
+
 import cats.data.NonEmptyList
 
 import monix.eval.Task
@@ -77,11 +79,15 @@ object Consensus {
   sealed trait ConsensusResult
 
   case class ExtendedCurrentBestBranch(blockImportData: List[BlockData]) extends ConsensusResult
+  case class ExtendedCurrentBestBranchPartially(blockImportData: List[BlockData], failureBranch: BranchExecutionFailure)
+      extends ConsensusResult
 
   case class SelectedNewBestBranch(oldBranch: List[Block], newBranch: List[Block], weights: List[ChainWeight])
       extends ConsensusResult
 
   case object KeptCurrentBestBranch extends ConsensusResult
+
+  case class BranchExecutionFailure(failingBlockHash: ByteString, error: String) extends ConsensusResult
 
   case class ConsensusError(err: String) extends ConsensusResult
   case class ConsensusErrorDueToMissingNode(reason: MissingNodeException) extends ConsensusResult
