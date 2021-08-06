@@ -1,13 +1,16 @@
 package io.iohk.ethereum.blockchain.sync
 
 import java.util.concurrent.Executors
+
 import monix.execution.Scheduler
 
 import scala.concurrent.ExecutionContext
 import scala.concurrent.ExecutionContextExecutor
+
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.{ConsensusAdapter, ConsensusImpl}
+import io.iohk.ethereum.consensus.ConsensusAdapter
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.mining.Protocol
 import io.iohk.ethereum.consensus.mining.StdTestMiningBuilder

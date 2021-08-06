@@ -10,6 +10,7 @@ import akka.actor.Scheduler
 import akka.actor.SupervisorStrategy
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
+
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
