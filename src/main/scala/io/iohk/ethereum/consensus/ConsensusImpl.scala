@@ -105,9 +105,8 @@ class ConsensusImpl(
     blockExecution.executeAndValidateBlocks(branch.toList, currentBestBlockWeight) match {
       case (importedBlocks, None) =>
         ExtendedCurrentBestBranch(importedBlocks)
-      case (importedBlocks, Some(MPTError(reason))) if reason.isInstanceOf[MissingNodeException] =>
-        // TODO ETCM-1069 do something with importedBlocks
-        ConsensusErrorDueToMissingNode(reason.asInstanceOf[MissingNodeException])
+      case (_, Some(MPTError(reason))) if reason.isInstanceOf[MissingNodeException] =>
+        ConsensusErrorDueToMissingNode(Nil, reason.asInstanceOf[MissingNodeException])
       case (Nil, Some(error)) =>
         BranchExecutionFailure(branch.head.header.hash, error.toString)
       case (importedBlocks, Some(error)) =>
@@ -126,12 +125,13 @@ class ConsensusImpl(
       ByteStringUtils.hash2string(parentHash)
     )
     val oldBlocksData = removeBlocksUntil(parentHash, bestNumber)
-    oldBlocksData.foreach(block => blockQueue.enqueueBlock(block.block))
 
     handleBlockExecResult(newBranch.toList, parentWeight, oldBlocksData).fold(
       {
-        case MPTError(reason: MissingNodeException) => ConsensusErrorDueToMissingNode(reason)
-        case err                                    => ConsensusError(s"Error while trying to reorganise chain: $err")
+        case (executedBlocks, MPTError(reason: MissingNodeException)) =>
+          ConsensusErrorDueToMissingNode(executedBlocks.map(_.block), reason)
+        case (executedBlocks, err) =>
+          ConsensusError(executedBlocks.map(_.block), s"Error while trying to reorganise chain: $err")
       },
       SelectedNewBestBranch.tupled
     )
@@ -147,6 +147,7 @@ class ConsensusImpl(
     )
     Task.now(
       ConsensusError(
+        Nil,
         s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
       )
     )
@@ -154,7 +155,7 @@ class ConsensusImpl(
 
   private def returnNoBestBlock(): Task[ConsensusError] = {
     log.error("Getting current best block failed")
-    Task.now(ConsensusError("Couldn't find the current best block"))
+    Task.now(ConsensusError(Nil, "Couldn't find the current best block"))
   }
 
   private def measureBlockMetrics(importResult: ConsensusResult): Unit =
@@ -172,7 +173,7 @@ class ConsensusImpl(
       oldBlocksData: List[BlockData]
   )(implicit
       blockchainConfig: BlockchainConfig
-  ): Either[BlockExecutionError, (List[Block], List[Block], List[ChainWeight])] = {
+  ): Either[(List[BlockData], BlockExecutionError), (List[Block], List[Block], List[ChainWeight])] = {
     val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
     maybeError match {
       case None =>
@@ -180,7 +181,7 @@ class ConsensusImpl(
 
       case Some(error) =>
         revertChainReorganisation(newBranch, oldBlocksData, executedBlocks)
-        Left(error)
+        Left((executedBlocks, error))
     }
   }
 
@@ -208,8 +209,7 @@ class ConsensusImpl(
     }.maximumOption
 
     val bestHeader = oldBranch.last.block.header
-    blockchainWriter.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
-    executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestHeader.number))
+    blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
 
     newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
       blockQueue.removeSubtree(block.header.hash)

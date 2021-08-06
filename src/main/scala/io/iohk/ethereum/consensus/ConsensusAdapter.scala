@@ -86,9 +86,11 @@ class ConsensusAdapter(
                       case BranchExecutionFailure(failingBlockHash, error) =>
                         blockQueue.removeSubtree(failingBlockHash)
                         BlockImportFailed(error)
-                      case ConsensusError(error) =>
+                      case ConsensusError(blocksToEnqueue, error) =>
+                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
                         BlockImportFailed(error)
-                      case ConsensusErrorDueToMissingNode(reason) =>
+                      case ConsensusErrorDueToMissingNode(blocksToEnqueue, reason) =>
+                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
                         BlockImportFailedDueToMissingNode(reason)
                     }
               }

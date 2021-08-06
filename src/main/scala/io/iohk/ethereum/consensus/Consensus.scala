@@ -76,6 +76,15 @@ trait Consensus {
 }
 
 object Consensus {
+  /* This return type for consensus is probably overcomplicated for now because some information is needed
+   * to keep the compatibility with the current code (particularly for the block queue handling).
+   * In particular:
+   *  - `blockToEnqueue` fields won't be needed if the block are already stored in memory
+   *  - The distinction between ExtendedCurrentBestBranch and SelectedNewBestBranch won't really be useful
+   *  because there will be no need to put back the old branch into the block queue in case of reorganisation
+   *  - `ConsensusErrorDueToMissingNode` would mean that the application is in an inconsistent state
+   */
+
   sealed trait ConsensusResult
 
   case class ExtendedCurrentBestBranch(blockImportData: List[BlockData]) extends ConsensusResult
@@ -89,6 +98,7 @@ object Consensus {
 
   case class BranchExecutionFailure(failingBlockHash: ByteString, error: String) extends ConsensusResult
 
-  case class ConsensusError(err: String) extends ConsensusResult
-  case class ConsensusErrorDueToMissingNode(reason: MissingNodeException) extends ConsensusResult
+  case class ConsensusError(blockToEnqueue: List[Block], err: String) extends ConsensusResult
+  case class ConsensusErrorDueToMissingNode(blockToEnqueue: List[Block], reason: MissingNodeException)
+      extends ConsensusResult
 }
