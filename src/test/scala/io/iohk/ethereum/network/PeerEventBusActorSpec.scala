@@ -41,8 +41,8 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures 
     val probe2 = TestProbe()(system)
     val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
     val classifier2 = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
-
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier1), probe1.ref)
+
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier2), probe2.ref)
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
@@ -77,18 +77,22 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures 
     val stream1 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier1).runWith(seqOnTermination)
     val stream2 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier2).runWith(seqOnTermination)
 
-    // wait for subscription to be done
+    // wait for subscriptions to be done
     peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
     peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
+
+    val syncProbe = TestProbe()(system)
+    peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier2), syncProbe.ref)
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
-    peerEventBusProbe.ref ! PeerEventBusActor.Publish(msgFromPeer)
+    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
 
     val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("99"))
-    peerEventBusProbe.ref ! PeerEventBusActor.Publish(msgFromPeer2)
+    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
 
-    peerEventBusProbe.expectMsgType[PeerEventBusActor.Publish]
-    peerEventBusProbe.expectMsgType[PeerEventBusActor.Publish]
+    // wait for publications to be done
+    syncProbe.expectMsg(msgFromPeer)
+    syncProbe.expectMsg(msgFromPeer2)
 
     peerEventBusProbe.ref ! PoisonPill
 
