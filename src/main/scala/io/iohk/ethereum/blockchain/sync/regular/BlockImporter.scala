@@ -7,17 +7,21 @@ import akka.actor.ActorRef
 import akka.actor.NotInfluenceReceiveTimeout
 import akka.actor.Props
 import akka.actor.ReceiveTimeout
+
 import cats.data.NonEmptyList
 import cats.implicits._
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.concurrent.duration._
+
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
-import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter}
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._

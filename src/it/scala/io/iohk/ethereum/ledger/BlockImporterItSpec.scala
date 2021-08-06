@@ -3,16 +3,20 @@ package io.iohk.ethereum.ledger
 import akka.actor.ActorRef
 import akka.testkit.TestProbe
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
+
 import monix.execution.Scheduler
 import monix.execution.schedulers.SchedulerService
 
 import scala.concurrent.duration._
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.concurrent.Eventually
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.NormalPatience
@@ -22,7 +26,8 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
-import io.iohk.ethereum.consensus.{Consensus, ConsensusAdapter}
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
