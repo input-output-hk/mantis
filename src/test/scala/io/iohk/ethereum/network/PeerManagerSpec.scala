@@ -195,7 +195,8 @@ class PeerManagerSpec
 
     // It should have created the next peer for the first incoming connection (probably using a synchronous test scheduler).
     val probe2: TestProbe = createdPeers(2).probe
-    val peer = Peer(PeerId("peer"), incomingPeerAddress1, probe2.ref, incomingConnection = true, Some(incomingNodeId1))
+    val peer =
+      Peer(PeerId("peer"), incomingPeerAddress1, probe2.ref, incomingConnection = true, nodeId = Some(incomingNodeId1))
     probe2.expectMsg(PeerActor.HandleConnection(incomingConnection1.ref, incomingPeerAddress1))
     probe2.reply(PeerEvent.PeerHandshakeSuccessful(peer, initialPeerInfo))
 
@@ -213,7 +214,13 @@ class PeerManagerSpec
     val probe3: TestProbe = createdPeers(3).probe
 
     val secondPeer =
-      Peer(PeerId("secondPeer"), incomingPeerAddress2, probe3.ref, incomingConnection = true, Some(incomingNodeId2))
+      Peer(
+        PeerId("secondPeer"),
+        incomingPeerAddress2,
+        probe3.ref,
+        incomingConnection = true,
+        nodeId = Some(incomingNodeId2)
+      )
 
     probe3.expectMsg(PeerActor.HandleConnection(incomingConnection2.ref, incomingPeerAddress2))
     probe3.reply(PeerEvent.PeerHandshakeSuccessful(secondPeer, initialPeerInfo))
@@ -287,7 +294,7 @@ class PeerManagerSpec
       peerAsIncomingAddress,
       peerAsIncomingProbe.ref,
       incomingConnection = true,
-      Some(nodeId)
+      nodeId = Some(nodeId)
     )
 
     peerAsIncomingProbe.expectMsg(
@@ -322,7 +329,7 @@ class PeerManagerSpec
       peerAsIncomingAddress,
       peerAsIncomingProbe.ref,
       incomingConnection = true,
-      Some(nodeId)
+      nodeId = Some(nodeId)
     )
 
     peerAsIncomingProbe.expectMsg(
