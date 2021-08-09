@@ -44,6 +44,7 @@ class ConsensusAdapter(
           }
         }
       case None =>
+        log.error("Couldn't find the current best block")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
 
