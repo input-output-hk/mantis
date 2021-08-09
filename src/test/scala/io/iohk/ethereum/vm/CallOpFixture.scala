@@ -163,7 +163,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
 
   val fakeHeader: BlockHeader = BlockFixtures.ValidBlock.header.copy(number = 0, unixTimestamp = 0)
 
-  val context: PC = ProgramContext(
+  lazy val context: PC = ProgramContext(
     callerAddr = callerAddr,
     originAddr = callerAddr,
     recipientAddr = Some(ownerAddr),
@@ -181,7 +181,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     originalWorld = worldWithExtAccount
   )
 
-  case class CallResult(
+  case class ExecuteCall(
       op: CallOp,
       context: PC = context,
       inputData: ByteString = inputData,
@@ -191,8 +191,9 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
       inOffset: UInt256 = UInt256.Zero,
       inSize: UInt256 = inputData.size,
       outOffset: UInt256 = inputData.size,
-      outSize: UInt256 = inputData.size / 2
-  ) {
+      outSize: UInt256 = inputData.size / 2,
+      toAlreadyAccessed: Boolean = false
+  ) extends CallResult {
 
     val vm = new TestVM
 
@@ -205,7 +206,8 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     private val stack = Stack.empty().push(if (op == DELEGATECALL) paramsForDelegate else params)
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
-    val stateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
+    val baseStateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
+    val stateIn: PS = if (toAlreadyAccessed) baseStateIn.addAccessedAddress(to) else baseStateIn
     val stateOut: PS = op.execute(stateIn)
     val world: MockWorldState = stateOut.world
 
@@ -215,4 +217,17 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     val ownStorage: MockStorage = world.getStorage(env.ownerAddr)
     val extStorage: MockStorage = world.getStorage(to)
   }
+}
+
+protected[vm] trait CallResult {
+  def inputData: ByteString
+  def stateOut: PS
+  def world: MockWorldState
+  def ownBalance: UInt256
+  def extBalance: UInt256
+  def ownStorage: MockStorage
+  def extStorage: MockStorage
+  def outOffset: UInt256
+  def outSize: UInt256
+  def value: UInt256
 }

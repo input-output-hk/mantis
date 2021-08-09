@@ -17,7 +17,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
 
   import config.feeSchedule._
 
-  test(EXTCODESIZE, EXTCODEHASH) { op =>
+  test(EXTCODESIZE, EXTCODEHASH, BALANCE) { op =>
     val stateGen = getProgramStateGen(
       evmConfig = config,
       stackGen = getStackGen(elems = 1),
