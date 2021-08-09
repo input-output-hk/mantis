@@ -151,7 +151,6 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
 
   def applyChanges(
       stateRootHash: ByteString,
-      blockchainStorages: BlockchainStorages,
       changes: Seq[(Address, Changes)]
   ): ByteString = {
     val initialWorld = InMemoryWorldStateProxy(
@@ -423,7 +422,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   override lazy val blockchain: BlockchainImpl = mock[BlockchainImpl]
   //- cake overrides
 
-  class MockBlockQueue extends BlockQueue(null, null, 10, 10)
+  class MockBlockQueue extends BlockQueue(null, 10, 10)
   override lazy val blockQueue: BlockQueue = mock[MockBlockQueue]
 
   def setBlockExists(block: Block, inChain: Boolean, inQueue: Boolean): CallHandler1[ByteString, Boolean] = {
@@ -446,7 +445,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
     setChainWeightByHash(block.hash, weight)
 
   def setChainWeightByHash(hash: ByteString, weight: ChainWeight): CallHandler1[ByteString, Option[ChainWeight]] =
-    (blockchain.getChainWeightByHash _).expects(hash).returning(Some(weight))
+    (blockchainReader.getChainWeightByHash _).expects(hash).returning(Some(weight))
 
   def expectBlockSaved(
       block: Block,
@@ -470,7 +469,7 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
 }
 
 trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
-  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
+  override lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, SyncConfig(Config.config))
 
   def blockImportWithMockedBlockExecution(blockExecutionMock: BlockExecution): Consensus =
     mkConsensus(blockExecutionOpt = Some(blockExecutionMock))
@@ -479,7 +478,7 @@ trait EphemBlockchain extends TestSetupWithVmAndValidators with MockFactory {
 trait CheckpointHelpers {
   private val sampleCheckpoint = ObjectGenerators.fakeCheckpointGen(3, 3).sample.get
 
-  def getCheckpointBlock(parent: Block, difficulty: BigInt, checkpoint: Checkpoint = sampleCheckpoint): Block =
+  def getCheckpointBlock(parent: Block, checkpoint: Checkpoint = sampleCheckpoint): Block =
     new CheckpointBlockGenerator().generate(parent, checkpoint)
 }
 

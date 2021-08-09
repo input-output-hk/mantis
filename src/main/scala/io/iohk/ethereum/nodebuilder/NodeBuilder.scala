@@ -183,7 +183,7 @@ trait BlockchainBuilder {
 trait BlockQueueBuilder {
   self: BlockchainBuilder with SyncConfigBuilder =>
 
-  lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
+  lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
 }
 
 trait ConsensusBuilder {

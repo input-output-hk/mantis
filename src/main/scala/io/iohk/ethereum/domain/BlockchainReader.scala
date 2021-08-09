@@ -1,15 +1,14 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-import io.iohk.ethereum.db.storage.{
-  AppStateStorage,
-  BlockBodiesStorage,
-  BlockHeadersStorage,
-  BlockNumberMappingStorage,
-  ChainWeightStorage,
-  ReceiptStorage,
-  StateStorage
-}
+
+import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.BlockBodiesStorage
+import io.iohk.ethereum.db.storage.BlockHeadersStorage
+import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
+import io.iohk.ethereum.db.storage.ChainWeightStorage
+import io.iohk.ethereum.db.storage.ReceiptStorage
+import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch

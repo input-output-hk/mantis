@@ -167,7 +167,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
       SyncConfig(Config.config).copy(maxQueuedBlockNumberAhead = 10, maxQueuedBlockNumberBehind = 10)
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     val blockchain: BlockchainImpl = mock[BlockchainImpl]
-    val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
+    val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
 
     def setBestBlockNumber(n: BigInt): CallHandler0[BigInt] =
       (blockchainReader.getBestBlockNumber _).expects().returning(n)

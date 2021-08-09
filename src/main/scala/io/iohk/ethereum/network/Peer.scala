@@ -4,7 +4,6 @@ import java.net.InetSocketAddress
 
 import akka.NotUsed
 import akka.actor.ActorRef
-import akka.pattern.Patterns.ask
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 

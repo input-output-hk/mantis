@@ -26,14 +26,14 @@ class BranchResolutionSpec
   "BranchResolution" should {
 
     "check if headers are from chain" in new BlockchainSetup {
-      val branchResolution = new BranchResolution(blockchain, blockchainReader)
+      val branchResolution = new BranchResolution(blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
       branchResolution.doHeadersFormChain(NonEmptyList.of(parent, child)) shouldBe true
     }
 
     "check if headers are not from chain" in new BlockchainSetup {
-      val branchResolution = new BranchResolution(blockchain, blockchainReader)
+      val branchResolution = new BranchResolution(blockchainReader)
       val parent: BlockHeader = defaultBlockHeader.copy(number = 1)
       val otherParent: BlockHeader = defaultBlockHeader.copy(number = 3)
       val child: BlockHeader = defaultBlockHeader.copy(number = 2, parentHash = parent.hash)
@@ -152,7 +152,7 @@ class BranchResolutionSpec
           val parentWeight = ChainWeight.zero.increase(commonParent.header)
           val checkpointBranch = NonEmptyList.fromListUnsafe {
             val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
-            val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
+            val checkpoint = getCheckpointBlock(beforeCheckpoint.last)
             val afterCheckpoint = getChain(checkpointPos + 1, checkpointBranchLength, checkpoint.hash)
             beforeCheckpoint.tail ::: checkpoint :: afterCheckpoint
           }
@@ -178,7 +178,7 @@ class BranchResolutionSpec
           val parentWeight = ChainWeight.zero.increase(commonParent.header)
           val checkpointBranch = NonEmptyList.fromListUnsafe {
             val beforeCheckpoint = commonParent :: getChain(2, checkpointPos - 1, commonParent.hash)
-            val checkpoint = getCheckpointBlock(beforeCheckpoint.last, commonParent.header.difficulty)
+            val checkpoint = getCheckpointBlock(beforeCheckpoint.last)
             val afterCheckpoint = getChain(checkpointPos + 1, checkpointBranchLength, checkpoint.hash)
             beforeCheckpoint.tail ::: checkpoint :: afterCheckpoint
           }
@@ -196,7 +196,7 @@ class BranchResolutionSpec
   }
 
   trait BranchResolutionTestSetup extends TestSetupWithVmAndValidators with MockBlockchain {
-    val branchResolution = new BranchResolution(blockchain, blockchainReader)
+    val branchResolution = new BranchResolution(blockchainReader)
   }
 
 }

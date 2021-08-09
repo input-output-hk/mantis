@@ -61,7 +61,7 @@ class BlockImporterItSpec
         mkConsensus(validators = successValidators),
         blockchainReader,
         storagesInstance.storages.stateStorage,
-        new BranchResolution(blockchain, blockchainReader),
+        new BranchResolution(blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
@@ -174,7 +174,7 @@ class BlockImporterItSpec
         mkConsensus(validators = successValidators),
         blockchainReader,
         storagesInstance.storages.stateStorage,
-        new BranchResolution(blockchain, blockchainReader),
+        new BranchResolution(blockchainReader),
         syncConfig,
         ommersPoolProbe.ref,
         broadcasterProbe.ref,
@@ -203,7 +203,7 @@ class BlockImporterItSpec
 
 class TestFixture extends TestSetupWithVmAndValidators {
 
-  override lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, SyncConfig(Config.config))
+  override lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, SyncConfig(Config.config))
 
   val genesis: Block = Block(
     Fixtures.Blocks.Genesis.header.copy(stateRoot = ByteString(MerklePatriciaTrie.EmptyRootHash)),
@@ -261,7 +261,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
       consensus,
       blockchainReader,
       storagesInstance.storages.stateStorage,
-      new BranchResolution(blockchain, blockchainReader),
+      new BranchResolution(blockchainReader),
       syncConfig,
       ommersPoolProbe.ref,
       broadcasterProbe.ref,
