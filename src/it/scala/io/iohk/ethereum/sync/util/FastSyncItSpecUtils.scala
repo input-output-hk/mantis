@@ -34,6 +34,7 @@ object FastSyncItSpecUtils {
       FastSync.props(
         storagesInstance.storages.fastSyncStateStorage,
         storagesInstance.storages.appStateStorage,
+        storagesInstance.storages.blockNumberMappingStorage,
         bl,
         blockchainReader,
         blockchainWriter,

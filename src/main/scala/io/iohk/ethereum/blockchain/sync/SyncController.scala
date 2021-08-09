@@ -12,6 +12,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
@@ -28,6 +29,7 @@ class SyncController(
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     appStateStorage: AppStateStorage,
+    blockNumberMappingStorage: BlockNumberMappingStorage,
     evmCodeStorage: EvmCodeStorage,
     stateStorage: StateStorage,
     nodeStorage: NodeStorage,
@@ -96,6 +98,7 @@ class SyncController(
       FastSync.props(
         fastSyncStateStorage,
         appStateStorage,
+        blockNumberMappingStorage,
         blockchain,
         blockchainReader,
         blockchainWriter,
@@ -151,6 +154,7 @@ object SyncController {
       blockchainReader: BlockchainReader,
       blockchainWriter: BlockchainWriter,
       appStateStorage: AppStateStorage,
+      blockNumberMappingStorage: BlockNumberMappingStorage,
       evmCodeStorage: EvmCodeStorage,
       stateStorage: StateStorage,
       nodeStorage: NodeStorage,
@@ -171,6 +175,7 @@ object SyncController {
         blockchainReader,
         blockchainWriter,
         appStateStorage,
+        blockNumberMappingStorage,
         evmCodeStorage,
         stateStorage,
         nodeStorage,
