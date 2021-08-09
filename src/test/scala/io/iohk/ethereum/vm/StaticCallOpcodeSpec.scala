@@ -39,8 +39,8 @@ class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProp
 
       programsWithStateChangingOpcodes.foreach { case (op, worldState) =>
         val context: PC = fxt.context.copy(world = worldState)
-        val staticcall = fxt.CallResult(op = STATICCALL, context)
-        val call = fxt.CallResult(op = CALL, context)
+        val staticcall = fxt.ExecuteCall(op = STATICCALL, context)
+        val call = fxt.ExecuteCall(op = CALL, context)
 
         s"Opcode $op" should {
           "not modify world state" in {
@@ -66,8 +66,8 @@ class StaticCallOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProp
 
       programsWithLoggingOpcodes.foreach { case (op, worldState) =>
         val context: PC = fxt.context.copy(world = worldState)
-        val staticcall = fxt.CallResult(op = STATICCALL, context)
-        val call = fxt.CallResult(op = CALL, context)
+        val staticcall = fxt.ExecuteCall(op = STATICCALL, context)
+        val call = fxt.ExecuteCall(op = CALL, context)
 
         s"Opcode $op" should {
           "should not append any logs" in {

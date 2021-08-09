@@ -181,7 +181,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     originalWorld = worldWithExtAccount
   )
 
-  case class CallResult(
+  case class ExecuteCall(
       op: CallOp,
       context: PC = context,
       inputData: ByteString = inputData,
@@ -193,7 +193,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
       outOffset: UInt256 = inputData.size,
       outSize: UInt256 = inputData.size / 2,
       toAccessed: Boolean = false
-  ) {
+  ) extends CallResult {
 
     val vm = new TestVM
 
@@ -217,4 +217,17 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     val ownStorage: MockStorage = world.getStorage(env.ownerAddr)
     val extStorage: MockStorage = world.getStorage(to)
   }
+}
+
+protected[vm] trait CallResult {
+  def inputData: ByteString
+  def stateOut: PS
+  def world: MockWorldState
+  def ownBalance: UInt256
+  def extBalance: UInt256
+  def ownStorage: MockStorage
+  def extStorage: MockStorage
+  def outOffset: UInt256
+  def outSize: UInt256
+  def value: UInt256
 }
