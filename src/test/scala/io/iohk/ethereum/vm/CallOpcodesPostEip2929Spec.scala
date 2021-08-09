@@ -68,7 +68,11 @@ class CallOpcodesPostEip2929Spec
 
       "consume correct gas (refund call gas) (warm access)" in {
         val call =
-          fxt.ExecuteCall(op = CALL, toAlreadyAccessed = true, context = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth))
+          fxt.ExecuteCall(
+            op = CALL,
+            toAlreadyAccessed = true,
+            context = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth)
+          )
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
