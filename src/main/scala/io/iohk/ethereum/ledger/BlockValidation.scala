@@ -39,15 +39,18 @@ class BlockValidation(
           // The in memory blocks aren't connected to the db ones, we don't have n blocks to return so we return none
           Nil
 
-        case Some(block) =>
+        case Some(highestBlockInStorage) =>
           // We already have |block +: queuedBlocks|
           val remaining = n - queuedBlocks.length - 1
-
-          val numbers = (block.header.number - remaining) until block.header.number
-          val bestBranch = blockchainReader.getBestBranch()
-          val blocks =
-            (numbers.toList.flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, nb)) :+ block) ::: queuedBlocks
-          blocks
+          val remainingBlocks = Iterator
+            .iterate(blockchainReader.getBlockByHash(highestBlockInStorage.header.parentHash))(
+              _.filter(_.number > 0) // avoid trying to fetch parent of genesis
+                .flatMap(p => blockchainReader.getBlockByHash(p.header.parentHash))
+            )
+            .take(remaining)
+            .collect { case Some(block) => block }
+            .toList
+          (remainingBlocks :+ highestBlockInStorage) ::: queuedBlocks
       }
     }
   }
