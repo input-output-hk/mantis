@@ -48,7 +48,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund unused gas) (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALL, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALL, toAlreadyAccessed = true)
         val expectedGas = fxt.requiredGas - G_callstipend + G_warm_storage_read + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -68,7 +68,7 @@ class CallOpcodesPostEip2929Spec
 
       "consume correct gas (refund call gas) (warm access)" in {
         val call =
-          fxt.ExecuteCall(op = CALL, toAccessed = true, context = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth))
+          fxt.ExecuteCall(op = CALL, toAlreadyAccessed = true, context = fxt.context.copy(callDepth = EvmConfig.MaxCallDepth))
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -87,7 +87,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALL, toAccessed = true, value = fxt.initialBalance + 1)
+        val call = fxt.ExecuteCall(op = CALL, toAlreadyAccessed = true, value = fxt.initialBalance + 1)
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + config.calcMemCost(32, 32, 16)
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -103,7 +103,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "adjust gas cost (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALL, toAccessed = true, value = 0)
+        val call = fxt.ExecuteCall(op = CALL, toAlreadyAccessed = true, value = 0)
         val expectedGas = fxt.requiredGas + G_warm_storage_read + fxt.expectedMemCost - (G_sset - G_sload)
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -124,7 +124,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume all call gas (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALL, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALL, context, toAlreadyAccessed = true)
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_warm_storage_read + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -145,7 +145,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas, add new account modifier) (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALL, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALL, context, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + G_callvalue + G_newaccount - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -212,7 +212,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund unused gas) (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, outSize = fxt.inputData.size * 2, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALLCODE, outSize = fxt.inputData.size * 2, toAlreadyAccessed = true)
         val expectedMemCost = config.calcMemCost(fxt.inputData.size, fxt.inputData.size, call.outSize)
         val expectedGas = fxt.requiredGas - G_callstipend + G_warm_storage_read + G_callvalue + expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
@@ -234,7 +234,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, context = context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALLCODE, context = context, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -254,7 +254,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, value = fxt.initialBalance + 1, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALLCODE, value = fxt.initialBalance + 1, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -271,7 +271,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "adjust gas cost (warm access)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, toAccessed = true, value = 0)
+        val call = fxt.ExecuteCall(op = CALLCODE, toAlreadyAccessed = true, value = 0)
         val expectedGas = fxt.requiredGas + G_warm_storage_read + fxt.expectedMemCost - (G_sset - G_sload)
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -291,7 +291,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume all call gas (warm)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALLCODE, context, toAlreadyAccessed = true)
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_warm_storage_read + G_callvalue + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -311,7 +311,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm)" in {
-        val call = fxt.ExecuteCall(op = CALLCODE, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = CALLCODE, context, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + G_callvalue - G_callstipend + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -380,7 +380,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund unused gas) (warm)" in {
-        val call = fxt.ExecuteCall(op = DELEGATECALL, outSize = fxt.inputData.size / 4, toAccessed = true)
+        val call = fxt.ExecuteCall(op = DELEGATECALL, outSize = fxt.inputData.size / 4, toAlreadyAccessed = true)
         val expectedMemCost = config.calcMemCost(fxt.inputData.size, fxt.inputData.size, call.outSize)
         val expectedGas = fxt.requiredGas + G_warm_storage_read + expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
@@ -402,7 +402,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm)" in {
-        val call = fxt.ExecuteCall(op = DELEGATECALL, context = context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = DELEGATECALL, context = context, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -422,7 +422,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume all call gas (warm)" in {
-        val call = fxt.ExecuteCall(op = DELEGATECALL, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = DELEGATECALL, context, toAlreadyAccessed = true)
         val expectedGas = fxt.requiredGas + fxt.gasMargin + G_warm_storage_read + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -442,7 +442,7 @@ class CallOpcodesPostEip2929Spec
       }
 
       "consume correct gas (refund call gas) (warm)" in {
-        val call = fxt.ExecuteCall(op = DELEGATECALL, context, toAccessed = true)
+        val call = fxt.ExecuteCall(op = DELEGATECALL, context, toAlreadyAccessed = true)
         val expectedGas = G_warm_storage_read + fxt.expectedMemCost
         call.stateOut.gasUsed shouldEqual expectedGas
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
@@ -533,7 +533,7 @@ class CallOpcodesPostEip2929Spec
         gas = gas,
         context = context,
         outOffset = UInt256.Zero,
-        toAccessed = true
+        toAlreadyAccessed = true
       )
       "return an OutOfGas error" in {
         call.stateOut.error shouldBe Some(OutOfGas)

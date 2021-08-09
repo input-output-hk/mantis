@@ -192,7 +192,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
       inSize: UInt256 = inputData.size,
       outOffset: UInt256 = inputData.size,
       outSize: UInt256 = inputData.size / 2,
-      toAccessed: Boolean = false
+      toAlreadyAccessed: Boolean = false
   ) extends CallResult {
 
     val vm = new TestVM
@@ -207,7 +207,7 @@ class CallOpFixture(val config: EvmConfig, val startState: MockWorldState) {
     private val mem = Memory.empty.store(UInt256.Zero, inputData)
 
     val baseStateIn: PS = ProgramState(vm, context, env).withStack(stack).withMemory(mem)
-    val stateIn: PS = if (toAccessed) baseStateIn.addAccessedAddress(to) else baseStateIn
+    val stateIn: PS = if (toAlreadyAccessed) baseStateIn.addAccessedAddress(to) else baseStateIn
     val stateOut: PS = op.execute(stateIn)
     val world: MockWorldState = stateOut.world
 
