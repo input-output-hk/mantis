@@ -643,7 +643,7 @@ class FastSync(
         } yield (validatedHeader, parentWeight)
 
       def getParentChainWeight(header: BlockHeader) =
-        blockchain.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
+        blockchainReader.getChainWeightByHash(header.parentHash).toRight(ParentChainWeightNotFound(header))
 
       @tailrec
       def processHeaders(headers: Seq[BlockHeader]): HeaderProcessingResult =

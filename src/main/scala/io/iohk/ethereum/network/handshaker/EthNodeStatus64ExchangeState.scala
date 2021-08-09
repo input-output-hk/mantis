@@ -35,7 +35,7 @@ case class EthNodeStatus64ExchangeState(
 
   override protected def createStatusMsg(): MessageSerializable = {
     val bestBlockHeader = getBestBlockHeader()
-    val chainWeight = blockchain.getChainWeightByHash(bestBlockHeader.hash).get
+    val chainWeight = blockchainReader.getChainWeightByHash(bestBlockHeader.hash).get
     val genesisHash = blockchainReader.genesisHeader.hash
 
     val status = ETH64.Status(

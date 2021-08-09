@@ -72,7 +72,7 @@ class ConsensusImpl(
           log.debug("Ignoring duplicated block: {}", block.idTag)
           Task.now(DuplicateBlock)
         } else {
-          blockchain.getChainWeightByHash(bestBlock.header.hash) match {
+          blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
             case Some(weight) =>
               doBlockPreValidation(block).flatMap {
                 case Left(error) => Task.now(BlockImportFailed(error.reason.toString))
@@ -234,7 +234,7 @@ class ConsensusImpl(
     val reorgResult = for {
       parent <- newBranch.headOption
       parentHash = parent.header.parentHash
-      parentWeight <- blockchain.getChainWeightByHash(parentHash)
+      parentWeight <- blockchainReader.getChainWeightByHash(parentHash)
     } yield {
       log.debug(
         "Removing blocks starting from number {} and parent {}",
@@ -330,7 +330,7 @@ class ConsensusImpl(
 
           val blockDataOpt = for {
             receipts <- blockchainReader.getReceiptsByHash(hash)
-            weight <- blockchain.getChainWeightByHash(hash)
+            weight <- blockchainReader.getChainWeightByHash(hash)
           } yield BlockData(block, receipts, weight)
 
           blockchain.removeBlock(hash)

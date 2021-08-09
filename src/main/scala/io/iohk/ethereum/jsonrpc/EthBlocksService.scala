@@ -75,7 +75,7 @@ class EthBlocksService(
   def getByBlockHash(request: BlockByBlockHashRequest): ServiceResponse[BlockByBlockHashResponse] = Task {
     val BlockByBlockHashRequest(blockHash, fullTxs) = request
     val blockOpt = blockchainReader.getBlockByHash(blockHash).orElse(blockQueue.getBlockByHash(blockHash))
-    val weight = blockchain.getChainWeightByHash(blockHash).orElse(blockQueue.getChainWeightByHash(blockHash))
+    val weight = blockchainReader.getChainWeightByHash(blockHash).orElse(blockQueue.getChainWeightByHash(blockHash))
 
     val blockResponseOpt = blockOpt.map(block => BlockResponse(block, weight, fullTxs = fullTxs))
     Right(BlockByBlockHashResponse(blockResponseOpt))
@@ -90,7 +90,7 @@ class EthBlocksService(
     val BlockByNumberRequest(blockParam, fullTxs) = request
     val blockResponseOpt =
       resolveBlock(blockParam).toOption.map { case ResolvedBlock(block, pending) =>
-        val weight = blockchain.getChainWeightByHash(block.header.hash)
+        val weight = blockchainReader.getChainWeightByHash(block.header.hash)
         BlockResponse(block, weight, fullTxs = fullTxs, pendingBlock = pending.isDefined)
       }
     Right(BlockByNumberResponse(blockResponseOpt))
@@ -122,7 +122,7 @@ class EthBlocksService(
         else
           None
       }
-    val weight = uncleHeaderOpt.flatMap(uncleHeader => blockchain.getChainWeightByHash(uncleHeader.hash))
+    val weight = uncleHeaderOpt.flatMap(uncleHeader => blockchainReader.getChainWeightByHash(uncleHeader.hash))
 
     //The block in the response will not have any txs or uncles
     val uncleBlockResponseOpt = uncleHeaderOpt.map { uncleHeader =>
@@ -144,7 +144,7 @@ class EthBlocksService(
       .flatMap { case ResolvedBlock(block, pending) =>
         if (uncleIndex >= 0 && uncleIndex < block.body.uncleNodesList.size) {
           val uncleHeader = block.body.uncleNodesList.apply(uncleIndex.toInt)
-          val weight = blockchain.getChainWeightByHash(uncleHeader.hash)
+          val weight = blockchainReader.getChainWeightByHash(uncleHeader.hash)
 
           //The block in the response will not have any txs or uncles
           Some(

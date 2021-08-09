@@ -65,7 +65,7 @@ class BlockQueue(
         None
 
       case None =>
-        val parentWeight = blockchain.getChainWeightByHash(parentHash)
+        val parentWeight = blockchainReader.getChainWeightByHash(parentHash)
 
         parentWeight match {
 

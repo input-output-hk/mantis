@@ -55,12 +55,6 @@ trait Blockchain {
     */
   def getReadOnlyMptStorage(): MptStorage
 
-  /** Looks up ChainWeight for a given chain
-    * @param blockhash Hash of top block in the chain
-    * @return ChainWeight if found
-    */
-  def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight]
-
   def getLatestCheckpointBlockNumber(): BigInt
 
   def removeBlock(hash: ByteString): Unit
@@ -85,8 +79,6 @@ class BlockchainImpl(
     blockchainReader: BlockchainReader
 ) extends Blockchain
     with Logger {
-
-  override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
 
   override def getLatestCheckpointBlockNumber(): BigInt = appStateStorage.getLatestCheckpointBlockNumber()
 

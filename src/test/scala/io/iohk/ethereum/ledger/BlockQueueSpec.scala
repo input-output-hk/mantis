@@ -176,7 +176,7 @@ class BlockQueueSpec extends AnyFlatSpec with Matchers with MockFactory {
         block: Block,
         weight: Option[ChainWeight] = None
     ): CallHandler1[ByteString, Option[ChainWeight]] =
-      (blockchain.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)
+      (blockchainReader.getChainWeightByHash _).expects(block.header.parentHash).returning(weight)
 
     def randomHash(): ByteString =
       ObjectGenerators.byteStringOfLengthNGen(32).sample.get
