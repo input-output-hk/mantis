@@ -12,7 +12,6 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
 import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
-import io.iohk.ethereum.blockchain.sync.regular.UnknownParent
 import io.iohk.ethereum.consensus.Consensus.BranchExecutionFailure
 import io.iohk.ethereum.consensus.Consensus.ConsensusError
 import io.iohk.ethereum.consensus.Consensus.ConsensusErrorDueToMissingNode

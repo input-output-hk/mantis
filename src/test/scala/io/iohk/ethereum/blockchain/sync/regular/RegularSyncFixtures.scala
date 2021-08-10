@@ -32,10 +32,7 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.consensus.Consensus
-import io.iohk.ethereum.consensus.Consensus.ConsensusResult
 import io.iohk.ethereum.consensus.ConsensusAdapter
-import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -312,7 +309,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def fakeEvaluateBlock(
         block: Block
-    )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+    ): Task[BlockImportResult] = {
       val result: BlockImportResult = if (didTryToImportBlock(block)) {
         DuplicateBlock
       } else {

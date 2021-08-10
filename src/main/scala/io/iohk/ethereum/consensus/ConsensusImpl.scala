@@ -10,15 +10,6 @@ import monix.execution.Scheduler
 
 import scala.annotation.tailrec
 
-import org.bouncycastle.util.encoders.Hex
-
-import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailedDueToMissingNode
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
-import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
-import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
 import io.iohk.ethereum.consensus.Consensus._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -30,7 +21,6 @@ import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
 import io.iohk.ethereum.ledger.BlockMetrics
-import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
@@ -98,7 +88,6 @@ class ConsensusImpl(
   }
 
   private def importToTop(branch: NonEmptyList[Block], currentBestBlockWeight: ChainWeight)(implicit
-      blockExecutionScheduler: Scheduler,
       blockchainConfig: BlockchainConfig
   ): ConsensusResult =
     blockExecution.executeAndValidateBlocks(branch.toList, currentBestBlockWeight) match {
@@ -186,7 +175,7 @@ class ConsensusImpl(
         Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))
 
       case Some(error) =>
-        revertChainReorganisation(newBranch, oldBlocksData, executedBlocks)
+        revertChainReorganisation(oldBlocksData, executedBlocks)
         Left((executedBlocks, error))
     }
   }
@@ -198,7 +187,6 @@ class ConsensusImpl(
     * @param executedBlocks sub-sequence of new branch that was executed correctly
     */
   private def revertChainReorganisation(
-      newBranch: List[Block],
       oldBranch: List[BlockData],
       executedBlocks: List[BlockData]
   ): Unit = {
