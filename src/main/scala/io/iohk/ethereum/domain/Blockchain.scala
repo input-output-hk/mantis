@@ -176,7 +176,6 @@ class BlockchainImpl(
     log.debug(s"Trying to remove block ${block.idTag}")
 
     val txList = block.body.transactionList
-    val bestBlockNumber = blockchainReader.getBestBlockNumber()
     val latestCheckpointNumber = getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
