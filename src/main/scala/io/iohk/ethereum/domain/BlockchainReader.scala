@@ -1,6 +1,7 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
+
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
@@ -12,7 +13,8 @@ import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MptNode
-import io.iohk.ethereum.utils.{Hex, Logger}
+import io.iohk.ethereum.utils.Hex
+import io.iohk.ethereum.utils.Logger
 
 class BlockchainReader(
     blockHeadersStorage: BlockHeadersStorage,

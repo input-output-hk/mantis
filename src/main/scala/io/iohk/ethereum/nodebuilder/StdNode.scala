@@ -1,6 +1,7 @@
 package io.iohk.ethereum.nodebuilder
 
 import akka.actor.typed.ActorSystem
+import akka.util.ByteString
 
 import scala.concurrent.Await
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -18,6 +19,7 @@ import io.iohk.ethereum.network.discovery.PeerDiscoveryManager
 import io.iohk.ethereum.nodebuilder.tooling.PeriodicConsistencyCheck
 import io.iohk.ethereum.nodebuilder.tooling.StorageConsistencyChecker
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Hex
 
 /** A standard node is everything Ethereum prescribes except the mining algorithm,
   * which is plugged in dynamically.
@@ -31,6 +33,8 @@ abstract class BaseNode extends Node {
 
   def start(): Unit = {
     startMetricsClient()
+
+    fixDatabase()
 
     loadGenesisData()
 
@@ -131,6 +135,24 @@ abstract class BaseNode extends Node {
     }
     tryAndLogFailure(() => Metrics.get().close())
     tryAndLogFailure(() => storagesInstance.dataSource.close())
+  }
+
+  def fixDatabase(): Unit = {
+    // FIXME this is a temporary solution to avoid an incompatibility due to the introduction of the best block hash
+    // We can remove this fix when we release an incompatible version.
+    val bestBlockInfo = storagesInstance.storages.appStateStorage.getBestBlockInfo()
+    if (bestBlockInfo.hash == ByteString.empty && bestBlockInfo.number > 0) {
+      log.warn("Fixing best block hash into database for block {}", bestBlockInfo.number)
+      storagesInstance.storages.blockNumberMappingStorage.get(bestBlockInfo.number) match {
+        case Some(hash) =>
+          log.warn("Putting {} as the best block hash", Hex.toHexString(hash.toArray))
+          storagesInstance.storages.appStateStorage.putBestBlockInfo(bestBlockInfo.copy(hash = hash)).commit()
+        case None =>
+          log.error("No block found for number {} when trying to fix database", bestBlockInfo.number)
+      }
+
+    }
+
   }
 }
 
