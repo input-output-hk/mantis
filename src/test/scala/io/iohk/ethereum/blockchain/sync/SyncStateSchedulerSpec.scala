@@ -280,9 +280,8 @@ class SyncStateSchedulerSpec
   trait TestSetup extends EphemBlockchainTestSetup {
     def getTrieProvider: TrieProvider = {
       val freshStorage = getNewStorages
-      val freshBlockchainMetadata = getNewBlockchainMetadata
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
-      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
       new TrieProvider(freshBlockchain, freshBlockchainReader, freshStorage.storages.evmCodeStorage, blockchainConfig)
     }
     val bloomFilterSize = 1000
@@ -310,10 +309,9 @@ class SyncStateSchedulerSpec
         EphemDataSourceComponent with LocalPruningConfigBuilder with Storages.DefaultStorages
     ) = {
       val freshStorage = getNewStorages
-      val freshBlockchainMetadata = getNewBlockchainMetadata
-      val freshBlockchainReader = BlockchainReader(freshStorage.storages, freshBlockchainMetadata)
-      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader, freshBlockchainMetadata)
-      val freshBlockchainWriter = BlockchainWriter(freshStorage.storages, freshBlockchainMetadata)
+      val freshBlockchainReader = BlockchainReader(freshStorage.storages)
+      val freshBlockchain = BlockchainImpl(freshStorage.storages, freshBlockchainReader)
+      val freshBlockchainWriter = BlockchainWriter(freshStorage.storages)
       (
         SyncStateScheduler(
           freshBlockchainReader,

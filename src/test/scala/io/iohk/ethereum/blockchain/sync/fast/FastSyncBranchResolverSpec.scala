@@ -53,11 +53,11 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       inSequence {
         (mockedBlockchainReader.getBestBlockNumber _).expects().returning(BigInt(100)).once()
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
-        (mockedBlockchain.removeBlock _).expects(headers(100).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(100).hash).returning(())
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
-        (mockedBlockchain.removeBlock _).expects(headers(99).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(99).hash).returning(())
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
-        (mockedBlockchain.removeBlock _).expects(headers(98).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(98).hash).returning(())
       }
 
       val resolver = new FastSyncBranchResolver {

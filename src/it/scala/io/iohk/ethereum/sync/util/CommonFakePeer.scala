@@ -39,7 +39,6 @@ import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainImpl
-import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.ChainWeight
@@ -138,13 +137,9 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
-  val blockchainMetadata = new BlockchainMetadata(
-    storagesInstance.storages.appStateStorage.getBestBlockNumber(),
-    storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
-  )
-  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
-  val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
-  val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
+  val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages)
+  val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
   val evmCodeStorage = storagesInstance.storages.evmCodeStorage
 
   val genesis: Block = Block(

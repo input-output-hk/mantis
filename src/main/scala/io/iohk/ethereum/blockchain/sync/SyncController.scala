@@ -70,7 +70,7 @@ class SyncController(
   def start(): Unit = {
     import syncConfig.doFastSync
 
-    appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber())
+    appStateStorage.putSyncStartingBlock(appStateStorage.getBestBlockNumber()).commit()
     (appStateStorage.isFastSyncDone(), doFastSync) match {
       case (false, true) =>
         startFastSync()

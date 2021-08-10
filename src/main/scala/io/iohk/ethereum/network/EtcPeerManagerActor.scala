@@ -210,7 +210,7 @@ class EtcPeerManagerActor(
       } else {
         val (maxBlockNumber, maxBlockHash) = ns.maxBy(_._1)
         if (maxBlockNumber > appStateStorage.getEstimatedHighestBlock())
-          appStateStorage.putEstimatedHighestBlock(maxBlockNumber)
+          appStateStorage.putEstimatedHighestBlock(maxBlockNumber).commit()
 
         if (maxBlockNumber > initialPeerInfo.maxBlockNumber) {
           initialPeerInfo.withBestBlockData(maxBlockNumber, maxBlockHash)

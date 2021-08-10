@@ -21,8 +21,7 @@ class BlockchainReader(
     blockNumberMappingStorage: BlockNumberMappingStorage,
     stateStorage: StateStorage,
     receiptStorage: ReceiptStorage,
-    appStateStorage: AppStateStorage,
-    blockchainMetadata: BlockchainMetadata
+    appStateStorage: AppStateStorage
 ) extends Logger {
 
   /** Allows to query a blockHeader by block hash
@@ -81,29 +80,13 @@ class BlockchainReader(
       .getOrElse(EmptyBranch)
   }
 
-  def getBestBlockNumber(): BigInt = {
-    val bestSavedBlockNumber = appStateStorage.getBestBlockNumber()
-    val bestKnownBlockNumber = blockchainMetadata.bestKnownBlockAndLatestCheckpoint.get().bestBlockNumber
-    log.debug(
-      "Current best saved block number {}. Current best known block number {}",
-      bestSavedBlockNumber,
-      bestKnownBlockNumber
-    )
+  def getBestBlockNumber(): BigInt = appStateStorage.getBestBlockNumber()
 
-    // The cached best block number should always be more up-to-date than the one on disk, we are keeping access to disk
-    // above only for logging purposes
-    bestKnownBlockNumber
-  }
-
-  //returns the best known block if it's available in the storage, otherwise the best stored block
+  //returns the best known block if it's available in the storage
   def getBestBlock(): Option[Block] = {
     val bestBlockNumber = getBestBlockNumber()
     log.debug("Trying to get best block with number {}", bestBlockNumber)
-    getBlockByNumber(bestBlockNumber).orElse(
-      getBlockByNumber(
-        appStateStorage.getBestBlockNumber()
-      )
-    )
+    getBlockByNumber(bestBlockNumber)
   }
 
   def genesisHeader: BlockHeader =
@@ -199,16 +182,14 @@ class BlockchainReader(
 object BlockchainReader {
 
   def apply(
-      storages: BlockchainStorages,
-      blockchainMetadata: BlockchainMetadata
+      storages: BlockchainStorages
   ): BlockchainReader = new BlockchainReader(
     storages.blockHeadersStorage,
     storages.blockBodiesStorage,
     storages.blockNumberMappingStorage,
     storages.stateStorage,
     storages.receiptStorage,
-    storages.appStateStorage,
-    blockchainMetadata
+    storages.appStateStorage
   )
 
 }

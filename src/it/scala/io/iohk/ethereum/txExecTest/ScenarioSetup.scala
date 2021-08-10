@@ -10,10 +10,8 @@ import io.iohk.ethereum.ledger.VMImpl
 trait ScenarioSetup extends EphemBlockchainTestSetup {
   protected val testBlockchainStorages: BlockchainStorages
 
-  val blockchainMetadata = getNewBlockchainMetadata
-  override lazy val blockchainReader: BlockchainReader = BlockchainReader(testBlockchainStorages, blockchainMetadata)
-  override lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(testBlockchainStorages, blockchainMetadata)
-  override lazy val blockchain: BlockchainImpl =
-    BlockchainImpl(testBlockchainStorages, blockchainReader, blockchainMetadata)
+  override lazy val blockchainReader: BlockchainReader = BlockchainReader(testBlockchainStorages)
+  override lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(testBlockchainStorages)
+  override lazy val blockchain: BlockchainImpl = BlockchainImpl(testBlockchainStorages, blockchainReader)
   override lazy val vm: VMImpl = new VMImpl
 }

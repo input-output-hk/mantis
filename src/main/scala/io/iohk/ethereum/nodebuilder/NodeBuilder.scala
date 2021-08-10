@@ -34,7 +34,6 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
@@ -176,14 +175,9 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  private lazy val blockchainMetadata: BlockchainMetadata =
-    new BlockchainMetadata(
-      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
-      storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
-    )
-  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
-  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
-  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 
 trait BlockQueueBuilder {
