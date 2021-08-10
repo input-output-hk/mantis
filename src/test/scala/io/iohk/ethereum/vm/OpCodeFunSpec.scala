@@ -440,7 +440,10 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val (result, _) = stateOut.stack.pop
         result.toBigInt shouldEqual data
 
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual stateIn
+          .addAccessedStorageKey(stateIn.ownAddress, UInt256(offset))
+          .withStack(stateOut.stack)
+          .step()
       }
     }
   }

@@ -169,14 +169,31 @@ object OpCode {
       preGasFn: FeeSchedule => BigInt,
       postColdGasFn: FeeSchedule => BigInt,
       postWarmGasFn: FeeSchedule => BigInt
+  ): BigInt =
+    accessCost(state, state.accessedAddresses.contains(address))(preGasFn, postColdGasFn, postWarmGasFn)
+
+  def storageAccessCost[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S],
+      address: Address,
+      key: BigInt
+  )(
+      preGasFn: FeeSchedule => BigInt,
+      postColdGasFn: FeeSchedule => BigInt,
+      postWarmGasFn: FeeSchedule => BigInt
+  ): BigInt =
+    accessCost(state, state.accessedStorageKeys.contains((address, key)))(preGasFn, postColdGasFn, postWarmGasFn)
+
+  def accessCost[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S], isWarm: Boolean)(
+      preGasFn: FeeSchedule => BigInt,
+      postColdGasFn: FeeSchedule => BigInt,
+      postWarmGasFn: FeeSchedule => BigInt
   ): BigInt = {
     val currentBlockNumber = state.env.blockHeader.number
     // FIXME: handle ETH Berlin here as well
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
     val eip2929Enabled = isEip2929Enabled(etcFork)
     if (eip2929Enabled) {
-      val addr = address
-      if (state.accessedAddresses.contains(addr))
+      if (isWarm)
         postWarmGasFn(state.config.feeSchedule)
       else
         postColdGasFn(state.config.feeSchedule)
@@ -236,6 +253,21 @@ trait AddrAccessGas { self: OpCode =>
     OpCode.addressAccessCost(state, address(state))(baseGasFn, coldGasFn, warmGasFn)
 
   protected def address[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): Address
+}
+
+trait StorageAccessGas { self: OpCode =>
+
+  private def coldGasFn: FeeSchedule => BigInt = _.G_cold_account_access
+  private def warmGasFn: FeeSchedule => BigInt = _.G_warm_storage_read
+
+  override protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
+    val (address, value) = addressAndKey(state)
+    OpCode.storageAccessCost(state, address, value)(baseGasFn, coldGasFn, warmGasFn)
+  }
+
+  protected def addressAndKey[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S]
+  ): (Address, BigInt)
 }
 
 sealed trait ConstGas { self: OpCode =>
@@ -617,12 +649,19 @@ case object MSTORE extends OpCode(0x52, 2, 0, _.G_verylow) {
   }
 }
 
-case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with ConstGas {
+case object SLOAD extends OpCode(0x54, 1, 1, _.G_sload) with StorageAccessGas with ConstGas {
   protected def exec[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): ProgramState[W, S] = {
     val (offset, stack1) = state.stack.pop
     val value = state.storage.load(offset)
     val stack2 = stack1.push(UInt256(value))
-    state.withStack(stack2).step()
+    state.withStack(stack2).addAccessedStorageKey(state.ownAddress, offset).step()
+  }
+
+  protected def addressAndKey[W <: WorldStateProxy[W, S], S <: Storage[S]](
+      state: ProgramState[W, S]
+  ): (Address, BigInt) = {
+    val (offset, _) = state.stack.pop
+    (state.ownAddress, offset)
   }
 }
 

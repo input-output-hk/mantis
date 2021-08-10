@@ -110,4 +110,30 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     }
   }
 
+  test(SLOAD) { op =>
+    val stateGen = getProgramStateGen(
+      evmConfig = config,
+      stackGen = getStackGen(elems = 1),
+      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+    )
+
+    forAll(stateGen) { stateIn =>
+      stateIn.accessedStorageKeys shouldBe empty
+      val (offset, _) = stateIn.stack.pop
+
+      val stateOut = op.execute(stateIn)
+
+      verifyGas(G_cold_account_access, stateIn, stateOut)
+      assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
+    }
+
+    forAll(stateGen) { stateIn =>
+      val (offset, _) = stateIn.stack.pop
+
+      val stateOut = op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+
+      verifyGas(G_warm_storage_read, stateIn, stateOut)
+      assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
+    }
+  }
 }
