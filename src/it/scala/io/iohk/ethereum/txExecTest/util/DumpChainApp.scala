@@ -186,8 +186,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def removeBlock(hash: ByteString): Unit = ???
 
-  def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
-
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
 
