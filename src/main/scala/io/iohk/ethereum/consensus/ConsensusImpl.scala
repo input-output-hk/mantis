@@ -40,7 +40,6 @@ class ConsensusImpl(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
-    blockQueue: BlockQueue,
     blockExecution: BlockExecution
 ) extends Consensus
     with Logger {
@@ -108,10 +107,13 @@ class ConsensusImpl(
       case (_, Some(MPTError(reason))) if reason.isInstanceOf[MissingNodeException] =>
         ConsensusErrorDueToMissingNode(Nil, reason.asInstanceOf[MissingNodeException])
       case (Nil, Some(error)) =>
-        BranchExecutionFailure(branch.head.header.hash, error.toString)
+        BranchExecutionFailure(Nil, branch.head.header.hash, error.toString)
       case (importedBlocks, Some(error)) =>
-        val failingBlock = branch.toList.drop(importedBlocks.length).headOption.get
-        ExtendedCurrentBestBranchPartially(importedBlocks, BranchExecutionFailure(failingBlock.hash, error.toString))
+        val failingBlock = branch.toList.drop(importedBlocks.length).head
+        ExtendedCurrentBestBranchPartially(
+          importedBlocks,
+          BranchExecutionFailure(Nil, failingBlock.hash, error.toString)
+        )
     }
 
   private def reorganise(newBranch: NonEmptyList[Block], parentWeight: ChainWeight, parentHash: ByteString)(implicit
@@ -131,7 +133,11 @@ class ConsensusImpl(
         case (executedBlocks, MPTError(reason: MissingNodeException)) =>
           ConsensusErrorDueToMissingNode(executedBlocks.map(_.block), reason)
         case (executedBlocks, err) =>
-          ConsensusError(executedBlocks.map(_.block), s"Error while trying to reorganise chain: $err")
+          BranchExecutionFailure(
+            executedBlocks.map(_.block),
+            newBranch.toList.drop(executedBlocks.length).head.hash,
+            s"Error while trying to reorganise chain: $err"
+          )
       },
       SelectedNewBestBranch.tupled
     )
@@ -211,9 +217,6 @@ class ConsensusImpl(
     val bestHeader = oldBranch.last.block.header
     blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
 
-    newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>
-      blockQueue.removeSubtree(block.header.hash)
-    }
   }
 
   /** Removes blocks from the [[Blockchain]] along with receipts and total difficulties.

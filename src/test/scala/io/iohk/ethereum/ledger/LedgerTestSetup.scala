@@ -382,7 +382,6 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
       blockchain,
       blockchainReader,
       blockchainWriter,
-      blockQueue,
       new BlockExecution(
         blockchain,
         blockchainReader,

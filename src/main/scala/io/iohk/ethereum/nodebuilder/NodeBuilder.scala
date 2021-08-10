@@ -205,7 +205,6 @@ trait ConsensusBuilder {
       blockchain,
       blockchainReader,
       blockchainWriter,
-      blockQueue,
       blockExecution
     )
 

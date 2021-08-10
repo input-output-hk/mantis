@@ -97,7 +97,6 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
         blockchain,
         blockchainReader,
         blockchainWriter,
-        blockQueue,
         blockExecutionOpt.getOrElse(mkBlockExecution(validators))
       ),
       blockchainReader,

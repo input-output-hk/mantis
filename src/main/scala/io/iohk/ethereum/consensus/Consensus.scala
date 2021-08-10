@@ -96,7 +96,8 @@ object Consensus {
 
   case object KeptCurrentBestBranch extends ConsensusResult
 
-  case class BranchExecutionFailure(failingBlockHash: ByteString, error: String) extends ConsensusResult
+  case class BranchExecutionFailure(blockToEnqueue: List[Block], failingBlockHash: ByteString, error: String)
+      extends ConsensusResult
 
   case class ConsensusError(blockToEnqueue: List[Block], err: String) extends ConsensusResult
   case class ConsensusErrorDueToMissingNode(blockToEnqueue: List[Block], reason: MissingNodeException)

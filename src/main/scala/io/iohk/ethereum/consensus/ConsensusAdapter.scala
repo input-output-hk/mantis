@@ -75,15 +75,17 @@ class ConsensusAdapter(
                         BlockImportedToTop(blockImportData)
                       case ExtendedCurrentBestBranchPartially(
                             blockImportData,
-                            BranchExecutionFailure(failingBlockHash, error)
+                            BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error)
                           ) =>
+                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
                         blockQueue.removeSubtree(failingBlockHash)
-                        log.warn("extended best branch partially because of error: {}")
+                        log.warn("extended best branch partially because of error: {}", error)
                         BlockImportedToTop(blockImportData)
                       case KeptCurrentBestBranch =>
                         newBranch.toList.foreach(blockQueue.enqueueBlock(_))
                         BlockEnqueued
-                      case BranchExecutionFailure(failingBlockHash, error) =>
+                      case BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error) =>
+                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
                         blockQueue.removeSubtree(failingBlockHash)
                         BlockImportFailed(error)
                       case ConsensusError(blocksToEnqueue, error) =>

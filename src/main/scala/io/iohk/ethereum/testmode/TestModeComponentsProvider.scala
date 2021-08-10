@@ -50,7 +50,6 @@ class TestModeComponentsProvider(
         blockchain,
         blockchainReader,
         blockchainWriter,
-        node.blockQueue,
         blockExecution
       ),
       blockchainReader,
