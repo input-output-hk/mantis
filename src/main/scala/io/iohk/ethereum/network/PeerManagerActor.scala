@@ -6,6 +6,7 @@ import java.util.Collections.newSetFromMap
 
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor._
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import akka.util.Timeout
 
@@ -323,9 +324,7 @@ class PeerManagerActor(
         PeerId.fromRef(ref),
         address,
         ref,
-        incomingConnection,
-        nodeId = None,
-        createTimeMillis = System.currentTimeMillis
+        incomingConnection
       )
 
     val newConnectedPeers = connectedPeers.addNewPendingPeer(pendingPeer)

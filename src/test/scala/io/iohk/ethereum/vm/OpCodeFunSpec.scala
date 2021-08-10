@@ -156,13 +156,14 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
   test(BALANCE) { op =>
     forAll(getProgramStateGen(), getUInt256Gen()) { (stateIn, accountBalance) =>
+      val (addr, _) = stateIn.stack.pop
       val stateOut = executeOp(op, stateIn)
       withStackVerification(op, stateIn, stateOut) {
         val (_, stack1) = stateIn.stack.pop
-        stateOut shouldEqual stateIn.withStack(stack1.push(UInt256.Zero)).step()
+        stateOut shouldEqual stateIn.addAccessedAddress(Address(addr)).withStack(stack1.push(UInt256.Zero)).step()
       }
 
-      val (addr, stack1) = stateIn.stack.pop
+      val (_, stack1) = stateIn.stack.pop
 
       val account = Account(balance = accountBalance)
       val world1 = stateIn.world.saveAccount(Address(addr.mod(UInt256(BigInt(2).pow(160)))), account)
@@ -172,7 +173,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
 
       withStackVerification(op, stateInWithAccount, stateOutWithAccount) {
         val stack2 = stack1.push(accountBalance)
-        stateOutWithAccount shouldEqual stateInWithAccount.withStack(stack2).step()
+        stateOutWithAccount shouldEqual stateInWithAccount.addAccessedAddress(Address(addr)).withStack(stack2).step()
       }
     }
   }

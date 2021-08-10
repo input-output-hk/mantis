@@ -61,9 +61,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block1.header.number)
         val newMining: TestMining = mining.withVM(vm).withValidators(mockValidators)
-        val blockValidation =
+        override lazy val blockValidation =
           new BlockValidation(newMining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-        val blockExecution =
+        override lazy val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
@@ -103,9 +103,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         )
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(block2.header.number)
         val newMining: TestMining = mining.withVM(mockVm).withValidators(mockValidators)
-        val blockValidation =
+        override lazy val blockValidation =
           new BlockValidation(newMining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-        val blockExecution =
+        override lazy val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
@@ -138,9 +138,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         )
         val mockValidators = new MockValidatorsFailOnSpecificBlockNumber(chain.last.number)
         val newMining: TestMining = mining.withVM(mockVm).withValidators(mockValidators)
-        val blockValidation =
+        override lazy val blockValidation =
           new BlockValidation(newMining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-        val blockExecution =
+        override lazy val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
@@ -169,9 +169,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         val mockValidators = MockValidatorsAlwaysSucceed
         val newMining: TestMining = mining.withVM(vm).withValidators(mockValidators)
-        val blockValidation =
+        override lazy val blockValidation =
           new BlockValidation(newMining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-        val blockExecution =
+        override lazy val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
@@ -212,7 +212,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         txsExecResult.isRight shouldBe true
 
-        val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
+        val BlockResult(_, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
         resultingGasUsed shouldBe 0
         resultingReceipts shouldBe Nil
       }
@@ -236,9 +236,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
         val newMining: TestMining = mining.withVM(mockVm)
 
-        val blockValidation =
+        override lazy val blockValidation =
           new BlockValidation(newMining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-        val blockExecution =
+        override lazy val blockExecution =
           new BlockExecution(
             blockchain,
             blockchainReader,
@@ -434,7 +434,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         )
         val block = Block(blockHeader, blockBodyWithOmmers)
 
-        val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndValidateBlock(block)
         assert(blockExecResult.isRight)
       }
     }
@@ -481,7 +481,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
       assert(seqFailingValidators.forall { _ =>
-        val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndValidateBlock(block)
 
         blockExecResult.left.forall {
           case _: BlockExecutionError.ValidationBeforeExecError => true
@@ -530,12 +530,12 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       )
 
       forAll(table) { (stateRootHash, cumulativeGasUsedBlock, validators) =>
-        val blockImport = mkBlockImport(validators = validators)
+        val blockExecution = mkBlockExecution(validators = validators)
         val blockHeader: BlockHeader =
           validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
         val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-        val blockExecResult = blockImport.blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndValidateBlock(block)
 
         assert(blockExecResult match {
           case Left(_: BlockExecutionError.ValidationAfterExecError) => true
@@ -585,7 +585,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val validBlockBodyWithTxs: BlockBody = validBlockBodyWithNoTxs.copy(transactionList = Seq(stx1.tx, stx2.tx))
         val block = Block(validBlockHeader, validBlockBodyWithTxs)
 
-        val txsExecResult = blockImport.blockExecution.executeBlockTransactions(block, initialWorld)
+        val txsExecResult = blockExecution.executeBlockTransactions(block, initialWorld)
 
         assert(txsExecResult.isRight)
         val BlockResult(resultingWorldState, resultingGasUsed, resultingReceipts) = txsExecResult.toOption.get
@@ -641,7 +641,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockWithCorrectStateAndGasUsed = block.copy(
           header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
         )
-        assert(blockImport.blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
+        assert(blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
       }
     }
 
@@ -662,7 +662,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       }
 
       // We don't care about block txs in this test
-      blockImport.blockExecution.executeBlockTransactions(
+      blockExecution.executeBlockTransactions(
         proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
         initialWorld
       )
@@ -675,7 +675,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       }
 
       // We don't care about block txs in this test
-      blockImport.blockExecution.executeBlockTransactions(
+      blockExecution.executeBlockTransactions(
         proDaoBlock.copy(body = proDaoBlock.body.copy(transactionList = Seq.empty)),
         initialWorld
       )
@@ -684,9 +684,9 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
 
   trait BlockExecutionTestSetup extends BlockchainSetup {
 
-    val blockValidation =
+    override lazy val blockValidation =
       new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-    val blockExecution =
+    override lazy val blockExecution =
       new BlockExecution(
         blockchain,
         blockchainReader,

@@ -117,7 +117,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchainWriter.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
     blockchainWriter.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
-    blockchain.removeBlock(thirdBlock.hash, withState = true)
+    blockchain.removeBlock(thirdBlock.hash)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
     blockchainReader.getBestBlockNumber() should ===(secondBlock.number)
@@ -131,7 +131,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
-    blockchain.removeBlock(validBlock.hash, withState = true)
+    blockchain.removeBlock(validBlock.hash)
 
     blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
     blockchainReader.getBestBlockNumber() should ===(genesis.number)
@@ -213,15 +213,15 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     mptWithAcc.get(wrongAddress) shouldBe None
   }
 
-  it should "return correct best block number after applying and rollbacking blocks" in new TestSetup {
-    forAll(intGen(min = 1: Int, max = maxNumberBlocksToImport)) { numberBlocksToImport =>
+  it should "return correct best block number after saving and rolling back blocks" in new TestSetup {
+    forAll(posIntGen(min = 1, max = maxNumberBlocksToImport)) { numberBlocksToImport =>
       val testSetup = newSetup()
       import testSetup._
 
       // Import blocks
       val blocksToImport = BlockHelpers.generateChain(numberBlocksToImport, Fixtures.Blocks.Genesis.block)
 
-      // Randomly select the block import to persist (empty means no persistance)
+      // Randomly select the block import to persist (empty means no persistence)
       val blockImportToPersist = Gen.option(Gen.oneOf(blocksToImport)).sample.get
       (stubStateStorage
         .onBlockSave(_: BigInt, _: BigInt)(_: () => Unit))
@@ -231,19 +231,16 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         }
 
       blocksToImport.foreach { block =>
-        blockchainWriterWithStubPersisting.save(block, Nil, ChainWeight.zero, true)
+        blockchainWriterWithStubPersisting.save(block, Nil, ChainWeight.zero, saveAsBestBlock = true)
       }
 
       blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
-      blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe blockImportToPersist.fold(
-        0: BigInt
-      )(_.number)
 
       // Rollback blocks
       val numberBlocksToRollback = intGen(0, numberBlocksToImport).sample.get
-      val (blocksNotRollbacked, blocksToRollback) = blocksToImport.splitAt(numberBlocksToRollback)
+      val (_, blocksToRollback) = blocksToImport.splitAt(numberBlocksToRollback)
 
-      // Randomly select the block rollback to persist (empty means no persistance)
+      // Randomly select the block rollback to persist (empty means no persistence)
       val blockRollbackToPersist =
         if (blocksToRollback.isEmpty) None else Gen.option(Gen.oneOf(blocksToRollback)).sample.get
       (stubStateStorage
@@ -254,17 +251,15 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         }
 
       blocksToRollback.reverse.foreach { block =>
-        blockchainWithStubPersisting.removeBlock(block.hash, true)
+        blockchainWithStubPersisting.removeBlock(block.hash)
       }
 
-      val expectedMemoryBestBlock = blocksNotRollbacked.lastOption.fold(0: BigInt)(_.number)
       val expectedPersistedBestBlock = calculatePersistedBestBlock(
         blockImportToPersist.map(_.number),
         blockRollbackToPersist.map(_.number),
         blocksToRollback.map(_.number)
       )
-      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe expectedMemoryBestBlock
-      blockchainStoragesWithStubPersisting.appStateStorage.getBestBlockNumber() shouldBe expectedPersistedBestBlock
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe expectedPersistedBestBlock
     }
   }
 
@@ -274,21 +269,21 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     def calculatePersistedBestBlock(
         blockImportPersisted: Option[BigInt],
         blockRollbackPersisted: Option[BigInt],
-        blocksRollbacked: Seq[BigInt]
+        blocksRolledback: Seq[BigInt]
     ): BigInt =
-      (blocksRollbacked, blockImportPersisted) match {
+      (blocksRolledback, blockImportPersisted) match {
         case (Nil, Some(bi)) =>
-          // No blocks rollbacked, last persist was the persist during import
+          // No blocks rolledback, last persist was the persist during import
           bi
-        case (nonEmptyRollbackedBlocks, Some(bi)) =>
+        case (nonEmptyRolledbackBlocks, Some(bi)) =>
           // Last forced persist during apply/rollback
           val maxForcedPersist = blockRollbackPersisted.fold(bi)(br => (br - 1).max(bi))
 
           // The above number would have been decreased by any rollbacked blocks
-          (nonEmptyRollbackedBlocks.head - 1).min(maxForcedPersist)
+          (nonEmptyRolledbackBlocks.head - 1).min(maxForcedPersist)
         case (_, None) =>
           // If persisted rollback, then it  was decreased by the future rollbacks, if not no persistance was ever done
-          blockRollbackPersisted.fold(0: BigInt)(_ => blocksRollbacked.head - 1)
+          blockRollbackPersisted.fold(0: BigInt)(_ => blocksRolledback.head - 1)
       }
 
     trait StubPersistingBlockchainSetup {
@@ -313,16 +308,14 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
           val appStateStorage = storagesInstance.storages.appStateStorage
           val stateStorage = stubStateStorage
         }
-        val freshBlockchainMetadata = getNewBlockchainMetadata
         override val blockchainReaderWithStubPersisting =
-          BlockchainReader(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
+          BlockchainReader(blockchainStoragesWithStubPersisting)
         override val blockchainWriterWithStubPersisting =
-          BlockchainWriter(blockchainStoragesWithStubPersisting, freshBlockchainMetadata)
+          BlockchainWriter(blockchainStoragesWithStubPersisting)
         override val blockchainWithStubPersisting =
           BlockchainImpl(
             blockchainStoragesWithStubPersisting,
-            blockchainReaderWithStubPersisting,
-            freshBlockchainMetadata
+            blockchainReaderWithStubPersisting
           )
 
         blockchainWriterWithStubPersisting.storeBlock(Fixtures.Blocks.Genesis.block)

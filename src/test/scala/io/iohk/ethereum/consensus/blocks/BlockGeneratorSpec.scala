@@ -109,7 +109,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     // Import Block, to create some existing state
-    blockImport.importBlock(fullBlock).runSyncUnsafe()
+    consensus.evaluateBranchBlock(fullBlock).runSyncUnsafe()
 
     // Create new pending block, with updated stateRootHash
     val pendBlockAndState = blockGenerator.generateBlock(
@@ -706,9 +706,9 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     lazy val blockGenerator: TestBlockGenerator =
       mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
-    lazy val blockValidation =
+    override lazy val blockValidation =
       new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
-    lazy val blockExecution =
+    override lazy val blockExecution =
       new BlockExecution(
         blockchain,
         blockchainReader,

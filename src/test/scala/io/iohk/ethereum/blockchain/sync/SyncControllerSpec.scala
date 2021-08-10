@@ -548,15 +548,16 @@ class SyncControllerSpec
     lazy val syncController: TestActorRef[Nothing] = TestActorRef(
       Props(
         new SyncController(
-          storagesInstance.storages.appStateStorage,
           blockchain,
           blockchainReader,
           blockchainWriter,
+          storagesInstance.storages.appStateStorage,
+          storagesInstance.storages.blockNumberMappingStorage,
           storagesInstance.storages.evmCodeStorage,
           storagesInstance.storages.stateStorage,
           storagesInstance.storages.nodeStorage,
           storagesInstance.storages.fastSyncStateStorage,
-          blockImport,
+          consensus,
           validators,
           peerMessageBus.ref,
           pendingTransactionsManager.ref,

@@ -53,11 +53,11 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       inSequence {
         (mockedBlockchainReader.getBestBlockNumber _).expects().returning(BigInt(100)).once()
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(100)).returning(headers.get(100))
-        (mockedBlockchain.removeBlock _).expects(headers(100).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(100).hash).returning(())
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(99)).returning(headers.get(99))
-        (mockedBlockchain.removeBlock _).expects(headers(99).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(99).hash).returning(())
         (mockedBlockchainReader.getBlockHeaderByNumber _).expects(BigInt(98)).returning(headers.get(98))
-        (mockedBlockchain.removeBlock _).expects(headers(98).hash, false).returning(())
+        (mockedBlockchain.removeBlock _).expects(headers(98).hash).returning(())
       }
 
       val resolver = new FastSyncBranchResolver {
@@ -181,7 +181,8 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val blocksSavedInPeer: List[Block] =
         commonBlocks :++ BlockHelpers.generateChain(ourBestBlock + 1 - highestCommonBlock, commonBlocks.last)
 
-      val dummyPeer = Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+      val dummyPeer =
+        Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, createTimeMillis = 0)
 
       val initialSearchState = SearchState(1, 10, dummyPeer)
       val ours = blocksSaved.map(b => (b.number, b)).toMap
@@ -256,7 +257,8 @@ class FastSyncBranchResolverSpec extends AnyWordSpec with Matchers with MockFact
       val blocksSaved: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
       val blocksSavedInPeer: List[Block] = BlockHelpers.generateChain(8, BlockHelpers.genesis)
 
-      val dummyPeer = Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, None, 0)
+      val dummyPeer =
+        Peer(PeerId("dummyPeer"), new InetSocketAddress("foo", 1), ActorRef.noSender, false, createTimeMillis = 0)
 
       val initialSearchState = SearchState(1, 8, dummyPeer)
       val ours = blocksSaved.map(b => (b.number, b)).toMap

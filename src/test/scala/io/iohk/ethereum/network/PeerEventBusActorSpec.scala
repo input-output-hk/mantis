@@ -4,13 +4,22 @@ import java.net.InetSocketAddress
 
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
+import akka.actor.PoisonPill
+import akka.stream.WatchedActorTerminatedException
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Keep
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import akka.testkit.TestActor
 import akka.testkit.TestProbe
 import akka.util.ByteString
 
+import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.Fixtures
+import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
@@ -19,11 +28,12 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccessful
 import io.iohk.ethereum.network.PeerEventBusActor.PeerSelector
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
+import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.messages.Capability
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Ping
 import io.iohk.ethereum.network.p2p.messages.WireProtocol.Pong
 
-class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
+class PeerEventBusActorSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
 
   "PeerEventBusActor" should "relay messages received to subscribers" in new TestSetup {
 
@@ -32,6 +42,7 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
     val classifier2 = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier1), probe1.ref)
+
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier2), probe2.ref)
 
     val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
@@ -46,6 +57,47 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
     probe1.expectNoMessage()
     probe2.expectMsg(msgFromPeer2)
+
+  }
+
+  it should "relay messages via streams" in new TestSetup {
+    val classifier1 = MessageClassifier(Set(Ping.code), PeerSelector.WithId(PeerId("1")))
+    val classifier2 = MessageClassifier(Set(Ping.code), PeerSelector.AllPeers)
+
+    val peerEventBusProbe = TestProbe()(system)
+    peerEventBusProbe.setAutoPilot { (sender: ActorRef, msg: Any) =>
+      peerEventBusActor.tell(msg, sender)
+      TestActor.KeepRunning
+    }
+
+    val seqOnTermination = Flow[MessageFromPeer]
+      .recoverWithRetries(1, { case _: WatchedActorTerminatedException => Source.empty })
+      .toMat(Sink.seq)(Keep.right)
+
+    val stream1 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier1).runWith(seqOnTermination)
+    val stream2 = PeerEventBusActor.messageSource(peerEventBusProbe.ref, classifier2).runWith(seqOnTermination)
+
+    // wait for subscriptions to be done
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
+    peerEventBusProbe.expectMsgType[PeerEventBusActor.Subscribe]
+
+    val syncProbe = TestProbe()(system)
+    peerEventBusActor.tell(PeerEventBusActor.Subscribe(classifier2), syncProbe.ref)
+
+    val msgFromPeer = MessageFromPeer(Ping(), PeerId("1"))
+    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer)
+
+    val msgFromPeer2 = MessageFromPeer(Ping(), PeerId("99"))
+    peerEventBusActor ! PeerEventBusActor.Publish(msgFromPeer2)
+
+    // wait for publications to be done
+    syncProbe.expectMsg(msgFromPeer)
+    syncProbe.expectMsg(msgFromPeer2)
+
+    peerEventBusProbe.ref ! PoisonPill
+
+    whenReady(stream1)(_ shouldEqual Seq(msgFromPeer))
+    whenReady(stream2)(_ shouldEqual Seq(msgFromPeer, msgFromPeer2))
   }
 
   it should "only relay matching message codes" in new TestSetup {
@@ -105,7 +157,13 @@ class PeerEventBusActorSpec extends AnyFlatSpec with Matchers {
     peerEventBusActor.tell(PeerEventBusActor.Subscribe(PeerHandshaked), probe2.ref)
 
     val peerHandshaked =
-      new Peer(PeerId("peer1"), new InetSocketAddress("127.0.0.1", 0), TestProbe().ref, false, Some(ByteString()))
+      new Peer(
+        PeerId("peer1"),
+        new InetSocketAddress("127.0.0.1", 0),
+        TestProbe().ref,
+        false,
+        nodeId = Some(ByteString())
+      )
     val msgPeerHandshaked = PeerHandshakeSuccessful(peerHandshaked, initialPeerInfo)
     peerEventBusActor ! PeerEventBusActor.Publish(msgPeerHandshaked)
 

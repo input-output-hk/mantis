@@ -184,11 +184,9 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
       ethCompatibleStorage: Boolean
   ): StorageProof = EmptyStorageValueProof(StorageProofKey(position))
 
-  override def removeBlock(hash: ByteString, withState: Boolean = true): Unit = ???
+  override def removeBlock(hash: ByteString): Unit = ???
 
   override def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = ???
-
-  def getAccount(address: Address, blockNumber: BigInt): Option[Account] = ???
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
@@ -197,8 +195,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
   override type WS = InMemoryWorldStateProxy
 
   def getBestBlockNumber(): BigInt = ???
-
-  def saveBlockNumber(number: BigInt, hash: NodeHash): Unit = ???
 
   def saveBestKnownBlocks(bestBlockNumber: BigInt, latestCheckpointNumber: Option[BigInt] = None): Unit = ???
 

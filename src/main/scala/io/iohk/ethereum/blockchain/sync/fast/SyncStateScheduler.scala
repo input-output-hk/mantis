@@ -23,7 +23,6 @@ import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.NodeStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Account
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.mpt.BranchNode
 import io.iohk.ethereum.mpt.ExtensionNode
@@ -292,7 +291,6 @@ object SyncStateScheduler {
     BloomFilter.create[ByteString](ByteStringFunnel, expectedFilterSize)
 
   def apply(
-      blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       evmCodeStorage: EvmCodeStorage,
       stateStorage: StateStorage,

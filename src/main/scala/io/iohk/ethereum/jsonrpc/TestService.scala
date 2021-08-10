@@ -17,6 +17,10 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.blockchain.data.GenesisAccount
 import io.iohk.ethereum.blockchain.data.GenesisData
 import io.iohk.ethereum.blockchain.data.GenesisDataLoader
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.consensus.blocks._
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
@@ -34,7 +38,6 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.jsonrpc.JsonMethodsImplicits._
-import io.iohk.ethereum.ledger._
 import io.iohk.ethereum.nodebuilder.TestNode
 import io.iohk.ethereum.rlp
 import io.iohk.ethereum.rlp.RLPList
@@ -184,7 +187,7 @@ class TestService(
     resetPreimages(genesisData)
 
     // remove current genesis (Try because it may not exist)
-    Try(blockchain.removeBlock(blockchainReader.genesisHeader.hash, withState = false))
+    Try(blockchain.removeBlock(blockchainReader.genesisHeader.hash))
     // TODO clear the storage ? When relaunching some tests on the same running test mantis client,
     // we end up with duplicate blocks because they are still present in the storage layer
     // for example: bcMultiChainTest/ChainAtoChainB_BlockHash_Istanbul
@@ -261,8 +264,8 @@ class TestService(
       getBlockForMining(blockchainReader.getBestBlock().get)
         .flatMap(blockForMining =>
           testModeComponentsProvider
-            .blockImport(preimageCache)
-            .importBlock(blockForMining.block)
+            .getConsensus(preimageCache)
+            .evaluateBranchBlock(blockForMining.block)
         )
         .map { res =>
           log.info("Block mining result: " + res)
@@ -288,7 +291,7 @@ class TestService(
   def rewindToBlock(request: RewindToBlockRequest): ServiceResponse[RewindToBlockResponse] = {
     pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
     (blockchainReader.getBestBlockNumber() until request.blockNum by -1).foreach { n =>
-      blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash, withState = false)
+      blockchain.removeBlock(blockchainReader.getBlockHeaderByNumber(n).get.hash)
     }
     RewindToBlockResponse().rightNow
   }
@@ -301,8 +304,8 @@ class TestService(
         Task.now(Left(JsonRpcError(-1, "block validation failed!", None)))
       case Success(value) =>
         testModeComponentsProvider
-          .blockImport(preimageCache)
-          .importBlock(value)
+          .getConsensus(preimageCache)
+          .evaluateBranchBlock(value)
           .flatMap(handleResult(value))
     }
 

@@ -25,7 +25,7 @@ trait FastSyncBranchResolver {
     blocksToBeRemoved.foreach { toBeRemoved =>
       blockchainReader
         .getBlockHeaderByNumber(toBeRemoved)
-        .foreach(header => blockchain.removeBlock(header.hash, withState = false))
+        .foreach(header => blockchain.removeBlock(header.hash))
     }
   }
 

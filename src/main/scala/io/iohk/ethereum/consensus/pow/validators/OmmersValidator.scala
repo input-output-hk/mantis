@@ -30,11 +30,17 @@ trait OmmersValidator {
   )(implicit blockchainConfig: BlockchainConfig): Either[OmmersError, OmmersValid] = {
 
     val getBlockHeaderByHash: ByteString => Option[BlockHeader] = blockchainReader.getBlockHeaderByHash
-    val bestBranch = blockchainReader.getBestBranch()
     val getNBlocksBack: (ByteString, Int) => List[Block] =
-      (_, n) =>
-        ((blockNumber - n) until blockNumber).toList
-          .flatMap(nb => blockchainReader.getBlockByNumber(bestBranch, nb))
+      (tailBlockHash, n) =>
+        Iterator
+          .iterate(blockchainReader.getBlockByHash(tailBlockHash))(
+            _.filter(_.number > 0) // avoid trying to fetch parent of genesis
+              .flatMap(block => blockchainReader.getBlockByHash(block.header.parentHash))
+          )
+          .collect { case Some(block) => block }
+          .take(n)
+          .toList
+          .reverse
 
     validate(parentHash, blockNumber, ommers, getBlockHeaderByHash, getNBlocksBack)
   }

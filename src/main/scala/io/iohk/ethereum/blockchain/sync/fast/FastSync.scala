@@ -35,6 +35,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFi
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.AppStateStorage
+import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
 import io.iohk.ethereum.db.storage.EvmCodeStorage
 import io.iohk.ethereum.db.storage.FastSyncStateStorage
 import io.iohk.ethereum.db.storage.NodeStorage
@@ -54,6 +55,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 class FastSync(
     val fastSyncStateStorage: FastSyncStateStorage,
     val appStateStorage: AppStateStorage,
+    val blockNumberMappingStorage: BlockNumberMappingStorage,
     val blockchain: Blockchain,
     val blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
@@ -178,7 +180,6 @@ class FastSync(
       SyncStateSchedulerActor
         .props(
           SyncStateScheduler(
-            blockchain,
             blockchainReader,
             evmCodeStorage,
             stateStorage,
@@ -566,16 +567,13 @@ class FastSync(
     }
 
     // TODO [ETCM-676]: Move to blockchain and make sure it's atomic
-    private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit = {
+    private def discardLastBlocks(startBlock: BigInt, blocksToDiscard: Int): Unit =
       // TODO (maybe ETCM-77): Manage last checkpoint number too
-      appStateStorage.putBestBlockNumber((startBlock - blocksToDiscard - 1).max(0)).commit()
-
       (startBlock to ((startBlock - blocksToDiscard).max(1)) by -1).foreach { n =>
         blockchainReader.getBlockHeaderByNumber(n).foreach { headerToRemove =>
-          blockchain.removeBlock(headerToRemove.hash, withState = false)
+          blockchain.removeBlock(headerToRemove.hash)
         }
       }
-    }
 
     private def validateHeader(header: BlockHeader, peer: Peer): Either[HeaderProcessingResult, BlockHeader] = {
       val shouldValidate = header.number >= syncState.nextBlockToFullyValidate
@@ -789,7 +787,7 @@ class FastSync(
             |Peers waiting_for_response/connected: ${assignedHandlers.size}/${handshakedPeers.size} (${blacklistedIds.size} blacklisted).
             |State: ${syncState.downloadedNodesCount}/${syncState.totalNodesCount} nodes.
             |""".stripMargin.replace("\n", " "),
-        appStateStorage.getBestBlockNumber()
+        blockchainReader.getBestBlockNumber()
       )
       log.debug(
         s"""|Connection status: connected({})/
@@ -1135,14 +1133,16 @@ class FastSync(
 
       if (fullBlocks.nonEmpty) {
         val bestReceivedBlock = fullBlocks.maxBy(_.number)
-        val lastStoredBestBlockNumber = appStateStorage.getBestBlockNumber()
+        val lastStoredBestBlockNumber = blockchainReader.getBestBlockNumber()
         if (lastStoredBestBlockNumber < bestReceivedBlock.number) {
-          blockchain.saveBestKnownBlocks(bestReceivedBlock.number)
-          appStateStorage.putBestBlockNumber(bestReceivedBlock.number).commit()
+          // TODO ETCM-1089 move direct calls to storages to blockchain or blockchain writer
+          appStateStorage
+            .putBestBlockNumber(bestReceivedBlock.number)
+            .and(blockNumberMappingStorage.put(bestReceivedBlock.number, bestReceivedBlock.hash))
+            .commit()
         }
         syncState = syncState.copy(lastFullBlockNumber = bestReceivedBlock.number.max(lastStoredBestBlockNumber))
       }
-
     }
   }
 }
@@ -1153,6 +1153,7 @@ object FastSync {
   def props(
       fastSyncStateStorage: FastSyncStateStorage,
       appStateStorage: AppStateStorage,
+      blockNumberMappingStorage: BlockNumberMappingStorage,
       blockchain: Blockchain,
       blockchainReader: BlockchainReader,
       blockchainWriter: BlockchainWriter,
@@ -1171,6 +1172,7 @@ object FastSync {
       new FastSync(
         fastSyncStateStorage,
         appStateStorage,
+        blockNumberMappingStorage,
         blockchain,
         blockchainReader,
         blockchainWriter,

@@ -1,6 +1,8 @@
-package io.iohk.ethereum.ledger
+package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
+import cats.implicits._
 
 import monix.eval.Task
 import monix.execution.Scheduler
@@ -9,72 +11,120 @@ import scala.annotation.tailrec
 
 import org.bouncycastle.util.encoders.Hex
 
-import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
-import io.iohk.ethereum.domain._
+import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailedDueToMissingNode
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
+import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
+import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
+import io.iohk.ethereum.ledger.BlockExecutionSuccess
+import io.iohk.ethereum.ledger.BlockMetrics
+import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
+import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.FunctorOps._
 import io.iohk.ethereum.utils.Logger
 
-class BlockImport(
+class ConsensusImpl(
     blockchain: BlockchainImpl,
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
-    private[ledger] val blockExecution: BlockExecution,
+    blockExecution: BlockExecution,
     validationScheduler: Scheduler // Can't be implicit because of importToTop method and ambiguous of Scheduler
-) extends Logger {
+) extends Consensus
+    with Logger {
 
   /** Tries to import the block as the new best block in the chain or enqueue it for later processing.
     *
-    * @param block                 block to be imported
-    * @param blockExecutionContext threadPool on which the execution should be run
+    * @param block                   block to be imported
+    * @param blockExecutionScheduler threadPool on which the execution should be run
+    * @param blockchainConfig        blockchain configuration
     * @return One of:
-    *         - [[io.iohk.ethereum.ledger.BlockImportedToTop]] - if the block was added as the new best block
-    *         - [[io.iohk.ethereum.ledger.BlockEnqueued]] - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
-    *         - [[io.iohk.ethereum.ledger.ChainReorganised]] - a better new branch was found causing chain reorganisation
-    *         - [[io.iohk.ethereum.ledger.DuplicateBlock]] - block already exists either in the main chain or in the queue
-    *         - [[io.iohk.ethereum.ledger.BlockImportFailed]] - block failed to execute (when importing to top or reorganising the chain)
+    *   - [[BlockImportedToTop]] - if the block was added as the new best block
+    *   - [[BlockEnqueued]]      - block is stored in the [[io.iohk.ethereum.ledger.BlockQueue]]
+    *   - [[ChainReorganised]]   - a better new branch was found causing chain reorganisation
+    *   - [[DuplicateBlock]]     - block already exists either in the main chain or in the queue
+    *   - [[BlockImportFailed]]  - block failed to execute (when importing to top or reorganising the chain)
     */
-  def importBlock(
+  override def evaluateBranchBlock(
       block: Block
   )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
     blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
         if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          Task(log.debug(s"Ignoring duplicate block: (${block.idTag})"))
-            .map(_ => DuplicateBlock)
+          log.debug("Ignoring duplicated block: {}", block.idTag)
+          Task.now(DuplicateBlock)
         } else {
-          val hash = bestBlock.header.hash
-          blockchain.getChainWeightByHash(hash) match {
+          blockchain.getChainWeightByHash(bestBlock.header.hash) match {
             case Some(weight) =>
-              val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
-                importToTop(block, bestBlock, weight)
-              } else {
-                reorganise(block, bestBlock, weight)
+              doBlockPreValidation(block).flatMap {
+                case Left(error) => Task.now(BlockImportFailed(error.reason.toString))
+                case Right(_)    => handleBlockImport(block, bestBlock, weight)
               }
-              importResult.foreach(measureBlockMetrics)
-              importResult
-            case None =>
-              log.error(
-                "Getting total difficulty for current best block with hash: {} failed",
-                bestBlock.header.hashAsHexString
-              )
-              Task.now(
-                BlockImportFailed(
-                  s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
-                )
-              )
+            case None => returnNoTotalDifficulty(bestBlock)
           }
         }
-      case None =>
-        log.error("Getting current best block failed")
-        Task.now(BlockImportFailed("Couldn't find the current best block"))
+      case None => returnNoBestBlock()
     }
+
+  private def handleBlockImport(block: Block, bestBlock: Block, weight: ChainWeight)(implicit
+      blockExecutionScheduler: Scheduler,
+      blockchainConfig: BlockchainConfig
+  ): Task[BlockImportResult] = {
+    val importResult = if (isPossibleNewBestBlock(block.header, bestBlock.header)) {
+      importToTop(block, bestBlock, weight)
+    } else {
+      reorganiseOrEnqueue(block, bestBlock, weight)
+    }
+    importResult.foreach(measureBlockMetrics)
+    importResult
+  }
+
+  private def doBlockPreValidation(block: Block)(implicit
+      blockchainConfig: BlockchainConfig
+  ): Task[Either[ValidationBeforeExecError, BlockExecutionSuccess]] =
+    Task
+      .evalOnce(blockValidation.validateBlockBeforeExecution(block))
+      .tap {
+        case Left(error) =>
+          log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
+        case Right(_) => log.debug("Block with hash {} validated successfully", block.hash)
+      }
+      .executeOn(validationScheduler)
+
+  private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
+    log.error(
+      "Getting total difficulty for current best block with hash: {} failed",
+      bestBlock.header.hashAsHexString
+    )
+    Task.now(
+      BlockImportFailed(
+        s"Couldn't get total difficulty for current best block with hash: ${bestBlock.header.hashAsHexString}"
+      )
+    )
+  }
+
+  private def returnNoBestBlock(): Task[BlockImportFailed] = {
+    log.error("Getting current best block failed")
+    Task.now(BlockImportFailed("Couldn't find the current best block"))
+  }
 
   private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
     val hash = block.hash
@@ -84,7 +134,7 @@ class BlockImport(
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =
-    newBlock.parentHash == currentBestBlock.hash && newBlock.number == currentBestBlock.number + 1
+    newBlock.number == currentBestBlock.number + 1 && newBlock.parentHash == currentBestBlock.hash
 
   private def measureBlockMetrics(importResult: BlockImportResult): Unit =
     importResult match {
@@ -99,25 +149,17 @@ class BlockImport(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-    val validationResult =
-      Task.evalOnce(blockValidation.validateBlockBeforeExecution(block)).executeOn(validationScheduler)
-    val importResult =
-      Task
-        .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
-        .executeOn(blockExecutionScheduler)
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+    Task
+      .evalOnce(importBlockToTop(block, currentBestBlock.header.number, currentWeight))
+      .executeOn(blockExecutionScheduler)
 
-    Task.parMap2(validationResult, importResult) { case (validationResult, importResult) =>
-      validationResult.fold(
-        error => {
-          log.error("Error while validation block before execution: {}", error.reason)
-          handleImportTopValidationError(error, block, importResult)
-        },
-        _ => importResult
-      )
-    }
-  }
-
+  /** *
+    * Open for discussion: this is code that was in BlockImport. Even thought is tested (before) that only one block
+    * is being added to the blockchain, this code assumes that the import may be of more than one block (a branch)
+    * and because it is assuming that it may be dealing with a branch the code to handle errors assumes several scenarios.
+    * Is there is reason for this over-complication?
+    */
   private def importBlockToTop(block: Block, bestBlockNumber: BigInt, currentWeight: ChainWeight)(implicit
       blockchainConfig: BlockchainConfig
   ): BlockImportResult = {
@@ -130,8 +172,7 @@ class BlockImport(
     executionResult match {
       case Some((importedBlocks, maybeError, topBlocks)) =>
         val result = maybeError match {
-          case None =>
-            BlockImportedToTop(importedBlocks)
+          case None => BlockImportedToTop(importedBlocks)
 
           case Some(MPTError(reason)) if reason.isInstanceOf[MissingNodeException] =>
             BlockImportFailedDueToMissingNode(reason.asInstanceOf[MissingNodeException])
@@ -146,15 +187,15 @@ class BlockImport(
             }
             BlockImportedToTop(importedBlocks)
         }
-        log.debug(
-          "{}", {
-            val result = importedBlocks.map { blockData =>
-              val header = blockData.block.header
-              s"Imported new block (${header.number}: ${Hex.toHexString(header.hash.toArray)}) to the top of chain \n"
-            }
-            result.toString
-          }
-        )
+
+        importedBlocks.foreach { blockData =>
+          val header = blockData.block.header
+          log.debug(
+            "Imported new block ({}: {}) to the top of chain \n",
+            header.number,
+            Hex.toHexString(header.hash.toArray)
+          )
+        }
 
         result
 
@@ -163,55 +204,18 @@ class BlockImport(
     }
   }
 
-  private def handleImportTopValidationError(
-      error: ValidationBeforeExecError,
-      block: Block,
-      blockImportResult: BlockImportResult
-  ): BlockImportResult = {
-    blockImportResult match {
-      case BlockImportedToTop(blockImportData) =>
-        blockImportData.foreach { blockData =>
-          val hash = blockData.block.header.hash
-          blockQueue.removeSubtree(hash)
-          blockchain.removeBlock(hash, withState = true)
-        }
-      case _ => ()
-    }
-    handleBlockValidationError(error, block)
-  }
-
-  private def handleBlockValidationError(error: ValidationBeforeExecError, block: Block): BlockImportResult =
-    error match {
-      case ValidationBeforeExecError(HeaderParentNotFoundError) =>
-        log.debug(s"Block(${block.idTag}) has unknown parent")
-        UnknownParent
-
-      case ValidationBeforeExecError(reason) =>
-        log.debug(s"Block(${block.idTag}) failed pre-import validation")
-        BlockImportFailed(reason.toString)
-    }
-
-  private def reorganise(
+  private def reorganiseOrEnqueue(
       block: Block,
       currentBestBlock: Block,
       currentWeight: ChainWeight
   )(implicit blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
-    Task.evalOnce {
-      blockValidation
-        .validateBlockBeforeExecution(block)
-        .fold(
-          error => handleBlockValidationError(error, block),
-          _ =>
-            blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
-              case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
-                log.debug("Found a better chain, about to reorganise")
-                reorganiseChainFromQueue(leafHash)
+    Task.evalOnce(blockQueue.enqueueBlock(block, currentBestBlock.header.number) match {
+      case Some(Leaf(leafHash, leafWeight)) if leafWeight > currentWeight =>
+        reorganiseChainFromQueue(leafHash)
 
-              case _ =>
-                BlockEnqueued
-            }
-        )
-    }
+      case _ =>
+        BlockEnqueued
+    })
 
   /** Once a better branch was found this attempts to reorganise the chain
     *
@@ -223,7 +227,7 @@ class BlockImport(
   private def reorganiseChainFromQueue(
       queuedLeaf: ByteString
   )(implicit blockchainConfig: BlockchainConfig): BlockImportResult = {
-    log.debug("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
+    log.info("Reorganising chain from leaf {}", ByteStringUtils.hash2string(queuedLeaf))
     val newBranch = blockQueue.getBranch(queuedLeaf, dequeue = true)
     val bestNumber = blockchainReader.getBestBlockNumber()
 
@@ -294,7 +298,6 @@ class BlockImport(
       blockchainWriter.save(block, receipts, weight, saveAsBestBlock = false)
     }
 
-    import cats.implicits._
     val checkpointNumber = oldBranch.collect {
       case BlockData(block, _, _) if block.hasCheckpoint => block.number
     }.maximumOption
@@ -330,7 +333,7 @@ class BlockImport(
             weight <- blockchain.getChainWeightByHash(hash)
           } yield BlockData(block, receipts, weight)
 
-          blockchain.removeBlock(hash, withState = true)
+          blockchain.removeBlock(hash)
 
           removeBlocksUntil(parent, fromNumber - 1, blockDataOpt.map(_ :: acc).getOrElse(acc))
 
@@ -342,23 +345,3 @@ class BlockImport(
     removeBlocksUntil(parent, fromNumber, Nil)
   }
 }
-
-sealed trait BlockImportResult
-
-case class BlockImportedToTop(blockImportData: List[BlockData]) extends BlockImportResult
-
-case object BlockEnqueued extends BlockImportResult
-
-case object DuplicateBlock extends BlockImportResult
-
-case class ChainReorganised(
-    oldBranch: List[Block],
-    newBranch: List[Block],
-    weights: List[ChainWeight]
-) extends BlockImportResult
-
-case class BlockImportFailed(error: String) extends BlockImportResult
-
-case class BlockImportFailedDueToMissingNode(reason: MissingNodeException) extends BlockImportResult
-
-case object UnknownParent extends BlockImportResult

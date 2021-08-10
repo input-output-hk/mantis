@@ -523,7 +523,6 @@ class FilterManagerSpec
     val filterManager: TestActorRef[FilterManager] = TestActorRef[FilterManager](
       Props(
         new FilterManager(
-          blockchain,
           blockchainReader,
           blockGenerator,
           keyStore,

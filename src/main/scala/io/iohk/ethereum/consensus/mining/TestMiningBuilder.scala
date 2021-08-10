@@ -20,7 +20,7 @@ trait StdTestMiningBuilder
     with ActorSystemBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
-    with BlockImportBuilder
+    with ConsensusBuilder
     with StorageBuilder
     with BlockchainConfigBuilder
     with NodeKeyBuilder

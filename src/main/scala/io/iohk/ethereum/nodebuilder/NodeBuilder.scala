@@ -25,6 +25,8 @@ import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.blockchain.sync.SyncController
+import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.MiningBuilder
 import io.iohk.ethereum.consensus.mining.MiningConfigBuilder
@@ -32,7 +34,6 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.BlockchainMetadata
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
@@ -174,14 +175,9 @@ trait NodeStatusBuilder {
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
-  private lazy val blockchainMetadata: BlockchainMetadata =
-    new BlockchainMetadata(
-      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
-      storagesInstance.storages.appStateStorage.getLatestCheckpointBlockNumber()
-    )
-  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages, blockchainMetadata)
-  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages, blockchainMetadata)
-  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader, blockchainMetadata)
+  lazy val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
+  lazy val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages)
+  lazy val blockchain: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
 }
 
 trait BlockQueueBuilder {
@@ -190,28 +186,29 @@ trait BlockQueueBuilder {
   lazy val blockQueue: BlockQueue = BlockQueue(blockchain, blockchainReader, syncConfig)
 }
 
-trait BlockImportBuilder {
+trait ConsensusBuilder {
   self: BlockchainBuilder with BlockQueueBuilder with MiningBuilder with ActorSystemBuilder with StorageBuilder =>
 
-  lazy val blockImport: BlockImport = {
-    val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
-    new BlockImport(
+  lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
+  lazy val blockExecution = new BlockExecution(
+    blockchain,
+    blockchainReader,
+    blockchainWriter,
+    storagesInstance.storages.evmCodeStorage,
+    mining.blockPreparator,
+    blockValidation
+  )
+
+  lazy val consensus: Consensus =
+    new ConsensusImpl(
       blockchain,
       blockchainReader,
       blockchainWriter,
       blockQueue,
       blockValidation,
-      new BlockExecution(
-        blockchain,
-        blockchainReader,
-        blockchainWriter,
-        storagesInstance.storages.evmCodeStorage,
-        mining.blockPreparator,
-        blockValidation
-      ),
+      blockExecution,
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
-  }
 }
 
 trait ForkResolverBuilder {
@@ -409,7 +406,6 @@ trait FilterManagerBuilder {
   lazy val filterManager: ActorRef =
     system.actorOf(
       FilterManager.props(
-        blockchain,
         blockchainReader,
         mining.blockGenerator,
         keyStore,
@@ -735,7 +731,7 @@ trait SyncControllerBuilder {
     with ServerActorBuilder
     with BlockchainBuilder
     with BlockchainConfigBuilder
-    with BlockImportBuilder
+    with ConsensusBuilder
     with NodeStatusBuilder
     with StorageBuilder
     with StxLedgerBuilder
@@ -750,15 +746,16 @@ trait SyncControllerBuilder {
 
   lazy val syncController: ActorRef = system.actorOf(
     SyncController.props(
-      storagesInstance.storages.appStateStorage,
       blockchain,
       blockchainReader,
       blockchainWriter,
+      storagesInstance.storages.appStateStorage,
+      storagesInstance.storages.blockNumberMappingStorage,
       storagesInstance.storages.evmCodeStorage,
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
-      blockImport,
+      consensus,
       mining.validators,
       peerEventBus,
       pendingTransactionsManager,
@@ -850,7 +847,7 @@ trait Node
     with StorageBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
-    with BlockImportBuilder
+    with ConsensusBuilder
     with NodeStatusBuilder
     with ForkResolverBuilder
     with HandshakerBuilder

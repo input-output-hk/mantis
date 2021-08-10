@@ -78,6 +78,7 @@ class FastSyncSpec
       FastSync.props(
         fastSyncStateStorage = storagesInstance.storages.fastSyncStateStorage,
         appStateStorage = storagesInstance.storages.appStateStorage,
+        blockNumberMappingStorage = storagesInstance.storages.blockNumberMappingStorage,
         blockchain = blockchain,
         blockchainReader = blockchainReader,
         blockchainWriter = blockchainWriter,

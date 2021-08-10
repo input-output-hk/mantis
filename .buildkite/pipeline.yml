@@ -7,8 +7,7 @@ steps:
     agents:
       queue: project42
     timeout_in_minutes: 60
-  - wait
-  - label: "Mantis Automation"
-    command:
-    - "curl https://raw.githubusercontent.com/input-output-hk/mantis-automation/main/.buildkite/pipeline_erc20_pr.yml -o automation.yml"
-    - "buildkite-agent pipeline upload automation.yml"
+#  - label: "Mantis Automation"
+#    command:
+#    - "curl https://raw.githubusercontent.com/input-output-hk/mantis-automation/main/.buildkite/pipeline_erc20_pr.yml -o automation.yml"
+#    - "buildkite-agent pipeline upload automation.yml"
