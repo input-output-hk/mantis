@@ -33,8 +33,6 @@ trait ObjectGenerators {
 
   def intGen(min: Int, max: Int): Gen[Int] = Gen.choose(min, max)
 
-  def posIntGen(min: Int, max: Int): Gen[Int] = Gen.choose(min, max).suchThat(_ > 0)
-
   def intGen: Gen[Int] = Gen.choose(Int.MinValue, Int.MaxValue)
 
   def longGen: Gen[Long] = Gen.choose(Long.MinValue, Long.MaxValue)

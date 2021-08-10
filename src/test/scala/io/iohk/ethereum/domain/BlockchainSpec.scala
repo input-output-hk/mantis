@@ -214,7 +214,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   }
 
   it should "return correct best block number after saving and rolling back blocks" in new TestSetup {
-    forAll(posIntGen(min = 1, max = maxNumberBlocksToImport)) { numberBlocksToImport =>
+    forAll(intGen(min = 1, max = maxNumberBlocksToImport)) { numberBlocksToImport =>
       val testSetup = newSetup()
       import testSetup._
 
@@ -237,8 +237,9 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe blocksToImport.last.number
 
       // Rollback blocks
-      val numberBlocksToRollback = intGen(0, numberBlocksToImport).sample.get
-      val (_, blocksToRollback) = blocksToImport.splitAt(numberBlocksToRollback)
+      val numberBlocksToKeep = intGen(0, numberBlocksToImport).sample.get
+
+      val (_, blocksToRollback) = blocksToImport.splitAt(numberBlocksToKeep)
 
       // Randomly select the block rollback to persist (empty means no persistence)
       val blockRollbackToPersist =
@@ -254,37 +255,12 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
         blockchainWithStubPersisting.removeBlock(block.hash)
       }
 
-      val expectedPersistedBestBlock = calculatePersistedBestBlock(
-        blockImportToPersist.map(_.number),
-        blockRollbackToPersist.map(_.number),
-        blocksToRollback.map(_.number)
-      )
-      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe expectedPersistedBestBlock
+      blockchainReaderWithStubPersisting.getBestBlockNumber() shouldBe numberBlocksToKeep
     }
   }
 
   trait TestSetup extends MockFactory {
     val maxNumberBlocksToImport: Int = 30
-
-    def calculatePersistedBestBlock(
-        blockImportPersisted: Option[BigInt],
-        blockRollbackPersisted: Option[BigInt],
-        blocksRolledback: Seq[BigInt]
-    ): BigInt =
-      (blocksRolledback, blockImportPersisted) match {
-        case (Nil, Some(bi)) =>
-          // No blocks rolledback, last persist was the persist during import
-          bi
-        case (nonEmptyRolledbackBlocks, Some(bi)) =>
-          // Last forced persist during apply/rollback
-          val maxForcedPersist = blockRollbackPersisted.fold(bi)(br => (br - 1).max(bi))
-
-          // The above number would have been decreased by any rollbacked blocks
-          (nonEmptyRolledbackBlocks.head - 1).min(maxForcedPersist)
-        case (_, None) =>
-          // If persisted rollback, then it  was decreased by the future rollbacks, if not no persistance was ever done
-          blockRollbackPersisted.fold(0: BigInt)(_ => blocksRolledback.head - 1)
-      }
 
     trait StubPersistingBlockchainSetup {
       def stubStateStorage: StateStorage
