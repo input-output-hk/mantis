@@ -7,7 +7,7 @@ import scala.annotation.tailrec
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
-import io.iohk.ethereum.domain.appstate.BestBlockInfo
+import io.iohk.ethereum.domain.appstate.BlockInfo
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
@@ -144,7 +144,7 @@ class BlockchainImpl(
     }
 
   private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
-    appStateStorage.putBestBlockInfo(BestBlockInfo(bestBlockHash, bestBlockNumber)).commit()
+    appStateStorage.putBestBlockInfo(BlockInfo(bestBlockHash, bestBlockNumber)).commit()
 
   private def saveBestKnownBlockAndLatestCheckpointNumber(
       bestBlockHash: ByteString,
@@ -152,7 +152,7 @@ class BlockchainImpl(
       latestCheckpointNumber: BigInt
   ): Unit =
     appStateStorage
-      .putBestBlockInfo(BestBlockInfo(bestBlockHash, number))
+      .putBestBlockInfo(BlockInfo(bestBlockHash, number))
       .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
       .commit()
 
@@ -201,7 +201,7 @@ class BlockchainImpl(
      */
     val bestBlockNumberUpdates =
       if (appStateStorage.getBestBlockNumber() > potentialNewBestBlockNumber)
-        appStateStorage.putBestBlockInfo(BestBlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
+        appStateStorage.putBestBlockInfo(BlockInfo(potentialNewBestBlockHash, potentialNewBestBlockNumber))
       else appStateStorage.emptyBatchUpdate
     val latestCheckpointNumberUpdates =
       if (appStateStorage.getLatestCheckpointBlockNumber() > newLatestCheckpointNumber)

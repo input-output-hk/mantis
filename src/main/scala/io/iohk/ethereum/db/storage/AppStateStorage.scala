@@ -9,7 +9,7 @@ import scala.collection.immutable.ArraySeq
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage._
-import io.iohk.ethereum.domain.appstate.BestBlockInfo
+import io.iohk.ethereum.domain.appstate.BlockInfo
 import io.iohk.ethereum.utils.Hex
 
 /** This class is used to store app state variables
@@ -31,13 +31,13 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
   def getBestBlockNumber(): BigInt =
     getBigInt(Keys.BestBlockNumber)
 
-  def getBestBlockInfo(): BestBlockInfo =
-    BestBlockInfo( // TODO ETCM-1090 provide the genesis hash as default
+  def getBestBlockInfo(): BlockInfo =
+    BlockInfo( // TODO ETCM-1090 provide the genesis hash as default
       get(Keys.BestBlockHash).map(v => ByteString(Hex.decode(v))).getOrElse(ByteString.empty),
       getBigInt(Keys.BestBlockNumber)
     )
 
-  def putBestBlockInfo(b: BestBlockInfo): DataSourceBatchUpdate =
+  def putBestBlockInfo(b: BlockInfo): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, b.number.toString)
       .and(put(Keys.BestBlockHash, Hex.toHexString(b.hash.toArray)))
 

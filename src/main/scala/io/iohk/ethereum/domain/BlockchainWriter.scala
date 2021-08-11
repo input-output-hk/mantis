@@ -11,7 +11,7 @@ import io.iohk.ethereum.db.storage.ChainWeightStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage
 import io.iohk.ethereum.db.storage.TransactionMappingStorage.TransactionLocation
-import io.iohk.ethereum.domain.appstate.BestBlockInfo
+import io.iohk.ethereum.domain.appstate.BlockInfo
 import io.iohk.ethereum.utils.Logger
 
 class BlockchainWriter(
@@ -32,14 +32,14 @@ class BlockchainWriter(
         block.header.number
       )
       appStateStorage
-        .putBestBlockInfo(BestBlockInfo(block.header.hash, block.header.number))
+        .putBestBlockInfo(BlockInfo(block.header.hash, block.header.number))
         .and(appStateStorage.putLatestCheckpointBlockNumber(block.header.number))
     } else if (saveAsBestBlock) {
       log.debug(
         "New best known block number - {}",
         block.header.number
       )
-      appStateStorage.putBestBlockInfo(BestBlockInfo(block.header.hash, block.header.number))
+      appStateStorage.putBestBlockInfo(BlockInfo(block.header.hash, block.header.number))
     } else {
       appStateStorage.emptyBatchUpdate
     }
