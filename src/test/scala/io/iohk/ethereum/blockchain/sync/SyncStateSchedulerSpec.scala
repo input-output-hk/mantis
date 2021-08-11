@@ -252,7 +252,7 @@ class SyncStateSchedulerSpec
         buildScheduler()
       val header = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = worldHash, number = 1)
       schedulerBlockchainWriter.storeBlockHeader(header).commit()
-      schedulerBlockchain.saveBestKnownBlocks(1)
+      schedulerBlockchain.saveBestKnownBlocks(header.hash, 1)
       var state = scheduler.initState(worldHash).get
       while (state.activeRequest.nonEmpty) {
         val (allMissingNodes1, state2) = scheduler.getAllMissingNodes(state)

@@ -214,7 +214,7 @@ class EthProofServiceSpec
     )
   }
 
-  class TestSetup(implicit system: ActorSystem) extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
+  class TestSetup() extends MockFactory with EphemBlockchainTestSetup with ApisBuilder {
 
     val blockGenerator: PoWBlockGenerator = mock[PoWBlockGenerator]
     val address: Address = Address(ByteString(Hex.decode("abbb6bebfa05aa13e908eaa492bd7a8343760477")))
@@ -254,7 +254,7 @@ class EthProofServiceSpec
     val newBlockHeader: BlockHeader = blockToRequest.header.copy(stateRoot = ByteString(mpt.getRootHash))
     val newblock: Block = blockToRequest.copy(header = newBlockHeader)
     blockchainWriter.storeBlock(newblock).commit()
-    blockchain.saveBestKnownBlocks(newblock.header.number)
+    blockchain.saveBestKnownBlocks(newblock.hash, newblock.number)
 
     val ethGetProof =
       new EthProofService(blockchain, blockchainReader, blockGenerator, blockchainConfig.ethCompatibleStorage)

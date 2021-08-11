@@ -87,7 +87,7 @@ class LegacyTransactionHistoryServiceSpec
           .and(blockchainWriter.storeBlock(blockWithTxs2and3))
           .and(blockchainWriter.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
           .commit()
-        blockchain.saveBestKnownBlocks(blockWithTxs2and3.number)
+        blockchain.saveBestKnownBlocks(blockWithTxs2and3.hash, blockWithTxs2and3.number)
       }
       response <- transactionHistoryService.getAccountTransactions(address, BigInt(3125360) to BigInt(3125370))
     } yield assert(response === expectedTxs)
@@ -160,7 +160,7 @@ class LegacyTransactionHistoryServiceSpec
       )
 
       def makeReceipts(block: Block): Seq[Receipt] =
-        block.body.transactionList.map(tx => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
+        block.body.transactionList.map(_ => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
 
       for {
         _ <- Task {

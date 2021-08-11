@@ -2,11 +2,15 @@ package io.iohk.ethereum.db.storage
 
 import java.math.BigInteger
 
+import akka.util.ByteString
+
 import scala.collection.immutable.ArraySeq
 
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage.AppStateStorage._
+import io.iohk.ethereum.domain.appstate.BlockInfo
+import io.iohk.ethereum.utils.Hex
 
 /** This class is used to store app state variables
   *   Key: see AppStateStorage.Keys
@@ -26,6 +30,16 @@ class AppStateStorage(val dataSource: DataSource) extends TransactionalKeyValueS
 
   def getBestBlockNumber(): BigInt =
     getBigInt(Keys.BestBlockNumber)
+
+  def getBestBlockInfo(): BlockInfo =
+    BlockInfo( // TODO ETCM-1090 provide the genesis hash as default
+      get(Keys.BestBlockHash).map(v => ByteString(Hex.decode(v))).getOrElse(ByteString.empty),
+      getBigInt(Keys.BestBlockNumber)
+    )
+
+  def putBestBlockInfo(b: BlockInfo): DataSourceBatchUpdate =
+    put(Keys.BestBlockNumber, b.number.toString)
+      .and(put(Keys.BestBlockHash, Hex.toHexString(b.hash.toArray)))
 
   def putBestBlockNumber(bestBlockNumber: BigInt): DataSourceBatchUpdate =
     put(Keys.BestBlockNumber, bestBlockNumber.toString)
@@ -72,9 +86,11 @@ object AppStateStorage {
 
   object Keys {
     val BestBlockNumber = "BestBlockNumber"
+    val BestBlockHash = "BestBlockHash"
     val FastSyncDone = "FastSyncDone"
     val EstimatedHighestBlock = "EstimatedHighestBlock"
     val SyncStartingBlock = "SyncStartingBlock"
     val LatestCheckpointBlockNumber = "LatestCheckpointBlockNumber"
   }
+
 }
