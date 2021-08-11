@@ -92,12 +92,15 @@ class ConsensusImpl(
   ): ConsensusResult =
     blockExecution.executeAndValidateBlocks(branch.toList, currentBestBlockWeight) match {
       case (importedBlocks, None) =>
+        importedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
+
         ExtendedCurrentBestBranch(importedBlocks)
       case (_, Some(MPTError(reason))) if reason.isInstanceOf[MissingNodeException] =>
         ConsensusErrorDueToMissingNode(Nil, reason.asInstanceOf[MissingNodeException])
       case (Nil, Some(error)) =>
         BranchExecutionFailure(Nil, branch.head.header.hash, error.toString)
       case (importedBlocks, Some(error)) =>
+        importedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
         val failingBlock = branch.toList.drop(importedBlocks.length).head
         ExtendedCurrentBestBranchPartially(
           importedBlocks,
@@ -172,6 +175,8 @@ class ConsensusImpl(
     val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
     maybeError match {
       case None =>
+        executedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
+
         Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))
 
       case Some(error) =>
@@ -204,7 +209,6 @@ class ConsensusImpl(
 
     val bestHeader = oldBranch.last.block.header
     blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
-
   }
 
   /** Removes blocks from the [[Blockchain]] along with receipts and total difficulties.
