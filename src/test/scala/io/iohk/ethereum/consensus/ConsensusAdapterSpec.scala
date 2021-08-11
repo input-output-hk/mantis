@@ -34,12 +34,12 @@ import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
 
-  "Consensus" should "ignore duplicated block" in new ImportBlockTestSetup {
+  "ConsensusAdapter" should "ignore duplicated block" in new ImportBlockTestSetup {
     val block1: Block = getBlock()
     val block2: Block = getBlock()
 
