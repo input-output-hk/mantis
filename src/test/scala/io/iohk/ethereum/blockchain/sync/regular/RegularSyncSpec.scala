@@ -298,7 +298,7 @@ class RegularSyncSpec
           (consensusAdapter
             .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
             .when(*, *, *)
-            .onCall((block, scheduler, conf) => fakeEvaluateBlock(block))
+            .onCall((block, _, _) => fakeEvaluateBlock(block))
           override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
@@ -358,7 +358,7 @@ class RegularSyncSpec
         (consensusAdapter
           .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
           .when(*, *, *)
-          .onCall((block, scheduler, conf) => fakeEvaluateBlock(block))
+          .onCall((block, _, _) => fakeEvaluateBlock(block))
         override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,

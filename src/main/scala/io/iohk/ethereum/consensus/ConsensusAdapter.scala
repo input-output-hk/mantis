@@ -98,7 +98,6 @@ class ConsensusAdapter(
           }
         }
       case None =>
-        // TODO ETCM-1069 remove duplication with ConsensusImpl
         log.error("Couldn't find the current best block")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }

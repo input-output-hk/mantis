@@ -244,7 +244,7 @@ class StateSyncSpec
       ByteString.fromArrayUnsafe(genRandomArray())
 
     lazy val syncStateSchedulerActor: ActorRef = {
-      val (blockchainReader, blockchain) = buildBlockChain()
+      val (blockchainReader, _) = buildBlockChain()
       system.actorOf(
         SyncStateSchedulerActor.props(
           SyncStateScheduler(

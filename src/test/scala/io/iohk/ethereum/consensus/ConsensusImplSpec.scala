@@ -1,7 +1,5 @@
 package io.iohk.ethereum.consensus
 
-import java.util.concurrent.ScheduledExecutorService
-
 import cats.data.NonEmptyList
 
 import monix.execution.Scheduler
