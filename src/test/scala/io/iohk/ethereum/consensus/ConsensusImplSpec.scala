@@ -1,19 +1,26 @@
 package io.iohk.ethereum.consensus
 
+import java.util.concurrent.ScheduledExecutorService
+
 import cats.data.NonEmptyList
-import io.iohk.ethereum.BlockHelpers
-import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
-import io.iohk.ethereum.consensus.Consensus.{ExtendedCurrentBestBranch, KeptCurrentBestBranch, SelectedNewBestBranch}
-import io.iohk.ethereum.domain.{Block, ChainWeight}
-import io.iohk.ethereum.ledger.{BlockData, BlockExecution}
-import io.iohk.ethereum.utils.BlockchainConfig
+
 import monix.execution.Scheduler
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 
-import java.util.concurrent.ScheduledExecutorService
+import io.iohk.ethereum.BlockHelpers
+import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
+import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranch
+import io.iohk.ethereum.consensus.Consensus.KeptCurrentBestBranch
+import io.iohk.ethereum.consensus.Consensus.SelectedNewBestBranch
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.ledger.BlockExecution
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures {
   import ConsensusImplSpec._
@@ -49,7 +56,7 @@ class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 }
 
 object ConsensusImplSpec {
-  val initialChain = BlockHelpers.genesis +: BlockHelpers.generateChain(4, BlockHelpers.genesis)
+  val initialChain: List[Block] = BlockHelpers.genesis +: BlockHelpers.generateChain(4, BlockHelpers.genesis)
   val initialBestBlock = initialChain.last
 
   abstract class ConsensusSetup {
