@@ -8,11 +8,11 @@ import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
+import io.iohk.ethereum.rlp.RLPCodec.Ops
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import io.iohk.ethereum.rlp.RLPCodec.Ops
 
 object BaseETH6XMessages {
   object Status {
@@ -172,7 +172,7 @@ object BaseETH6XMessages {
         signedTx.tx match {
           case TransactionWithAccessList(nonce, gasPrice, gasLimit, _, value, payload, accessList) =>
             RLPList(
-              chainId, // TODO improve how chainid is preserved in transactions
+              chainId, // TODO improve how chainid is preserved in transactions (ETCM-1096)
               nonce,
               gasPrice,
               gasLimit,
@@ -219,7 +219,7 @@ object BaseETH6XMessages {
 
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case RLPList(
-              _, // TODO improve how chainid is preserved in transactions
+              _, // TODO improve how chainid is preserved in transactions (ETCM-1096)
               nonce,
               gasPrice,
               gasLimit,
