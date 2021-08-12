@@ -799,6 +799,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.env.ownerAddr)
+          .addAccessedAddress(Address(refundAddr))
           .withStack(stack1)
           .withReturnData(ByteString.empty)
           .halt

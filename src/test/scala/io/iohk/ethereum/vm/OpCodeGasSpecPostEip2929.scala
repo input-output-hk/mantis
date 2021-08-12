@@ -1,9 +1,11 @@
 package io.iohk.ethereum.vm
 
+import org.scalacheck.Arbitrary
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
@@ -134,6 +136,64 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
 
       verifyGas(G_warm_storage_read, stateIn, stateOut)
       assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
+    }
+  }
+
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      evmConfig = config,
+      stackGen = getStackGen(elems = 1),
+      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+    )
+
+    val addressAlreadyAccessedGen = Arbitrary.arbitrary[Boolean]
+
+    // Sending refund to a non-existent account
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      whenever(stateIn.world.getAccount(refundAddress).isEmpty && stateIn.ownBalance > 0) {
+        val stateOut =
+          if (addressAlreadyAccessed) op.execute(stateIn.addAccessedAddress(refundAddress)) else op.execute(stateIn)
+        stateOut.gasRefund shouldEqual R_selfdestruct
+        if (addressAlreadyAccessed)
+          verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
+        else
+          verifyGas(G_selfdestruct + G_newaccount + G_cold_account_access, stateIn, stateOut)
+      }
+    }
+
+    // Sending refund to an already existing account not dead account
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      val world = stateIn.world.saveAccount(refundAddress, Account.empty().increaseNonce())
+      val updatedStateIn = stateIn.withWorld(world)
+      val stateOut =
+        if (addressAlreadyAccessed) op.execute(updatedStateIn.addAccessedAddress(refundAddress))
+        else op.execute(updatedStateIn)
+      if (addressAlreadyAccessed)
+        verifyGas(G_selfdestruct, updatedStateIn, stateOut)
+      else
+        verifyGas(G_selfdestruct + G_cold_account_access, updatedStateIn, stateOut)
+      stateOut.gasRefund shouldEqual R_selfdestruct
+    }
+
+    // Owner account was already selfdestructed
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      whenever(stateIn.world.getAccount(refundAddress).isEmpty && stateIn.ownBalance > 0) {
+        val updatedStateIn = stateIn.withAddressToDelete(stateIn.env.ownerAddr)
+        val stateOut =
+          if (addressAlreadyAccessed) op.execute(updatedStateIn.addAccessedAddress(refundAddress))
+          else op.execute(updatedStateIn)
+        if (addressAlreadyAccessed)
+          verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
+        else
+          verifyGas(G_selfdestruct + G_newaccount + G_cold_account_access, updatedStateIn, stateOut)
+        stateOut.gasRefund shouldEqual 0
+      }
     }
   }
 }

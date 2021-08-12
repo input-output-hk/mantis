@@ -1272,6 +1272,7 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
       .withWorld(world)
       .refundGas(gasRefund)
       .withAddressToDelete(state.ownAddress)
+      .addAccessedAddress(refundAddr)
       .withStack(stack1)
       .withReturnData(ByteString.empty)
       .halt
@@ -1291,11 +1292,15 @@ case object SELFDESTRUCT extends OpCode(0xff, 1, 0, _.G_selfdestruct) {
     def preEip161CostCondition: Boolean =
       state.config.chargeSelfDestructForNewAccount && !state.world.accountExists(refundAddress)
 
-    if (
+    val baseCharge: BigInt = if (
       state.config.noEmptyAccounts && postEip161CostCondition || !state.config.noEmptyAccounts && preEip161CostCondition
     )
       state.config.feeSchedule.G_newaccount
     else 0
+
+    // Note: SELFDESTRUCT does not charge a WARM_STORAGE_READ_COST in case the recipient is already warm
+    val addressAccessCharge = OpCode.addressAccessCost(state, refundAddress)(_ => 0, _.G_cold_account_access, _ => 0)
+    baseCharge + addressAccessCharge
   }
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
