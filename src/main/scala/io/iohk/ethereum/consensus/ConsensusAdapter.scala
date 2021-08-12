@@ -15,6 +15,7 @@ import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.FunctorOps._
+import io.iohk.ethereum.utils.Hex
 import io.iohk.ethereum.utils.Logger
 
 /** This is a temporary class to isolate the real Consensus and extract responsibilities which should not
@@ -55,8 +56,12 @@ class ConsensusAdapter(
       .evalOnce(blockValidation.validateBlockBeforeExecution(block))
       .tap {
         case Left(error) =>
-          log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
-        case Right(_) => log.debug("Block with hash {} validated successfully", block.hash)
+          log.error(
+            "Error while validating block with hash {} before execution: {}",
+            Hex.toHexString(block.hash.toArray),
+            error.reason.toString
+          )
+        case Right(_) => log.debug("Block with hash {} validated successfully", Hex.toHexString(block.hash.toArray))
       }
       .executeOn(validationScheduler)
 
