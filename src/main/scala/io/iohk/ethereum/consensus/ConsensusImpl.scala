@@ -31,7 +31,7 @@ class ConsensusImpl(
 
   /** Try to set the given branch as the new best branch if it is better than the current best
     * branch.
-    * @param branch                  the new branch as a sorted list of blocks. It's parent must
+    * @param branch                  the new branch as a sorted list of blocks. Its parent must
     *                                be in the current best branch
     * @param blockExecutionScheduler threadPool on which the execution should be run
     * @param blockchainConfig        blockchain configuration
@@ -203,7 +203,6 @@ class ConsensusImpl(
 
   /** Reverts chain reorganisation in the event that one of the blocks from new branch fails to execute
     *
-    * @param newBranch      new blocks
     * @param oldBranch      old blocks along with corresponding receipts and totalDifficulties
     * @param executedBlocks sub-sequence of new branch that was executed correctly
     */
