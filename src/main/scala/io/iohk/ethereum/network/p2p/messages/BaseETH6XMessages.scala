@@ -13,6 +13,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.utils.Config
 
 object BaseETH6XMessages {
   object Status {
@@ -62,7 +63,7 @@ object BaseETH6XMessages {
         case r: RLPList if r.items.isEmpty => AccessListItem(null, List.empty)
 
         case RLPList(rlpAddress, rlpStorageKeys: RLPList) =>
-          val address = rlpAddress.decodeAs[Address]("address ")
+          val address = rlpAddress.decodeAs[Address]("address")
           val storageKeys = fromRlpList[BigInt](rlpStorageKeys).toList
           AccessListItem(address, storageKeys)
       }
@@ -154,7 +155,7 @@ object BaseETH6XMessages {
 
   object SignedTransactions {
 
-    lazy val chainId: Byte = 1.toByte //Config.blockchains.blockchainConfig.chainId
+    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
 

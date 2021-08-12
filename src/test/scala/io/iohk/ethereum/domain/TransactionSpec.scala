@@ -37,6 +37,10 @@ class TransactionSpec
   }
 
   "Transaction type 01" should "be correctly serialized to rlp" in {
+
+    // binary values have be taken directly from core-geth own tests
+    // see https://github.com/ethereum/go-ethereum/blob/a580f7d6c54812ef47df94c6ffc974c9dbc48245/core/types/transaction_test.go#L71
+
     val toAddr: Address = Address.apply("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
     val tx: TransactionWithAccessList = TransactionWithAccessList(
       3,
