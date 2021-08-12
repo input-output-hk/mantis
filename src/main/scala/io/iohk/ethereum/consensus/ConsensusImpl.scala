@@ -1,12 +1,15 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
 import cats.implicits._
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.annotation.tailrec
+
 import io.iohk.ethereum.consensus.Consensus._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -19,7 +22,10 @@ import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
 import io.iohk.ethereum.ledger.BlockMetrics
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Hex, Logger}
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.ByteStringUtils
+import io.iohk.ethereum.utils.Hex
+import io.iohk.ethereum.utils.Logger
 
 class ConsensusImpl(
     blockchain: BlockchainImpl,
@@ -105,21 +111,31 @@ class ConsensusImpl(
   ): ConsensusResult =
     blockExecution.executeAndValidateBlocks(branch.toList, currentBestBlockWeight) match {
       case (importedBlocks, None) =>
-        importedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
-
+        saveLastBlock(importedBlocks)
         ExtendedCurrentBestBranch(importedBlocks)
+
       case (_, Some(MPTError(reason))) if reason.isInstanceOf[MissingNodeException] =>
         ConsensusErrorDueToMissingNode(Nil, reason.asInstanceOf[MissingNodeException])
+
       case (Nil, Some(error)) =>
         BranchExecutionFailure(Nil, branch.head.header.hash, error.toString)
+
       case (importedBlocks, Some(error)) =>
-        importedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
+        saveLastBlock(importedBlocks)
         val failingBlock = branch.toList.drop(importedBlocks.length).head
         ExtendedCurrentBestBranchPartially(
           importedBlocks,
           BranchExecutionFailure(Nil, failingBlock.hash, error.toString)
         )
     }
+
+  private def saveLastBlock(blocks: List[BlockData]): Unit = blocks.lastOption.foreach(b =>
+    blockchainWriter.saveBestKnownBlocks(
+      b.block.hash,
+      b.block.number,
+      Option.when(b.block.hasCheckpoint)(b.block.number)
+    )
+  )
 
   private def reorganise(
       bestBlockNumber: BigInt,
@@ -190,9 +206,23 @@ class ConsensusImpl(
       blockchainConfig: BlockchainConfig
   ): Either[(List[BlockData], BlockExecutionError), (List[Block], List[Block], List[ChainWeight])] = {
     val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
+    executedBlocks.lastOption.foreach(b =>
+      blockchainWriter.saveBestKnownBlocks(
+        b.block.hash,
+        b.block.number,
+        Option.when(b.block.hasCheckpoint)(b.block.number)
+      )
+    )
+
     maybeError match {
       case None =>
-        executedBlocks.lastOption.foreach(b => blockchain.saveBestKnownBlocks(b.block.hash, b.block.number))
+        executedBlocks.lastOption.foreach(b =>
+          blockchainWriter.saveBestKnownBlocks(
+            b.block.hash,
+            b.block.number,
+            Option.when(b.block.hasCheckpoint)(b.block.number)
+          )
+        )
 
         Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))
 
@@ -224,7 +254,7 @@ class ConsensusImpl(
     }.maximumOption
 
     val bestHeader = oldBranch.last.block.header
-    blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
+    blockchainWriter.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
   }
 
   /** Removes blocks from the [[Blockchain]] along with receipts and total difficulties.

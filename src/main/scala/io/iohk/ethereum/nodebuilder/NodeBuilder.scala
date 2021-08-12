@@ -217,15 +217,6 @@ trait ConsensusBuilder {
       blockValidation,
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
-
-  lazy val consensusAdapter: ConsensusAdapter =
-    new ConsensusAdapter(
-      consensus,
-      blockchainReader,
-      blockQueue,
-      blockValidation,
-      Scheduler(system.dispatchers.lookup("validation-context"))
-    )
 }
 
 trait ForkResolverBuilder {
