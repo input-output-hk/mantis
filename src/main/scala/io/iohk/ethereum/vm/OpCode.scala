@@ -726,7 +726,12 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
         0
     }
     val updatedStorage = state.storage.store(offset, newValue)
-    state.withStack(stack1).withStorage(updatedStorage).refundGas(refund).step()
+    state
+      .addAccessedStorageKey(state.ownAddress, offset)
+      .withStack(stack1)
+      .withStorage(updatedStorage)
+      .refundGas(refund)
+      .step()
   }
 
   protected def varGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
@@ -740,7 +745,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
     val eip2200Enabled = isEip2200Enabled(etcFork, ethFork)
     val eip1283Enabled = isEip1283Enabled(ethFork)
 
-    if (eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend) {
+    val originalCharge: BigInt = if (eip2200Enabled && state.gas <= state.config.feeSchedule.G_callstipend) {
       state.config.feeSchedule.G_callstipend + 1 // Out of gas error
     } else if (eip2200Enabled || eip1283Enabled) {
       if (currentValue == newValue.toBigInt) { // no-op
@@ -763,6 +768,8 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
       else
         state.config.feeSchedule.G_sreset
     }
+
+    originalCharge + OpCode.storageAccessCost(state, state.ownAddress, offset)(_ => 0, _.G_cold_account_access, _ => 0)
   }
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]

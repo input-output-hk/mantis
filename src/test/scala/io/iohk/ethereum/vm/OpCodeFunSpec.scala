@@ -462,7 +462,11 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val data = stateOut.storage.load(offset)
         data shouldEqual value.toBigInt
 
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
+        stateOut shouldEqual stateIn
+          .addAccessedStorageKey(stateIn.ownAddress, offset)
+          .withStack(stateOut.stack)
+          .withStorage(stateOut.storage)
+          .step()
       }
     }
   }

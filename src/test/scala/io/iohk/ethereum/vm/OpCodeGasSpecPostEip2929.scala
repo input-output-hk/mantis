@@ -1,6 +1,7 @@
 package io.iohk.ethereum.vm
 
 import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -194,6 +195,53 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
           verifyGas(G_selfdestruct + G_newaccount + G_cold_account_access, updatedStateIn, stateOut)
         stateOut.gasRefund shouldEqual 0
       }
+    }
+  }
+
+  test(SSTORE) { op =>
+    val storage = MockStorage.Empty.store(Zero, One)
+    val table = Table[UInt256, UInt256, Boolean, BigInt, BigInt](
+      ("offset", "value", "alreadyAccessed", "startGas", "expectedGasConsumption"),
+      (0, 1, true, G_callstipend + 1, G_sload),
+      (0, 1, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (0, 0, true, G_callstipend + 1, G_sload),
+      (0, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (1, 0, true, G_callstipend + 1, G_sload),
+      (1, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (1, 1, true, G_sset, G_sset),
+      (1, 1, false, G_sset + G_cold_account_access, G_sset + G_cold_account_access)
+    )
+
+    forAll(table) { (offset, value, alreadyAccessed, startGas, expectedGasConsumption) =>
+      val stackIn = Stack.empty().push(value).push(offset)
+      val stateIn = getProgramStateGen(
+        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        evmConfig = config
+      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = startGas)
+
+      val stateOut =
+        if (alreadyAccessed) op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+        else op.execute(stateIn)
+      verifyGas(expectedGasConsumption, stateIn, stateOut, allowOOG = false)
+    }
+
+    // test G_sreset
+    forAll(Arbitrary.arbitrary[Boolean]) { alreadyAccessed =>
+      val offset = 0
+      val value = 0
+      val expectedGasConsumption = if (alreadyAccessed) G_sreset else G_sreset + G_cold_account_access
+
+      val stackIn = Stack.empty().push(value).push(offset)
+      val stateIn = getProgramStateGen(
+        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        evmConfig = config,
+        storageGen = Gen.const(storage)
+      ).sample.get.withStack(stackIn).copy(gas = expectedGasConsumption)
+
+      val stateOut =
+        if (alreadyAccessed) op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+        else op.execute(stateIn)
+      verifyGas(expectedGasConsumption, stateIn, stateOut, allowOOG = false)
     }
   }
 }
