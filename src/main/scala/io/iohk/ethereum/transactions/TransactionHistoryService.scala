@@ -21,7 +21,6 @@ import io.iohk.ethereum.transactions.TransactionHistoryService.PendingTxChecker
 import io.iohk.ethereum.utils.Logger
 
 class TransactionHistoryService(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     pendingTransactionsManager: ActorRef,
     getTransactionFromPoolTimeout: FiniteDuration
@@ -30,7 +29,7 @@ class TransactionHistoryService(
       account: Address,
       fromBlocks: NumericRange[BigInt]
   ): Task[List[ExtendedTransactionData]] = {
-    val getLastCheckpoint = Task(blockchain.getLatestCheckpointBlockNumber()).memoizeOnSuccess
+    val getLastCheckpoint = Task(blockchainReader.getLatestCheckpointBlockNumber()).memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
       .mapParallelOrdered(10)(blockNr =>

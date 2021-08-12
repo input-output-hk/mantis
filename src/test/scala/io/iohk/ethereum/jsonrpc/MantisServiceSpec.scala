@@ -79,7 +79,6 @@ class MantisServiceSpec
 
         override lazy val transactionHistoryService: TransactionHistoryService =
           new TransactionHistoryService(
-            blockchain,
             blockchainReader,
             pendingTransactionsManager,
             txPoolConfig.getTransactionFromPoolTimeout

@@ -32,7 +32,7 @@ class LegacyTransactionHistoryServiceSpec
     val pendingTransactionManager: TestProbe = TestProbe()
     pendingTransactionManager.setAutoPilot(PendingTransactionsManagerAutoPilot())
     val transactionHistoryService =
-      new TransactionHistoryService(blockchain, blockchainReader, pendingTransactionManager.ref, Timeouts.normalTimeout)
+      new TransactionHistoryService(blockchainReader, pendingTransactionManager.ref, Timeouts.normalTimeout)
   }
 
   def createFixture() = new Fixture
@@ -170,7 +170,7 @@ class LegacyTransactionHistoryServiceSpec
         _ <- Task {
           blockchainWriter.save(block3, makeReceipts(block3), ChainWeight(2, block1.header.difficulty * 2), true)
         }
-        lastCheckpoint <- Task(blockchain.getLatestCheckpointBlockNumber())
+        lastCheckpoint <- Task(blockchainReader.getLatestCheckpointBlockNumber())
         response <- transactionHistoryService.getAccountTransactions(
           senderAddress,
           BigInt.apply(0) to BigInt(10)

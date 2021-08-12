@@ -85,6 +85,8 @@ class BlockchainReader(
 
   def getBestBlockNumber(): BigInt = appStateStorage.getBestBlockNumber()
 
+  def getLatestCheckpointBlockNumber(): BigInt = appStateStorage.getLatestCheckpointBlockNumber()
+
   //returns the best known block if it's available in the storage
   def getBestBlock(): Option[Block] = {
     val bestKnownBlockinfo = appStateStorage.getBestBlockInfo()

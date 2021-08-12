@@ -55,8 +55,6 @@ trait Blockchain {
     */
   def getReadOnlyMptStorage(): MptStorage
 
-  def getLatestCheckpointBlockNumber(): BigInt
-
   def removeBlock(hash: ByteString): Unit
 
   def saveBestKnownBlocks(
@@ -79,8 +77,6 @@ class BlockchainImpl(
     blockchainReader: BlockchainReader
 ) extends Blockchain
     with Logger {
-
-  override def getLatestCheckpointBlockNumber(): BigInt = appStateStorage.getLatestCheckpointBlockNumber()
 
   override def getAccountStorageAt(
       rootHash: ByteString,
@@ -168,7 +164,7 @@ class BlockchainImpl(
     log.debug(s"Trying to remove block ${block.idTag}")
 
     val txList = block.body.transactionList
-    val latestCheckpointNumber = getLatestCheckpointBlockNumber()
+    val latestCheckpointNumber = blockchainReader.getLatestCheckpointBlockNumber()
 
     val blockNumberMappingUpdates =
       if (blockchainReader.getHashByBlockNumber(blockchainReader.getBestBranch(), block.number).contains(blockHash))

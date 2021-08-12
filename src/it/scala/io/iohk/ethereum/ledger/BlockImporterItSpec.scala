@@ -128,7 +128,7 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
     eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock5WithCheckpoint)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number)
+    eventually(blockchainReader.getLatestCheckpointBlockNumber() shouldEqual oldBlock5WithCheckpoint.header.number)
   }
 
   it should "switch to a branch with a newer checkpoint" in new StartedImportFixture() {
@@ -142,7 +142,7 @@ class BlockImporterItSpec
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
     eventually(blockchainReader.getBestBlock().get shouldEqual newBlock4WithCheckpoint)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number)
+    eventually(blockchainReader.getLatestCheckpointBlockNumber() shouldEqual newBlock4WithCheckpoint.header.number)
   }
 
   it should "return a correct checkpointed block after receiving a request for generating a new checkpoint" in new StartedImportFixture() {
@@ -161,7 +161,7 @@ class BlockImporterItSpec
     blockImporter ! NewCheckpoint(checkpointBlock)
 
     eventually(blockchainReader.getBestBlock().get shouldEqual checkpointBlock)
-    eventually(blockchain.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1)
+    eventually(blockchainReader.getLatestCheckpointBlockNumber() shouldEqual newBlock5.header.number + 1)
   }
 
   it should "ask BlockFetcher to resolve missing node" in new TestFixture() {
