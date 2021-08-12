@@ -60,47 +60,49 @@ class ConsensusAdapter(
             case Left(error) =>
               Task.now(BlockImportFailed(error.reason.toString))
             case Right(BlockExecutionSuccess) =>
-              enqueueAndGetBranch(block, bestBlock.number) match {
-                case None =>
-                  Task.now(BlockEnqueued)
-                case Some(newBranch) =>
-                  consensus
-                    .evaluateBranch(newBranch)
-                    .map {
-                      case SelectedNewBestBranch(oldBranch, newBranch, weights) =>
-                        oldBranch.foreach(blockQueue.enqueueBlock(_))
-                        ChainReorganised(oldBranch, newBranch, weights)
-                      case ExtendedCurrentBestBranch(blockImportData) =>
-                        BlockImportedToTop(blockImportData)
-                      case ExtendedCurrentBestBranchPartially(
-                            blockImportData,
-                            BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error)
-                          ) =>
-                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
-                        blockQueue.removeSubtree(failingBlockHash)
-                        log.warn("extended best branch partially because of error: {}", error)
-                        BlockImportedToTop(blockImportData)
-                      case KeptCurrentBestBranch =>
-                        newBranch.toList.foreach(blockQueue.enqueueBlock(_))
-                        BlockEnqueued
-                      case BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error) =>
-                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
-                        blockQueue.removeSubtree(failingBlockHash)
-                        BlockImportFailed(error)
-                      case ConsensusError(blocksToEnqueue, error) =>
-                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
-                        BlockImportFailed(error)
-                      case ConsensusErrorDueToMissingNode(blocksToEnqueue, reason) =>
-                        blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
-                        BlockImportFailedDueToMissingNode(reason)
-                    }
-              }
+              enqueueAndGetBranch(block, bestBlock.number)
+                .map(forwardAndTranslateConsensusResult) // a new branch was created so we give it to consensus
+                .getOrElse(Task.now(BlockEnqueued)) // the block was not rooted so it was simply enqueued
           }
         }
       case None =>
         log.error("Couldn't find the current best block")
         Task.now(BlockImportFailed("Couldn't find the current best block"))
     }
+
+  private def forwardAndTranslateConsensusResult(
+      newBranch: NonEmptyList[Block]
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig) =
+    consensus
+      .evaluateBranch(newBranch)
+      .map {
+        case SelectedNewBestBranch(oldBranch, newBranch, weights) =>
+          oldBranch.foreach(blockQueue.enqueueBlock(_))
+          ChainReorganised(oldBranch, newBranch, weights)
+        case ExtendedCurrentBestBranch(blockImportData) =>
+          BlockImportedToTop(blockImportData)
+        case ExtendedCurrentBestBranchPartially(
+              blockImportData,
+              BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error)
+            ) =>
+          blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
+          blockQueue.removeSubtree(failingBlockHash)
+          log.warn("extended best branch partially because of error: {}", error)
+          BlockImportedToTop(blockImportData)
+        case KeptCurrentBestBranch =>
+          newBranch.toList.foreach(blockQueue.enqueueBlock(_))
+          BlockEnqueued
+        case BranchExecutionFailure(blocksToEnqueue, failingBlockHash, error) =>
+          blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
+          blockQueue.removeSubtree(failingBlockHash)
+          BlockImportFailed(error)
+        case ConsensusError(blocksToEnqueue, error) =>
+          blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
+          BlockImportFailed(error)
+        case ConsensusErrorDueToMissingNode(blocksToEnqueue, reason) =>
+          blocksToEnqueue.foreach(blockQueue.enqueueBlock(_))
+          BlockImportFailedDueToMissingNode(reason)
+      }
 
   private def doBlockPreValidation(block: Block)(implicit
       blockchainConfig: BlockchainConfig
