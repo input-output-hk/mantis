@@ -68,7 +68,9 @@ class ConsensusImpl(
       if (currentBestBlock.isParentOf(branch.head)) {
         Task.evalOnce(importToTop(branch, currentBestBlockWeight)).executeOn(blockExecutionScheduler)
       } else {
-        Task.evalOnce(importToNewBranch(branch, currentBestBlockWeight, parentHash)).executeOn(blockExecutionScheduler)
+        Task
+          .evalOnce(importToNewBranch(branch, currentBestBlock.number, currentBestBlockWeight, parentHash))
+          .executeOn(blockExecutionScheduler)
       }
 
     consensusResult.foreach(measureBlockMetrics)
@@ -77,6 +79,7 @@ class ConsensusImpl(
 
   private def importToNewBranch(
       branch: NonEmptyList[Block],
+      currentBestBlockNumber: BigInt,
       currentBestBlockWeight: ChainWeight,
       parentHash: ByteString
   )(implicit
@@ -85,7 +88,7 @@ class ConsensusImpl(
     blockchainReader.getChainWeightByHash(parentHash) match {
       case Some(parentWeight) =>
         if (newBranchWeight(branch, parentWeight) > currentBestBlockWeight) {
-          reorganise(branch, parentWeight, parentHash)
+          reorganise(currentBestBlockNumber, branch, parentWeight, parentHash)
         } else {
           KeptCurrentBestBranch
         }
@@ -117,17 +120,21 @@ class ConsensusImpl(
         )
     }
 
-  private def reorganise(newBranch: NonEmptyList[Block], parentWeight: ChainWeight, parentHash: ByteString)(implicit
+  private def reorganise(
+      bestBlockNumber: BigInt,
+      newBranch: NonEmptyList[Block],
+      parentWeight: ChainWeight,
+      parentHash: ByteString
+  )(implicit
       blockchainConfig: BlockchainConfig
   ): ConsensusResult = {
 
-    val bestNumber = blockchainReader.getBestBlockNumber()
     log.debug(
       "Removing blocks starting from number {} and parent {}",
-      bestNumber,
+      bestBlockNumber,
       ByteStringUtils.hash2string(parentHash)
     )
-    val oldBlocksData = removeBlocksUntil(parentHash, bestNumber)
+    val oldBlocksData = removeBlocksUntil(parentHash, bestBlockNumber)
 
     handleBlockExecResult(newBranch.toList, parentWeight, oldBlocksData).fold(
       {
