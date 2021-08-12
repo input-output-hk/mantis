@@ -1,15 +1,12 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-
 import cats.data.NonEmptyList
 import cats.implicits._
-
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.annotation.tailrec
-
 import io.iohk.ethereum.consensus.Consensus._
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockchainImpl
@@ -22,9 +19,7 @@ import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
 import io.iohk.ethereum.ledger.BlockMetrics
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
-import io.iohk.ethereum.utils.BlockchainConfig
-import io.iohk.ethereum.utils.ByteStringUtils
-import io.iohk.ethereum.utils.Logger
+import io.iohk.ethereum.utils.{BlockchainConfig, ByteStringUtils, Hex, Logger}
 
 class ConsensusImpl(
     blockchain: BlockchainImpl,
@@ -68,24 +63,38 @@ class ConsensusImpl(
       blockchainConfig: BlockchainConfig
   ): Task[ConsensusResult] = {
     val parentHash = branch.head.header.parentHash
-    val parentWeight = blockchainReader
-      .getChainWeightByHash(parentHash)
-      .getOrElse(throw new Error("Inconsistent database"))
 
     val consensusResult: Task[ConsensusResult] =
-      if (newBranchWeight(branch, parentWeight) > currentBestBlockWeight) {
-        if (currentBestBlock.isParentOf(branch.head)) {
-          Task.evalOnce(importToTop(branch, currentBestBlockWeight)).executeOn(blockExecutionScheduler)
-        } else {
-          Task.evalOnce(reorganise(branch, parentWeight, parentHash)).executeOn(blockExecutionScheduler)
-        }
+      if (currentBestBlock.isParentOf(branch.head)) {
+        Task.evalOnce(importToTop(branch, currentBestBlockWeight)).executeOn(blockExecutionScheduler)
       } else {
-        Task.now(KeptCurrentBestBranch)
+        Task.evalOnce(importToNewBranch(branch, currentBestBlockWeight, parentHash)).executeOn(blockExecutionScheduler)
       }
 
     consensusResult.foreach(measureBlockMetrics)
     consensusResult
   }
+
+  private def importToNewBranch(
+      branch: NonEmptyList[Block],
+      currentBestBlockWeight: ChainWeight,
+      parentHash: ByteString
+  )(implicit
+      blockchainConfig: BlockchainConfig
+  ) =
+    blockchainReader.getChainWeightByHash(parentHash) match {
+      case Some(parentWeight) =>
+        if (newBranchWeight(branch, parentWeight) > currentBestBlockWeight) {
+          reorganise(branch, parentWeight, parentHash)
+        } else {
+          KeptCurrentBestBranch
+        }
+      case None =>
+        ConsensusError(
+          branch.toList,
+          s"Could not get weight for parent block ${Hex.toHexString(parentHash.toArray)}"
+        )
+    }
 
   private def importToTop(branch: NonEmptyList[Block], currentBestBlockWeight: ChainWeight)(implicit
       blockchainConfig: BlockchainConfig

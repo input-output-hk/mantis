@@ -67,7 +67,9 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
 
     // Just to bypass metrics needs
-    (blockchainReader.getBlockByHash _).expects(*).returning(None)
+    (blockchainReader.getBlockByHash _).expects(*).anyNumberOfTimes().returning(None)
+    (blockchainWriter.save _).expects(*, *, *, *).returning()
+    (blockchain.saveBestKnownBlocks _).expects(*, *, *).returning()
 
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
