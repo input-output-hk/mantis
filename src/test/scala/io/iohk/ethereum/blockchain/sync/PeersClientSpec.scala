@@ -18,6 +18,7 @@ import io.iohk.ethereum.network.EtcPeerManagerActor.RemoteStatus
 import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.Capability
+import org.scalatest.prop.TableFor3
 
 class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
