@@ -62,14 +62,13 @@ class ConsensusImpl(
       blockExecutionScheduler: Scheduler,
       blockchainConfig: BlockchainConfig
   ): Task[ConsensusResult] = {
-    val parentHash = branch.head.header.parentHash
 
     val consensusResult: Task[ConsensusResult] =
       if (currentBestBlock.isParentOf(branch.head)) {
         Task.evalOnce(importToTop(branch, currentBestBlockWeight)).executeOn(blockExecutionScheduler)
       } else {
         Task
-          .evalOnce(importToNewBranch(branch, currentBestBlock.number, currentBestBlockWeight, parentHash))
+          .evalOnce(importToNewBranch(branch, currentBestBlock.number, currentBestBlockWeight))
           .executeOn(blockExecutionScheduler)
       }
 
@@ -80,11 +79,12 @@ class ConsensusImpl(
   private def importToNewBranch(
       branch: NonEmptyList[Block],
       currentBestBlockNumber: BigInt,
-      currentBestBlockWeight: ChainWeight,
-      parentHash: ByteString
+      currentBestBlockWeight: ChainWeight
   )(implicit
       blockchainConfig: BlockchainConfig
-  ) =
+  ) = {
+    val parentHash = branch.head.header.parentHash
+
     blockchainReader.getChainWeightByHash(parentHash) match {
       case Some(parentWeight) =>
         if (newBranchWeight(branch, parentWeight) > currentBestBlockWeight) {
@@ -95,9 +95,10 @@ class ConsensusImpl(
       case None =>
         ConsensusError(
           branch.toList,
-          s"Could not get weight for parent block ${Hex.toHexString(parentHash.toArray)}"
+          s"Could not get weight for parent block ${Hex.toHexString(parentHash.toArray)} (number ${branch.head.number - 1})"
         )
     }
+  }
 
   private def importToTop(branch: NonEmptyList[Block], currentBestBlockWeight: ChainWeight)(implicit
       blockchainConfig: BlockchainConfig
