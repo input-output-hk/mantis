@@ -61,8 +61,7 @@ class ConsensusAdapter(
             Hex.toHexString(block.hash.toArray),
             error.reason.toString
           )
-        case Right(_) =>
-          log.debug("Block with hash {} validated successfully", Hex.toHexString(block.hash.toArray))
+        case Right(_) => log.debug("Block with hash {} validated successfully", Hex.toHexString(block.hash.toArray))
       }
       .executeOn(validationScheduler)
 
