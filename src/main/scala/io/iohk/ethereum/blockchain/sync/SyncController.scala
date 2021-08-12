@@ -130,7 +130,7 @@ class SyncController(
         consensus,
         blockchainReader,
         stateStorage,
-        new BranchResolution(blockchain, blockchainReader),
+        new BranchResolution(blockchainReader),
         validators.blockValidator,
         blacklist,
         syncConfig,

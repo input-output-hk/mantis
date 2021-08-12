@@ -77,7 +77,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val checkpointBlockGenerator: CheckpointBlockGenerator = new CheckpointBlockGenerator()
     val peersClient: TestProbe = TestProbe()
     val blacklist: CacheBasedBlacklist = CacheBasedBlacklist.empty(100)
-    lazy val branchResolution = new BranchResolution(blockchain, blockchainReader)
+    lazy val branchResolution = new BranchResolution(blockchainReader)
 
     val stateStorage: StateStorage = stub[StateStorage]
 
@@ -340,7 +340,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
       }
     }
 
-    class FakeBranchResolution extends BranchResolution(stub[BlockchainImpl], stub[BlockchainReader]) {
+    class FakeBranchResolution extends BranchResolution(stub[BlockchainReader]) {
       override def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult = {
         val importedHashes = importedBlocksSet.map(_.hash).toSet
 

@@ -94,7 +94,7 @@ object RegularSyncItSpecUtils {
 
     lazy val mining: PoWMining = buildEthashMining()
 
-    lazy val blockQueue: BlockQueue = BlockQueue(bl, blockchainReader, syncConfig)
+    lazy val blockQueue: BlockQueue = BlockQueue(blockchainReader, syncConfig)
     lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
     lazy val blockExecution =
       new BlockExecution(
@@ -150,7 +150,7 @@ object RegularSyncItSpecUtils {
         blockImport,
         blockchainReader,
         storagesInstance.storages.stateStorage,
-        new BranchResolution(bl, blockchainReader),
+        new BranchResolution(blockchainReader),
         syncConfig,
         ommersPool,
         broadcasterRef,
@@ -168,7 +168,7 @@ object RegularSyncItSpecUtils {
         blockImport,
         blockchainReader,
         storagesInstance.storages.stateStorage,
-        new BranchResolution(bl, blockchainReader),
+        new BranchResolution(blockchainReader),
         validators.blockValidator,
         blacklist,
         testSyncConfig,
@@ -194,7 +194,7 @@ object RegularSyncItSpecUtils {
         case None => blockchainReader.getBestBlock().get
       }).flatMap { block =>
         Task {
-          val currentWeight = bl
+          val currentWeight = blockchainReader
             .getChainWeightByHash(block.hash)
             .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
           val currentWorld = getMptForBlock(block)
@@ -210,7 +210,7 @@ object RegularSyncItSpecUtils {
         plusDifficulty: BigInt = 0
     )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] = Task {
       val block: Block = blockchainReader.getBestBlock().get
-      val currentWeight = bl
+      val currentWeight = blockchainReader
         .getChainWeightByHash(block.hash)
         .getOrElse(throw new RuntimeException(s"ChainWeight by hash: ${block.hash} doesn't exist"))
       val currentWorld = getMptForBlock(block)

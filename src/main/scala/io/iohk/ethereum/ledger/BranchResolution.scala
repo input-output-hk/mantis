@@ -4,12 +4,11 @@ import cats.data.NonEmptyList
 
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.Logger
 
-class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReader) extends Logger {
+class BranchResolution(blockchainReader: BlockchainReader) extends Logger {
 
   def resolveBranch(headers: NonEmptyList[BlockHeader]): BranchResolutionResult =
     if (!doHeadersFormChain(headers)) {
@@ -49,7 +48,7 @@ class BranchResolution(blockchain: Blockchain, blockchainReader: BlockchainReade
         .map(_.header)
         .orElse(newHeaders.headOption)
         .map { header =>
-          blockchain
+          blockchainReader
             .getChainWeightByHash(header.parentHash)
             .toRight(s"ChainWeight for ${header.idTag} not found when resolving branch: $newHeaders")
         }

@@ -691,7 +691,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       mining.blockGenerator.withBlockTimestampProvider(blockTimestampProvider)
 
     override lazy val blockValidation =
-      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
     override lazy val blockExecution =
       new BlockExecution(
         blockchain,

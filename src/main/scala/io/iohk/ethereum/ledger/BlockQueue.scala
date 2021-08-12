@@ -17,9 +17,8 @@ object BlockQueue {
   case class QueuedBlock(block: Block, weight: Option[ChainWeight])
   case class Leaf(hash: ByteString, weight: ChainWeight)
 
-  def apply(blockchain: Blockchain, blockchainReader: BlockchainReader, syncConfig: SyncConfig): BlockQueue =
+  def apply(blockchainReader: BlockchainReader, syncConfig: SyncConfig): BlockQueue =
     new BlockQueue(
-      blockchain,
       blockchainReader,
       syncConfig.maxQueuedBlockNumberAhead,
       syncConfig.maxQueuedBlockNumberBehind
@@ -27,7 +26,6 @@ object BlockQueue {
 }
 
 class BlockQueue(
-    blockchain: Blockchain,
     blockchainReader: BlockchainReader,
     val maxQueuedBlockNumberAhead: Int,
     val maxQueuedBlockNumberBehind: Int
@@ -65,7 +63,7 @@ class BlockQueue(
         None
 
       case None =>
-        val parentWeight = blockchain.getChainWeightByHash(parentHash)
+        val parentWeight = blockchainReader.getChainWeightByHash(parentHash)
 
         parentWeight match {
 
@@ -127,7 +125,7 @@ class BlockQueue(
           Nil
       }
 
-    recur(descendant, false).reverse
+    recur(hash = descendant, childShared = false).reverse
   }
 
   /** Removes a whole subtree begining with the ancestor. To be used when ancestor fails to execute

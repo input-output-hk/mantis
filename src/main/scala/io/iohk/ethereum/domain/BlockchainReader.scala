@@ -6,6 +6,7 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
+import io.iohk.ethereum.db.storage.ChainWeightStorage
 import io.iohk.ethereum.db.storage.ReceiptStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
@@ -22,7 +23,8 @@ class BlockchainReader(
     blockNumberMappingStorage: BlockNumberMappingStorage,
     stateStorage: StateStorage,
     receiptStorage: ReceiptStorage,
-    appStateStorage: AppStateStorage
+    appStateStorage: AppStateStorage,
+    chainWeightStorage: ChainWeightStorage
 ) extends Logger {
 
   /** Allows to query a blockHeader by block hash
@@ -159,6 +161,12 @@ class BlockchainReader(
       case EmptyBranch => None
     }
 
+  /** Looks up ChainWeight for a given chain
+    * @param blockhash Hash of top block in the chain
+    * @return ChainWeight if found
+    */
+  def getChainWeightByHash(blockhash: ByteString): Option[ChainWeight] = chainWeightStorage.get(blockhash)
+
   /** Allows to query for a block based on it's number
     *
     * @param number Block number
@@ -198,7 +206,8 @@ object BlockchainReader {
     storages.blockNumberMappingStorage,
     storages.stateStorage,
     storages.receiptStorage,
-    storages.appStateStorage
+    storages.appStateStorage,
+    storages.chainWeightStorage
   )
 
 }

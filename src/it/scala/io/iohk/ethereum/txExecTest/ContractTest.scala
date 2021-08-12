@@ -22,7 +22,7 @@ class ContractTest extends AnyFlatSpec with Matchers {
 
     //block only with ether transfers
     override lazy val blockValidation =
-      new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+      new BlockValidation(mining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
     override lazy val blockExecution =
       new BlockExecution(
         blockchain,

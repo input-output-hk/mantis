@@ -7,11 +7,7 @@ import akka.actor.Props
 import akka.actor.Terminated
 import akka.event.ActorEventBus
 import akka.stream.OverflowStrategy
-import akka.stream.WatchedActorTerminatedException
 import akka.stream.scaladsl.Source
-import akka.util.Timeout
-
-import scala.concurrent.Future
 
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.MessageFromPeer
 import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerDisconnected
@@ -19,7 +15,6 @@ import io.iohk.ethereum.network.PeerEventBusActor.PeerEvent.PeerHandshakeSuccess
 import io.iohk.ethereum.network.PeerEventBusActor.SubscriptionClassifier._
 import io.iohk.ethereum.network.handshaker.Handshaker.HandshakeResult
 import io.iohk.ethereum.network.p2p.Message
-import io.iohk.ethereum.network.p2p.messages.Codes
 
 object PeerEventBusActor {
   def props: Props = Props(new PeerEventBusActor)

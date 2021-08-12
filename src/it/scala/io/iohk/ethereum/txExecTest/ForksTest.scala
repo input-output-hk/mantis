@@ -60,7 +60,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
       val blockchainWriter = BlockchainWriter(storages)
       val blockchain = BlockchainImpl(storages, blockchainReader)
       val blockValidation =
-        new BlockValidation(mining, blockchainReader, BlockQueue(blockchain, blockchainReader, syncConfig))
+        new BlockValidation(mining, blockchainReader, BlockQueue(blockchainReader, syncConfig))
       val blockExecution =
         new BlockExecution(
           blockchain,

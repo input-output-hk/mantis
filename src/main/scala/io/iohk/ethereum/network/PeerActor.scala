@@ -6,7 +6,6 @@ import java.net.URI
 import akka.NotUsed
 import akka.actor.SupervisorStrategy.Escalate
 import akka.actor._
-import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 

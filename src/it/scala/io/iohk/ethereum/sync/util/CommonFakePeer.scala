@@ -283,7 +283,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
   def getCurrentState(): BlockchainState = {
     val bestBlock = blockchainReader.getBestBlock().get
     val currentWorldState = getMptForBlock(bestBlock)
-    val currentWeight = bl.getChainWeightByHash(bestBlock.hash).get
+    val currentWeight = blockchainReader.getChainWeightByHash(bestBlock.hash).get
     BlockchainState(bestBlock, currentWorldState, currentWeight)
   }
 
@@ -356,7 +356,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
       currentBestBlock: Block
   )(updateWorldForBlock: (BigInt, InMemoryWorldStateProxy) => InMemoryWorldStateProxy): Task[Unit] =
     Task {
-      val currentWeight = bl.getChainWeightByHash(currentBestBlock.hash).get
+      val currentWeight = blockchainReader.getChainWeightByHash(currentBestBlock.hash).get
       val currentWorld = getMptForBlock(currentBestBlock)
       val (newBlock, newWeight, _) =
         createChildBlock(currentBestBlock, currentWeight, currentWorld)(updateWorldForBlock)

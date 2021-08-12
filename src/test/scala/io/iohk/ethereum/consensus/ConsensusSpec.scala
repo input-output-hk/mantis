@@ -133,7 +133,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     setBlockExists(block, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
-    (blockchain.getChainWeightByHash _).expects(*).returning(None)
+    (blockchainReader.getChainWeightByHash _).expects(*).returning(None)
 
     (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
 
@@ -191,7 +191,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
 
     blockchainReader.getBestBlock().get shouldEqual newBlock3
-    blockchain.getChainWeightByHash(newBlock3.header.hash) shouldEqual Some(newWeight3)
+    blockchainReader.getChainWeightByHash(newBlock3.header.hash) shouldEqual Some(newWeight3)
 
     blockQueue.isQueued(oldBlock2.header.hash) shouldBe true
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
@@ -235,7 +235,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     }
 
     blockchainReader.getBestBlock().get shouldEqual oldBlock3
-    blockchain.getChainWeightByHash(oldBlock3.header.hash) shouldEqual Some(oldWeight3)
+    blockchainReader.getChainWeightByHash(oldBlock3.header.hash) shouldEqual Some(oldWeight3)
 
     blockQueue.isQueued(newBlock2.header.hash) shouldBe true
     blockQueue.isQueued(newBlock3.header.hash) shouldBe false
@@ -348,7 +348,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
   it should "correctly import a checkpoint block" in new EphemBlockchain with CheckpointHelpers {
     val parentBlock: Block = getBlock(bestNum)
     val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
-    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock)
 
     val weightParent = ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty + 999)
     val weightRegular = weightParent.increase(regularBlock.header)
@@ -376,7 +376,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(checkpointBlock, Nil, weightCheckpoint, saveAsBestBlock = true)
 
     blockchainReader.getBestBlock().get shouldEqual checkpointBlock
-    blockchain.getChainWeightByHash(checkpointBlock.hash) shouldEqual Some(weightCheckpoint)
+    blockchainReader.getChainWeightByHash(checkpointBlock.hash) shouldEqual Some(weightCheckpoint)
   }
 
   it should "not import a block with higher difficulty that does not follow a checkpoint" in new EphemBlockchain
@@ -384,7 +384,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     val parentBlock: Block = getBlock(bestNum)
     val regularBlock: Block = getBlock(bestNum + 1, difficulty = 200, parent = parentBlock.hash)
-    val checkpointBlock: Block = getCheckpointBlock(parentBlock, difficulty = 100)
+    val checkpointBlock: Block = getCheckpointBlock(parentBlock)
 
     val weightParent = ChainWeight.totalDifficultyOnly(parentBlock.header.difficulty + 999)
     val weightCheckpoint = weightParent.increase(checkpointBlock.header)
