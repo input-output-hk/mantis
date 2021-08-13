@@ -19,8 +19,17 @@ import Fixtures.blockchainConfig
 
 class MagnetoCallOpFixture(config: EvmConfig)
     extends CallOpFixture(config, MockWorldState(touchedAccounts = Set.empty)) {
+
   override val fakeHeader: BlockHeader =
     BlockFixtures.ValidBlock.header.copy(number = Fixtures.MagnetoBlockNumber, unixTimestamp = 0)
+
+  override val requiredGas: BigInt = {
+    val storageCost = 3 * (config.feeSchedule.G_sset + config.feeSchedule.G_cold_account_access)
+    val memCost = config.calcMemCost(0, 0, 32)
+    val copyCost = config.feeSchedule.G_copy * wordsForBytes(32)
+
+    extCode.linearConstGas(config) + storageCost + memCost + copyCost
+  }
 }
 
 class CallOpcodesPostEip2929Spec
