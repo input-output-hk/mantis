@@ -11,6 +11,7 @@ import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
 import io.iohk.ethereum.vm.utils.MockVmInput
 
@@ -43,6 +44,7 @@ class TransactionSpec
 
     val toAddr: Address = Address.apply("b94f5374fce5edbc8e2a8697c15331677e6ebf0b")
     val tx: TransactionWithAccessList = TransactionWithAccessList(
+      1, // ethereum mainnet, used by the core-geth test
       3,
       1,
       25000,

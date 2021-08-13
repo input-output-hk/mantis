@@ -71,6 +71,7 @@ case class LegacyTransaction(
 
 object TransactionWithAccessList {
   def apply(
+      chainId: BigInt,
       nonce: BigInt,
       gasPrice: BigInt,
       gasLimit: BigInt,
@@ -79,10 +80,11 @@ object TransactionWithAccessList {
       payload: ByteString,
       accessList: List[AccessListItem]
   ): TransactionWithAccessList =
-    TransactionWithAccessList(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
+    TransactionWithAccessList(chainId, nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
 }
 
 case class TransactionWithAccessList(
+    chainId: BigInt,
     nonce: BigInt,
     gasPrice: BigInt,
     gasLimit: BigInt,

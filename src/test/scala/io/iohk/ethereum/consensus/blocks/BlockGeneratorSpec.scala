@@ -631,6 +631,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     )
 
     val typedTransaction: TypedTransaction = TransactionWithAccessList(
+      chainId = 61, // ethereum classic mainnet
       nonce = 0,
       gasPrice = 1,
       gasLimit = txGasLimit,

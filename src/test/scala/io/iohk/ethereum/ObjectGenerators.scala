@@ -107,6 +107,7 @@ trait ObjectGenerators {
   )
 
   def typedTransactionGen(): Gen[TransactionWithAccessList] = for {
+    chainId <- bigIntGen
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
@@ -115,6 +116,7 @@ trait ObjectGenerators {
     payload <- byteStringOfLengthNGen(256)
     accessList <- Gen.listOf(accessListItemGen())
   } yield TransactionWithAccessList(
+    chainId,
     nonce,
     gasPrice,
     gasLimit,

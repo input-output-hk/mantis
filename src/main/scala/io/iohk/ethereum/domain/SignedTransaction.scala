@@ -22,6 +22,7 @@ import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransaction
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import io.iohk.ethereum.utils.Config
 
 object SignedTransaction {
 
@@ -86,13 +87,14 @@ object SignedTransaction {
 
   private def calculateSender(tx: SignedTransaction): Option[Address] = Try {
     val ECDSASignature(_, _, v) = tx.signature
-    val bytesToSign: Array[Byte] = if (v == ECDSASignature.negativePointSign || v == ECDSASignature.positivePointSign) {
-      generalTransactionBytes(tx.tx)
-    } else {
-      chainSpecificTransactionBytes(tx.tx, chainId)
+    // chainId specific code that will be refactored with the Signer feature (ETCM-1096)
+    val chainIdOpt = extractChainId(tx)
+    val bytesToSign: Array[Byte] = chainIdOpt match {
+      case None          => generalTransactionBytes(tx.tx)
+      case Some(chainId) => chainSpecificTransactionBytes(tx.tx, chainId)
     }
 
-    val recoveredPublicKey: Option[Array[Byte]] = tx.signature.publicKey(bytesToSign, Some(chainId))
+    val recoveredPublicKey: Option[Array[Byte]] = tx.signature.publicKey(bytesToSign, chainIdOpt)
 
     for {
       key <- recoveredPublicKey
@@ -140,6 +142,17 @@ object SignedTransaction {
         )
       )
     )
+  }
+
+  private def extractChainId(stx: SignedTransaction): Option[Byte] = {
+    val chainIdOpt: Option[BigInt] = stx.tx match {
+      case _: LegacyTransaction
+          if stx.signature.v == ECDSASignature.negativePointSign || stx.signature.v == ECDSASignature.positivePointSign =>
+        None
+      case _: LegacyTransaction            => Some(Config.blockchains.blockchainConfig.chainId)
+      case twal: TransactionWithAccessList => Some(twal.chainId)
+    }
+    chainIdOpt.map(_.toByte)
   }
 
   val byteArraySerializable: ByteArraySerializable[SignedTransaction] = new ByteArraySerializable[SignedTransaction] {

@@ -155,8 +155,6 @@ object BaseETH6XMessages {
 
   object SignedTransactions {
 
-    lazy val chainId: Byte = Config.blockchains.blockchainConfig.chainId
-
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
 
       override def toBytes: Array[Byte] =
@@ -171,9 +169,9 @@ object BaseETH6XMessages {
           .map(_.toArray)
           .getOrElse(Array.emptyByteArray)
         signedTx.tx match {
-          case TransactionWithAccessList(nonce, gasPrice, gasLimit, _, value, payload, accessList) =>
+          case TransactionWithAccessList(chainId, nonce, gasPrice, gasLimit, _, value, payload, accessList) =>
             RLPList(
-              chainId, // TODO improve how chainid is preserved in transactions (ETCM-1096)
+              chainId,
               nonce,
               gasPrice,
               gasLimit,
@@ -220,7 +218,7 @@ object BaseETH6XMessages {
 
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case RLPList(
-              _, // TODO improve how chainid is preserved in transactions (ETCM-1096)
+              chainId,
               nonce,
               gasPrice,
               gasLimit,
@@ -235,6 +233,7 @@ object BaseETH6XMessages {
           val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
             TransactionWithAccessList(
+              chainId,
               nonce,
               gasPrice,
               gasLimit,
