@@ -50,15 +50,15 @@ class LegacyTransactionHistoryServiceSpec
 
     val blockWithTx1 =
       Block(Fixtures.Blocks.Block3125369.header, Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx1)))
-    val blockTx1Receipts = Seq(Receipt(HashOutcome(ByteString("foo")), 42, ByteString.empty, Nil))
+    val blockTx1Receipts = Seq(LegacyReceipt(HashOutcome(ByteString("foo")), 42, ByteString.empty, Nil))
 
     val blockWithTxs2and3 = Block(
       Fixtures.Blocks.Block3125369.header.copy(number = 3125370),
       Fixtures.Blocks.Block3125369.body.copy(transactionList = Seq(tx2, tx3))
     )
     val blockTx2And3Receipts = Seq(
-      Receipt(HashOutcome(ByteString("bar")), 43, ByteString.empty, Nil),
-      Receipt(HashOutcome(ByteString("baz")), 43 + 44, ByteString.empty, Nil)
+      LegacyReceipt(HashOutcome(ByteString("bar")), 43, ByteString.empty, Nil),
+      LegacyReceipt(HashOutcome(ByteString("baz")), 43 + 44, ByteString.empty, Nil)
     )
 
     val expectedTxs = Seq(
@@ -160,7 +160,9 @@ class LegacyTransactionHistoryServiceSpec
       )
 
       def makeReceipts(block: Block): Seq[Receipt] =
-        block.body.transactionList.map(_ => Receipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil))
+        block.body.transactionList.map(_ =>
+          LegacyReceipt(HashOutcome(block.hash), BigInt(21000), ByteString("foo"), Nil)
+        )
 
       for {
         _ <- Task {

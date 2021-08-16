@@ -69,16 +69,21 @@ trait ObjectGenerators {
       arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
     } yield byteStringList.zip(arrayList)
 
-  def receiptGen(): Gen[Receipt] = for {
+  def receiptGen(): Gen[Receipt] =
+    Gen.oneOf(legacyReceiptGen(), type01ReceiptGen())
+
+  def legacyReceiptGen(): Gen[LegacyReceipt] = for {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
     logsBloomFilter <- byteArrayOfNItemsGen(256)
-  } yield Receipt.withHashOutcome(
+  } yield LegacyReceipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
     logs = Seq()
   )
+
+  def type01ReceiptGen(): Gen[Type01Receipt] = legacyReceiptGen().map(Type01Receipt(_))
 
   def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
 

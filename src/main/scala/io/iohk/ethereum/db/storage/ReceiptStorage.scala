@@ -5,7 +5,9 @@ import akka.util.ByteString
 import boopickle.Default.Pickle
 import boopickle.Default.Unpickle
 import boopickle.DefaultBasic._
+import boopickle.Pickler
 
+import io.iohk.ethereum.crypto.ECDSASignature
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.ReceiptStorage._
 import io.iohk.ethereum.domain.Address
@@ -63,11 +65,21 @@ object ReceiptStorage {
       TxLogEntry(address, topics, data)
     }(entry => (entry.loggerAddress, entry.logTopics, entry.data))
 
-  implicit val receiptPickler: Pickler[Receipt] =
-    transformPickler[Receipt, (TransactionOutcome, BigInt, ByteString, Seq[TxLogEntry])] {
-      case (state, gas, filter, logs) => new Receipt(state, gas, filter, logs)
+  implicit val legacyReceiptPickler: Pickler[LegacyReceipt] =
+    transformPickler[LegacyReceipt, (TransactionOutcome, BigInt, ByteString, Seq[TxLogEntry])] {
+      case (state, gas, filter, logs) => LegacyReceipt(state, gas, filter, logs)
     } { receipt =>
       (receipt.postTransactionStateHash, receipt.cumulativeGasUsed, receipt.logsBloomFilter, receipt.logs)
     }
 
+  implicit val type01ReceiptPickler: Pickler[Type01Receipt] =
+    transformPickler[Type01Receipt, (TransactionOutcome, BigInt, ByteString, Seq[TxLogEntry])] {
+      case (state, gas, filter, logs) => Type01Receipt(LegacyReceipt(state, gas, filter, logs))
+    } { receipt =>
+      (receipt.postTransactionStateHash, receipt.cumulativeGasUsed, receipt.logsBloomFilter, receipt.logs)
+    }
+
+  implicit val receiptPickler: Pickler[Receipt] = compositePickler[Receipt]
+    .addConcreteType[LegacyReceipt]
+    .addConcreteType[Type01Receipt]
 }

@@ -311,12 +311,25 @@ class BlockPreparator(
                 HashOutcome(newWorld.stateRootHash)
               }
 
-            val receipt = Receipt(
-              postTransactionStateHash = transactionOutcome,
-              cumulativeGasUsed = acumGas + gasUsed,
-              logsBloomFilter = BloomFilter.create(logs),
-              logs = logs
-            )
+            val receipt = stx.tx match {
+              case _: LegacyTransaction =>
+                LegacyReceipt(
+                  postTransactionStateHash = transactionOutcome,
+                  cumulativeGasUsed = acumGas + gasUsed,
+                  logsBloomFilter = BloomFilter.create(logs),
+                  logs = logs
+                )
+
+              case _: TransactionWithAccessList =>
+                Type01Receipt(
+                  LegacyReceipt(
+                    postTransactionStateHash = transactionOutcome,
+                    cumulativeGasUsed = acumGas + gasUsed,
+                    logsBloomFilter = BloomFilter.create(logs),
+                    logs = logs
+                  )
+                )
+            }
 
             log.debug(s"Receipt generated for tx ${stx.hash.toHex}, $receipt")
 
