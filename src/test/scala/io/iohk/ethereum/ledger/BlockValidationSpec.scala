@@ -127,7 +127,7 @@ class BlockValidationSpec extends AnyWordSpec with Matchers with MockFactory {
       )
     )
 
-    def mkReceipt(stateHash: String, gas: BigInt): Receipt = Receipt.withHashOutcome(
+    def mkReceipt(stateHash: String, gas: BigInt): Receipt = LegacyReceipt.withHashOutcome(
       postTransactionStateHash = hash2ByteString(stateHash),
       cumulativeGasUsed = gas,
       logsBloomFilter = bloomFilter,

@@ -102,7 +102,7 @@ class FilterManagerSpec
       .returning(
         Some(
           Seq(
-            Receipt.withHashOutcome(
+            LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
               cumulativeGasUsed = 0,
               logsBloomFilter = BloomFilter.create(logs2),
@@ -191,13 +191,13 @@ class FilterManagerSpec
       .returning(
         Some(
           Seq(
-            Receipt.withHashOutcome(
+            LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
               cumulativeGasUsed = 0,
               logsBloomFilter = BloomFilter.create(Seq(log4_1)),
               logs = Seq(log4_1)
             ),
-            Receipt.withHashOutcome(
+            LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
               cumulativeGasUsed = 0,
               logsBloomFilter = BloomFilter.create(Seq(log4_2)),
@@ -266,7 +266,7 @@ class FilterManagerSpec
       .returning(
         Some(
           Seq(
-            Receipt.withHashOutcome(
+            LegacyReceipt.withHashOutcome(
               postTransactionStateHash = ByteString(),
               cumulativeGasUsed = 0,
               logsBloomFilter = BloomFilter.create(logs),
@@ -305,7 +305,7 @@ class FilterManagerSpec
           PendingBlock(
             block2,
             Seq(
-              Receipt.withHashOutcome(
+              LegacyReceipt.withHashOutcome(
                 postTransactionStateHash = ByteString(),
                 cumulativeGasUsed = 0,
                 logsBloomFilter = BloomFilter.create(logs2),
