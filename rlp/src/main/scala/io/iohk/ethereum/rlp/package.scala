@@ -44,6 +44,8 @@ package object rlp {
     override def toString: String = s"RLPValue(${Hex.toHexString(bytes)})"
   }
 
+  case class PrefixedRLPEncodable(prefix: Byte, prefixedRLPEncodeable: RLPEncodeable) extends RLPEncodeable
+
   trait RLPEncoder[T] {
     def encode(obj: T): RLPEncodeable
   }

@@ -10,6 +10,7 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPCodec.Ops
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
+import io.iohk.ethereum.rlp.RLPImplicitDerivations.RLPListDecoder
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
@@ -157,32 +158,29 @@ object BaseETH6XMessages {
 
     implicit class SignedTransactionEnc(val signedTx: SignedTransaction) extends RLPSerializable {
 
-      override def toBytes: Array[Byte] =
-        signedTx.tx match {
-          // transaction with access list encoding is defined in eip2930
-          case _: TransactionWithAccessList => Transaction.Type01 +: (super.toBytes: Array[Byte])
-          case _: LegacyTransaction         => super.toBytes
-        }
-
       override def toRLPEncodable: RLPEncodeable = {
         val receivingAddressBytes = signedTx.tx.receivingAddress
           .map(_.toArray)
           .getOrElse(Array.emptyByteArray)
         signedTx.tx match {
           case TransactionWithAccessList(chainId, nonce, gasPrice, gasLimit, _, value, payload, accessList) =>
-            RLPList(
-              chainId,
-              nonce,
-              gasPrice,
-              gasLimit,
-              receivingAddressBytes,
-              value,
-              payload,
-              toRlpList(accessList),
-              signedTx.signature.v,
-              signedTx.signature.r,
-              signedTx.signature.s
+            PrefixedRLPEncodable(
+              Transaction.Type01,
+              RLPList(
+                chainId,
+                nonce,
+                gasPrice,
+                gasLimit,
+                receivingAddressBytes,
+                value,
+                payload,
+                toRlpList(accessList),
+                signedTx.signature.v,
+                signedTx.signature.r,
+                signedTx.signature.s
+              )
             )
+
           case LegacyTransaction(nonce, gasPrice, gasLimit, _, value, payload) =>
             RLPList(
               nonce,
@@ -208,27 +206,40 @@ object BaseETH6XMessages {
     }
 
     implicit class SignedTransactionsDec(val bytes: Array[Byte]) extends AnyVal {
-      def toSignedTransactions: SignedTransactions = rawDecode(bytes) match {
-        case rlpList: RLPList => SignedTransactions(rlpList.items.map(_.toSignedTransaction))
-        case _                => throw new RuntimeException("Cannot decode SignedTransactions")
-      }
+
+      def mergeTransactionType(encodables: Seq[RLPEncodeable]): Seq[RLPEncodeable] =
+        encodables match {
+          case Seq() => Seq()
+          case Seq(RLPValue(v), rlpList: RLPList, tail @ _*) if v.length == 1 =>
+            PrefixedRLPEncodable(v.head, rlpList) +: mergeTransactionType(tail)
+          case Seq(head, tail @ _*) => head +: mergeTransactionType(tail)
+        }
+      def toSignedTransactions: SignedTransactions =
+        rawDecode(bytes) match {
+          case rlpList: RLPList => SignedTransactions(mergeTransactionType(rlpList.items).map(_.toSignedTransaction))
+          case _                => throw new RuntimeException("Cannot decode SignedTransactions")
+        }
     }
 
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
 
+      // scalastyle:off method.length
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
-        case RLPList(
-              chainId,
-              nonce,
-              gasPrice,
-              gasLimit,
-              (receivingAddress: RLPValue),
-              value,
-              payload,
-              (accessList: RLPList),
-              pointSign,
-              signatureRandom,
-              signature
+        case PrefixedRLPEncodable(
+              Transaction.Type01,
+              RLPList(
+                chainId,
+                nonce,
+                gasPrice,
+                gasLimit,
+                (receivingAddress: RLPValue),
+                value,
+                payload,
+                (accessList: RLPList),
+                pointSign,
+                signatureRandom,
+                signature
+              )
             ) =>
           val receivingAddressOpt = if (receivingAddress.bytes.isEmpty) None else Some(Address(receivingAddress.bytes))
           SignedTransaction(
@@ -246,6 +257,7 @@ object BaseETH6XMessages {
             signatureRandom,
             signature
           )
+
         case RLPList(
               nonce,
               gasPrice,
@@ -273,7 +285,7 @@ object BaseETH6XMessages {
       def toSignedTransaction: SignedTransaction = {
         val first = bytes(0)
         (first match {
-          case Transaction.Type01 => rawDecode(bytes.tail)
+          case Transaction.Type01 => PrefixedRLPEncodable(Transaction.Type01, rawDecode(bytes.tail))
           // TODO enforce legacy boundaries
           case _ => rawDecode(bytes)
         }).toSignedTransaction
