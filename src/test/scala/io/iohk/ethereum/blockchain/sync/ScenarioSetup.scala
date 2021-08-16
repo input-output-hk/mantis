@@ -10,6 +10,7 @@ import scala.concurrent.ExecutionContextExecutor
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.consensus.mining.Protocol
@@ -88,16 +89,21 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
   protected def mkConsensus(
       validators: Validators = validators,
       blockExecutionOpt: Option[BlockExecution] = None
-  ): Consensus = {
+  ): ConsensusAdapter = {
     val testMining = mining.withValidators(validators).withVM(new Mocks.MockVM())
     val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
-    new ConsensusImpl(
-      blockchain,
+
+    new ConsensusAdapter(
+      new ConsensusImpl(
+        blockchain,
+        blockchainReader,
+        blockchainWriter,
+        blockQueue,
+        blockExecutionOpt.getOrElse(mkBlockExecution(validators))
+      ),
       blockchainReader,
-      blockchainWriter,
       blockQueue,
       blockValidation,
-      blockExecutionOpt.getOrElse(mkBlockExecution(validators)),
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
   }

@@ -45,9 +45,7 @@ class ConsensusImpl(
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
-    blockValidation: BlockValidation,
-    blockExecution: BlockExecution,
-    validationScheduler: Scheduler // Can't be implicit because of importToTop method and ambiguous of Scheduler
+    blockExecution: BlockExecution
 ) extends Consensus
     with Logger {
 
@@ -63,26 +61,19 @@ class ConsensusImpl(
     *   - [[DuplicateBlock]]     - block already exists either in the main chain or in the queue
     *   - [[BlockImportFailed]]  - block failed to execute (when importing to top or reorganising the chain)
     */
-  override def evaluateBranchBlock(
-      block: Block
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] =
+  override def evaluateBranch(
+      branch: Seq[Block]
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+    val block = branch.head
     blockchainReader.getBestBlock() match {
       case Some(bestBlock) =>
-        if (isBlockADuplicate(block.header, bestBlock.header.number)) {
-          log.debug("Ignoring duplicated block: {}", block.idTag)
-          Task.now(DuplicateBlock)
-        } else {
-          blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
-            case Some(weight) =>
-              doBlockPreValidation(block).flatMap {
-                case Left(error) => Task.now(BlockImportFailed(error.reason.toString))
-                case Right(_)    => handleBlockImport(block, bestBlock, weight)
-              }
-            case None => returnNoTotalDifficulty(bestBlock)
-          }
+        blockchainReader.getChainWeightByHash(bestBlock.header.hash) match {
+          case Some(weight) => handleBlockImport(block, bestBlock, weight)
+          case None         => returnNoTotalDifficulty(bestBlock)
         }
       case None => returnNoBestBlock()
     }
+  }
 
   private def handleBlockImport(block: Block, bestBlock: Block, weight: ChainWeight)(implicit
       blockExecutionScheduler: Scheduler,
@@ -96,18 +87,6 @@ class ConsensusImpl(
     importResult.foreach(measureBlockMetrics)
     importResult
   }
-
-  private def doBlockPreValidation(block: Block)(implicit
-      blockchainConfig: BlockchainConfig
-  ): Task[Either[ValidationBeforeExecError, BlockExecutionSuccess]] =
-    Task
-      .evalOnce(blockValidation.validateBlockBeforeExecution(block))
-      .tap {
-        case Left(error) =>
-          log.error("Error while validating block with hash {} before execution: {}", block.hash, error.reason)
-        case Right(_) => log.debug("Block with hash {} validated successfully", block.hash)
-      }
-      .executeOn(validationScheduler)
 
   private def returnNoTotalDifficulty(bestBlock: Block): Task[BlockImportFailed] = {
     log.error(
@@ -124,13 +103,6 @@ class ConsensusImpl(
   private def returnNoBestBlock(): Task[BlockImportFailed] = {
     log.error("Getting current best block failed")
     Task.now(BlockImportFailed("Couldn't find the current best block"))
-  }
-
-  private def isBlockADuplicate(block: BlockHeader, currentBestBlockNumber: BigInt): Boolean = {
-    val hash = block.hash
-    blockchainReader.getBlockByHash(hash).isDefined && block.number <= currentBestBlockNumber || blockQueue.isQueued(
-      hash
-    )
   }
 
   private def isPossibleNewBestBlock(newBlock: BlockHeader, currentBestBlock: BlockHeader): Boolean =

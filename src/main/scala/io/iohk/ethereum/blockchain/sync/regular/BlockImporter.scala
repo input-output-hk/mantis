@@ -21,6 +21,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain._
@@ -38,7 +39,7 @@ import io.iohk.ethereum.utils.FunctorOps._
 
 class BlockImporter(
     fetcher: ActorRef,
-    consensus: Consensus,
+    consensus: ConsensusAdapter,
     blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
     branchResolution: BranchResolution,
@@ -331,7 +332,7 @@ object BlockImporter {
   // scalastyle:off parameter.number
   def props(
       fetcher: ActorRef,
-      consensus: Consensus,
+      consensus: ConsensusAdapter,
       blockchainReader: BlockchainReader,
       stateStorage: StateStorage,
       branchResolution: BranchResolution,

@@ -27,6 +27,7 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImporter
 import io.iohk.ethereum.blockchain.sync.regular.BlockImporter.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.pow.validators.OmmersValidator
 import io.iohk.ethereum.consensus.pow.validators.StdOmmersValidator
@@ -235,7 +236,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
     override val ommersValidator: OmmersValidator = new StdOmmersValidator(blockHeaderValidator)
   }
 
-  override lazy val consensus: Consensus = mkConsensus(
+  override lazy val consensusAdapter: ConsensusAdapter = mkConsensus(
     validators = successValidators,
     blockExecutionOpt = Some(
       new BlockExecution(
@@ -258,7 +259,7 @@ class TestFixture extends TestSetupWithVmAndValidators {
   val blockImporter: ActorRef = system.actorOf(
     BlockImporter.props(
       fetcherProbe.ref,
-      consensus,
+      consensusAdapter,
       blockchainReader,
       storagesInstance.storages.stateStorage,
       new BranchResolution(blockchainReader),

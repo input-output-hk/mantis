@@ -27,6 +27,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.checkpointing.CheckpointingTestHelpers
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.FullMiningConfig
@@ -105,16 +106,21 @@ object RegularSyncItSpecUtils {
         mining.blockPreparator,
         blockValidation
       )
-    lazy val blockImport: Consensus =
+    lazy val consensus: Consensus =
       new ConsensusImpl(
         bl,
         blockchainReader,
         blockchainWriter,
         blockQueue,
-        blockValidation,
-        blockExecution,
-        Scheduler.global
+        blockExecution
       )
+    lazy val consensusAdapter = new ConsensusAdapter(
+      consensus,
+      blockchainReader,
+      blockQueue,
+      blockValidation,
+      Scheduler.global
+    )
 
     lazy val ommersPool: ActorRef = system.actorOf(OmmersPool.props(blockchainReader, 1), "ommers-pool")
 
@@ -147,7 +153,7 @@ object RegularSyncItSpecUtils {
     lazy val blockImporter: ActorRef = system.actorOf(
       BlockImporter.props(
         fetcher.toClassic,
-        blockImport,
+        consensusAdapter,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(blockchainReader),
@@ -165,7 +171,7 @@ object RegularSyncItSpecUtils {
         peersClient,
         etcPeerManager,
         peerEventBus,
-        blockImport,
+        consensusAdapter,
         blockchainReader,
         storagesInstance.storages.stateStorage,
         new BranchResolution(blockchainReader),

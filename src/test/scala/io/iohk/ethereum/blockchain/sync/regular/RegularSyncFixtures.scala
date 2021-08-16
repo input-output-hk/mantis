@@ -33,6 +33,7 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
@@ -87,7 +88,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           peersClient.ref,
           etcPeerManager.ref,
           peerEventBus.ref,
-          consensus,
+          consensusAdapter,
           blockchainReader,
           stateStorage,
           branchResolution,
@@ -206,15 +207,14 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           stub[BlockchainReader],
           stub[BlockchainWriter],
           stub[BlockQueue],
-          stub[BlockValidation],
-          stub[BlockExecution],
-          stub[Scheduler]
+          stub[BlockExecution]
         ) {
-      override def evaluateBranchBlock(
-          block: Block
+      override def evaluateBranch(
+          branch: Seq[Block]
       )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-        importedBlocksSet.add(block)
-        results(block.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
+        // TODO have a real implementation ETCM-1069
+        importedBlocksSet.add(branch.head)
+        results(branch.head.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(branch.head)))
       }
     }
 
@@ -316,28 +316,24 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     implicit def eqInstanceForPeersClientRequest[T <: Message]: Eq[PeersClient.Request[T]] =
       (x, y) => x.message == y.message && x.peerSelector == y.peerSelector
 
-    class FakeConsensus extends TestConsensus {
-      override def evaluateBranchBlock(
-          block: Block
-      )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-        val result: BlockImportResult = if (didTryToImportBlock(block)) {
-          DuplicateBlock
+    def fakeEvaluateBlock(
+        block: Block
+    )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+      val result: BlockImportResult = if (didTryToImportBlock(block)) {
+        DuplicateBlock
+      } else {
+        if (importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))) {
+          importedBlocksSet.add(block)
+          BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
+        } else if (block.number > bestBlock.number) {
+          importedBlocksSet.add(block)
+          BlockEnqueued
         } else {
-          if (
-            importedBlocksSet.isEmpty || bestBlock.isParentOf(block) || importedBlocksSet.exists(_.isParentOf(block))
-          ) {
-            importedBlocksSet.add(block)
-            BlockImportedToTop(List(BlockData(block, Nil, ChainWeight.totalDifficultyOnly(block.header.difficulty))))
-          } else if (block.number > bestBlock.number) {
-            importedBlocksSet.add(block)
-            BlockEnqueued
-          } else {
-            BlockImportFailed("foo")
-          }
+          BlockImportFailed("foo")
         }
-
-        Task.now(result)
       }
+
+      Task.now(result)
     }
 
     class FakeBranchResolution extends BranchResolution(stub[BlockchainReader]) {
@@ -360,7 +356,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     val newBlock: Block = BlockHelpers.generateBlock(testBlocks.last)
 
-    override lazy val consensus: Consensus = stub[ConsensusImpl]
+    override lazy val consensusAdapter: ConsensusAdapter = stub[ConsensusAdapter]
 
     var blockFetcher: ActorRef = _
 
@@ -370,7 +366,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     override lazy val branchResolution: BranchResolution = stub[BranchResolution]
     (branchResolution.resolveBranch _).when(*).returns(NewBetterBranch(Nil))
 
-    (consensus
+    (consensusAdapter
       .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
       .when(*, *, *)
       .onCall { (block, _, _) =>

@@ -20,6 +20,7 @@ import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressState
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Block
@@ -33,7 +34,7 @@ class RegularSync(
     peersClient: ActorRef,
     etcPeerManager: ActorRef,
     peerEventBus: ActorRef,
-    consensus: Consensus,
+    consensus: ConsensusAdapter,
     blockchainReader: BlockchainReader,
     stateStorage: StateStorage,
     branchResolution: BranchResolution,
@@ -137,7 +138,7 @@ object RegularSync {
       peersClient: ActorRef,
       etcPeerManager: ActorRef,
       peerEventBus: ActorRef,
-      consensus: Consensus,
+      consensus: ConsensusAdapter,
       blockchainReader: BlockchainReader,
       stateStorage: StateStorage,
       branchResolution: BranchResolution,

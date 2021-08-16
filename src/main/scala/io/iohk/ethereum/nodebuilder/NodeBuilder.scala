@@ -26,6 +26,7 @@ import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
 import io.iohk.ethereum.blockchain.sync.CacheBasedBlacklist
 import io.iohk.ethereum.blockchain.sync.SyncController
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.consensus.mining.MiningBuilder
@@ -205,8 +206,15 @@ trait ConsensusBuilder {
       blockchainReader,
       blockchainWriter,
       blockQueue,
+      blockExecution
+    )
+
+  lazy val consensusAdapter: ConsensusAdapter =
+    new ConsensusAdapter(
+      consensus,
+      blockchainReader,
+      blockQueue,
       blockValidation,
-      blockExecution,
       Scheduler(system.dispatchers.lookup("validation-context"))
     )
 }
@@ -755,7 +763,7 @@ trait SyncControllerBuilder {
       storagesInstance.storages.stateStorage,
       storagesInstance.storages.nodeStorage,
       storagesInstance.storages.fastSyncStateStorage,
-      consensus,
+      consensusAdapter,
       mining.validators,
       peerEventBus,
       pendingTransactionsManager,

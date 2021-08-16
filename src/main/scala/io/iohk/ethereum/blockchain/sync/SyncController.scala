@@ -10,6 +10,7 @@ import akka.actor.Scheduler
 import io.iohk.ethereum.blockchain.sync.fast.FastSync
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync
 import io.iohk.ethereum.consensus.Consensus
+import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.validators.Validators
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockNumberMappingStorage
@@ -34,7 +35,7 @@ class SyncController(
     stateStorage: StateStorage,
     nodeStorage: NodeStorage,
     fastSyncStateStorage: FastSyncStateStorage,
-    consensus: Consensus,
+    consensus: ConsensusAdapter,
     validators: Validators,
     peerEventBus: ActorRef,
     pendingTransactionsManager: ActorRef,
@@ -159,7 +160,7 @@ object SyncController {
       stateStorage: StateStorage,
       nodeStorage: NodeStorage,
       syncStateStorage: FastSyncStateStorage,
-      consensus: Consensus,
+      consensus: ConsensusAdapter,
       validators: Validators,
       peerEventBus: ActorRef,
       pendingTransactionsManager: ActorRef,

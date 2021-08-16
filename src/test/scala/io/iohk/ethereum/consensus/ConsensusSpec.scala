@@ -46,12 +46,12 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     setBlockExists(block1, inChain = true, inQueue = false)
     setBestBlock(bestBlock)
 
-    whenReady(consensus.evaluateBranchBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensusAdapter.evaluateBranchBlock(block1).runToFuture)(_ shouldEqual DuplicateBlock)
 
     setBlockExists(block2, inChain = false, inQueue = true)
     setBestBlock(bestBlock)
 
-    whenReady(consensus.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
+    whenReady(consensusAdapter.evaluateBranchBlock(block2).runToFuture)(_ shouldEqual DuplicateBlock)
   }
 
   it should "import a block to the top of the main chain" in new ImportBlockTestSetup {
@@ -111,7 +111,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockQueue.removeSubtree _).expects(*)
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture)(
       _ shouldBe BlockImportFailed("MPTError(io.iohk.ethereum.mpt.MerklePatriciaTrie$MPTException: Invalid Node)")
     )
   }
@@ -123,7 +123,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     (blockchainReader.getBestBlock _).expects().returning(None)
     setChainWeightForBlock(bestBlock, currentWeight)
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture)(
       _ shouldBe BlockImportFailed("Couldn't find the current best block")
     )
   }
@@ -137,7 +137,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     (blockchainReader.getBlockHeaderByHash _).expects(*).returning(Some(block.header))
 
-    whenReady(consensus.evaluateBranchBlock(block).runToFuture) { result =>
+    whenReady(consensusAdapter.evaluateBranchBlock(block).runToFuture) { result =>
       result shouldBe a[BlockImportFailed]
       result
         .asInstanceOf[BlockImportFailed]
@@ -256,7 +256,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderParentNotFoundError))
 
-    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture)(
+    whenReady(consensusAdapter.evaluateBranchBlock(newBlock).runToFuture)(
       _ shouldEqual BlockImportFailed("HeaderParentNotFoundError")
     )
   }
@@ -276,7 +276,7 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .expects(newBlock.header, *, *)
       .returning(Left(HeaderDifficultyError))
 
-    whenReady(consensus.evaluateBranchBlock(newBlock).runToFuture) {
+    whenReady(consensusAdapter.evaluateBranchBlock(newBlock).runToFuture) {
       _ shouldEqual BlockImportFailed(HeaderDifficultyError.toString)
     }
   }
@@ -343,6 +343,109 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockchainWriter.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
 
     blockchainReader.getBestBlock().get shouldEqual newBlock3WithOmmer
+  }
+
+  it should "dequeue blocks where there is an execution error" in new EphemBlockchain {
+    val mockExecution = mock[BlockExecution]
+
+    val currentBestBlock: Block = getBlock(bestNum - 2)
+    val block1Weight = ChainWeight.totalDifficultyOnly(currentBestBlock.header.difficulty + 999)
+
+    blockchainWriter.save(currentBestBlock, Nil, block1Weight, saveAsBestBlock = true)
+
+    val newBlock1: Block = getBlock(bestNum - 1, difficulty = 101, parent = currentBestBlock.header.hash)
+    val newBlock2: Block = getBlock(bestNum, difficulty = 105, parent = newBlock1.header.hash)
+
+    (mockExecution
+      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .expects(List(newBlock1, newBlock2), *, *)
+      .returning((Nil, Some(execError)))
+    val consensusAdapterWithFailingExecution = blockImportWithMockedBlockExecution(mockExecution)
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock2.hash) shouldBe true
+    }
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock1).runToFuture) { result =>
+      result shouldBe a[BlockImportFailed]
+      blockQueue.isQueued(newBlock1.hash) shouldBe false
+      blockQueue.isQueued(newBlock2.hash) shouldBe false
+    }
+  }
+
+  it should "dequeue blocks that are children of a failing block when all blocks are failing" in new EphemBlockchain {
+    val mockExecution = mock[BlockExecution]
+
+    val currentBestBlock: Block = getBlock(bestNum)
+
+    blockchainWriter.save(currentBestBlock, Nil, currentWeight, saveAsBestBlock = true)
+
+    val newBlock1: Block = getBlock(bestNum + 1, difficulty = 101, parent = currentBestBlock.header.hash)
+    val newBlock2: Block = getBlock(bestNum + 2, difficulty = 105, parent = newBlock1.header.hash)
+    val newBlock2bis: Block = getBlock(bestNum + 2, difficulty = 50, parent = newBlock1.header.hash)
+
+    (mockExecution
+      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .expects(List(newBlock1, newBlock2), *, *)
+      .returning((Nil, Some(execError)))
+    val consensusAdapterWithFailingExecution = blockImportWithMockedBlockExecution(mockExecution)
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock2.hash) shouldBe true
+    }
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock2bis).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock2bis.hash) shouldBe true
+    }
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock1).runToFuture) { result =>
+      result shouldBe a[BlockImportFailed]
+      blockQueue.isQueued(newBlock1.hash) shouldBe false
+      blockQueue.isQueued(newBlock2.hash) shouldBe false
+      blockQueue.isQueued(newBlock2bis.hash) shouldBe false
+    }
+  }
+
+  it should "dequeue blocks that are children of a failing block in case of partial execution" in new EphemBlockchain {
+    val mockExecution = mock[BlockExecution]
+
+    val currentBestBlock: Block = getBlock(bestNum)
+
+    blockchainWriter.save(currentBestBlock, Nil, currentWeight, saveAsBestBlock = true)
+
+    val newBlock1: Block = getBlock(bestNum + 1, difficulty = 101, parent = currentBestBlock.header.hash)
+    val newBlock2: Block = getBlock(bestNum + 2, difficulty = 105, parent = newBlock1.header.hash)
+    val newBlock3: Block = getBlock(bestNum + 3, difficulty = 105, parent = newBlock2.header.hash)
+    val newBlock3bis: Block = getBlock(bestNum + 3, difficulty = 50, parent = newBlock2.header.hash)
+
+    (mockExecution
+      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .expects(List(newBlock1, newBlock2, newBlock3), *, *)
+      .returning((List(BlockData(newBlock1, Nil, currentWeight.increase(newBlock1.header))), Some(execError)))
+    val consensusAdapterWithFailingExecution = blockImportWithMockedBlockExecution(mockExecution)
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock2.hash) shouldBe true
+    }
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock3).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock3.hash) shouldBe true
+    }
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock3bis).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock3bis.hash) shouldBe true
+    }
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock1).runToFuture) { result =>
+      result shouldBe a[BlockImportedToTop]
+      blockQueue.isQueued(newBlock2.hash) shouldBe false
+      blockQueue.isQueued(newBlock3.hash) shouldBe false
+      blockQueue.isQueued(newBlock3bis.hash) shouldBe false
+    }
   }
 
   it should "correctly import a checkpoint block" in new EphemBlockchain with CheckpointHelpers {
