@@ -56,13 +56,6 @@ trait Blockchain {
   def getReadOnlyMptStorage(): MptStorage
 
   def removeBlock(hash: ByteString): Unit
-
-  def saveBestKnownBlocks(
-      bestBlockHash: ByteString,
-      bestBlockNumber: BigInt,
-      latestCheckpointNumber: Option[BigInt] = None
-  ): Unit
-
 }
 
 class BlockchainImpl(
@@ -118,31 +111,6 @@ class BlockchainImpl(
   def getBackingMptStorage(blockNumber: BigInt): MptStorage = stateStorage.getBackingStorage(blockNumber)
 
   def getReadOnlyMptStorage(): MptStorage = stateStorage.getReadOnlyStorage
-
-  override def saveBestKnownBlocks(
-      bestBlockHash: ByteString,
-      bestBlockNumber: BigInt,
-      latestCheckpointNumber: Option[BigInt] = None
-  ): Unit =
-    latestCheckpointNumber match {
-      case Some(number) =>
-        saveBestKnownBlockAndLatestCheckpointNumber(bestBlockHash, bestBlockNumber, number)
-      case None =>
-        saveBestKnownBlock(bestBlockHash, bestBlockNumber)
-    }
-
-  private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
-    appStateStorage.putBestBlockInfo(BlockInfo(bestBlockHash, bestBlockNumber)).commit()
-
-  private def saveBestKnownBlockAndLatestCheckpointNumber(
-      bestBlockHash: ByteString,
-      number: BigInt,
-      latestCheckpointNumber: BigInt
-  ): Unit =
-    appStateStorage
-      .putBestBlockInfo(BlockInfo(bestBlockHash, number))
-      .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
-      .commit()
 
   private def removeBlockNumberMapping(number: BigInt): DataSourceBatchUpdate =
     blockNumberMappingStorage.remove(number)

@@ -464,7 +464,7 @@ class StdOmmersValidatorSpec extends AnyFlatSpec with Matchers with ScalaCheckPr
       .and(blockchainWriter.storeBlock(block95))
       .and(blockchainWriter.storeBlock(block96))
       .commit()
-    blockchain.saveBestKnownBlocks(block96.hash, block96.number)
+    blockchainWriter.saveBestKnownBlocks(block96.hash, block96.number)
 
   }
 }

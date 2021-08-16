@@ -275,7 +275,7 @@ class ConsensusImpl(
     }.maximumOption
 
     val bestHeader = oldBranch.last.block.header
-    blockchain.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
+    blockchainWriter.saveBestKnownBlocks(bestHeader.hash, bestHeader.number, checkpointNumber)
     executedBlocks.foreach(data => blockQueue.enqueueBlock(data.block, bestHeader.number))
 
     newBranch.diff(executedBlocks.map(_.block)).headOption.foreach { block =>

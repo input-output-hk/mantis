@@ -179,7 +179,7 @@ class EthTxServiceSpec
     blockchainWriter
       .storeBlock(block)
       .commit()
-    blockchain.saveBestKnownBlocks(block.hash, block.number)
+    blockchainWriter.saveBestKnownBlocks(block.hash, block.number)
 
     val response = ethTxService.getGetGasPrice(GetGasPriceRequest())
     response.runSyncUnsafe() shouldEqual Right(GetGasPriceResponse(BigInt("20000000000")))
@@ -187,7 +187,7 @@ class EthTxServiceSpec
 
   it should "getTransactionByBlockNumberAndIndexRequest return transaction by index" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)
@@ -222,7 +222,7 @@ class EthTxServiceSpec
 
   it should "getRawTransactionByBlockNumberAndIndex return transaction by index" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val txIndex: Int = 1
     val request = GetTransactionByBlockNumberAndIndexRequest(BlockParam.Latest, txIndex)

@@ -44,7 +44,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
   it should "be able to store a block and retrieve it by number" in new EphemBlockchainTestSetup {
     val validBlock = Fixtures.Blocks.ValidBlock.block
     blockchainWriter.storeBlock(validBlock).commit()
-    blockchain.saveBestKnownBlocks(validBlock.hash, validBlock.number)
+    blockchainWriter.saveBestKnownBlocks(validBlock.hash, validBlock.number)
     val block = blockchainReader.getBlockByNumber(blockchainReader.getBestBranch(), validBlock.header.number)
     block.isDefined should ===(true)
     validBlock should ===(block.get)
@@ -61,7 +61,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     blockchainWriter.save(validBlock, Seq.empty, ChainWeight(100, 100), saveAsBestBlock = true)
     blockchainReader.isInChain(blockchainReader.getBestBranch(), validBlock.hash) should ===(true)
     // simulation of node restart
-    blockchain.saveBestKnownBlocks(validBlock.header.parentHash, validBlock.header.number - 1)
+    blockchainWriter.saveBestKnownBlocks(validBlock.header.parentHash, validBlock.header.number - 1)
     blockchainReader.isInChain(blockchainReader.getBestBranch(), validBlock.hash) should ===(false)
   }
 
@@ -151,7 +151,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
-    blockchain.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
+    blockchainWriter.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
 
     val retrievedAccount = blockchainReader.getAccount(blockchainReader.getBestBranch(), address, headerWithAcc.number)
     retrievedAccount shouldEqual Some(account)
@@ -171,7 +171,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = validHeader.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
-    blockchain.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
+    blockchainWriter.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
 
     //unhappy path
     val wrongAddress = Address(666)
@@ -200,7 +200,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val headerWithAcc = Fixtures.Blocks.ValidBlock.header.copy(stateRoot = ByteString(mptWithAcc.getRootHash))
 
     blockchainWriter.storeBlockHeader(headerWithAcc).commit()
-    blockchain.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
+    blockchainWriter.saveBestKnownBlocks(headerWithAcc.hash, headerWithAcc.number)
 
     val wrongAddress = Address(666)
     val retrievedAccountProofWrong =
