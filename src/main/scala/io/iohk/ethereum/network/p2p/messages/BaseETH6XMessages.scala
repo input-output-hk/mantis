@@ -117,13 +117,17 @@ object BaseETH6XMessages {
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
       import SignedTransactions._
+      import TypedTransaction._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
         case RLPList(RLPList(blockHeader, transactionList: RLPList, uncleNodesList: RLPList), totalDifficulty) =>
           NewBlock(
             Block(
               blockHeader.toBlockHeader,
-              BlockBody(transactionList.items.map(_.toSignedTransaction), uncleNodesList.items.map(_.toBlockHeader))
+              BlockBody(
+                transactionList.items.toTypedRLPEncodables.map(_.toSignedTransaction),
+                uncleNodesList.items.map(_.toBlockHeader)
+              )
             ),
             totalDifficulty
           )
@@ -152,6 +156,36 @@ object BaseETH6XMessages {
         s"}"
 
     override def code: Int = Codes.NewBlockCode
+  }
+
+  object TypedTransaction {
+    implicit class TypedTransactionsRLPAggregator(val encodables: Seq[RLPEncodeable]) extends AnyVal {
+
+      /** Convert a Seq of RLPEncodable containing TypedTransaction informations into a Seq of
+        * Prefixed RLPEncodable.
+        *
+        * PrefixedRLPEncodable(prefix, prefixedRLPEncodable) generates binary data
+        * as prefix || RLPEncodable(prefixedRLPEncodable).
+        *
+        * As prefix is a byte value lower than 0x7f, it is read back as RLPValue(prefix),
+        * thus PrefixedRLPEncodable is binary equivalent to RLPValue(prefix), RLPEncodable
+        *
+        * The method aggregates back the typed transaction prefix with the following heuristic:
+        * - a RLPValue(byte) with byte < 07f + the following RLPEncodable are associated as a PrefixedRLPEncodable
+        * - all other RLPEncodable are kept unchanged
+        *
+        * This is the responsibility of the RLPDecoder to insert this meaning into its RLPList, when appropriate.
+        *
+        * @return a Seq of TypedTransaction enriched RLPEncodable
+        */
+      def toTypedRLPEncodables: Seq[RLPEncodeable] =
+        encodables match {
+          case Seq() => Seq()
+          case Seq(RLPValue(v), rlpList: RLPList, tail @ _*) if v.length == 1 && v.head < 0x7f =>
+            PrefixedRLPEncodable(v.head, rlpList) +: tail.toTypedRLPEncodables
+          case Seq(head, tail @ _*) => head +: tail.toTypedRLPEncodables
+        }
+    }
   }
 
   object SignedTransactions {
@@ -207,23 +241,25 @@ object BaseETH6XMessages {
 
     implicit class SignedTransactionsDec(val bytes: Array[Byte]) extends AnyVal {
 
-      def mergeTransactionType(encodables: Seq[RLPEncodeable]): Seq[RLPEncodeable] =
-        encodables match {
-          case Seq() => Seq()
-          case Seq(RLPValue(v), rlpList: RLPList, tail @ _*) if v.length == 1 =>
-            PrefixedRLPEncodable(v.head, rlpList) +: mergeTransactionType(tail)
-          case Seq(head, tail @ _*) => head +: mergeTransactionType(tail)
-        }
-      def toSignedTransactions: SignedTransactions =
-        rawDecode(bytes) match {
-          case rlpList: RLPList => SignedTransactions(mergeTransactionType(rlpList.items).map(_.toSignedTransaction))
-          case _                => throw new RuntimeException("Cannot decode SignedTransactions")
-        }
+      import TypedTransaction._
+
+      def toSignedTransactions: SignedTransactions = rawDecode(bytes) match {
+        case rlpList: RLPList => SignedTransactions(rlpList.items.toTypedRLPEncodables.map(_.toSignedTransaction))
+        case _                => throw new RuntimeException("Cannot decode SignedTransactions")
+      }
     }
 
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
 
       // scalastyle:off method.length
+
+      /** A signed transaction is either a RLPList representing a Legacy SignedTransaction
+        * or a PrefixedRLPEncodable(transactionType, RLPList of typed transaction envelope)
+        *
+        * @see TypedTransaction.TypedTransactionsRLPAggregator
+        *
+        * @return a SignedTransaction
+        */
       def toSignedTransaction: SignedTransaction = rlpEncodeable match {
         case PrefixedRLPEncodable(
               Transaction.Type01,

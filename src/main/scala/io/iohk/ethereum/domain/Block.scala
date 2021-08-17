@@ -43,12 +43,13 @@ object Block {
 
   implicit class BlockDec(val bytes: Array[Byte]) extends AnyVal {
     import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
+    import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.TypedTransaction._
     def toBlock: Block = rawDecode(bytes) match {
       case RLPList(header: RLPList, stx: RLPList, uncles: RLPList) =>
         Block(
           header.toBlockHeader,
           BlockBody(
-            stx.items.map(_.toSignedTransaction),
+            stx.items.toTypedRLPEncodables.map(_.toSignedTransaction),
             uncles.items.map(_.toBlockHeader)
           )
         )

@@ -44,7 +44,22 @@ package object rlp {
     override def toString: String = s"RLPValue(${Hex.toHexString(bytes)})"
   }
 
-  case class PrefixedRLPEncodable(prefix: Byte, prefixedRLPEncodeable: RLPEncodeable) extends RLPEncodeable
+  /** Modelise a RLPEncodable that should be binary prefixed by a raw byte.
+    *
+    * When converting this RLPEncodable to byte, the resulting value will be:
+    * prefix || prefixedRLPEncodable.toByte
+    * where || is the binary concatenation symbol.
+    *
+    * To be able to read back the data, use TypedTransaction.TypedTransactionsRLPAggregator
+    *
+    * This is for example used for typed transaction and typed receipt.
+    *
+    * @param prefix the raw byte
+    * @param prefixedRLPEncodeable the RLPEncodable to prefix with
+    */
+  case class PrefixedRLPEncodable(prefix: Byte, prefixedRLPEncodeable: RLPEncodeable) extends RLPEncodeable {
+    require(prefix <= 0x07f, "prefix should be lower than 0x7f")
+  }
 
   trait RLPEncoder[T] {
     def encode(obj: T): RLPEncodeable

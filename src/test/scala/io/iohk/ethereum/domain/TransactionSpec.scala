@@ -43,31 +43,12 @@ class TransactionSpec
     forAll(signedTxSeqGen(2, secureRandom, None)) { (originalSignedTransactionSeq: Seq[SignedTransaction]) =>
       // encode it
       import SignedTransactions.SignedTransactionsEnc
-
-      // SignedTransactionsEnc is the Sequence version of SignedTransactionEnc
-      // the SignedTransactionsEnc.toBytes calls
-      // -> SignedTransactionsEnc.toRLPEncodable which maps over
-      // -> SignedTransactionEnc.toRLPEncodable (single signed transaction encoder)
-      // without going through the SignedTransactionEnc.toByte, which is the actual part where the 01 prefix is inserted
       val encodedSignedTransactionSeq: Array[Byte] = SignedTransactions(originalSignedTransactionSeq).toBytes
 
       // decode it
       import SignedTransactions.SignedTransactionsDec
-      // likewise, the SignedTransactionsDec.toSignedTransactions maps over
-      // -> SignedTransactionRlpEncodableDec.toSignedTransaction (single signed transaction)
-      // while ignoring the SignedTransactionDec(Array[Byte]), which is responsible to parse the prefix if available
       val SignedTransactions(decodedSignedTransactionSeq) = encodedSignedTransactionSeq.toSignedTransactions
 
-      // The test is working because both encoding and decoding are skipping the prefix part,
-      // and the rlp encoded transaction is different enough to recognize a LegacyTransaction from a TX1
-
-      // I see two problems:
-      // - the encoding is not compatible with other clients
-      // - this is not working for receipt, where legacy and tx1 receipt payload are the same. As such we can't
-      // distinguish which one it is without the prefix
-
-      // The root cause seems to be that the prefix stuff is done on a byte[] level,
-      // whereas RLPList are working on RLPEncodable
       decodedSignedTransactionSeq shouldEqual originalSignedTransactionSeq
     }
   }
