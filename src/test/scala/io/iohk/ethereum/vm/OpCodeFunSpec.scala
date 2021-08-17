@@ -440,7 +440,10 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val (result, _) = stateOut.stack.pop
         result.toBigInt shouldEqual data
 
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).step()
+        stateOut shouldEqual stateIn
+          .addAccessedStorageKey(stateIn.ownAddress, UInt256(offset))
+          .withStack(stateOut.stack)
+          .step()
       }
     }
   }
@@ -459,7 +462,11 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val data = stateOut.storage.load(offset)
         data shouldEqual value.toBigInt
 
-        stateOut shouldEqual stateIn.withStack(stateOut.stack).withStorage(stateOut.storage).step()
+        stateOut shouldEqual stateIn
+          .addAccessedStorageKey(stateIn.ownAddress, offset)
+          .withStack(stateOut.stack)
+          .withStorage(stateOut.storage)
+          .step()
       }
     }
   }
@@ -796,6 +803,7 @@ class OpCodeFunSpec extends AnyFunSuite with OpCodeTesting with Matchers with Sc
         val expectedState = stateIn
           .withWorld(world1)
           .withAddressToDelete(stateIn.env.ownerAddr)
+          .addAccessedAddress(Address(refundAddr))
           .withStack(stack1)
           .withReturnData(ByteString.empty)
           .halt

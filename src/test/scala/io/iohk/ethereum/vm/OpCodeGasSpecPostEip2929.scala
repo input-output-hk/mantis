@@ -1,9 +1,12 @@
 package io.iohk.ethereum.vm
 
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
@@ -110,4 +113,135 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     }
   }
 
+  test(SLOAD) { op =>
+    val stateGen = getProgramStateGen(
+      evmConfig = config,
+      stackGen = getStackGen(elems = 1),
+      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+    )
+
+    forAll(stateGen) { stateIn =>
+      stateIn.accessedStorageKeys shouldBe empty
+      val (offset, _) = stateIn.stack.pop
+
+      val stateOut = op.execute(stateIn)
+
+      verifyGas(G_cold_account_access, stateIn, stateOut)
+      assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
+    }
+
+    forAll(stateGen) { stateIn =>
+      val (offset, _) = stateIn.stack.pop
+
+      val stateOut = op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+
+      verifyGas(G_warm_storage_read, stateIn, stateOut)
+      assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
+    }
+  }
+
+  test(SELFDESTRUCT) { op =>
+    val stateGen = getProgramStateGen(
+      evmConfig = config,
+      stackGen = getStackGen(elems = 1),
+      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+    )
+
+    val addressAlreadyAccessedGen = Arbitrary.arbitrary[Boolean]
+
+    // Sending refund to a non-existent account
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      whenever(stateIn.world.getAccount(refundAddress).isEmpty && stateIn.ownBalance > 0) {
+        val stateOut =
+          if (addressAlreadyAccessed) op.execute(stateIn.addAccessedAddress(refundAddress)) else op.execute(stateIn)
+        stateOut.gasRefund shouldEqual R_selfdestruct
+        if (addressAlreadyAccessed)
+          verifyGas(G_selfdestruct + G_newaccount, stateIn, stateOut)
+        else
+          verifyGas(G_selfdestruct + G_newaccount + G_cold_account_access, stateIn, stateOut)
+      }
+    }
+
+    // Sending refund to an already existing account not dead account
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      val world = stateIn.world.saveAccount(refundAddress, Account.empty().increaseNonce())
+      val updatedStateIn = stateIn.withWorld(world)
+      val stateOut =
+        if (addressAlreadyAccessed) op.execute(updatedStateIn.addAccessedAddress(refundAddress))
+        else op.execute(updatedStateIn)
+      if (addressAlreadyAccessed)
+        verifyGas(G_selfdestruct, updatedStateIn, stateOut)
+      else
+        verifyGas(G_selfdestruct + G_cold_account_access, updatedStateIn, stateOut)
+      stateOut.gasRefund shouldEqual R_selfdestruct
+    }
+
+    // Owner account was already selfdestructed
+    forAll(stateGen, addressAlreadyAccessedGen) { (stateIn, addressAlreadyAccessed) =>
+      val (refund, _) = stateIn.stack.pop
+      val refundAddress = Address(refund)
+      whenever(stateIn.world.getAccount(refundAddress).isEmpty && stateIn.ownBalance > 0) {
+        val updatedStateIn = stateIn.withAddressToDelete(stateIn.env.ownerAddr)
+        val stateOut =
+          if (addressAlreadyAccessed) op.execute(updatedStateIn.addAccessedAddress(refundAddress))
+          else op.execute(updatedStateIn)
+        if (addressAlreadyAccessed)
+          verifyGas(G_selfdestruct + G_newaccount, updatedStateIn, stateOut)
+        else
+          verifyGas(G_selfdestruct + G_newaccount + G_cold_account_access, updatedStateIn, stateOut)
+        stateOut.gasRefund shouldEqual 0
+      }
+    }
+  }
+
+  test(SSTORE) { op =>
+    val storage = MockStorage.Empty.store(Zero, One)
+    val table = Table[UInt256, UInt256, Boolean, BigInt, BigInt](
+      ("offset", "value", "alreadyAccessed", "startGas", "expectedGasConsumption"),
+      (0, 1, true, G_callstipend + 1, G_sload),
+      (0, 1, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (0, 0, true, G_callstipend + 1, G_sload),
+      (0, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (1, 0, true, G_callstipend + 1, G_sload),
+      (1, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (1, 1, true, G_sset, G_sset),
+      (1, 1, false, G_sset + G_cold_account_access, G_sset + G_cold_account_access)
+    )
+
+    forAll(table) { (offset, value, alreadyAccessed, startGas, expectedGasConsumption) =>
+      val stackIn = Stack.empty().push(value).push(offset)
+      val stateIn = getProgramStateGen(
+        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        evmConfig = config
+      ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = startGas)
+
+      val stateOut =
+        if (alreadyAccessed) op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+        else op.execute(stateIn)
+      verifyGas(expectedGasConsumption, stateIn, stateOut, allowOOG = false)
+    }
+
+    // test G_sreset
+    forAll(Arbitrary.arbitrary[Boolean]) { alreadyAccessed =>
+      val offset = 0
+      val value = 0
+      val expectedGasConsumption = if (alreadyAccessed) G_sreset else G_sreset + G_cold_account_access
+
+      val stackIn = Stack.empty().push(value).push(offset)
+      val stateIn = getProgramStateGen(
+        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        evmConfig = config,
+        storageGen = Gen.const(storage)
+      ).sample.get.withStack(stackIn).copy(gas = expectedGasConsumption)
+
+      val stateOut =
+        if (alreadyAccessed) op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
+        else op.execute(stateIn)
+      verifyGas(expectedGasConsumption, stateIn, stateOut, allowOOG = false)
+    }
+  }
 }
