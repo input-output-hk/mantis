@@ -152,7 +152,7 @@ object PeersClient {
   //TODO: get the value from syncConfig.peersToFetchFrom
   val numberOfPeersToFetchFrom = 1
 
-  private val activeFetchingNodes: mutable.Set[Peer] = lruSet[Peer](numberOfPeersToFetchFrom)
+  val activeFetchingNodes: mutable.Set[Peer] = lruSet[Peer](numberOfPeersToFetchFrom)
 
   private def lruSet[A](maxEntries: Int): mutable.Set[A] =
     newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {

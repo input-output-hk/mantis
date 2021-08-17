@@ -53,7 +53,7 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
       } yield start.to(end, batchSize)
 
     startBatchBlocks match {
-      case None      => EitherT.leftT(RequestFailed(peer, "couldn't find blocks to fetch"))
+      case None      => EitherT.leftT(RequestFailed(peer, "Couldn't find blocks to fetch"))
       case Some(seq) => seq.traverse(num => fetchBlocks(peer, batchSize, Left(num))).map(_ => ())
     }
   }
