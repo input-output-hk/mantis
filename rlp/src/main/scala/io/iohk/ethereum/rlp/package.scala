@@ -58,7 +58,7 @@ package object rlp {
     * @param prefixedRLPEncodeable the RLPEncodable to prefix with
     */
   case class PrefixedRLPEncodable(prefix: Byte, prefixedRLPEncodeable: RLPEncodeable) extends RLPEncodeable {
-    require(prefix <= 0x07f, "prefix should be lower than 0x7f")
+    require(prefix >= 0, "prefix should be in the range [0; 0x7f]")
   }
 
   trait RLPEncoder[T] {

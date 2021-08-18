@@ -23,12 +23,24 @@ sealed trait Transaction extends Product with Serializable {
 
 object Transaction {
   val Type01: Byte = 1.toByte
+
+  val MinAllowedType: Byte = 0
+  val MaxAllowedType: Byte = 0x7f
+
   val LegacyThresholdLowerBound: Int = 0xc0
   val LegacyThresholdUpperBound: Int = 0xfe
 
   def withGasLimit(gl: BigInt): Transaction => Transaction = {
     case tx: LegacyTransaction         => tx.copy(gasLimit = gl)
     case tx: TransactionWithAccessList => tx.copy(gasLimit = gl)
+  }
+
+  implicit class TransactionTypeValidator(val transactionType: Byte) extends AnyVal {
+    def isValidTransactionType: Boolean = transactionType >= MinAllowedType && transactionType <= MaxAllowedType
+  }
+
+  implicit class ByteArrayTransactionTypeValidator(val binaryData: Array[Byte]) extends AnyVal {
+    def isValidTransactionType: Boolean = binaryData.length == 1 && binaryData.head.isValidTransactionType
   }
 }
 

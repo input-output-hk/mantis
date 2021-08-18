@@ -161,6 +161,8 @@ object BaseETH6XMessages {
   object TypedTransaction {
     implicit class TypedTransactionsRLPAggregator(val encodables: Seq[RLPEncodeable]) extends AnyVal {
 
+      import Transaction.ByteArrayTransactionTypeValidator
+
       /** Convert a Seq of RLPEncodable containing TypedTransaction informations into a Seq of
         * Prefixed RLPEncodable.
         *
@@ -181,7 +183,7 @@ object BaseETH6XMessages {
       def toTypedRLPEncodables: Seq[RLPEncodeable] =
         encodables match {
           case Seq() => Seq()
-          case Seq(RLPValue(v), rlpList: RLPList, tail @ _*) if v.length == 1 && v.head < 0x7f =>
+          case Seq(RLPValue(v), rlpList: RLPList, tail @ _*) if v.isValidTransactionType =>
             PrefixedRLPEncodable(v.head, rlpList) +: tail.toTypedRLPEncodables
           case Seq(head, tail @ _*) => head +: tail.toTypedRLPEncodables
         }
