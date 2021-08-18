@@ -10,8 +10,8 @@ import boopickle.Default._
 import com.google.common.cache.RemovalNotification
 
 import io.iohk.ethereum.db.cache.Cache
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.mpt.ByteArraySerializable
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 

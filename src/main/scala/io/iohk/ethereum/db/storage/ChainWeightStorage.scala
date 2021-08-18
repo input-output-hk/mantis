@@ -5,7 +5,7 @@ import akka.util.ByteString
 import boopickle.Default._
 
 import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.ChainWeightStorage._
+import io.iohk.ethereum.db.storage.StorageTypes.BlockHash
 import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
@@ -21,8 +21,4 @@ class ChainWeightStorage(val dataSource: DataSource) extends TransactionalKeyVal
   val valueSerializer: ChainWeight => IndexedSeq[Byte] = (Pickle.intoBytes[ChainWeight] _).andThen(compactPickledBytes)
   val valueDeserializer: IndexedSeq[Byte] => ChainWeight =
     (byteSequenceToBuffer _).andThen(Unpickle[ChainWeight].fromBytes)
-}
-
-object ChainWeightStorage {
-  type BlockHash = ByteString
 }

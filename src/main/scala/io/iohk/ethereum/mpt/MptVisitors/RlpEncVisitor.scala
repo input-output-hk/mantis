@@ -4,7 +4,7 @@ import java.util
 
 import scala.collection.immutable.ArraySeq
 
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.mpt.BranchNode
 import io.iohk.ethereum.mpt.ExtensionNode
 import io.iohk.ethereum.mpt.HashNode

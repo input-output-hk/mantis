@@ -2,8 +2,8 @@ package io.iohk.ethereum.mpt.MptVisitors
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.mpt.BranchNode
 import io.iohk.ethereum.mpt.ExtensionNode
 import io.iohk.ethereum.mpt.HashNode
