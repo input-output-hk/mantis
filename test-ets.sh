@@ -14,7 +14,7 @@ final_exit_code=0
 
 function run_and_annotate {
   echo "running retesteth $1"
-  ets/retesteth -t "$1" &> "retesteth-$1-log.txt"
+  timeout 15m ets/retesteth -t "$1" -- --verbosity 3 &> "retesteth-$1-log.txt"
   exit_code=$?
   echo "retesteth $1 exit code: $exit_code"
 
