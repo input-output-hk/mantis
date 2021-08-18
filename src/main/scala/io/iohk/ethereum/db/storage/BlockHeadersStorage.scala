@@ -6,7 +6,7 @@ import boopickle.Default.Pickle
 import boopickle.Default.Unpickle
 
 import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.BlockHeadersStorage.BlockHeaderHash
+import io.iohk.ethereum.db.storage.StorageTypes.BlockHeaderHash
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
@@ -18,8 +18,6 @@ import io.iohk.ethereum.utils.Picklers._
   */
 class BlockHeadersStorage(val dataSource: DataSource)
     extends TransactionalKeyValueStorage[BlockHeaderHash, BlockHeader] {
-
-  import BlockHeadersStorage._
 
   override val namespace: IndexedSeq[Byte] = Namespaces.HeaderNamespace
 
@@ -33,8 +31,4 @@ class BlockHeadersStorage(val dataSource: DataSource)
   override def valueDeserializer: IndexedSeq[Byte] => BlockHeader =
     // TODO: consider reusing this formula in other storages: ETCM-322
     (byteSequenceToBuffer _).andThen(Unpickle[BlockHeader].fromBytes)
-}
-
-object BlockHeadersStorage {
-  type BlockHeaderHash = ByteString
 }

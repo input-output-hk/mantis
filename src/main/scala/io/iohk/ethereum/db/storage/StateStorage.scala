@@ -8,10 +8,10 @@ import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.StateStorage.FlushSituation
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.mpt.MptNode

@@ -15,8 +15,8 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.iohk.ethereum.ObjectGenerators
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 class CachedNodeStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {

@@ -3,7 +3,7 @@ package io.iohk.ethereum.mpt
 import akka.util.ByteString
 
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException
 import io.iohk.ethereum.mpt.MptVisitors._
 import io.iohk.ethereum.rlp.RLPEncodeable

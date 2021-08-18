@@ -20,7 +20,7 @@ import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefEmpty

@@ -6,7 +6,7 @@ import boopickle.Default.Pickle
 import boopickle.Default.Unpickle
 
 import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.BlockBodiesStorage.BlockBodyHash
+import io.iohk.ethereum.db.storage.StorageTypes.BlockBodyHash
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
 import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
@@ -17,7 +17,6 @@ import io.iohk.ethereum.utils.Picklers._
   *   Value: the block body
   */
 class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyValueStorage[BlockBodyHash, BlockBody] {
-  import BlockBodiesStorage._
 
   override val namespace: IndexedSeq[Byte] = Namespaces.BodyNamespace
 
@@ -30,8 +29,4 @@ class BlockBodiesStorage(val dataSource: DataSource) extends TransactionalKeyVal
 
   override def valueDeserializer: IndexedSeq[Byte] => BlockBody =
     (byteSequenceToBuffer _).andThen(Unpickle[BlockBody].fromBytes)
-}
-
-object BlockBodiesStorage {
-  type BlockBodyHash = ByteString
 }

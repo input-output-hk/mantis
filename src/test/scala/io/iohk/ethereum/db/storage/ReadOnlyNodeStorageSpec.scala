@@ -13,9 +13,9 @@ import io.iohk.ethereum.db.cache.Cache
 import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.StateStorage.GenesisDataLoad
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
 import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.utils.Config.NodeCacheConfig

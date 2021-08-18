@@ -12,7 +12,7 @@ import org.bouncycastle.util.encoders.Hex
 import io.iohk.ethereum.db.cache.AppCaches
 import io.iohk.ethereum.db.cache.LruCache
 import io.iohk.ethereum.db.components.EphemDataSourceComponent
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode

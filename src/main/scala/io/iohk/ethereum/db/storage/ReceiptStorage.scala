@@ -7,7 +7,7 @@ import boopickle.Default.Unpickle
 import boopickle.DefaultBasic._
 
 import io.iohk.ethereum.db.dataSource.DataSource
-import io.iohk.ethereum.db.storage.ReceiptStorage._
+import io.iohk.ethereum.db.storage.StorageTypes.BlockHash
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.SuccessOutcome
 import io.iohk.ethereum.domain._
@@ -29,17 +29,14 @@ class ReceiptStorage(val dataSource: DataSource) extends TransactionalKeyValueSt
   // FIXME: perhaps we should just operate on ByteString to avoid such strange conversions: ETCM-322
   override def keyDeserializer: IndexedSeq[Byte] => BlockHash = k => ByteString.fromArrayUnsafe(k.toArray)
 
-  override def valueSerializer: ReceiptSeq => IndexedSeq[Byte] = receipts =>
+  override def valueSerializer: Seq[Receipt] => IndexedSeq[Byte] = receipts =>
     compactPickledBytes(Pickle.intoBytes(receipts))
 
-  override def valueDeserializer: IndexedSeq[Byte] => ReceiptSeq =
+  override def valueDeserializer: IndexedSeq[Byte] => Seq[Receipt] =
     (byteSequenceToBuffer _).andThen(Unpickle[Seq[Receipt]].fromBytes)
 }
 
 object ReceiptStorage {
-  type BlockHash = ByteString
-  type ReceiptSeq = Seq[Receipt]
-
   implicit val byteStringPickler: Pickler[ByteString] =
     transformPickler[ByteString, Array[Byte]](ByteString(_))(_.toArray[Byte])
   implicit val hashOutcomePickler: Pickler[HashOutcome] = transformPickler[HashOutcome, ByteString] { hash =>

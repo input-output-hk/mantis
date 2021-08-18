@@ -2,8 +2,8 @@ package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
 
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
+import io.iohk.ethereum.db.storage.StorageTypes.NodeEncoded
+import io.iohk.ethereum.db.storage.StorageTypes.NodeHash
 import io.iohk.ethereum.db.storage.pruning.PruneSupport
 import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Logger
