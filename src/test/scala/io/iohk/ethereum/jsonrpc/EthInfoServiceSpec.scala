@@ -102,7 +102,7 @@ class EthServiceSpec
 
   it should "execute call and return a value" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val worldStateProxy = InMemoryWorldStateProxy(
       storagesInstance.storages.evmCodeStorage,
@@ -132,7 +132,7 @@ class EthServiceSpec
 
   it should "execute estimateGas and return a value" in new TestSetup {
     blockchainWriter.storeBlock(blockToRequest).commit()
-    blockchain.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
+    blockchainWriter.saveBestKnownBlocks(blockToRequest.hash, blockToRequest.number)
 
     val estimatedGas = BigInt(123)
     (stxLedger.binarySearchGasEstimation _).expects(*, *, *).returning(estimatedGas)

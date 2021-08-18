@@ -75,6 +75,31 @@ class BlockchainWriter(
   def storeBlockBody(blockHash: ByteString, blockBody: BlockBody): DataSourceBatchUpdate =
     blockBodiesStorage.put(blockHash, blockBody).and(saveTxsLocations(blockHash, blockBody))
 
+  def saveBestKnownBlocks(
+      bestBlockHash: ByteString,
+      bestBlockNumber: BigInt,
+      latestCheckpointNumber: Option[BigInt] = None
+  ): Unit =
+    latestCheckpointNumber match {
+      case Some(number) =>
+        saveBestKnownBlockAndLatestCheckpointNumber(bestBlockHash, bestBlockNumber, number)
+      case None =>
+        saveBestKnownBlock(bestBlockHash, bestBlockNumber)
+    }
+
+  private def saveBestKnownBlock(bestBlockHash: ByteString, bestBlockNumber: BigInt): Unit =
+    appStateStorage.putBestBlockInfo(BlockInfo(bestBlockHash, bestBlockNumber)).commit()
+
+  private def saveBestKnownBlockAndLatestCheckpointNumber(
+      bestBlockHash: ByteString,
+      number: BigInt,
+      latestCheckpointNumber: BigInt
+  ): Unit =
+    appStateStorage
+      .putBestBlockInfo(BlockInfo(bestBlockHash, number))
+      .and(appStateStorage.putLatestCheckpointBlockNumber(latestCheckpointNumber))
+      .commit()
+
   private def saveBlockNumberMapping(number: BigInt, hash: ByteString): DataSourceBatchUpdate =
     blockNumberMappingStorage.put(number, hash)
 

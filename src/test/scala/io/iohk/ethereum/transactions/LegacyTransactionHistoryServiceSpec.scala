@@ -87,7 +87,7 @@ class LegacyTransactionHistoryServiceSpec
           .and(blockchainWriter.storeBlock(blockWithTxs2and3))
           .and(blockchainWriter.storeReceipts(blockWithTxs2and3.hash, blockTx2And3Receipts))
           .commit()
-        blockchain.saveBestKnownBlocks(blockWithTxs2and3.hash, blockWithTxs2and3.number)
+        blockchainWriter.saveBestKnownBlocks(blockWithTxs2and3.hash, blockWithTxs2and3.number)
       }
       response <- transactionHistoryService.getAccountTransactions(address, BigInt(3125360) to BigInt(3125370))
     } yield assert(response === expectedTxs)
