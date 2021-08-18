@@ -87,7 +87,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer1.waitForRegularSyncLoadLastBlock(blockNumber + 1)
     } yield {
       assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
-      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+      assert(
+        peer1.blockchainReader.getLatestCheckpointBlockNumber() == peer2.blockchainReader
+          .getLatestCheckpointBlockNumber()
+      )
     }
   }
 
@@ -111,7 +114,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       _ <- peer2.waitForRegularSyncLoadLastBlock(blockNumber + 5)
     } yield {
       assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
-      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+      assert(
+        peer1.blockchainReader.getLatestCheckpointBlockNumber() == peer2.blockchainReader
+          .getLatestCheckpointBlockNumber()
+      )
     }
   }
 
@@ -135,7 +141,10 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
       val peer1BestBlockNumber = peer1.blockchainReader.getBestBlock().get.number
       val peer2BestBlockNumber = peer2.blockchainReader.getBestBlock().get.number
       assert(peer1BestBlockNumber == peer2BestBlockNumber && peer1BestBlockNumber == length)
-      assert(peer1.bl.getLatestCheckpointBlockNumber() == peer2.bl.getLatestCheckpointBlockNumber())
+      assert(
+        peer1.blockchainReader.getLatestCheckpointBlockNumber() == peer2.blockchainReader
+          .getLatestCheckpointBlockNumber()
+      )
     }
   }
 

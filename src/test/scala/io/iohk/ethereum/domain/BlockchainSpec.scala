@@ -91,7 +91,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     retrievedBlock.isDefined should ===(true)
     validBlock should ===(retrievedBlock.get)
 
-    blockchain.getLatestCheckpointBlockNumber() should ===(validBlock.number)
+    blockchainReader.getLatestCheckpointBlockNumber() should ===(validBlock.number)
     blockchainReader.getBestBlockNumber() should ===(validBlock.number)
   }
 
@@ -119,7 +119,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(thirdBlock.hash)
 
-    blockchain.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
+    blockchainReader.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
     blockchainReader.getBestBlockNumber() should ===(secondBlock.number)
   }
 
@@ -133,7 +133,7 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
 
     blockchain.removeBlock(validBlock.hash)
 
-    blockchain.getLatestCheckpointBlockNumber() should ===(genesis.number)
+    blockchainReader.getLatestCheckpointBlockNumber() should ===(genesis.number)
     blockchainReader.getBestBlockNumber() should ===(genesis.number)
   }
 

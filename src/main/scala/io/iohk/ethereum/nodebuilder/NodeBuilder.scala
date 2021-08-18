@@ -393,7 +393,6 @@ object TransactionHistoryServiceBuilder {
     self: BlockchainBuilder with PendingTransactionsManagerBuilder with TxPoolConfigBuilder =>
     lazy val transactionHistoryService =
       new TransactionHistoryService(
-        blockchain,
         blockchainReader,
         pendingTransactionsManager,
         txPoolConfig.getTransactionFromPoolTimeout
