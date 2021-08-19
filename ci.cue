@@ -74,7 +74,7 @@ ci: {
         test_ets: {
             label: "ETS tests"
             after: ["compile"]
-            command: ["./test-ets-bitte.sh"]
+            command: ["./test-ets.sh"]
             outputs: [
                 "/local/repo/mantis-log.txt",
                 "/local/repo/retesteth-GeneralStateTests-log.txt",
@@ -100,7 +100,7 @@ ci: {
         publish: {
             label: "Publishing libraries to Maven"
             after: ["test_crypto", "test_rlp", "test_unit"]
-            command: [ ".buildkite/publish.sh" ] // TODO
+            command: [ "./publish.sh" ] // TODO
             outputs: [
                 "/local/repo/target/universal/mantis-*.zip",
             ]

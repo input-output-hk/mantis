@@ -10,9 +10,8 @@ options. Oh, and this readme file is in there too, of course.
 
 ## Continous integration
 
-The tests are run on CI. For more details look at `.buildkite/pipeline.nix` and
-`test-ets.sh`. Output is stored as artifacts and a summary is added as
-annotation.
+The tests are run on CI. For more details look at `./ci.cue` and
+`test-ets.sh`. Output is stored as artifacts.
 
 Two test suites are run; GeneralStateTests and BlockchainTests. These seem to
 be the only ones maintained and recommended at the moment.
