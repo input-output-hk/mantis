@@ -1,10 +1,17 @@
 package io.iohk.ethereum.consensus
 
+import akka.util.ByteString
+
+import cats.data.NonEmptyList
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
+import io.iohk.ethereum.consensus.Consensus.ConsensusResult
 import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.ChainWeight
+import io.iohk.ethereum.ledger.BlockData
+import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 
 /** This file documents the original interface that was designed at ETCM-1018
@@ -13,8 +20,8 @@ import io.iohk.ethereum.utils.BlockchainConfig
   */
 trait Consensus {
   def evaluateBranch(
-      block: Seq[Block]
-  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult]
+      block: NonEmptyList[Block]
+  )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[ConsensusResult]
 
   /** Original interface from ETCM-1018, for temporary documentation purposes
     */
@@ -66,4 +73,45 @@ trait Consensus {
     */
 //  private def attemptToSetNewBestBranch(branch: UpdatedBranch): Either[BlockExecutionError, Boolean] = ???
 
+}
+
+object Consensus {
+  /* This return type for consensus is probably overcomplicated for now because some information is needed
+   * to keep the compatibility with the current code (particularly for the block queue handling), and be able
+   * to translate the values to BlockImportResult.
+   * In particular:
+   *  - `blockToEnqueue` fields won't be needed if the block are already stored in memory
+   *  - The distinction between ExtendedCurrentBestBranch and SelectedNewBestBranch won't really be useful
+   *  because there will be no need to put back the old branch into the block queue in case of reorganisation
+   *  - `ConsensusErrorDueToMissingNode` and  `ConsensusError` would mean that the application is in an
+   *  inconsistent state. Unless there is a reason to think that mantis would self heal when that happens, I
+   *  don't think there is a reason to add them here.
+   */
+
+  sealed trait ConsensusResult
+
+  /** The new branch was selected and it extended the best branch. */
+  case class ExtendedCurrentBestBranch(blockImportData: List[BlockData]) extends ConsensusResult
+
+  /** The new branch was selected and it extended the best branch, but it did not execute completely. */
+  case class ExtendedCurrentBestBranchPartially(blockImportData: List[BlockData], failureBranch: BranchExecutionFailure)
+      extends ConsensusResult
+
+  /** The new branch was selected but was not an extension of the best branch. */
+  case class SelectedNewBestBranch(oldBranch: List[Block], newBranch: List[Block], weights: List[ChainWeight])
+      extends ConsensusResult
+
+  /** The proposed new branch was not better than the current best one. */
+  case object KeptCurrentBestBranch extends ConsensusResult
+
+  /** A block in the branch cannot be executed. */
+  case class BranchExecutionFailure(blockToEnqueue: List[Block], failingBlockHash: ByteString, error: String)
+      extends ConsensusResult
+
+  /** An error external the the blocks in the branch occured, which prevents the branch from being executed.
+    * Usually this is due to an inconsistency in the database.
+    */
+  case class ConsensusError(blockToEnqueue: List[Block], err: String) extends ConsensusResult
+  case class ConsensusErrorDueToMissingNode(blockToEnqueue: List[Block], reason: MissingNodeException)
+      extends ConsensusResult
 }

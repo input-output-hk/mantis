@@ -20,7 +20,6 @@ import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcast.BlockToBroadcast
 import io.iohk.ethereum.blockchain.sync.regular.BlockBroadcasterActor.BroadcastBlocks
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.ProgressProtocol
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.storage.StateStorage

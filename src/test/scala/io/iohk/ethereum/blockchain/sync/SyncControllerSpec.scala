@@ -641,7 +641,7 @@ class SyncControllerSpec
               this
             }
 
-          case SendMessage(msg: GetNodeDataEnc, peer) if !onlyPivot =>
+          case SendMessage(_: GetNodeDataEnc, peer) if !onlyPivot =>
             stateDownloadStarted = true
             if (!failedNodeRequest) {
               sender ! MessageFromPeer(NodeData(Seq(defaultStateMptLeafWithAccount)), peer)

@@ -4,7 +4,6 @@ import akka.util.ByteString
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.MiningConfig
@@ -51,7 +50,6 @@ class TestModeComponentsProvider(
         blockchain,
         blockchainReader,
         blockchainWriter,
-        node.blockQueue,
         blockExecution
       ),
       blockchainReader,

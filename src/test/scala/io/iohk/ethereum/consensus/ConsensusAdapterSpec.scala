@@ -34,12 +34,12 @@ import io.iohk.ethereum.mpt.LeafNode
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.utils.BlockchainConfig
 
-class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
+class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
   implicit override val patienceConfig: PatienceConfig =
     PatienceConfig(timeout = scaled(2 seconds), interval = scaled(1 second))
 
-  "Consensus" should "ignore duplicated block" in new ImportBlockTestSetup {
+  "ConsensusAdapter" should "ignore duplicated block" in new ImportBlockTestSetup {
     val block1: Block = getBlock()
     val block2: Block = getBlock()
 
@@ -67,7 +67,9 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
 
     // Just to bypass metrics needs
-    (blockchainReader.getBlockByHash _).expects(*).returning(None)
+    (blockchainReader.getBlockByHash _).expects(*).anyNumberOfTimes().returning(None)
+    (blockchainWriter.save _).expects(*, *, *, *).returning(())
+    (blockchainWriter.saveBestKnownBlocks _).expects(*, *, *).returning(())
 
     (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
@@ -443,6 +445,43 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock1).runToFuture) { result =>
       result shouldBe a[BlockImportedToTop]
       blockQueue.isQueued(newBlock2.hash) shouldBe false
+      blockQueue.isQueued(newBlock3.hash) shouldBe false
+      blockQueue.isQueued(newBlock3bis.hash) shouldBe false
+    }
+  }
+
+  it should "dequeue blocks that are children of a failing block in case of partial execution during a reorganisation" in new EphemBlockchain {
+    val mockExecution = mock[BlockExecution]
+
+    val currentBestBlock: Block = getBlock(bestNum)
+    val block1: Block = getBlock(bestNum + 1, difficulty = 101, parent = currentBestBlock.header.hash)
+    val block2: Block = getBlock(bestNum + 2, difficulty = 105, parent = block1.header.hash)
+    blockchainWriter.save(currentBestBlock, Nil, currentWeight, saveAsBestBlock = true)
+    blockchainWriter.save(block1, Nil, currentWeight, saveAsBestBlock = true)
+    blockchainWriter.save(block2, Nil, currentWeight, saveAsBestBlock = true)
+
+    val badBlock: Block = getBlock(bestNum + 2, difficulty = 105, parent = block1.header.hash)
+    val newBlock3: Block = getBlock(bestNum + 3, difficulty = 105, parent = badBlock.header.hash)
+    val newBlock3bis: Block = getBlock(bestNum + 3, difficulty = 10, parent = badBlock.header.hash)
+
+    (mockExecution
+      .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .expects(List(badBlock, newBlock3), *, *)
+      .returning((Nil, Some(execError)))
+    val consensusAdapterWithFailingExecution = blockImportWithMockedBlockExecution(mockExecution)
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock3).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock3.hash) shouldBe true
+    }
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(newBlock3bis).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockQueue.isQueued(newBlock3bis.hash) shouldBe true
+    }
+
+    whenReady(consensusAdapterWithFailingExecution.evaluateBranchBlock(badBlock).runToFuture) { result =>
+      result shouldBe a[BlockImportFailed]
+      blockQueue.isQueued(badBlock.hash) shouldBe false
       blockQueue.isQueued(newBlock3.hash) shouldBe false
       blockQueue.isQueued(newBlock3bis.hash) shouldBe false
     }

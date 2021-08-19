@@ -124,23 +124,25 @@ class RegularSyncItSpec extends FreeSpecBase with Matchers with BeforeAndAfterAl
   "peers should chose the branch with a checkpoint discarding blocks that come after the checkpoint" in customTestCaseResourceM(
     FakePeer.start2FakePeersRes()
   ) { case (peer1, peer2) =>
-    val length = 26
+    val checkpointBlockNumber = 26
     for {
       _ <- peer1.importBlocksUntil(20)(IdentityUpdate)
       _ <- peer2.importBlocksUntil(30)(IdentityUpdate)
       _ <- peer1.startRegularSync()
       _ <- peer2.startRegularSync()
-      _ <- peer2.addCheckpointedBlock(
+      _ <- peer2.addCheckpointedBlock( // checkpointing block 26
         peer2.blockchainReader.getBlockByNumber(peer2.blockchainReader.getBestBranch(), 25).get
       )
-      _ <- peer2.waitForRegularSyncLoadLastBlock(length)
+      _ <- peer2.waitForRegularSyncLoadLastBlock(checkpointBlockNumber)
       _ <- peer1.connectToPeers(Set(peer2.node))
-      _ <- peer1.waitForRegularSyncLoadLastBlock(length)
+      _ <- peer1.waitForRegularSyncLoadLastBlock(checkpointBlockNumber)
     } yield {
       assert(peer1.blockchainReader.getBestBlock().get.hash == peer2.blockchainReader.getBestBlock().get.hash)
       val peer1BestBlockNumber = peer1.blockchainReader.getBestBlock().get.number
       val peer2BestBlockNumber = peer2.blockchainReader.getBestBlock().get.number
-      assert(peer1BestBlockNumber == peer2BestBlockNumber && peer1BestBlockNumber == length)
+
+      assert(peer1BestBlockNumber == peer2BestBlockNumber && peer1BestBlockNumber == checkpointBlockNumber)
+      assert(peer1.blockchainReader.getLatestCheckpointBlockNumber() == checkpointBlockNumber)
       assert(
         peer1.blockchainReader.getLatestCheckpointBlockNumber() == peer2.blockchainReader
           .getLatestCheckpointBlockNumber()

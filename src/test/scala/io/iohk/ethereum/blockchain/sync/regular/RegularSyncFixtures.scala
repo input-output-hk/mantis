@@ -32,9 +32,7 @@ import org.scalatest.matchers.should.Matchers
 
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.blockchain.sync._
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
-import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
@@ -108,7 +106,17 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     val testBlocks: List[Block] = BlockHelpers.generateChain(20, BlockHelpers.genesis)
     val testBlocksChunked: List[List[Block]] = testBlocks.grouped(syncConfig.blockHeadersPerRequest).toList
 
-    override lazy val consensus: Consensus = new TestConsensus()
+    override lazy val consensusAdapter: ConsensusAdapter = {
+      val adapter = stub[ConsensusAdapter]
+      (adapter
+        .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
+        .when(*, *, *)
+        .onCall { case (block: Block, _, _) =>
+          importedBlocksSet.add(block)
+          results(block.header.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(block)))
+        }
+      adapter
+    }
 
     blockchainWriter.save(
       block = BlockHelpers.genesis,
@@ -200,23 +208,6 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def setImportResult(block: Block, result: Task[BlockImportResult]): Unit =
       results(block.header.hash) = result
-
-    class TestConsensus
-        extends ConsensusImpl(
-          stub[BlockchainImpl],
-          stub[BlockchainReader],
-          stub[BlockchainWriter],
-          stub[BlockQueue],
-          stub[BlockExecution]
-        ) {
-      override def evaluateBranch(
-          branch: Seq[Block]
-      )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
-        // TODO have a real implementation ETCM-1069
-        importedBlocksSet.add(branch.head)
-        results(branch.head.hash).flatTap(_ => Task.fromFuture(importedBlocksSubject.onNext(branch.head)))
-      }
-    }
 
     class PeersClientAutoPilot(blocks: List[Block] = testBlocks) extends AutoPilot {
 
@@ -318,7 +309,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
 
     def fakeEvaluateBlock(
         block: Block
-    )(implicit blockExecutionScheduler: Scheduler, blockchainConfig: BlockchainConfig): Task[BlockImportResult] = {
+    ): Task[BlockImportResult] = {
       val result: BlockImportResult = if (didTryToImportBlock(block)) {
         DuplicateBlock
       } else {
