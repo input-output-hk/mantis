@@ -410,7 +410,6 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     new ConsensusAdapter(
       consensus,
       blockchainReader,
-      blockchain,
       blockQueue,
       blockValidation,
       Scheduler(system.dispatchers.lookup("validation-context"))

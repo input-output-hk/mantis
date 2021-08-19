@@ -53,7 +53,6 @@ class TestModeComponentsProvider(
         blockExecution
       ),
       blockchainReader,
-      blockchain,
       node.blockQueue,
       blockValidation,
       validationExecutionContext

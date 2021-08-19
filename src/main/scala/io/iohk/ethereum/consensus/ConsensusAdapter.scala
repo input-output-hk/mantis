@@ -21,7 +21,6 @@ import io.iohk.ethereum.consensus.Consensus.KeptCurrentBestBranch
 import io.iohk.ethereum.consensus.Consensus.SelectedNewBestBranch
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
@@ -38,7 +37,6 @@ import io.iohk.ethereum.utils.Logger
 class ConsensusAdapter(
     consensus: Consensus,
     blockchainReader: BlockchainReader,
-    blockchain: Blockchain,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
     validationScheduler: Scheduler
