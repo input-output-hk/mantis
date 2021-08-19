@@ -111,7 +111,7 @@ ci: {
 #sbt: ["sbt", "-v", "-mem", "8192", "-Dnix=true"]
 // shared defaults for all steps
 #step: {
-    enable:       pull_request.base.ref == "main"
+    enable:       pull_request.base.ref == "mig-bitte-ci"
     cpu:          5000
     memory:       9000
     term_timeout: 60 * 60 * 3
