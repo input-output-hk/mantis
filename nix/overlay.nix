@@ -42,4 +42,5 @@ rev: final: prev: {
 
   retesteth = final.callPackage ./retesteth.nix { };
   lllc = final.callPackage ./lllc.nix { };
+  protoc-wrapper = final.callPackage ./protoc-wrapper.nix { };
 }
