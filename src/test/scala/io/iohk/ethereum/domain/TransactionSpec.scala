@@ -132,11 +132,4 @@ class TransactionSpec
     x shouldBe expected
 
   }
-  it should "correctly serialize to EIP1598 rlp" in {}
-
-  // plan:
-  // TODO ReceiptSpec
-  // TODO decode string to case class
-  // TODO adjust runVM in ledger
-  // TODO align how geth and besu treat typed transactions when sent via rpc before magneto HF
 }

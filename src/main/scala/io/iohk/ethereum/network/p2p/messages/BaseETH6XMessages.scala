@@ -254,7 +254,6 @@ object BaseETH6XMessages {
     implicit class SignedTransactionRlpEncodableDec(val rlpEncodeable: RLPEncodeable) extends AnyVal {
 
       // scalastyle:off method.length
-
       /** A signed transaction is either a RLPList representing a Legacy SignedTransaction
         * or a PrefixedRLPEncodable(transactionType, RLPList of typed transaction envelope)
         *
@@ -318,6 +317,7 @@ object BaseETH6XMessages {
           throw new RuntimeException("Cannot decode SignedTransaction")
       }
     }
+    // scalastyle:on method.length
 
     implicit class SignedTransactionDec(val bytes: Array[Byte]) extends AnyVal {
       def toSignedTransaction: SignedTransaction = {
