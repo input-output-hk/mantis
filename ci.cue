@@ -115,7 +115,7 @@ ci: {
 
 // shared defaults for all steps
 #step: {
-    enable:       pull_request.base.ref == "develop" && #isNotDraft
+    enable:       pull_request.base.ref == "mig-bitte-ci" && #isNotDraft
     cpu:          5000
     memory:       9000
     term_timeout: 60 * 60 * 3
