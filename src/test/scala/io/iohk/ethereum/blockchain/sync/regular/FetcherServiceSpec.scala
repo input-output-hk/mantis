@@ -155,7 +155,7 @@ class FetcherServiceSpec
 
     val result = Source(messages).via(FetcherService.fetchBlocksForHeaders(Sink.ignore)).runWith(Sink.seq)
 
-    whenReady(result)(_ shouldEqual Seq(Block(header1, body1), Block(header2, body2)))
+    whenReady(result)(_ shouldEqual Seq(Seq(Block(header1, body1), Block(header2, body2))))
   }
 
   "FetcherService.fetchBlocksForHeaders" should "divert block request data to given sink" in {
@@ -180,7 +180,7 @@ class FetcherServiceSpec
 
     val result = Source(messages).via(FetcherService.fetchBlocksForHeaders(Sink.ignore)).runWith(Sink.seq)
 
-    whenReady(result)(_ shouldEqual Seq(Block(header1, body1), Block(header2, body2)))
+    whenReady(result)(_ shouldEqual Seq(Seq(Block(header1, body1), Block(header2, body2))))
   }
 
 }

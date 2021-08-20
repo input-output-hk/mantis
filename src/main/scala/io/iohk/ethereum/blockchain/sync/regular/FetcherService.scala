@@ -138,7 +138,6 @@ object FetcherService {
 
   def fetchBlocksForHeaders[M](bodyRequestor: Sink[(PeerId, Hashes), M]): Flow[MessageFromPeer, Seq[Block], M] =
     Flow[MessageFromPeer]
-      .groupBy(100, _.peerId)
       .scan(FetchState.initial) {
         case (FetchState(outstanding, _, _), MessageFromPeer(BlockHeaders(headers), peerId)) =>
           FetchState(outstanding.concat(headers), Some(peerId -> headers.map(_.hash)), Nil)
@@ -146,11 +145,10 @@ object FetcherService {
           val blocks = buildBlocks(outstanding.toSeq, bodies)
           FetchState(outstanding.removedAll(blocks.map(_.header)), None, blocks)
       }
-      .mergeSubstreams
       .alsoToMat(
         Flow[FetchState]
           .collect { case FetchState(_, Some(bodiesRequest), _) => bodiesRequest }
           .toMat(bodyRequestor)(Keep.right)
       )(Keep.right)
-      .map { case FetchState(_, _, blocks) => blocks }
+      .collect { case FetchState(_, _, blocks) if blocks.nonEmpty => blocks }
 }
