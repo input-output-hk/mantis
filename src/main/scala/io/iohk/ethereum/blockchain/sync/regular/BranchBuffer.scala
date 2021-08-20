@@ -15,8 +15,9 @@ import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 
-/** Naive & temporary branch buffer implementation that does not deal with competing branches too well.
-  * Primarily, it is not able to store multiple competing branches at the same time.
+/** Naive & temporary branch buffer implementation with some serious limitations:
+  * - it is not able to store multiple competing branches at the same time.
+  * - it will only find branches from the best branch tip.
   *
   * @param byParent in-memory buffer of blocks retrievable by parentHash. Only one block per parent is kept, last received wins.
   * @param branchFound branch found from given best branch, as a list of blocks. They are removed from the buffer.
@@ -40,8 +41,9 @@ case class BranchBuffer(byParent: Map[Hash, Block] = Map.empty, branchFound: Que
 object BranchBuffer {
   type Hash = ByteString
 
-  def flow(blockchainReader: BlockchainReader): Flow[Seq[Block], NonEmptyList[Block], NotUsed] = Flow[Seq[Block]]
-    .mapConcat(_.sortBy(_.number).reverse)
-    .scan(BranchBuffer()) { case (buffer, block) => buffer.handle(blockchainReader.getBestBranch(), block) }
-    .collect { case BranchBuffer(_, head +: tail) => NonEmptyList(head, tail.toList) }
+  def flow(blockchainReader: BlockchainReader): Flow[Seq[Block], NonEmptyList[Block], NotUsed] =
+    Flow[Seq[Block]]
+      .mapConcat(_.sortBy(_.number).reverse)
+      .scan(BranchBuffer()) { case (buffer, block) => buffer.handle(blockchainReader.getBestBranch(), block) }
+      .collect { case BranchBuffer(_, head +: tail) => NonEmptyList(head, tail.toList) }
 }
