@@ -52,7 +52,8 @@ class BlockFetcher(
     val supervisor: ClassicActorRef,
     val syncConfig: SyncConfig,
     val blockValidator: BlockValidator,
-    context: ActorContext[BlockFetcher.FetchCommand]
+    context: ActorContext[BlockFetcher.FetchCommand],
+    disableBlockProcessing: Boolean
 ) extends AbstractBehavior[BlockFetcher.FetchCommand](context) {
 
   import BlockFetcher._
@@ -286,7 +287,9 @@ class BlockFetcher(
   )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState =
     pickResult
       .tap { case (blocks, _) =>
-        replyTo ! PickedBlocks(blocks)
+        if (!disableBlockProcessing) {
+          replyTo ! PickedBlocks(blocks)
+        }
       }
       .fold(state)(_._2)
 
@@ -330,10 +333,19 @@ object BlockFetcher {
       peerEventBus: ClassicActorRef,
       supervisor: ClassicActorRef,
       syncConfig: SyncConfig,
-      blockValidator: BlockValidator
+      blockValidator: BlockValidator,
+      disableBlockProcessing: Boolean = false
   ): Behavior[FetchCommand] =
     Behaviors.setup(context =>
-      new BlockFetcher(peersClient, peerEventBus, supervisor, syncConfig, blockValidator, context)
+      new BlockFetcher(
+        peersClient,
+        peerEventBus,
+        supervisor,
+        syncConfig,
+        blockValidator,
+        context,
+        disableBlockProcessing
+      )
     )
 
   sealed trait FetchCommand

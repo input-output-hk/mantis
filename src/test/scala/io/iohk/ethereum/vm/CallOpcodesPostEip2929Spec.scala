@@ -7,12 +7,10 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.UInt256
-import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 
 import Fixtures.blockchainConfig

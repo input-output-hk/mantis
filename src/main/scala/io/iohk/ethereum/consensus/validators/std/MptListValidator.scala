@@ -16,6 +16,14 @@ object MptListValidator {
     override def toBytes(input: Int): Array[Byte] = encode(input)
   }
 
+  def rootHash[K](elements: Seq[K], vSerializable: ByteArraySerializable[K]): Array[Byte] = {
+    val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
+    val trie = MerklePatriciaTrie[Int, K](
+      source = stateStorage
+    )(intByteArraySerializable, vSerializable)
+    elements.zipWithIndex.foldLeft(trie)((trie, r) => trie.put(r._2, r._1)).getRootHash
+  }
+
   /** This function validates if a lists matches a Mpt Hash. To do so it inserts into an ephemeral MPT
     * (itemIndex, item) tuples and validates the resulting hash
     *
@@ -25,12 +33,6 @@ object MptListValidator {
     * @tparam K Type of the items cointained within the Sequence
     * @return true if hash matches trie hash, false otherwise
     */
-  def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: ByteArraySerializable[K]): Boolean = {
-    val stateStorage = StateStorage.getReadOnlyStorage(EphemDataSource())
-    val trie = MerklePatriciaTrie[Int, K](
-      source = stateStorage
-    )(intByteArraySerializable, vSerializable)
-    val trieRoot = toValidate.zipWithIndex.foldLeft(trie)((trie, r) => trie.put(r._2, r._1)).getRootHash
-    hash.sameElements(trieRoot)
-  }
+  def isValid[K](hash: Array[Byte], toValidate: Seq[K], vSerializable: ByteArraySerializable[K]): Boolean =
+    hash.sameElements(rootHash(toValidate, vSerializable))
 }
