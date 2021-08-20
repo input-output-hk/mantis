@@ -9,7 +9,6 @@ import scala.concurrent.ExecutionContextExecutor
 
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockVM
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.Mining
@@ -98,7 +97,6 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
         blockchain,
         blockchainReader,
         blockchainWriter,
-        blockQueue,
         blockExecutionOpt.getOrElse(mkBlockExecution(validators))
       ),
       blockchainReader,

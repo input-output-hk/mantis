@@ -176,7 +176,7 @@ class BlockExecution(
               newBlockData.block,
               newBlockData.receipts,
               newBlockData.weight,
-              saveAsBestBlock = true
+              saveAsBestBlock = false
             )
             go(newBlockData :: executedBlocksDecOrder, remainingBlocksIncOrder.tail, newWeight)
           case Left(executionError) =>

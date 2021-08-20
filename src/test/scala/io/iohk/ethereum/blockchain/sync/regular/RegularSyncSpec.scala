@@ -38,9 +38,7 @@ import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status
 import io.iohk.ethereum.blockchain.sync.SyncProtocol.Status.Progress
 import io.iohk.ethereum.blockchain.sync.regular.BlockFetcher.Start
 import io.iohk.ethereum.blockchain.sync.regular.RegularSync.NewCheckpoint
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
-import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.domain.BlockHeaderImplicits._
 import io.iohk.ethereum.domain._
@@ -300,7 +298,7 @@ class RegularSyncSpec
           (consensusAdapter
             .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
             .when(*, *, *)
-            .onCall((block, scheduler, conf) => fakeEvaluateBlock(block)(scheduler, conf))
+            .onCall((block, _, _) => fakeEvaluateBlock(block))
           override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
           override lazy val syncConfig = defaultSyncConfig.copy(
             blockHeadersPerRequest = 5,
@@ -360,7 +358,7 @@ class RegularSyncSpec
         (consensusAdapter
           .evaluateBranchBlock(_: Block)(_: Scheduler, _: BlockchainConfig))
           .when(*, *, *)
-          .onCall((block, scheduler, conf) => fakeEvaluateBlock(block)(scheduler, conf))
+          .onCall((block, _, _) => fakeEvaluateBlock(block))
         override lazy val branchResolution: BranchResolution = new FakeBranchResolution()
         override lazy val syncConfig = defaultSyncConfig.copy(
           syncRetryInterval = 1.second,
