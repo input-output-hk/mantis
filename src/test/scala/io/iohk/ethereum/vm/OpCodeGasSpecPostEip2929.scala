@@ -1,16 +1,23 @@
 package io.iohk.ethereum.vm
 
+import akka.util.ByteString
+import akka.util.ByteString.{empty => bEmpty}
+
+import org.bouncycastle.util.encoders.Hex
 import org.scalacheck.Arbitrary
 import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
+import io.iohk.ethereum.Fixtures.Blocks
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.domain.UInt256._
 import io.iohk.ethereum.vm.Generators._
+import io.iohk.ethereum.vm.MockWorldState.PC
+import io.iohk.ethereum.vm.MockWorldState.TestVM
 
 import Fixtures.blockchainConfig
 
@@ -126,7 +133,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
 
       val stateOut = op.execute(stateIn)
 
-      verifyGas(G_cold_account_access, stateIn, stateOut)
+      verifyGas(G_cold_sload, stateIn, stateOut)
       assert(stateOut.accessedStorageKeys.contains((stateIn.ownAddress, offset)))
     }
 
@@ -203,13 +210,13 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     val table = Table[UInt256, UInt256, Boolean, BigInt, BigInt](
       ("offset", "value", "alreadyAccessed", "startGas", "expectedGasConsumption"),
       (0, 1, true, G_callstipend + 1, G_sload),
-      (0, 1, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (0, 1, false, G_callstipend + 1, G_sload + G_cold_sload),
       (0, 0, true, G_callstipend + 1, G_sload),
-      (0, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (0, 0, false, G_callstipend + 1, G_sload + G_cold_sload),
       (1, 0, true, G_callstipend + 1, G_sload),
-      (1, 0, false, G_sload + G_cold_account_access, G_sload + G_cold_account_access),
+      (1, 0, false, G_callstipend + 1, G_sload + G_cold_sload),
       (1, 1, true, G_sset, G_sset),
-      (1, 1, false, G_sset + G_cold_account_access, G_sset + G_cold_account_access)
+      (1, 1, false, G_sset + G_cold_sload, G_sset + G_cold_sload)
     )
 
     forAll(table) { (offset, value, alreadyAccessed, startGas, expectedGasConsumption) =>
@@ -229,7 +236,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     forAll(Arbitrary.arbitrary[Boolean]) { alreadyAccessed =>
       val offset = 0
       val value = 0
-      val expectedGasConsumption = if (alreadyAccessed) G_sreset else G_sreset + G_cold_account_access
+      val expectedGasConsumption = if (alreadyAccessed) G_sreset else G_sreset + G_cold_sload
 
       val stackIn = Stack.empty().push(value).push(offset)
       val stateIn = getProgramStateGen(
@@ -242,6 +249,52 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         if (alreadyAccessed) op.execute(stateIn.addAccessedStorageKey(stateIn.ownAddress, offset))
         else op.execute(stateIn)
       verifyGas(expectedGasConsumption, stateIn, stateOut, allowOOG = false)
+    }
+  }
+
+  // Testcases described in https://gist.github.com/holiman/174548cad102096858583c6fbbb0649a
+  test("Gas metering after Magneto hard fork (EIP-2929)") {
+    val eip2929Table = Table[String, BigInt](
+      ("code", "gasUsed"),
+      ("60013f5060023b506003315060f13f5060f23b5060f3315060f23f5060f33b5060f1315032315030315000", 8653),
+      ("60006000600060ff3c60006000600060ff3c600060006000303c00", 2835),
+      ("60015450601160015560116002556011600255600254600154", 44529),
+      ("60008080808060046000f15060008080808060ff6000f15060008080808060ff6000fa50", 2869)
+    )
+
+    forAll(eip2929Table) { (code, gasUsed) =>
+      val defaultGaspool = 1000000
+      val senderAddr: Address = Address(0xcafebabeL)
+      val senderAcc: Account = Account(nonce = 1, balance = 1000000)
+      val defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
+
+      val blockHeader = Blocks.ValidBlock.header.copy(
+        number = Fixtures.MagnetoBlockNumber
+      )
+
+      val vm = new TestVM
+      val context: PC = ProgramContext(
+        callerAddr = senderAddr,
+        originAddr = senderAddr,
+        recipientAddr = None,
+        gasPrice = 1,
+        startGas = defaultGaspool,
+        inputData = bEmpty,
+        value = 100,
+        endowment = 100,
+        doTransfer = true,
+        blockHeader = blockHeader,
+        callDepth = 0,
+        world = defaultWorld,
+        initialAddressesToDelete = Set(),
+        evmConfig = config,
+        originalWorld = defaultWorld
+      )
+
+      val env = ExecEnv(context, ByteString(Hex.decode(code)), context.originAddr)
+      val result = vm.exec(ProgramState(vm, context, env))
+
+      result.gasUsed shouldEqual gasUsed
     }
   }
 }
