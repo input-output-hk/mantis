@@ -180,7 +180,8 @@ object RegularSyncItSpecUtils {
         ommersPool,
         pendingTransactionsManager,
         system.scheduler,
-        this
+        this,
+        newFlow = true
       )
     )
 

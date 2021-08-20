@@ -111,33 +111,33 @@ class RegularSync(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)
   )
 
+  private def startNewFlow() =
+    PeerEventBusActor
+      .messageSource(
+        peerEventBus,
+        PeerEventBusActor.SubscriptionClassifier
+          .MessageClassifier(
+            Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
+            PeerEventBusActor.PeerSelector.AllPeers
+          )
+      )
+      .buffer(256, OverflowStrategy.fail)
+      .via(
+        FetcherService.fetchBlocksForHeaders(
+          Sink.ignore // BlockFetcher is relied on for requesting the bodies
+        )
+      )
+      .via(BranchBuffer.flow(blockchainReader))
+      .runWith(Sink.foreach { blocks =>
+        importer ! BlockFetcher.PickedBlocks(blocks)
+      })
+      .onComplete(res => log.error(res.toString))
+
   def running(progressState: ProgressState): Receive = {
     case SyncProtocol.Start =>
       log.info("Starting regular sync")
       importer ! BlockImporter.Start
-
-      if (newFlow) {
-        PeerEventBusActor
-          .messageSource(
-            peerEventBus,
-            PeerEventBusActor.SubscriptionClassifier
-              .MessageClassifier(
-                Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
-                PeerEventBusActor.PeerSelector.AllPeers
-              )
-          )
-          .buffer(256, OverflowStrategy.fail)
-          .via(
-            FetcherService.fetchBlocksForHeaders(
-              Sink.ignore // BlockFetcher is relied on for requesting the bodies
-            )
-          )
-          .via(BranchBuffer.flow(blockchainReader))
-          .runWith(Sink.foreach { blocks =>
-            importer ! BlockFetcher.PickedBlocks(blocks)
-          })
-          .onComplete(res => log.error(res.toString))
-      }
+      if (newFlow) startNewFlow()
 
     case SyncProtocol.MinedBlock(block) =>
       log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
