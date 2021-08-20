@@ -96,7 +96,8 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
           ommersPool.ref,
           pendingTransactionsManager.ref,
           system.scheduler,
-          this
+          this,
+          newFlow = false
         )
         .withDispatcher("akka.actor.default-dispatcher")
     )

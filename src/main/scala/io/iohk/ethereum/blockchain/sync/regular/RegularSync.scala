@@ -60,13 +60,14 @@ class RegularSync(
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     scheduler: Scheduler,
-    configBuilder: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder,
+    newFlow: Boolean
 ) extends Actor
     with ActorLogging {
 
   val fetcher: TypedActorRef[BlockFetcher.FetchCommand] =
     context.spawn(
-      BlockFetcher(peersClient, peerEventBus, self, syncConfig, blockValidator, disableBlockProcessing = true),
+      BlockFetcher(peersClient, peerEventBus, self, syncConfig, blockValidator, newFlow),
       "block-fetcher"
     )
 
@@ -106,27 +107,6 @@ class RegularSync(
       BlockFetcher.PrintStatus
     )
 
-  PeerEventBusActor
-    .messageSource(
-      peerEventBus,
-      PeerEventBusActor.SubscriptionClassifier
-        .MessageClassifier(
-          Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
-          PeerEventBusActor.PeerSelector.AllPeers
-        )
-    )
-    .buffer(256, OverflowStrategy.fail)
-    .via(
-      FetcherService.fetchBlocksForHeaders(
-        Sink.ignore // BlockFetcher is relied on for requesting the bodies
-      )
-    )
-    .via(BranchBuffer.flow(blockchainReader))
-    .runWith(Sink.foreach { blocks =>
-      importer ! BlockFetcher.PickedBlocks(blocks)
-    })
-    .onComplete(res => log.error(res.toString))
-
   override def receive: Receive = running(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)
   )
@@ -135,6 +115,30 @@ class RegularSync(
     case SyncProtocol.Start =>
       log.info("Starting regular sync")
       importer ! BlockImporter.Start
+
+      if (newFlow) {
+        PeerEventBusActor
+          .messageSource(
+            peerEventBus,
+            PeerEventBusActor.SubscriptionClassifier
+              .MessageClassifier(
+                Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
+                PeerEventBusActor.PeerSelector.AllPeers
+              )
+          )
+          .buffer(256, OverflowStrategy.fail)
+          .via(
+            FetcherService.fetchBlocksForHeaders(
+              Sink.ignore // BlockFetcher is relied on for requesting the bodies
+            )
+          )
+          .via(BranchBuffer.flow(blockchainReader))
+          .runWith(Sink.foreach { blocks =>
+            importer ! BlockFetcher.PickedBlocks(blocks)
+          })
+          .onComplete(res => log.error(res.toString))
+      }
+
     case SyncProtocol.MinedBlock(block) =>
       log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
       importer ! BlockImporter.MinedBlock(block)
@@ -188,7 +192,8 @@ object RegularSync {
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
       scheduler: Scheduler,
-      configBuilder: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder,
+      newFlow: Boolean
   ): Props =
     Props(
       new RegularSync(
@@ -205,7 +210,8 @@ object RegularSync {
         ommersPool,
         pendingTransactionsManager,
         scheduler,
-        configBuilder
+        configBuilder,
+        newFlow
       )
     )
 

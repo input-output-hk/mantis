@@ -137,7 +137,8 @@ class SyncController(
         ommersPool,
         pendingTransactionsManager,
         scheduler,
-        configBuilder
+        configBuilder,
+        newFlow = true
       ),
       "regular-sync"
     )

@@ -53,7 +53,7 @@ class BlockFetcher(
     val syncConfig: SyncConfig,
     val blockValidator: BlockValidator,
     context: ActorContext[BlockFetcher.FetchCommand],
-    disableBlockProcessing: Boolean
+    newFlow: Boolean
 ) extends AbstractBehavior[BlockFetcher.FetchCommand](context) {
 
   import BlockFetcher._
@@ -287,7 +287,7 @@ class BlockFetcher(
   )(pickResult: Option[(NonEmptyList[Block], BlockFetcherState)]): BlockFetcherState =
     pickResult
       .tap { case (blocks, _) =>
-        if (!disableBlockProcessing) {
+        if (!newFlow) {
           replyTo ! PickedBlocks(blocks)
         }
       }
@@ -334,7 +334,7 @@ object BlockFetcher {
       supervisor: ClassicActorRef,
       syncConfig: SyncConfig,
       blockValidator: BlockValidator,
-      disableBlockProcessing: Boolean = false
+      newFlow: Boolean = false
   ): Behavior[FetchCommand] =
     Behaviors.setup(context =>
       new BlockFetcher(
@@ -344,7 +344,7 @@ object BlockFetcher {
         syncConfig,
         blockValidator,
         context,
-        disableBlockProcessing
+        newFlow
       )
     )
 
