@@ -15,6 +15,22 @@
         "type": "github"
       }
     },
+    "nixkite": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1589782160,
+        "narHash": "sha256-XTZFq5lMxmye6iRwJO8arqhzHq07Fo8GTPtzv+wMhUs=",
+        "owner": "johnae",
+        "repo": "nixkite",
+        "rev": "17a89b5f8e6c7c299af37504c28a8ec04dbc223f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "johnae",
+        "repo": "nixkite",
+        "type": "github"
+      }
+    },
     "nixpkgs": {
       "locked": {
         "lastModified": 1610118011,
@@ -34,6 +50,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
+        "nixkite": "nixkite",
         "nixpkgs": "nixpkgs",
         "sbt-derivation": "sbt-derivation"
       }

@@ -42,4 +42,9 @@ rev: final: prev: {
 
   retesteth = final.callPackage ./retesteth.nix { };
   lllc = final.callPackage ./lllc.nix { };
+
+  devShell = prev.mkShell {
+    nativeBuildInputs = with prev; [ protobuf sbt final.retesteth ];
+    inputsFrom = [ final.mantis ];
+  };
 }

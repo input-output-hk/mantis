@@ -1,4 +1,4 @@
-{ sources, pkgs }:
+{ pkgs }:
 let
   # TODO, share this code with mantis build in this project
   # sbt-protoc puts the scala plugin in /tmp/protobridge<some-random-number>.

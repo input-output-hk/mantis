@@ -5,8 +5,10 @@
   inputs.nixpkgs.url =
     "github:nixos/nixpkgs?rev=a98302aa9b9628915878a6ea9776c40a0bb02950";
   inputs.sbt-derivation.url = "github:zaninime/sbt-derivation";
+  inputs.nixkite.url = "github:johnae/nixkite";
+  inputs.nixkite.flake = false;
 
-  outputs = { self, nixpkgs, flake-utils, sbt-derivation
+  outputs = { self, nixpkgs, flake-utils, sbt-derivation, ...
     }: # , libsonic, libsonic-jnr }:
     let
       overlay = import ./nix/overlay.nix self.rev;
@@ -44,7 +46,7 @@
       legacyPackages = pkgs;
 
       defaultPackage = pkgs.mantis;
-      devShell = pkgs.mkShell { nativeBuildInputs = with pkgs; [ solc sbt ]; };
+      devShell = pkgs.devShell;
       apps.mantis = flake-utils.lib.mkApp { drv = pkgs.mantis; };
       defaultApp = apps.mantis;
     }) // (collectHydraSets
