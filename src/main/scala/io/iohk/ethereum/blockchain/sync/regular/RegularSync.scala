@@ -115,7 +115,7 @@ class RegularSync(
           PeerEventBusActor.PeerSelector.AllPeers
         )
     )
-    .buffer(10000, OverflowStrategy.fail)
+    .buffer(256, OverflowStrategy.fail)
     .via(
       FetcherService.fetchBlocksForHeaders(
         Sink.ignore // BlockFetcher is relied on for requesting the bodies
@@ -125,7 +125,7 @@ class RegularSync(
     .runWith(Sink.foreach { blocks =>
       importer ! BlockFetcher.PickedBlocks(blocks)
     })
-    .onComplete(println(_))
+    .onComplete(res => log.error(res.toString))
 
   override def receive: Receive = running(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)

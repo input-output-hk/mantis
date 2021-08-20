@@ -35,7 +35,7 @@ object PeerEventBusActor {
     Source
       .fromMaterializer { (mat, _) =>
         val (actorRef, src) = Source
-          .actorRef[MessageFromPeer](PartialFunction.empty, PartialFunction.empty, 100, OverflowStrategy.fail)
+          .actorRef[MessageFromPeer](PartialFunction.empty, PartialFunction.empty, 10, OverflowStrategy.fail)
           .watch(peerEventBus)
           .preMaterialize()(mat)
         peerEventBus
