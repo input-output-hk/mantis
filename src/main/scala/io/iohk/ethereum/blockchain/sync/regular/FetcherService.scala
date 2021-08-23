@@ -102,22 +102,23 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
 object FetcherService {
   type Hashes = Seq[ByteString]
 
-  type BlockIdentifier = (ByteString, ByteString)
+  case class BlockIdentifier(transactionsRoot: ByteString, ommersHash: ByteString)
+  object BlockIdentifier {
+    def apply(blockHeader: BlockHeader): BlockIdentifier =
+      BlockIdentifier(blockHeader.transactionsRoot, blockHeader.ommersHash)
 
-  def blockIdentifier(blockHeader: BlockHeader): BlockIdentifier =
-    (blockHeader.transactionsRoot, blockHeader.ommersHash)
-
-  def blockIdentifier(blockBody: BlockBody): BlockIdentifier =
-    (
-      ByteString(StdBlockValidator.transactionsRootHash(blockBody).toIterable),
-      ByteString(StdBlockValidator.blockBodyOmmersHash(blockBody).toIterable)
-    )
+    def apply(blockBody: BlockBody): BlockIdentifier =
+      BlockIdentifier(
+        ByteString(StdBlockValidator.transactionsRootHash(blockBody).toIterable),
+        ByteString(StdBlockValidator.blockBodyOmmersHash(blockBody).toIterable)
+      )
+  }
 
   def buildBlocks(headers: Seq[BlockHeader], bodies: Seq[BlockBody]): Seq[Block] = {
-    val bodyById = bodies.view.map(body => blockIdentifier(body) -> body).toMap
+    val bodyById = bodies.view.map(body => BlockIdentifier(body) -> body).toMap
     for {
       header <- headers
-      body <- bodyById.get(blockIdentifier(header))
+      body <- bodyById.get(BlockIdentifier(header))
     } yield Block(header, body)
   }
 
