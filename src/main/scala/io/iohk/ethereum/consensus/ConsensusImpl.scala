@@ -18,8 +18,10 @@ import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportedToTop
 import io.iohk.ethereum.blockchain.sync.regular.ChainReorganised
 import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.db.storage.BlockMetadata
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
@@ -38,6 +40,7 @@ import io.iohk.ethereum.utils.Logger
 
 class ConsensusImpl(
     blockchain: BlockchainImpl,
+    blockMetadataProxy: BlockMetadataProxy,
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     blockQueue: BlockQueue,
@@ -134,13 +137,20 @@ class ConsensusImpl(
     val executionResult = for {
       topBlock <- blockQueue.enqueueBlock(block, bestBlockNumber)
       topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
-      (executed, errors) = blockExecution.executeBlocks(topBlocks, currentWeight)
-    } yield (executed, errors, topBlocks)
+      (alreadyExecutedBlocks, nonExecutedBlocks) = topBlocks.partition(block =>
+        blockMetadataProxy.getBlockIsExecuted(block.hash)
+      )
+      (executed, errors) = blockExecution.executeBlocks(nonExecutedBlocks, currentWeight)
+      executedBlockData = alreadyExecutedBlocks.map(blockchainReader.getBlockData)
+    } yield (executedBlockData ++ executed, errors, topBlocks)
 
     executionResult match {
       case Some((importedBlocks, maybeError, topBlocks)) =>
         val result = maybeError match {
-          case None => BlockImportedToTop(importedBlocks)
+          case None =>
+            importedBlocks.lastOption.foreach(blockData => blockchainWriter.saveAsBestBlock(blockData.block))
+            setBlocksMetadata(importedBlocks)
+            BlockImportedToTop(importedBlocks)
 
           case Some(MPTError(reason)) if reason.isInstanceOf[MissingNodeException] =>
             BlockImportFailedDueToMissingNode(reason.asInstanceOf[MissingNodeException])
@@ -153,6 +163,8 @@ class ConsensusImpl(
             topBlocks.drop(importedBlocks.length).headOption.foreach { failedBlock =>
               blockQueue.removeSubtree(failedBlock.header.hash)
             }
+            importedBlocks.lastOption.foreach(blockData => blockchainWriter.saveAsBestBlock(blockData.block))
+            setBlocksMetadata(importedBlocks)
             BlockImportedToTop(importedBlocks)
         }
 
@@ -171,6 +183,12 @@ class ConsensusImpl(
         BlockImportFailed(s"Newly enqueued block with hash: ${block.header.hash} is not part of a known branch")
     }
   }
+
+  private def setBlocksMetadata(blocks: List[BlockData]): Unit =
+    blocks
+      .map(block => blockMetadataProxy.putBlockMetadata(block.block.hash, BlockMetadata(isExecuted = true)))
+      .reduce((batchUpdate1, batchUpdate2) => batchUpdate1.and(batchUpdate2))
+      .commit()
 
   private def reorganiseOrEnqueue(
       block: Block,
@@ -236,13 +254,25 @@ class ConsensusImpl(
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError, (List[Block], List[Block], List[ChainWeight])] = {
-    val (executedBlocks, maybeError) = blockExecution.executeBlocks(newBranch, parentWeight)
+    val (alreadyExecuted, nonExecutedBlocks) =
+      newBranch.partition(block => blockMetadataProxy.getBlockIsExecuted(block.hash))
+    val alreadyExecutedBD = alreadyExecuted.map(blockchainReader.getBlockData)
+
+    val (executed, maybeError) = blockExecution.executeBlocks(nonExecutedBlocks, parentWeight)
     maybeError match {
       case None =>
-        Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))
+        val importedBlocks = alreadyExecutedBD ++ executed
+        setBlocksMetadata(importedBlocks)
+        Right(
+          (
+            oldBlocksData.map(_.block),
+            importedBlocks.map(_.block),
+            importedBlocks.map(_.weight)
+          )
+        )
 
       case Some(error) =>
-        revertChainReorganisation(newBranch, oldBlocksData, executedBlocks)
+        revertChainReorganisation(newBranch, oldBlocksData, executed)
         Left(error)
     }
   }

@@ -96,11 +96,13 @@ trait ScenarioSetup extends StdTestMiningBuilder with StxLedgerBuilder {
     new ConsensusAdapter(
       new ConsensusImpl(
         blockchain,
+        blockMetadataProxy,
         blockchainReader,
         blockchainWriter,
         blockQueue,
         blockExecutionOpt.getOrElse(mkBlockExecution(validators))
       ),
+      blockMetadataProxy,
       blockchainReader,
       blockQueue,
       blockValidation,

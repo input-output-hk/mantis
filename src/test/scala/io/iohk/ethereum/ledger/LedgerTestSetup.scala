@@ -381,6 +381,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     val blockValidation = new BlockValidation(testMining, blockchainReader, blockQueue)
     val consensus = new ConsensusImpl(
       blockchain,
+      blockMetadataProxy,
       blockchainReader,
       blockchainWriter,
       blockQueue,
@@ -410,6 +411,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
     )
     new ConsensusAdapter(
       consensus,
+      blockMetadataProxy,
       blockchainReader,
       blockQueue,
       blockValidation,

@@ -18,6 +18,7 @@ trait StdTestMiningBuilder
     with VmBuilder
     with VmConfigBuilder
     with ActorSystemBuilder
+    with BlockMetadataProxyBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
     with ConsensusBuilder

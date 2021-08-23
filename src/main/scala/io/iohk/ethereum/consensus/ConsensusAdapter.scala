@@ -6,8 +6,10 @@ import monix.execution.Scheduler
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportResult
 import io.iohk.ethereum.blockchain.sync.regular.DuplicateBlock
+import io.iohk.ethereum.db.storage.BlockMetadata
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockHeader
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
@@ -23,6 +25,7 @@ import io.iohk.ethereum.utils.Logger
   */
 class ConsensusAdapter(
     consensus: Consensus,
+    blockMetadataProxy: BlockMetadataProxy,
     blockchainReader: BlockchainReader,
     blockQueue: BlockQueue,
     blockValidation: BlockValidation,
@@ -61,7 +64,8 @@ class ConsensusAdapter(
             Hex.toHexString(block.hash.toArray),
             error.reason.toString
           )
-        case Right(_) => log.debug("Block with hash {} validated successfully", Hex.toHexString(block.hash.toArray))
+        case Right(_) =>
+          log.debug("Block with hash {} validated successfully", Hex.toHexString(block.hash.toArray))
       }
       .executeOn(validationScheduler)
 

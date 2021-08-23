@@ -18,6 +18,7 @@ class TestNode extends BaseNode {
   lazy val testModeComponentsProvider: TestModeComponentsProvider =
     new TestModeComponentsProvider(
       blockchain,
+      blockMetadataProxy,
       blockchainReader,
       blockchainWriter,
       storagesInstance.storages.evmCodeStorage,

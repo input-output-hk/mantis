@@ -35,6 +35,7 @@ import io.iohk.ethereum.db.components.Storages.PruningModeComponent
 import io.iohk.ethereum.db.components._
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.pruning.PruningMode
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.NetService.NetServiceConfig
 import io.iohk.ethereum.jsonrpc._
@@ -173,6 +174,14 @@ trait NodeStatusBuilder {
   lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 }
 
+trait BlockMetadataProxyBuilder {
+  self: StorageBuilder =>
+
+  lazy val blockMetadataProxy: BlockMetadataProxy = new BlockMetadataProxy(
+    storagesInstance.storages.blockMetadataStorage
+  )
+}
+
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
@@ -188,7 +197,12 @@ trait BlockQueueBuilder {
 }
 
 trait ConsensusBuilder {
-  self: BlockchainBuilder with BlockQueueBuilder with MiningBuilder with ActorSystemBuilder with StorageBuilder =>
+  self: BlockMetadataProxyBuilder
+    with BlockchainBuilder
+    with BlockQueueBuilder
+    with MiningBuilder
+    with ActorSystemBuilder
+    with StorageBuilder =>
 
   lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
   lazy val blockExecution = new BlockExecution(
@@ -203,6 +217,7 @@ trait ConsensusBuilder {
   lazy val consensus: Consensus =
     new ConsensusImpl(
       blockchain,
+      blockMetadataProxy,
       blockchainReader,
       blockchainWriter,
       blockQueue,
@@ -212,6 +227,7 @@ trait ConsensusBuilder {
   lazy val consensusAdapter: ConsensusAdapter =
     new ConsensusAdapter(
       consensus,
+      blockMetadataProxy,
       blockchainReader,
       blockQueue,
       blockValidation,
@@ -852,6 +868,7 @@ trait Node
     with NodeKeyBuilder
     with ActorSystemBuilder
     with StorageBuilder
+    with BlockMetadataProxyBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
     with ConsensusBuilder

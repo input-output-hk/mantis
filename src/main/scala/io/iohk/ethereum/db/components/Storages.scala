@@ -53,7 +53,7 @@ object Storages {
             Some(CachedReferenceCountedStorage.saveOnlyNotificationHandler(nodeStorage))
           )
         )
-
+      override val blockMetadataStorage: BlockMetadataStorage = new BlockMetadataStorage(dataSource)
     }
   }
 }

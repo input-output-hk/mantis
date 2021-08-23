@@ -204,6 +204,7 @@ trait RegularSyncFixtures { self: Matchers with AsyncMockFactory =>
     class TestConsensus
         extends ConsensusImpl(
           stub[BlockchainImpl],
+          stub[BlockMetadataProxy],
           stub[BlockchainReader],
           stub[BlockchainWriter],
           stub[BlockQueue],

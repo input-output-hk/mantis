@@ -4,12 +4,12 @@ import akka.util.ByteString
 
 import monix.execution.Scheduler
 
-import io.iohk.ethereum.consensus.Consensus
 import io.iohk.ethereum.consensus.ConsensusAdapter
 import io.iohk.ethereum.consensus.ConsensusImpl
 import io.iohk.ethereum.consensus.mining.MiningConfig
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.db.storage.EvmCodeStorage
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter
@@ -21,6 +21,7 @@ import io.iohk.ethereum.nodebuilder.TestNode
 /** Provides a ledger or consensus instances with modifiable blockchain config (used in test mode). */
 class TestModeComponentsProvider(
     blockchain: BlockchainImpl,
+    blockMetadataProxy: BlockMetadataProxy,
     blockchainReader: BlockchainReader,
     blockchainWriter: BlockchainWriter,
     evmCodeStorage: EvmCodeStorage,
@@ -49,11 +50,13 @@ class TestModeComponentsProvider(
     new ConsensusAdapter(
       new ConsensusImpl(
         blockchain,
+        blockMetadataProxy,
         blockchainReader,
         blockchainWriter,
         node.blockQueue,
         blockExecution
       ),
+      blockMetadataProxy,
       blockchainReader,
       node.blockQueue,
       blockValidation,

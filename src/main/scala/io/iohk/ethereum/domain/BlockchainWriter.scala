@@ -52,6 +52,17 @@ class BlockchainWriter(
       .commit()
   }
 
+  def saveAsBestBlock(block: Block): Unit = {
+    val updateCheckpointNumber =
+      if (block.hasCheckpoint) appStateStorage.putLatestCheckpointBlockNumber(block.header.number)
+      else appStateStorage.emptyBatchUpdate
+
+    appStateStorage
+      .putBestBlockInfo(BlockInfo(block.header.hash, block.header.number))
+      .and(updateCheckpointNumber)
+      .commit()
+  }
+
   def storeReceipts(blockHash: ByteString, receipts: Seq[Receipt]): DataSourceBatchUpdate =
     receiptStorage.put(blockHash, receipts)
 

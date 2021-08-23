@@ -37,6 +37,7 @@ import io.iohk.ethereum.db.storage.Namespaces
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
 import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
@@ -137,6 +138,7 @@ abstract class CommonFakePeer(peerName: String, fakePeerCustomConfig: FakePeerCu
     )
   )
 
+  val blockMetadataProxy: BlockMetadataProxy = new BlockMetadataProxy(storagesInstance.storages.blockMetadataStorage)
   val blockchainReader: BlockchainReader = BlockchainReader(storagesInstance.storages)
   val blockchainWriter: BlockchainWriter = BlockchainWriter(storagesInstance.storages)
   val bl: BlockchainImpl = BlockchainImpl(storagesInstance.storages, blockchainReader)
