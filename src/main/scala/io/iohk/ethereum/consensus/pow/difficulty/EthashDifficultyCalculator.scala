@@ -6,9 +6,10 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 object EthashDifficultyCalculator extends DifficultyCalculator {
   import DifficultyCalculator._
-  private val ExpDifficultyPeriod: Int = 100000
-  private val ByzantiumRelaxDifficulty: BigInt = 3000000
-  private val ConstantinopleRelaxDifficulty: BigInt = 5000000
+  private val ExpDifficultyPeriod: Int = 100_000
+  private val ByzantiumRelaxDifficulty: BigInt = 3_000_000
+  private val ConstantinopleRelaxDifficulty: BigInt = 5_000_000
+  private val MuirGlacierRelaxDifficulty: BigInt = 9_000_000
 
   def calculateDifficulty(blockNumber: BigInt, blockTimestamp: Long, parentHeader: BlockHeader)(implicit
       blockchainConfig: BlockchainConfig
@@ -32,8 +33,10 @@ object EthashDifficultyCalculator extends DifficultyCalculator {
       if (blockNumber < difficultyBombRemovalBlockNumber) {
         // calculate a fake block number for the ice-age delay
         val fakeBlockNumber: BigInt =
+          // https://eips.ethereum.org/EIPS/eip-2384
+          if (blockNumber >= muirGlacierBlockNumber) (blockNumber - MuirGlacierRelaxDifficulty).max(0)
           // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1234.md
-          if (blockNumber >= constantinopleBlockNumber) (blockNumber - ConstantinopleRelaxDifficulty).max(0)
+          else if (blockNumber >= constantinopleBlockNumber) (blockNumber - ConstantinopleRelaxDifficulty).max(0)
           // https://github.com/ethereum/EIPs/blob/master/EIPS/eip-649.md
           else if (blockNumber >= byzantiumBlockNumber) (blockNumber - ByzantiumRelaxDifficulty).max(0)
           else blockNumber

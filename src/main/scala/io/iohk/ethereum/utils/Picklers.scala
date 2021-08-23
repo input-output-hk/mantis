@@ -6,6 +6,7 @@ import boopickle.DefaultBasic._
 import boopickle.Pickler
 
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.domain.AccessListItem
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockBody
 import io.iohk.ethereum.domain.BlockHeader
@@ -14,6 +15,8 @@ import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields._
 import io.iohk.ethereum.domain.Checkpoint
 import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.domain.Transaction
+import io.iohk.ethereum.domain.TransactionWithAccessList
 
 object Picklers {
   implicit val byteStringPickler: Pickler[ByteString] =
@@ -30,9 +33,18 @@ object Picklers {
 
   implicit val addressPickler: Pickler[Address] =
     transformPickler[Address, ByteString](bytes => Address(bytes))(address => address.bytes)
-  implicit val transactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
+  implicit val accessListItemPickler: Pickler[AccessListItem] = generatePickler[AccessListItem]
+
+  implicit val legacyTransactionPickler: Pickler[LegacyTransaction] = generatePickler[LegacyTransaction]
+  implicit val transactionWithAccessListPickler: Pickler[TransactionWithAccessList] =
+    generatePickler[TransactionWithAccessList]
+
+  implicit val transactionPickler: Pickler[Transaction] = compositePickler[Transaction]
+    .addConcreteType[LegacyTransaction]
+    .addConcreteType[TransactionWithAccessList]
+
   implicit val signedTransactionPickler: Pickler[SignedTransaction] =
-    transformPickler[SignedTransaction, (LegacyTransaction, ECDSASignature)] { case (tx, signature) =>
+    transformPickler[SignedTransaction, (Transaction, ECDSASignature)] { case (tx, signature) =>
       new SignedTransaction(tx, signature)
     }(stx => (stx.tx, stx.signature))
 

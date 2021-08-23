@@ -113,6 +113,8 @@ private[rlp] object RLP {
         val inputAsBytes = value.bytes
         if (inputAsBytes.length == 1 && (inputAsBytes(0) & 0xff) < 0x80) inputAsBytes
         else encodeLength(inputAsBytes.length, OffsetShortItem) ++ inputAsBytes
+      case PrefixedRLPEncodable(prefix, prefixedRLPEncodeable) =>
+        prefix +: encode(prefixedRLPEncodeable)
     }
 
   /** This function transform a byte into byte array

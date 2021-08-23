@@ -105,6 +105,7 @@ object ETC64 {
 
     implicit class NewBlockDec(val bytes: Array[Byte]) extends AnyVal {
       import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions._
+      import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.TypedTransaction._
 
       def toNewBlock: NewBlock = rawDecode(bytes) match {
         case RLPList(
@@ -115,7 +116,10 @@ object ETC64 {
           NewBlock(
             Block(
               blockHeader.toBlockHeader,
-              BlockBody(transactionList.items.map(_.toSignedTransaction), uncleNodesList.items.map(_.toBlockHeader))
+              BlockBody(
+                transactionList.items.toTypedRLPEncodables.map(_.toSignedTransaction),
+                uncleNodesList.items.map(_.toBlockHeader)
+              )
             ),
             ChainWeight(lastCheckpointNumber, totalDifficulty)
           )

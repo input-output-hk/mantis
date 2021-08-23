@@ -254,6 +254,36 @@ class EthashBlockHeaderValidatorSpec
     difficulty shouldBe afterRewardReductionBlockHeader.difficulty
   }
 
+  it should "properly calculate the difficulty after muir glacier delay" in new EphemBlockchainTestSetup {
+    val blockchainConfigWithoutDifficultyBombRemoval: BlockchainConfig =
+      blockchainConfig.withUpdatedForkBlocks(
+        _.copy(
+          difficultyBombRemovalBlockNumber = BigInt("1000000000000"),
+          difficultyBombPauseBlockNumber = 0,
+          difficultyBombContinueBlockNumber = 0,
+          muirGlacierBlockNumber = 9200000
+        )
+      )
+
+    val parentHeader: BlockHeader =
+      validParentBlockHeader.copy(
+        number = 9200000 - 1,
+        unixTimestamp = 1525176000,
+        difficulty = BigInt("22627021745803")
+      )
+    val parent = Block(parentHeader, parentBody)
+
+    val blockNumber: BigInt = parentHeader.number + 1
+    val blockTimestamp: Long = parentHeader.unixTimestamp + 6
+
+    val difficulty: BigInt = EthashDifficultyCalculator.calculateDifficulty(blockNumber, blockTimestamp, parent.header)(
+      blockchainConfigWithoutDifficultyBombRemoval
+    )
+    val blockDifficultyWihtoutBomb = BigInt("22638070096265")
+
+    difficulty shouldBe blockDifficultyWihtoutBomb
+  }
+
   // FIXME: Replace with mocked miner validators once we have them
   object BlockValidatorWithPowMocked extends BlockHeaderValidatorSkeleton() {
 
@@ -388,6 +418,7 @@ class EthashBlockHeaderValidatorSpec
         byzantiumBlockNumber = 4370000,
         constantinopleBlockNumber = 7280000,
         istanbulBlockNumber = 9069000,
+        muirGlacierBlockNumber = 9200000,
         eip106BlockNumber = 0
       ),
       daoForkConfig = Some(new DaoForkConfig {

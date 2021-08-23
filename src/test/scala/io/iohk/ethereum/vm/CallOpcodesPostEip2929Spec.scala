@@ -22,7 +22,7 @@ class MagnetoCallOpFixture(config: EvmConfig)
     BlockFixtures.ValidBlock.header.copy(number = Fixtures.MagnetoBlockNumber, unixTimestamp = 0)
 
   override val requiredGas: BigInt = {
-    val storageCost = 3 * (config.feeSchedule.G_sset + config.feeSchedule.G_cold_account_access)
+    val storageCost = 3 * (config.feeSchedule.G_sset + config.feeSchedule.G_cold_sload)
     val memCost = config.calcMemCost(0, 0, 32)
     val copyCost = config.feeSchedule.G_copy * wordsForBytes(32)
 

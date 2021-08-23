@@ -4,7 +4,7 @@ import akka.util.ByteString
 
 import org.bouncycastle.util.encoders.Hex
 
-sealed trait Transaction {
+sealed trait Transaction extends Product with Serializable {
   def nonce: BigInt
   def gasPrice: BigInt
   def gasLimit: BigInt
@@ -22,15 +22,31 @@ sealed trait Transaction {
 }
 
 object Transaction {
-  val Type01: Int = 1
+  val Type01: Byte = 1.toByte
+
+  val MinAllowedType: Byte = 0
+  val MaxAllowedType: Byte = 0x7f
+
   val LegacyThresholdLowerBound: Int = 0xc0
   val LegacyThresholdUpperBound: Int = 0xfe
+
+  def withGasLimit(gl: BigInt): Transaction => Transaction = {
+    case tx: LegacyTransaction         => tx.copy(gasLimit = gl)
+    case tx: TransactionWithAccessList => tx.copy(gasLimit = gl)
+  }
+
+  implicit class TransactionTypeValidator(val transactionType: Byte) extends AnyVal {
+    def isValidTransactionType: Boolean = transactionType >= MinAllowedType && transactionType <= MaxAllowedType
+  }
+
+  implicit class ByteArrayTransactionTypeValidator(val binaryData: Array[Byte]) extends AnyVal {
+    def isValidTransactionType: Boolean = binaryData.length == 1 && binaryData.head.isValidTransactionType
+  }
 }
 
 sealed trait TypedTransaction extends Transaction
 
 object LegacyTransaction {
-
   val NonceLength = 32
   val GasLength = 32
   val ValueLength = 32
@@ -44,7 +60,6 @@ object LegacyTransaction {
       payload: ByteString
   ): LegacyTransaction =
     LegacyTransaction(nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload)
-
 }
 
 case class LegacyTransaction(
@@ -66,7 +81,22 @@ case class LegacyTransaction(
       s"}"
 }
 
+object TransactionWithAccessList {
+  def apply(
+      chainId: BigInt,
+      nonce: BigInt,
+      gasPrice: BigInt,
+      gasLimit: BigInt,
+      receivingAddress: Address,
+      value: BigInt,
+      payload: ByteString,
+      accessList: List[AccessListItem]
+  ): TransactionWithAccessList =
+    TransactionWithAccessList(chainId, nonce, gasPrice, gasLimit, Some(receivingAddress), value, payload, accessList)
+}
+
 case class TransactionWithAccessList(
+    chainId: BigInt,
     nonce: BigInt,
     gasPrice: BigInt,
     gasLimit: BigInt,

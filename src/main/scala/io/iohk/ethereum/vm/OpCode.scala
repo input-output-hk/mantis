@@ -257,7 +257,7 @@ trait AddrAccessGas { self: OpCode =>
 
 trait StorageAccessGas { self: OpCode =>
 
-  private def coldGasFn: FeeSchedule => BigInt = _.G_cold_account_access
+  private def coldGasFn: FeeSchedule => BigInt = _.G_cold_sload
   private def warmGasFn: FeeSchedule => BigInt = _.G_warm_storage_read
 
   override protected def baseGas[W <: WorldStateProxy[W, S], S <: Storage[S]](state: ProgramState[W, S]): BigInt = {
@@ -769,7 +769,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
         state.config.feeSchedule.G_sreset
     }
 
-    originalCharge + OpCode.storageAccessCost(state, state.ownAddress, offset)(_ => 0, _.G_cold_account_access, _ => 0)
+    originalCharge + OpCode.storageAccessCost(state, state.ownAddress, offset)(_ => 0, _.G_cold_sload, _ => 0)
   }
 
   override protected def availableInContext[W <: WorldStateProxy[W, S], S <: Storage[S]]
