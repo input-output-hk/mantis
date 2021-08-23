@@ -94,7 +94,7 @@ class ECIP1017Test extends AnyFlatSpec with Matchers {
           mining.blockPreparator,
           blockValidation
         )
-      blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
+      blockExecution.executeBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

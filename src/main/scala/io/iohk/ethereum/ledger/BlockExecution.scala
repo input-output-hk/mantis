@@ -22,26 +22,18 @@ class BlockExecution(
     blockValidation: BlockValidation
 ) extends Logger {
 
-  /** Executes and validate a block
-    *
-    * @param alreadyValidated should we skip pre-execution validation (if the block has already been validated,
-    *                         eg. in the importBlock method)
+  /** Executes and validates a block
     */
-  def executeAndValidateBlock(
-      block: Block,
-      alreadyValidated: Boolean = false
+  def executeBlock(
+      block: Block
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] = {
-    val preExecValidationResult =
-      if (alreadyValidated) Right(block) else blockValidation.validateBlockBeforeExecution(block)
-
     val blockExecResult = {
       if (block.hasCheckpoint) {
         // block with checkpoint is not executed normally - it's not need to do after execution validation
-        preExecValidationResult.map(_ => Seq.empty[Receipt])
+        Right(Seq.empty[Receipt])
       } else {
         for {
-          _ <- preExecValidationResult
-          result <- executeBlock(block)
+          result <- doBlockExecution(block)
           _ <- blockValidation.validateBlockAfterExecution(
             block,
             result.worldState.stateRootHash,
@@ -60,7 +52,7 @@ class BlockExecution(
   }
 
   /** Executes a block (executes transactions and pays rewards) */
-  private def executeBlock(
+  private def doBlockExecution(
       block: Block
   )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, BlockResult] =
     for {
@@ -146,18 +138,17 @@ class BlockExecution(
       case None => worldState
     }
 
-  /** Executes and validates a list of blocks, storing the results in the blockchain.
+  /** Executes a list of blocks, storing the results in the blockchain.
     *
-    * @param blocks   blocks to be executed
+    * @param blocks blocks to be executed
     * @param parentChainWeight parent weight
     *
     * @return a list of blocks in incremental order that were correctly executed and an optional
     *         [[io.iohk.ethereum.ledger.BlockExecutionError]]
     */
-  def executeAndValidateBlocks(
-      blocks: List[Block],
-      parentChainWeight: ChainWeight
-  )(implicit blockchainConfig: BlockchainConfig): (List[BlockData], Option[BlockExecutionError]) = {
+  def executeBlocks(blocks: List[Block], parentChainWeight: ChainWeight)(implicit
+      blockchainConfig: BlockchainConfig
+  ): (List[BlockData], Option[BlockExecutionError]) = {
     @tailrec
     def go(
         executedBlocksDecOrder: List[BlockData],
@@ -168,7 +159,7 @@ class BlockExecution(
         (executedBlocksDecOrder.reverse, None)
       } else {
         val blockToExecute = remainingBlocksIncOrder.head
-        executeAndValidateBlock(blockToExecute, alreadyValidated = true) match {
+        executeBlock(blockToExecute) match {
           case Right(receipts) =>
             val newWeight = parentWeight.increase(blockToExecute.header)
             val newBlockData = BlockData(blockToExecute, receipts, newWeight)

@@ -247,9 +247,8 @@ class TestFixture extends TestSetupWithVmAndValidators {
         mining.blockPreparator,
         new BlockValidation(mining, blockchainReader, blockQueue)
       ) {
-        override def executeAndValidateBlock(
-            block: Block,
-            alreadyValidated: Boolean = false
+        override def executeBlock(
+            block: Block
         )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] =
           Right(BlockResult(emptyWorld).receipts)
       }

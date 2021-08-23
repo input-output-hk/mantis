@@ -28,16 +28,12 @@ import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockExecutionError
 import io.iohk.ethereum.ledger.BlockExecutionError.MPTError
-import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
-import io.iohk.ethereum.ledger.BlockExecutionSuccess
 import io.iohk.ethereum.ledger.BlockMetrics
 import io.iohk.ethereum.ledger.BlockQueue
 import io.iohk.ethereum.ledger.BlockQueue.Leaf
-import io.iohk.ethereum.ledger.BlockValidation
 import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingNodeException
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils
-import io.iohk.ethereum.utils.FunctorOps._
 import io.iohk.ethereum.utils.Logger
 
 class ConsensusImpl(
@@ -138,7 +134,7 @@ class ConsensusImpl(
     val executionResult = for {
       topBlock <- blockQueue.enqueueBlock(block, bestBlockNumber)
       topBlocks = blockQueue.getBranch(topBlock.hash, dequeue = true)
-      (executed, errors) = blockExecution.executeAndValidateBlocks(topBlocks, currentWeight)
+      (executed, errors) = blockExecution.executeBlocks(topBlocks, currentWeight)
     } yield (executed, errors, topBlocks)
 
     executionResult match {
@@ -240,7 +236,7 @@ class ConsensusImpl(
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[BlockExecutionError, (List[Block], List[Block], List[ChainWeight])] = {
-    val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
+    val (executedBlocks, maybeError) = blockExecution.executeBlocks(newBranch, parentWeight)
     maybeError match {
       case None =>
         Right((oldBlocksData.map(_.block), executedBlocks.map(_.block), executedBlocks.map(_.weight)))

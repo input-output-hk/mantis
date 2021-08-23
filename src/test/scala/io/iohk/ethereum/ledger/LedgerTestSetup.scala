@@ -392,9 +392,8 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
         testMining.blockPreparator,
         blockValidation
       ) {
-        override def executeAndValidateBlock(
-            block: Block,
-            alreadyValidated: Boolean = false
+        override def executeBlock(
+            block: Block
         )(implicit blockchainConfig: BlockchainConfig): Either[BlockExecutionError, Seq[Receipt]] = {
           val emptyWorld = InMemoryWorldStateProxy(
             storagesInstance.storages.evmCodeStorage,
