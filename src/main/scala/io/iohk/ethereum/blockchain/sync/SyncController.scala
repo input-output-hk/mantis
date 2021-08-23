@@ -138,7 +138,7 @@ class SyncController(
         pendingTransactionsManager,
         scheduler,
         configBuilder,
-        newFlow = true
+        newFlow = false
       ),
       "regular-sync"
     )
