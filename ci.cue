@@ -112,6 +112,7 @@ ci: {
 
 // https://docs.github.com/en/developers/webhooks-and-events/webhooks/webhook-events-and-payloads#webhook-payload-object-33
 #isNotDraft: pull_request.draft == false
+#thisCommit: pull_request.head.sha
 
 // shared defaults for all steps
 #step: {
@@ -120,7 +121,7 @@ ci: {
     memory:       9000
     term_timeout: 60 * 60 * 3
     kill_timeout: term_timeout + 30
-    flakes: "github:input-output-hk/mantis": [
+    flakes: "github:input-output-hk/mantis/\(#thisCommit)": [
         "sbt",
         "coreutils",
         "gnused",
