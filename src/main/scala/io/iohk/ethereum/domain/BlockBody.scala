@@ -23,6 +23,8 @@ object BlockBody {
 
   val empty: BlockBody = BlockBody(Seq.empty, Seq.empty)
 
+  import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.TypedTransaction._
+
   def blockBodyToRlpEncodable(
       blockBody: BlockBody,
       signedTxToRlpEncodable: SignedTransaction => RLPEncodeable,
@@ -57,7 +59,7 @@ object BlockBody {
     rlpEncodeable match {
       case RLPList((transactions: RLPList), (uncles: RLPList)) =>
         BlockBody(
-          transactions.items.map(rlpEncodableToSignedTransaction),
+          transactions.items.toTypedRLPEncodables.map(rlpEncodableToSignedTransaction),
           uncles.items.map(rlpEncodableToBlockHeader)
         )
       case _ => throw new RuntimeException("Cannot decode BlockBody")
