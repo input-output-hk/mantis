@@ -141,10 +141,10 @@ class FetcherServiceSpec
 
   val peerId: PeerId = PeerId("peerId")
 
-  "FetcherService.blockIdentifier" should "pair the test headers and bodies" in {
-    FetcherService.blockIdentifier(body1) shouldEqual FetcherService.blockIdentifier(header1)
-    FetcherService.blockIdentifier(body2) shouldEqual FetcherService.blockIdentifier(header2)
-    (FetcherService.blockIdentifier(body1) should not).equal(FetcherService.blockIdentifier(header2))
+  "FetcherService.BlockIdentifier" should "pair the test headers and bodies" in {
+    FetcherService.BlockIdentifier(body1) shouldEqual FetcherService.BlockIdentifier(header1)
+    FetcherService.BlockIdentifier(body2) shouldEqual FetcherService.BlockIdentifier(header2)
+    (FetcherService.BlockIdentifier(body1) should not).equal(FetcherService.BlockIdentifier(header2))
   }
 
   "FetcherService.fetchBlocksForHeaders" should "combine matching headers and bodies" in {
