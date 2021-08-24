@@ -14,6 +14,7 @@ import scala.concurrent.ExecutionContext
 import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
+import io.iohk.ethereum.blockchain.PeerComparator
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -42,6 +43,10 @@ class PeersClient(
 
   val statusSchedule: Cancellable =
     scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
+
+  val numberOfPeersToFetchFrom = syncConfig.peersToFetchFrom
+
+  val activeFetchingNodes: mutable.Set[PeerWithInfo] = lruSet(numberOfPeersToFetchFrom)
 
   def receive: Receive = running(Map())
 
@@ -100,7 +105,7 @@ class PeersClient(
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
     peerSelector match {
       case BestPeer     => bestPeer(peersToDownloadFrom)
-      case NextBestPeer => nextBestPeer(peersToDownloadFrom)
+      case NextBestPeer => nextBestPeer(peersToDownloadFrom, activeFetchingNodes.toSet)
     }
 
   private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
@@ -148,11 +153,6 @@ object PeersClient {
     Props(new PeersClient(etcPeerManager, peerEventBus, blacklist, syncConfig, scheduler))
 
   type Requesters = Map[ActorRef, ActorRef]
-
-  //TODO: get the value from syncConfig.peersToFetchFrom
-  val numberOfPeersToFetchFrom = 1
-
-  val activeFetchingNodes: mutable.Set[Peer] = lruSet[Peer](numberOfPeersToFetchFrom)
 
   private def lruSet[A](maxEntries: Int): mutable.Set[A] =
     newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {
@@ -209,18 +209,23 @@ object PeersClient {
   }
 
   //returns the next best peer after the one already returned previously
-  //TODO: make sure the next best peer has a different best block, so we don't fetch in parallel identical branches
   //TODO: whenever this method is called - do activeFetchingNodes.add(_) on the peer returned
-  def nextBestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
+  def nextBestPeer(
+      peersToDownloadFrom: Map[PeerId, PeerWithInfo],
+      activeFetchingNodes: Set[PeerWithInfo]
+  ): Option[Peer] = {
     val peersToUse = peersToDownloadFrom.values
-      .collect { case PeerWithInfo(peer, PeerInfo(_, chainWeight, true, _, _)) =>
-        (peer, chainWeight)
+      .collect { case PeerWithInfo(peer, peerInfo @ PeerInfo(_, _, true, _, _)) =>
+        (peer, peerInfo)
       }
 
     val peer =
       peersToUse
-        .filter { case (peer, _) => !activeFetchingNodes.contains(peer) }
-        .maxByOption { case (_, weight) => weight }
+        .filterNot { case (peer, _) => activeFetchingNodes.map(_.peer).contains(peer) }
+        .filterNot { case (_, peerInfo) =>
+          activeFetchingNodes.map(_.peerInfo).exists(PeerComparator.doPeersHaveSameBestBlock(peerInfo, _))
+        }
+        .maxByOption { case (_, peerInfo) => peerInfo.chainWeight }
         .map { case (peer, _) => peer }
     peer
   }
