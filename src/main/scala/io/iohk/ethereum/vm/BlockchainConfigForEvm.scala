@@ -13,6 +13,7 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Byzantium
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Constantinople
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Istanbul
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Petersburg
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Berlin
 
 /** A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
@@ -37,6 +38,7 @@ case class BlockchainConfigForEvm(
     petersburgBlockNumber: BigInt,
     phoenixBlockNumber: BigInt,
     magnetoBlockNumber: BigInt,
+    berlinBlockNumber: BigInt,
     chainId: Byte
 ) {
   def etcForkForBlockNumber(blockNumber: BigInt): EtcFork = blockNumber match {
@@ -52,7 +54,8 @@ case class BlockchainConfigForEvm(
     case _ if blockNumber < constantinopleBlockNumber => Byzantium
     case _ if blockNumber < petersburgBlockNumber     => Constantinople
     case _ if blockNumber < istanbulBlockNumber       => Petersburg
-    case _ if blockNumber >= istanbulBlockNumber      => Istanbul
+    case _ if blockNumber < berlinBlockNumber         => Istanbul
+    case _ if blockNumber >= berlinBlockNumber        => Berlin
   }
 }
 
@@ -68,7 +71,9 @@ object BlockchainConfigForEvm {
     val BeforeByzantium, Byzantium, Constantinople, Petersburg, Istanbul, Berlin = Value
   }
 
-  def isEip2929Enabled(etcFork: EtcFork): Boolean = etcFork >= EtcForks.Magneto
+  def isEip2929Enabled(etcFork: EtcFork, ethFork: BlockchainConfigForEvm.EthForks.Value): Boolean =
+    etcFork >= EtcForks.Magneto || ethFork >= EthForks.Berlin
+
 
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._
@@ -88,6 +93,7 @@ object BlockchainConfigForEvm {
       petersburgBlockNumber = forkBlockNumbers.petersburgBlockNumber,
       phoenixBlockNumber = forkBlockNumbers.phoenixBlockNumber,
       magnetoBlockNumber = forkBlockNumbers.magnetoBlockNumber,
+      berlinBlockNumber = forkBlockNumbers.berlinBlockNumber,
       chainId = chainId
     )
   }

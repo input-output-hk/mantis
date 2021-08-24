@@ -189,9 +189,9 @@ object OpCode {
       postWarmGasFn: FeeSchedule => BigInt
   ): BigInt = {
     val currentBlockNumber = state.env.blockHeader.number
-    // FIXME: handle ETH Berlin here as well
     val etcFork = state.config.blockchainConfig.etcForkForBlockNumber(currentBlockNumber)
-    val eip2929Enabled = isEip2929Enabled(etcFork)
+    val ethFork = state.config.blockchainConfig.ethForkForBlockNumber(currentBlockNumber)
+    val eip2929Enabled = isEip2929Enabled(etcFork, ethFork)
     if (eip2929Enabled) {
       if (isWarm)
         postWarmGasFn(state.config.feeSchedule)
