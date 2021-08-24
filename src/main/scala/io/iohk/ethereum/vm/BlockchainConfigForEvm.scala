@@ -9,11 +9,11 @@ import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.EtcFork
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Magneto
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EtcForks.Phoenix
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.BeforeByzantium
+import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Berlin
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Byzantium
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Constantinople
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Istanbul
 import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Petersburg
-import io.iohk.ethereum.vm.BlockchainConfigForEvm.EthForks.Berlin
 
 /** A subset of [[io.iohk.ethereum.utils.BlockchainConfig]] that is required for instantiating an [[EvmConfig]]
   * Note that `accountStartNonce` is required for a [[WorldStateProxy]] implementation that is used
@@ -73,7 +73,6 @@ object BlockchainConfigForEvm {
 
   def isEip2929Enabled(etcFork: EtcFork, ethFork: BlockchainConfigForEvm.EthForks.Value): Boolean =
     etcFork >= EtcForks.Magneto || ethFork >= EthForks.Berlin
-
 
   def apply(blockchainConfig: BlockchainConfig): BlockchainConfigForEvm = {
     import blockchainConfig._
