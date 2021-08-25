@@ -8,12 +8,9 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
-import io.iohk.ethereum.vm.Storage
 import io.iohk.ethereum.vm.WorldStateProxy
 
 object InMemoryWorldStateProxy {
-
-  import Account._
 
   def apply(
       evmCodeStorage: EvmCodeStorage,
@@ -23,39 +20,41 @@ object InMemoryWorldStateProxy {
       stateRootHash: ByteString,
       noEmptyAccounts: Boolean,
       ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy = InMemoryWorldStateProxy.apply(
-    evmCodeStorage,
-    mptStorage,
-    accountStartNonce,
-    getBlockHashByNumber,
-    stateRootHash,
-    noEmptyAccounts,
-    ethCompatibleStorage
-  )
-
-  private def apply(
-      evmCodeStorage: EvmCodeStorage,
-      nodesKeyValueStorage: MptStorage,
-      accountStartNonce: UInt256,
-      getBlockHashByNumber: BigInt => Option[ByteString],
-      stateRootHash: ByteString,
-      noEmptyAccounts: Boolean,
-      ethCompatibleStorage: Boolean
-  ): InMemoryWorldStateProxy = {
-    val accountsStateTrieProxy = createProxiedAccountsStateTrie(nodesKeyValueStorage, stateRootHash)
+  ): InMemoryWorldStateProxy =
     new InMemoryWorldStateProxy(
-      nodesKeyValueStorage,
-      accountsStateTrieProxy,
-      Map.empty,
-      evmCodeStorage,
-      Map.empty,
-      getBlockHashByNumber,
-      accountStartNonce,
-      Set.empty,
-      noEmptyAccounts,
-      ethCompatibleStorage
+      stateStorage = mptStorage,
+      accountsStateTrie = createProxiedAccountsStateTrie(mptStorage, stateRootHash),
+      contractStorages = Map.empty,
+      evmCodeStorage = evmCodeStorage,
+      accountCodes = Map.empty,
+      getBlockByNumber = getBlockHashByNumber,
+      accountStartNonce = accountStartNonce,
+      touchedAccounts = Set.empty,
+      noEmptyAccountsCond = noEmptyAccounts,
+      ethCompatibleStorage = ethCompatibleStorage
     )
-  }
+
+  /** Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
+    * between Keccak 256-bit hashes of the addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
+    * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
+    * modified Merkle Patricia tree [...])."
+    *
+    * * See [[http://paper.gavwood.com YP 4.1]]
+    *
+    * @param accountsStorage Accounts Storage where trie nodes are saved
+    * @param stateRootHash   State trie root hash
+    * @return Proxied Accounts State Trie
+    */
+  private def createProxiedAccountsStateTrie(
+      accountsStorage: MptStorage,
+      stateRootHash: ByteString
+  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
+    InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
+      MerklePatriciaTrie[Address, Account](
+        stateRootHash.toArray[Byte],
+        accountsStorage
+      )(Address.hashedAddressEncoder, Account.accountSerializer)
+    )
 
   /** Updates state trie with current changes but does not persist them into the storages. To do so it:
     *   - Commits code (to get account's code hashes)
@@ -94,46 +93,14 @@ object InMemoryWorldStateProxy {
     def persistAccountsStateTrie(worldState: InMemoryWorldStateProxy): InMemoryWorldStateProxy =
       worldState.copyWith(accountsStateTrie = worldState.accountsStateTrie.persist())
 
-    ((persistCode _).andThen(persistContractStorage).andThen(persistAccountsStateTrie))(worldState)
+    (persistCode _).andThen(persistContractStorage).andThen(persistAccountsStateTrie)(worldState)
   }
-
-  /** Returns an [[InMemorySimpleMapProxy]] of the accounts state trie "The world state (state), is a mapping
-    * between Keccak 256-bit hashes of the addresses (160-bit identifiers) and account states (a data structure serialised as RLP [...]).
-    * Though not stored on the blockchain, it is assumed that the implementation will maintain this mapping in a
-    * modified Merkle Patricia tree [...])."
-    *
-    * * See [[http://paper.gavwood.com YP 4.1]]
-    *
-    * @param accountsStorage Accounts Storage where trie nodes are saved
-    * @param stateRootHash   State trie root hash
-    * @return Proxied Accounts State Trie
-    */
-  private def createProxiedAccountsStateTrie(
-      accountsStorage: MptStorage,
-      stateRootHash: ByteString
-  ): InMemorySimpleMapProxy[Address, Account, MerklePatriciaTrie[Address, Account]] =
-    InMemorySimpleMapProxy.wrap[Address, Account, MerklePatriciaTrie[Address, Account]](
-      MerklePatriciaTrie[Address, Account](
-        stateRootHash.toArray[Byte],
-        accountsStorage
-      )(Address.hashedAddressEncoder, accountSerializer)
-    )
 }
 
-class InMemoryWorldStateProxyStorage(
-    val wrapped: InMemorySimpleMapProxy[BigInt, BigInt, MerklePatriciaTrie[BigInt, BigInt]]
-) extends Storage[InMemoryWorldStateProxyStorage] {
-
-  override def store(addr: BigInt, value: BigInt): InMemoryWorldStateProxyStorage = {
-    val newWrapped =
-      if (value == 0) wrapped - addr
-      else wrapped + (addr -> value)
-    new InMemoryWorldStateProxyStorage(newWrapped)
-  }
-
-  override def load(addr: BigInt): BigInt = wrapped.get(addr).getOrElse(0)
-}
-
+/** Representation of the world-state. Proxy between the virtual machine and the consensus.
+  * Holds in-memory the changes applies to the state when executing a transaction until persistence or rollback.
+  * Has access to the storage to read previous values and also to persist the new state.
+  */
 class InMemoryWorldStateProxy(
     // State MPT proxied nodes storage needed to construct the storage MPT when calling [[getStorage]].
     // Accounts state and accounts storage states are saved within the same storage
@@ -145,7 +112,7 @@ class InMemoryWorldStateProxy(
     val evmCodeStorage: EvmCodeStorage,
     // Account's code by Address
     val accountCodes: Map[Address, Code],
-    val getBlockByNumber: (BigInt) => Option[ByteString],
+    val getBlockByNumber: BigInt => Option[ByteString],
     override val accountStartNonce: UInt256,
     // touchedAccounts and noEmptyAccountsCond are introduced by EIP161 to track accounts touched during the transaction
     // execution. Touched account are only added to Set if noEmptyAccountsCond == true, otherwise all other operations

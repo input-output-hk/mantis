@@ -41,7 +41,7 @@ class InMemorySimpleMapProxy[K, V, I <: SimpleMap[K, V, I]] private (val inner: 
     */
   def rollback: InMemorySimpleMapProxy[K, V, I] = new InMemorySimpleMapProxy[K, V, I](inner, Map.empty)
 
-  /** This function obtains the value asociated with the key passed, if there exists one.
+  /** This function obtains the value associated with the key passed, if there exists one.
     *
     * @param key
     * @return Option object with value if there exists one.
