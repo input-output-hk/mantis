@@ -34,6 +34,9 @@ import io.iohk.ethereum.consensus.validators.BlockHeaderValid
 import io.iohk.ethereum.consensus.validators.BlockHeaderValidator
 import io.iohk.ethereum.crypto.generateKeyPair
 import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.db.dataSource.DataSource
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
@@ -46,6 +49,7 @@ import io.iohk.ethereum.utils.Config.SyncConfig
 import io.iohk.ethereum.utils.DaoForkConfig
 import io.iohk.ethereum.vm.ProgramError
 import io.iohk.ethereum.vm.ProgramResult
+import io.iohk.ethereum.db.storage.BlockMetadata
 
 // scalastyle:off magic.number
 trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
@@ -423,6 +427,8 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
 trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
   //+ cake overrides
 
+  val dataSource: EphemDataSource = EphemDataSource()
+  override lazy val blockMetadataProxy: BlockMetadataProxy = mock[BlockMetadataProxy]
   override lazy val blockchainReader: BlockchainReader = mock[BlockchainReader]
   override lazy val blockchainWriter: BlockchainWriter = mock[BlockchainWriter]
   (blockchainReader.getBestBranch _).expects().anyNumberOfTimes().returning(EmptyBranch)
@@ -439,6 +445,20 @@ trait MockBlockchain extends MockFactory { self: TestSetupWithVmAndValidators =>
       .returning(Some(block).filter(_ => inChain))
     (blockQueue.isQueued _).expects(block.header.hash).anyNumberOfTimes().returning(inQueue)
   }
+
+  def setBlockExecutionState(block: Block, isExecuted: Boolean): CallHandler1[ByteString, Boolean] =
+    (blockMetadataProxy.getBlockIsExecuted _).expects(block.hash).once().returning(isExecuted)
+
+  def setPutBlockMetadata(block: Block): CallHandler2[ByteString, BlockMetadata, DataSourceBatchUpdate] =
+    (blockMetadataProxy.putBlockMetadata _)
+      .expects(block.hash, *)
+      .returning(DataSourceBatchUpdate(dataSource, Array.empty))
+
+  def setSaveAsBestBlock(block: Block): CallHandler1[Block, Unit] =
+    (blockchainWriter.saveAsBestBlock _).expects(block).returning(())
+
+  def setGetBlockData(block: Block, blockData: BlockData): CallHandler1[Block, BlockData] =
+    (blockchainReader.getBlockData _).expects(block).returning(blockData)
 
   def setBestBlock(block: Block): CallHandler0[BigInt] = {
     (blockchainReader.getBestBlock _).expects().anyNumberOfTimes().returning(Some(block))

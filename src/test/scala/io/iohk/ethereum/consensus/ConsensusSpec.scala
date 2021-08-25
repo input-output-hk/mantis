@@ -20,6 +20,9 @@ import io.iohk.ethereum.consensus.mining._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators._
+import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
+import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.BlockMetadata
 import io.iohk.ethereum.db.storage.MptStorage
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockData
@@ -61,6 +64,9 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
 
     setBlockExists(block, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
+    setBlockExecutionState(block, isExecuted = false)
+    setPutBlockMetadata(block)
+    setSaveAsBestBlock(block)
     setChainWeightForBlock(bestBlock, currentWeight)
 
     val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
@@ -83,11 +89,40 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     }
   }
 
+  it should "only execute blocks that were not previously executed when importing blocks on top" in new ImportBlockTestSetup {
+    val block: Block = getBlock(6, parent = bestBlock.header.hash)
+    val difficulty: BigInt = block.header.difficulty
+    val hash: ByteString = block.header.hash
+
+    setBlockExists(block, inChain = false, inQueue = false)
+    setBestBlock(bestBlock)
+    setBlockExecutionState(block, isExecuted = true)
+    setPutBlockMetadata(block)
+    setSaveAsBestBlock(block)
+    setChainWeightForBlock(bestBlock, currentWeight)
+
+    val newWeight = currentWeight.increaseTotalDifficulty(difficulty)
+    val blockData = BlockData(block, Seq.empty[Receipt], newWeight)
+    setGetBlockData(block, blockData)
+
+    // Just to bypass metrics needs
+    (blockchainReader.getBlockByHash _).expects(*).returning(None)
+
+    (blockQueue.enqueueBlock _).expects(block, bestNum).returning(Some(Leaf(hash, newWeight)))
+    (blockQueue.getBranch _).expects(hash, true).returning(List(block))
+
+    whenReady(blockImportNotFailingAfterExecValidation.evaluateBranchBlock(block).runToFuture) {
+      _ shouldEqual BlockImportedToTop(List(blockData))
+    }
+  }
+
   it should "handle exec error when importing to top" in new ImportBlockTestSetup {
     val block: Block = getBlock(6, parent = bestBlock.header.hash)
 
     setBlockExists(block, inChain = false, inQueue = false)
     setBestBlock(bestBlock)
+    setBlockExecutionState(block, isExecuted = false)
+    setPutBlockMetadata(block)
     setChainWeightForBlock(bestBlock, currentWeight)
 
     val hash: ByteString = block.header.hash
@@ -196,6 +231,62 @@ class ConsensusSpec extends AnyFlatSpec with Matchers with ScalaFutures {
     blockQueue.isQueued(oldBlock2.header.hash) shouldBe true
     blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
   }
+
+  it should "only execute blocks that were not previously executed when reorganizing chain" in new EphemBlockchain {
+    val block1: Block = getBlock(bestNum - 2)
+    val newBlock2: Block = getBlock(bestNum - 1, difficulty = 101, parent = block1.header.hash)
+    val newBlock3: Block = getBlock(bestNum, difficulty = 105, parent = newBlock2.header.hash)
+    val oldBlock2: Block = getBlock(bestNum - 1, difficulty = 102, parent = block1.header.hash)
+    val oldBlock3: Block = getBlock(bestNum, difficulty = 103, parent = oldBlock2.header.hash)
+
+    val weight1 = ChainWeight.totalDifficultyOnly(block1.header.difficulty + 999)
+    val newWeight2 = weight1.increase(newBlock2.header)
+    val newWeight3 = newWeight2.increase(newBlock3.header)
+    val oldWeight2 = weight1.increase(oldBlock2.header)
+    val oldWeight3 = oldWeight2.increase(oldBlock3.header)
+
+    blockchainWriter.save(block1, Nil, weight1, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock2, receipts, oldWeight2, saveAsBestBlock = true)
+    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
+
+    val ancestorForValidation: Block = getBlock(0, difficulty = 1)
+    blockchainWriter.save(ancestorForValidation, Nil, ChainWeight.totalDifficultyOnly(1), saveAsBestBlock = false)
+
+    val oldBranch = List(oldBlock2, oldBlock3)
+    val newBranch = List(newBlock2, newBlock3)
+    val blockData2 = BlockData(newBlock2, Seq.empty[Receipt], newWeight2)
+    val blockData3 = BlockData(newBlock3, Seq.empty[Receipt], newWeight3)
+
+    val mockExecution = mock[BlockExecution]
+    (mockExecution
+      .executeBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+      .expects(newBranch, *, *)
+      .returning((List(blockData2, blockData3), None))
+
+    val withMockedBlockExecution = blockImportWithMockedBlockExecution(mockExecution)
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock3).runToFuture) { result =>
+      result shouldEqual BlockEnqueued
+      blockMetadataProxy.getBlockMetadata(newBlock3.hash).isEmpty shouldBe true
+    }
+
+    blockMetadataProxy.putBlockMetadata(newBlock2.hash, BlockMetadata(isExecuted = true))
+
+    whenReady(withMockedBlockExecution.evaluateBranchBlock(newBlock2).runToFuture) { result =>
+      result shouldEqual ChainReorganised(oldBranch, newBranch, List(newWeight2, newWeight3))
+      blockMetadataProxy.getBlockMetadata(newBlock3.hash).get shouldBe BlockMetadata(isExecuted = true)
+    }
+
+    // Saving new blocks, because it's part of executeBlocks method mechanism
+    blockchainWriter.save(blockData2.block, blockData2.receipts, blockData2.weight, saveAsBestBlock = true)
+    blockchainWriter.save(blockData3.block, blockData3.receipts, blockData3.weight, saveAsBestBlock = true)
+
+    blockchainReader.getBestBlock().get shouldEqual newBlock3
+    blockchainReader.getChainWeightByHash(newBlock3.header.hash) shouldEqual Some(newWeight3)
+
+    blockQueue.isQueued(oldBlock2.header.hash) shouldBe true
+    blockQueue.isQueued(oldBlock3.header.hash) shouldBe true
+  }
+  // scalastyle:on magic.number
 
   it should "handle error when trying to reorganise chain" in new EphemBlockchain {
     val block1: Block = getBlock(bestNum - 2)
