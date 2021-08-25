@@ -70,7 +70,7 @@ class ForksTest extends AnyFlatSpec with Matchers {
           mining.blockPreparator,
           blockValidation
         )
-      blockExecution.executeAndValidateBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
+      blockExecution.executeAndBlock(fixtures.blockByNumber(blockToExecute)) shouldBe noErrors
     }
   }
 

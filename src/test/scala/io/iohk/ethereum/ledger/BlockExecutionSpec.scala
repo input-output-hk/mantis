@@ -73,7 +73,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockValidation
           )
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
+        val (blocks, error) = blockExecution.executeBlocks(List(block1, block2), defaultChainWeight)
 
         // No block should be executed if first one has invalid transactions
         blocks.isEmpty shouldBe true
@@ -115,7 +115,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockValidation
           )
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(List(block1, block2), defaultChainWeight)
+        val (blocks, error) = blockExecution.executeBlocks(List(block1, block2), defaultChainWeight)
 
         // Only first block should be executed
         blocks.size shouldBe 1
@@ -150,7 +150,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
             blockValidation
           )
 
-        val (blocks, error) = blockExecution.executeAndValidateBlocks(chain, defaultChainWeight)
+        val (blocks, error) = blockExecution.executeBlocks(chain, defaultChainWeight)
 
         // All blocks but the last should be executed, and they should be returned in incremental order
         blocks.map(_.block) shouldBe chain.init
@@ -182,7 +182,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           )
 
         val (blocks, error) =
-          blockExecution.executeAndValidateBlocks(List(blockWithCheckpoint), defaultChainWeight)
+          blockExecution.executeBlocks(List(blockWithCheckpoint), defaultChainWeight)
         val beneficiaryAccount =
           blockchainReader.getAccount(
             blockchainReader.getBestBranch(),
@@ -434,7 +434,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         )
         val block = Block(blockHeader, blockBodyWithOmmers)
 
-        val blockExecResult = blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndBlock(block)
         assert(blockExecResult.isRight)
       }
     }
@@ -481,7 +481,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
       val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
       assert(seqFailingValidators.forall { _ =>
-        val blockExecResult = blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndBlock(block)
 
         blockExecResult.left.forall {
           case _: BlockExecutionError.ValidationBeforeExecError => true
@@ -535,7 +535,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
           validBlockHeader.copy(gasUsed = cumulativeGasUsedBlock, stateRoot = stateRootHash)
         val block = Block(blockHeader, validBlockBodyWithNoTxs)
 
-        val blockExecResult = blockExecution.executeAndValidateBlock(block)
+        val blockExecResult = blockExecution.executeAndBlock(block)
 
         assert(blockExecResult match {
           case Left(_: BlockExecutionError.ValidationAfterExecError) => true
@@ -641,7 +641,7 @@ class BlockExecutionSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         val blockWithCorrectStateAndGasUsed = block.copy(
           header = block.header.copy(stateRoot = blockExpectedStateRoot, gasUsed = gasUsedReceipt2)
         )
-        assert(blockExecution.executeAndValidateBlock(blockWithCorrectStateAndGasUsed).isRight)
+        assert(blockExecution.executeAndBlock(blockWithCorrectStateAndGasUsed).isRight)
       }
     }
 

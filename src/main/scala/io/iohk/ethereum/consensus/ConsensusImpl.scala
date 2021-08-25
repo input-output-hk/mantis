@@ -109,7 +109,7 @@ class ConsensusImpl(
   private def importToTop(branch: NonEmptyList[Block], currentBestBlockWeight: ChainWeight)(implicit
       blockchainConfig: BlockchainConfig
   ): ConsensusResult =
-    blockExecution.executeAndValidateBlocks(branch.toList, currentBestBlockWeight) match {
+    blockExecution.executeBlocks(branch.toList, currentBestBlockWeight) match {
       case (importedBlocks, None) =>
         saveLastBlock(importedBlocks)
         ExtendedCurrentBestBranch(importedBlocks)
@@ -205,7 +205,7 @@ class ConsensusImpl(
   )(implicit
       blockchainConfig: BlockchainConfig
   ): Either[(List[BlockData], BlockExecutionError), (List[Block], List[Block], List[ChainWeight])] = {
-    val (executedBlocks, maybeError) = blockExecution.executeAndValidateBlocks(newBranch, parentWeight)
+    val (executedBlocks, maybeError) = blockExecution.executeBlocks(newBranch, parentWeight)
     executedBlocks.lastOption.foreach(b =>
       blockchainWriter.saveBestKnownBlocks(
         b.block.hash,

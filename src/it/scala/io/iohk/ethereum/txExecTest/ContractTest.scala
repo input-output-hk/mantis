@@ -32,13 +32,13 @@ class ContractTest extends AnyFlatSpec with Matchers {
         mining.blockPreparator,
         blockValidation
       )
-    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(1)) shouldBe noErrors
+    blockExecution.executeAndBlock(fixtures.blockByNumber(1)) shouldBe noErrors
 
     // deploy contract
-    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(2)) shouldBe noErrors
+    blockExecution.executeAndBlock(fixtures.blockByNumber(2)) shouldBe noErrors
 
     // execute contract call
     // execute contract that pays 2 accounts
-    blockExecution.executeAndValidateBlock(fixtures.blockByNumber(3)) shouldBe noErrors
+    blockExecution.executeAndBlock(fixtures.blockByNumber(3)) shouldBe noErrors
   }
 }

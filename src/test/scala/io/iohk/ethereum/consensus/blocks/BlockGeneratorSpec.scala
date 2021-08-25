@@ -57,7 +57,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -84,7 +84,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.header.extraData shouldBe headerExtraData
   }
 
@@ -166,7 +166,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
 
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -203,7 +203,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -269,7 +269,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
       fullBlock.header,
       blockchainReader.getBlockHeaderByHash
     ) shouldBe Right(BlockHeaderValid)
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -325,7 +325,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
         .generateBlock(bestBlock.get, Seq(generalTx), Address(testAddress), blockGenerator.emptyX, None)
         .pendingBlock
 
-    blockExecution.executeAndValidateBlock(generatedBlock.block, true) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(generatedBlock.block) shouldBe a[Right[_, Seq[Receipt]]]
   }
 
   it should "generate block after eip155 and allow both chain specific and general transactions" in new TestSetup {
@@ -359,7 +359,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction, generalTx)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -396,7 +396,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -446,7 +446,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction, nextTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -482,7 +482,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     validators.blockHeaderValidator.validate(fullBlock.header, blockchainReader.getBlockHeaderByHash) shouldBe Right(
       BlockHeaderValid
     )
-    blockExecution.executeAndValidateBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
+    blockExecution.executeAndBlock(fullBlock) shouldBe a[Right[_, Seq[Receipt]]]
     fullBlock.body.transactionList shouldBe Seq(signedTransaction)
     fullBlock.header.extraData shouldBe headerExtraData
   }
@@ -564,7 +564,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
     {
       import validator._
 
-      blockExecution.executeAndValidateBlock(block.block, alreadyValidated = true) shouldBe
+      blockExecution.executeAndBlock(block.block) shouldBe
         Left(
           ValidationAfterExecError(
             "Block has invalid state root hash, expected 47344722e6c52a85685f9c1bb1e0fe66cfaf6be00c1a752f43cc835fb7415e81 but got 41b63e59d34b5b35a040d496582fc587887af79f762210f6cf55c24d2c307d61"
@@ -602,7 +602,7 @@ class BlockGeneratorSpec extends AnyFlatSpec with Matchers with ScalaCheckProper
 
     {
       import validator._
-      blockExecution.executeAndValidateBlock(block.block, alreadyValidated = true) shouldBe
+      blockExecution.executeAndBlock(block.block) shouldBe
         Left(
           ValidationAfterExecError(
             "Block has invalid state root hash, expected 5bfc811dfee1fecaefbaef2dba502082a8cc72e52260368d83ed6e4ebcecae75 but got 41b63e59d34b5b35a040d496582fc587887af79f762210f6cf55c24d2c307d61"

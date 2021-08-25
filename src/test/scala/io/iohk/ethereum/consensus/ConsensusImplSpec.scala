@@ -90,7 +90,7 @@ object ConsensusImplSpec {
     private val testSetup = new EphemBlockchainTestSetup with MockFactory {
       override lazy val blockExecution: BlockExecution = stub[BlockExecution]
       (blockExecution
-        .executeAndValidateBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
+        .executeBlocks(_: List[Block], _: ChainWeight)(_: BlockchainConfig))
         .when(*, *, *)
         .anyNumberOfTimes()
         .onCall { (blocks, _, _) =>
