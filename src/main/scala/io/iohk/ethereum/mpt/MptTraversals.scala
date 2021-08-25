@@ -97,7 +97,7 @@ object MptTraversals {
         val vistResult = visitor.visitHash(hashNode)
         vistResult.next(visitor)(dispatch)
 
-      case nullNode: NullNode.type =>
+      case _: NullNode.type =>
         visitor.visitNull()
     }
 }

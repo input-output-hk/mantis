@@ -61,6 +61,7 @@ object MerklePatriciaTrie {
     }
 }
 
+/** A generic MPT object represented by the root node and associated with the corresponding storage */
 class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNode], val nodeStorage: MptStorage)(
     implicit
     kSerializer: ByteArrayEncoder[K],
@@ -161,7 +162,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
 
   private def mkKeyNibbles(key: K): Array[Byte] = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
 
-  /** This function inserts a (key-value) pair into the trie. If the key is already asociated with another value it is updated.
+  /** This function inserts a (key-value) pair into the trie. If the key is already associated with another value it is updated.
     *
     * @param key
     * @param value
@@ -169,7 +170,7 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
     * @throws io.iohk.ethereum.mpt.MerklePatriciaTrie.MPTException if there is any inconsistency in how the trie is build.
     */
   override def put(key: K, value: V): MerklePatriciaTrie[K, V] = {
-    val keyNibbles = HexPrefix.bytesToNibbles(kSerializer.toBytes(key))
+    val keyNibbles = mkKeyNibbles(key)
     rootNode
       .map { root =>
         val NodeInsertResult(newRoot, nodesToRemoveFromStorage) = put(root, keyNibbles, vSerializer.toBytes(value))
@@ -221,33 +222,12 @@ class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNod
   }
 
   @tailrec
-  private def get(node: MptNode, searchKey: Array[Byte]): Option[Array[Byte]] = node match {
-    case LeafNode(key, value, _, _, _) =>
-      if (key.toArray[Byte].sameElements(searchKey)) Some(value.toArray[Byte]) else None
-    case extNode @ ExtensionNode(sharedKey, _, _, _, _) =>
-      val (commonKey, remainingKey) = searchKey.splitAt(sharedKey.length)
-      if (searchKey.length >= sharedKey.length && (sharedKey.sameElements(commonKey))) {
-        get(extNode.next, remainingKey)
-      } else None
-    case branch @ BranchNode(_, terminator, _, _, _) =>
-      if (searchKey.isEmpty) terminator.map(_.toArray[Byte])
-      else {
-        get(branch.children(searchKey(0)), searchKey.slice(1, searchKey.length))
-      }
-    case HashNode(bytes) =>
-      get(nodeStorage.get(bytes), searchKey)
-
-    case NullNode =>
-      None
-  }
-
   private def put(node: MptNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = node match {
     case leafNode: LeafNode           => putInLeafNode(leafNode, searchKey, value)
     case extensionNode: ExtensionNode => putInExtensionNode(extensionNode, searchKey, value)
     case branchNode: BranchNode       => putInBranchNode(branchNode, searchKey, value)
-    case HashNode(bytes) =>
-      put(nodeStorage.get(bytes), searchKey, value)
-    case _ => throw new MPTException("Cannot put node in NullNode")
+    case HashNode(bytes)              => put(nodeStorage.get(bytes), searchKey, value)
+    case _                            => throw new MPTException("Cannot put node in NullNode")
   }
 
   private def putInLeafNode(node: LeafNode, searchKey: Array[Byte], value: Array[Byte]): NodeInsertResult = {
