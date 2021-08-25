@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# Boots Mantis and runs retesteth / ETS. Intended for running it locally.
+
+if [ -z "$SBT" ]; then
+  SBT="sbt"
+fi
+
+echo "booting Mantis with log level WARN and waiting for RPC API to be up."
+$SBT -Dconfig.file=./src/main/resources/conf/testmode.conf -Dlogging.logs-level=WARN run &
+
+while ! nc -z localhost 8546; do
+  sleep 0.1
+done
+
+final_exit_code=0
+mkdir -p out/
+
+function run_and_summarize {
+  out_file="out/retesteth-$1-log.txt"
+
+  echo "running retesteth $1 with output to $out_file"
+  timeout 15m ets/retesteth -t "$1" -- --verbosity 3 &> $out_file
+  exit_code=$?
+  echo "retesteth $1 exit code: $exit_code"
+
+  style="info"
+  if [[ "$exit_code" -gt "0" ]]; then
+    final_exit_code="$exit_code"
+    style="error"
+  fi
+
+  summary=$(sed -n '/Total Tests Run/,$p' $out_file)
+  if [[ -z "$summary" ]]; then
+    summary="retesteth crashed; check the artifacts"
+  fi
+  passed=$(grep -oP 'Total Tests Run: \d+' $out_file)
+  failed=$(grep -oP 'TOTAL ERRORS DETECTED: \d+' $out_file)
+
+  echo "retesteth: $1 -- $passed -- $failed"
+  echo "$summary"
+}
+
+run_and_summarize "GeneralStateTests"
+run_and_summarize "BlockchainTests"
+
+echo "shutting down mantis"
+kill %1
+
+exit $final_exit_code

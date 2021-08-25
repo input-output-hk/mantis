@@ -8,6 +8,16 @@ options. Oh, and this readme file is in there too, of course.
 * ETS: https://github.com/ethereum/tests
 * retesteth: https://github.com/ethereum/retesteth
 
+## Running locally
+
+Use the `ets/run` wrapper script to boot Mantis and run retesteth against it.
+On a Mac you will want to do this using Docker:
+
+    nix-in-docker/run --command "ets/run"
+
+Read on for more fine-grained control over running Mantis and retesteth, by
+running them separately.
+
 ## Continous integration
 
 The tests are run on CI. For more details look at `.buildkite/pipeline.nix` and
