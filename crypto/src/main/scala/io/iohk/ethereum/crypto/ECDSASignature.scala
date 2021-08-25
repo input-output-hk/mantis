@@ -28,8 +28,12 @@ object ECDSASignature {
   val CompressedOddIndicator: Byte = 0x03
 
   //only naming convention
+  // Pre EIP155 signature.v convention
   val negativePointSign: Byte = 27
   val positivePointSign: Byte = 28
+  // yParity
+  val negativeYParity: Byte = 0
+  val positiveYParity: Byte = 1
 
   val allowedPointSigns: Set[Byte] = Set(negativePointSign, positivePointSign)
 
