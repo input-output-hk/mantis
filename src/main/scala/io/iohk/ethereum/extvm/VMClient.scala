@@ -95,7 +95,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
         messageLoop[W, S](world)
 
       case msg =>
-        log.warn(s"Client received unexpected message: ${msg}!")
+        log.warn(s"Client received unexpected message: $msg!")
         messageLoop[W, S](world)
     }
   }

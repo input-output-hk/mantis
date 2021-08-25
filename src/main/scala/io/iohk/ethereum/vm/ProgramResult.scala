@@ -5,7 +5,7 @@ import akka.util.ByteString
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.TxLogEntry
 
-/** Represenation of the result of execution of a contract
+/** Representation of the result of execution of a contract
   *
   * @param returnData bytes returned by the executed contract (set by [[RETURN]] opcode)
   * @param gasRemaining amount of gas remaining after execution

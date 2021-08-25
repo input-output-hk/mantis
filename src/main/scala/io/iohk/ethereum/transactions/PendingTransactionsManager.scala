@@ -44,11 +44,11 @@ object PendingTransactionsManager {
 
   case class AddTransactions(signedTransactions: Set[SignedTransactionWithSender])
 
-  case class AddUncheckedTransactions(signedTransactions: Seq[SignedTransaction])
-
   object AddTransactions {
     def apply(txs: SignedTransactionWithSender*): AddTransactions = AddTransactions(txs.toSet)
   }
+
+  case class AddUncheckedTransactions(signedTransactions: Seq[SignedTransaction])
 
   case class AddOrOverrideTransaction(signedTransaction: SignedTransaction)
 
@@ -72,7 +72,6 @@ class PendingTransactionsManager(
 ) extends Actor
     with MetricsContainer
     with ActorLogging {
-
   import PendingTransactionsManager._
   import akka.pattern.ask
 

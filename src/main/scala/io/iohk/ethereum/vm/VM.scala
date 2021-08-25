@@ -1,11 +1,11 @@
 package io.iohk.ethereum.vm
 
 import akka.util.ByteString
-
 import scala.annotation.tailrec
 
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256
+import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Logger
 
 class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
@@ -21,10 +21,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   def run(context: ProgramContext[W, S]): ProgramResult[W, S] = {
     {
       import context._
-      import org.bouncycastle.util.encoders.Hex
       log.trace(
-        s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${Hex
-          .toHexString(inputData.toArray)}"
+        s"caller:  $callerAddr | recipient: $recipientAddr | gasPrice: $gasPrice | value: $value | inputData: ${inputData.toHex}"
       )
     }
 
