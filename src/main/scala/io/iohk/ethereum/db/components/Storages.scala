@@ -54,6 +54,7 @@ object Storages {
           )
         )
 
+      override val blockMetadataStorage: BlockMetadataStorage = new BlockMetadataStorage(dataSource)
     }
   }
 }

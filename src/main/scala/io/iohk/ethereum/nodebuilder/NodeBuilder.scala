@@ -173,6 +173,14 @@ trait NodeStatusBuilder {
   lazy val nodeStatusHolder = new AtomicReference(nodeStatus)
 }
 
+trait BlockMetadataProxyBuilder {
+  self: StorageBuilder =>
+
+  lazy val blockMetadataProxy: BlockMetadataProxy = new BlockMetadataProxy(
+    storagesInstance.storages.blockMetadataStorage
+  )
+}
+
 trait BlockchainBuilder {
   self: StorageBuilder =>
 
@@ -188,7 +196,12 @@ trait BlockQueueBuilder {
 }
 
 trait ConsensusBuilder {
-  self: BlockchainBuilder with BlockQueueBuilder with MiningBuilder with ActorSystemBuilder with StorageBuilder =>
+  self: BlockMetadataProxyBuilder
+    with BlockchainBuilder
+    with BlockQueueBuilder
+    with MiningBuilder
+    with ActorSystemBuilder
+    with StorageBuilder =>
 
   lazy val blockValidation = new BlockValidation(mining, blockchainReader, blockQueue)
   lazy val blockExecution = new BlockExecution(
@@ -203,6 +216,7 @@ trait ConsensusBuilder {
   lazy val consensus: Consensus =
     new ConsensusImpl(
       blockchain,
+      blockMetadataProxy,
       blockchainReader,
       blockchainWriter,
       blockExecution
@@ -851,6 +865,7 @@ trait Node
     with NodeKeyBuilder
     with ActorSystemBuilder
     with StorageBuilder
+    with BlockMetadataProxyBuilder
     with BlockchainBuilder
     with BlockQueueBuilder
     with ConsensusBuilder

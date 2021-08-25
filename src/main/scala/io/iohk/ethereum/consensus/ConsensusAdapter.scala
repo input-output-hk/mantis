@@ -1,10 +1,8 @@
 package io.iohk.ethereum.consensus
 
 import cats.data.NonEmptyList
-
 import monix.eval.Task
 import monix.execution.Scheduler
-
 import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailed
 import io.iohk.ethereum.blockchain.sync.regular.BlockImportFailedDueToMissingNode
@@ -19,9 +17,7 @@ import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranch
 import io.iohk.ethereum.consensus.Consensus.ExtendedCurrentBestBranchPartially
 import io.iohk.ethereum.consensus.Consensus.KeptCurrentBestBranch
 import io.iohk.ethereum.consensus.Consensus.SelectedNewBestBranch
-import io.iohk.ethereum.domain.Block
-import io.iohk.ethereum.domain.BlockHeader
-import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.{Block, BlockHeader, BlockchainReader}
 import io.iohk.ethereum.ledger.BlockExecutionError.ValidationBeforeExecError
 import io.iohk.ethereum.ledger.BlockExecutionSuccess
 import io.iohk.ethereum.ledger.BlockQueue

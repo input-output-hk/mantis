@@ -1,7 +1,6 @@
 package io.iohk.ethereum.domain
 
 import akka.util.ByteString
-
 import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.BlockBodiesStorage
 import io.iohk.ethereum.db.storage.BlockHeadersStorage
@@ -12,6 +11,7 @@ import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.domain.branch.EmptyBranch
+import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.Hex
@@ -26,6 +26,17 @@ class BlockchainReader(
     appStateStorage: AppStateStorage,
     chainWeightStorage: ChainWeightStorage
 ) extends Logger {
+
+  /** Assemble the BlockData that should be available after a block gets executed
+    * @param block block to get the BlockData from
+    * @return
+    */
+  def getBlockData(block: Block): BlockData =
+    BlockData(
+      block,
+      receiptStorage.get(block.hash).getOrElse(Seq.empty),
+      chainWeightStorage.get(block.hash).getOrElse(ChainWeight.zero)
+    )
 
   /** Allows to query a blockHeader by block hash
     *
