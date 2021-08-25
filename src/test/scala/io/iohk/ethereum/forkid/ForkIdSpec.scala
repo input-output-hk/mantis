@@ -26,7 +26,7 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
 
     "gatherForks for the eth chain correctly" in {
       val res = config.blockchains.map { case (name, conf) => (name, gatherForks(conf)) }
-      res("eth") shouldBe List(1150000, 1920000, 2463000, 2675000, 4370000, 7280000, 9069000, 9200000)
+      res("eth") shouldBe List(1150000, 1920000, 2463000, 2675000, 4370000, 7280000, 9069000, 9200000, 12244000)
     }
 
     "create correct ForkId for ETH mainnet blocks" in {
@@ -53,9 +53,11 @@ class ForkIdSpec extends AnyWordSpec with Matchers {
       create(9068999) shouldBe ForkId(0x668db0afL, Some(9069000)) // Last Petersburg block
       create(9069000) shouldBe ForkId(0x879d6e30L, Some(9200000)) // First Istanbul block
       create(9200000 - 1) shouldBe ForkId(0x879d6e30L, Some(9200000)) // Last Istanbul block
-      create(9200000) shouldBe ForkId(0xe029e991L, None) // First Muir Glacier block
-      create(12644529) shouldBe ForkId(0xe029e991L, None) // Today Muir Glacier block
-      // TODO: Add Berlin
+      create(9200000) shouldBe ForkId(0xe029e991L, Some(12244000)) // First Muir Glacier block
+      create(12243999) shouldBe ForkId(0xe029e991L, Some(12244000)) // Last Muir Glacier block
+      create(12244000) shouldBe ForkId(0x0eb440f6L, None) // First Berlin block
+      create(12644529) shouldBe ForkId(0x0eb440f6L, None) // Today Berlin block
+      // TODO: Add London
     }
 
     "create correct ForkId for ETC mainnet blocks" in {
