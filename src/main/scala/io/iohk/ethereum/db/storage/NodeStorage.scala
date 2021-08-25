@@ -11,7 +11,8 @@ import io.iohk.ethereum.db.dataSource.RocksDbDataSource.IterationError
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 
-sealed trait NodesStorage extends {
+/** Data Access Object */
+sealed trait NodesStorage {
   def get(key: NodeHash): Option[NodeEncoded]
   def update(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)]): NodesStorage
   def updateCond(toRemove: Seq[NodeHash], toUpsert: Seq[(NodeHash, NodeEncoded)], inMemory: Boolean): NodesStorage

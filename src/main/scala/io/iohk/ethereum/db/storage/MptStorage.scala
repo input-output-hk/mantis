@@ -7,23 +7,27 @@ import io.iohk.ethereum.mpt.MerklePatriciaTrie.MissingRootNodeException
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.mpt.MptTraversals
 
-trait MptStorage {
+/** Storage of object nodes, agnostic of materialization */
+sealed trait MptStorage {
   def get(nodeId: Array[Byte]): MptNode
   def updateNodesInStorage(newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode]
   def persist(): Unit
 }
 
+/** Binds materialized and abstract node storage
+  * @param storage materialized storage
+  */
 class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
   override def get(nodeId: Array[Byte]): MptNode = {
     val key = ByteString(nodeId)
     storage
       .get(key)
-      .map(nodeEncoded => MptStorage.decodeNode(nodeEncoded, nodeId))
+      .map(nodeEncoded => SerializingMptStorage.decodeNode(nodeEncoded, nodeId))
       .getOrElse(throw new MissingRootNodeException(ByteString(nodeId)))
   }
 
   override def updateNodesInStorage(newRoot: Option[MptNode], toRemove: Seq[MptNode]): Option[MptNode] = {
-    val (collapsed, toUpdate) = MptStorage.collapseNode(newRoot)
+    val (collapsed, toUpdate) = SerializingMptStorage.collapseNode(newRoot)
     val toBeRemoved = toRemove.map(n => ByteString(n.hash))
     storage.update(toBeRemoved, toUpdate)
     collapsed
@@ -33,15 +37,16 @@ class SerializingMptStorage(storage: NodesKeyValueStorage) extends MptStorage {
     storage.persist()
 }
 
-object MptStorage {
-  def collapseNode(node: Option[MptNode]): (Option[MptNode], List[(ByteString, Array[Byte])]) =
-    if (node.isEmpty)
-      (None, List.empty[(ByteString, Array[Byte])])
-    else {
-      val (hashNode, newNodes) = MptTraversals.collapseTrie(node.get)
-      (Some(hashNode), newNodes)
+object SerializingMptStorage {
+  private[storage] def collapseNode(node: Option[MptNode]): (Option[MptNode], List[(ByteString, Array[Byte])]) =
+    node match {
+      case Some(newRoot) =>
+        val (hashNode, newNodes) = MptTraversals.collapseTrie(newRoot)
+        (Some(hashNode), newNodes)
+      case None =>
+        (None, List.empty[(ByteString, Array[Byte])])
     }
 
-  def decodeNode(nodeEncoded: NodeEncoded, nodeId: Array[Byte]): MptNode =
+  private[storage] def decodeNode(nodeEncoded: NodeEncoded, nodeId: Array[Byte]): MptNode =
     MptTraversals.decodeNode(nodeEncoded).withCachedHash(nodeId).withCachedRlpEncoded(nodeEncoded)
 }

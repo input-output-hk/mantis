@@ -29,7 +29,7 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be able to persist to underlying storage when needed" in new TestSetup {
-    val (nodeKey, _) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val (nodeKey, _) = SerializingMptStorage.collapseNode(Some(newLeaf))._2.head
     val readOnlyNodeStorage = archiveStateStorage.getReadOnlyStorage
 
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)
@@ -45,7 +45,7 @@ class ReadOnlyNodeStorageSpec extends AnyFlatSpec with Matchers {
   }
 
   it should "be able to persist to underlying storage when Genesis loading" in new TestSetup {
-    val (nodeKey, _) = MptStorage.collapseNode(Some(newLeaf))._2.head
+    val (nodeKey, _) = SerializingMptStorage.collapseNode(Some(newLeaf))._2.head
     val readOnlyNodeStorage = cachedStateStorage.getReadOnlyStorage
 
     readOnlyNodeStorage.updateNodesInStorage(Some(newLeaf), Nil)

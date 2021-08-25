@@ -1,14 +1,12 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-
 import scala.concurrent.duration._
 import scala.language.postfixOps
 
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.Mocks
 import io.iohk.ethereum.Mocks.MockValidatorsAlwaysSucceed
 import io.iohk.ethereum.blockchain.sync.regular.BlockEnqueued
@@ -20,7 +18,7 @@ import io.iohk.ethereum.consensus.mining._
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderDifficultyError
 import io.iohk.ethereum.consensus.validators.BlockHeaderError.HeaderParentNotFoundError
 import io.iohk.ethereum.consensus.validators._
-import io.iohk.ethereum.db.storage.MptStorage
+import io.iohk.ethereum.db.storage.{MptStorage, SerializingMptStorage}
 import io.iohk.ethereum.domain._
 import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.ledger.BlockExecution
@@ -98,7 +96,7 @@ class ConsensusAdapterSpec extends AnyFlatSpec with Matchers with ScalaFutures {
       .returning(Some(Leaf(hash, currentWeight.increase(block.header))))
     (blockQueue.getBranch _).expects(hash, true).returning(List(block))
 
-    val mptStorage = mock[MptStorage]
+    val mptStorage = mock[SerializingMptStorage]
     val mptNode = LeafNode(
       ByteString(MerklePatriciaTrie.EmptyRootHash),
       ByteString(MerklePatriciaTrie.EmptyRootHash),
