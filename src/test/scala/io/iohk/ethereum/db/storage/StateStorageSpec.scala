@@ -20,7 +20,6 @@ import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.BasicPruning
 import io.iohk.ethereum.db.storage.pruning.InMemoryPruning
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 class StateStorageSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks with ObjectGenerators {

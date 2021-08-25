@@ -13,7 +13,6 @@ import org.scalatest.matchers.should.Matchers
 import io.iohk.ethereum.crypto.kec256
 import io.iohk.ethereum.db.cache.MapCache
 import io.iohk.ethereum.db.dataSource.EphemDataSource
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 import io.iohk.ethereum.utils.Config.NodeCacheConfig
 
 class ReferenceCountNodeStorageSpec extends AnyFlatSpec with Matchers {

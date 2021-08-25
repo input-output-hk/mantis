@@ -13,7 +13,6 @@ import io.iohk.ethereum.db.cache.Cache
 import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
 import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.mpt.ByteArraySerializable
-import io.iohk.ethereum.mpt.NodesKeyValueStorage
 
 /** In-memory pruner - All pruning is done in LRU cache, which means all mpt nodes saved to db, are there permanently.
   * There are two occasions where node is saved to disk:

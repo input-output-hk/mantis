@@ -8,8 +8,6 @@ import org.bouncycastle.util.encoders.Hex
 
 import io.iohk.ethereum.common.SimpleMap
 import io.iohk.ethereum.db.storage.MptStorage
-import io.iohk.ethereum.db.storage.NodeStorage.NodeEncoded
-import io.iohk.ethereum.db.storage.NodeStorage.NodeHash
 import io.iohk.ethereum.mpt
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => encodeRLP}
@@ -61,10 +59,6 @@ object MerklePatriciaTrie {
     else {
       new MerklePatriciaTrie[K, V](Some(mpt.HashNode(rootHash)), source)(kSerializer, vSerializer)
     }
-}
-
-trait NodesKeyValueStorage extends SimpleMap[NodeHash, NodeEncoded, NodesKeyValueStorage] {
-  def persist(): Unit
 }
 
 class MerklePatriciaTrie[K, V] private (private[mpt] val rootNode: Option[MptNode], val nodeStorage: MptStorage)(
