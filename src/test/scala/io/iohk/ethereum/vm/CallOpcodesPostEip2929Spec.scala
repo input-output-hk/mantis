@@ -7,40 +7,33 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.Fixtures.{Blocks => BlockFixtures}
-import io.iohk.ethereum.crypto._
 import io.iohk.ethereum.domain.Account
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.UInt256
-import io.iohk.ethereum.utils.ByteUtils
 import io.iohk.ethereum.vm.MockWorldState._
 
 import Fixtures.blockchainConfig
 
-class MagnetoCallOpFixture(config: EvmConfig)
-    extends CallOpFixture(config, MockWorldState(touchedAccounts = Set.empty)) {
-
-  override val fakeHeader: BlockHeader =
-    BlockFixtures.ValidBlock.header.copy(number = Fixtures.MagnetoBlockNumber, unixTimestamp = 0)
-
-  override val requiredGas: BigInt = {
-    val storageCost = 3 * (config.feeSchedule.G_sset + config.feeSchedule.G_cold_sload)
-    val memCost = config.calcMemCost(0, 0, 32)
-    val copyCost = config.feeSchedule.G_copy * wordsForBytes(32)
-
-    extCode.linearConstGas(config) + storageCost + memCost + copyCost
-  }
+class CallOpcodesPostBerlin(val config: EvmConfig = EvmConfig.BerlinConfigBuilder(blockchainConfig))
+    extends CallOpcodesPostEip2929Spec(config) {
+  override val fxt = new Eip2929CallOpFixture(config, Fixtures.BerlinBlockNumber)
 }
 
-class CallOpcodesPostEip2929Spec
+class CallOpcodesPostMagneto(val config: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig))
+    extends CallOpcodesPostEip2929Spec(config) {
+  override val fxt = new Eip2929CallOpFixture(config, Fixtures.MagnetoBlockNumber)
+}
+
+abstract class CallOpcodesPostEip2929Spec(config: EvmConfig)
     extends AnyWordSpec
     with CallOpCodesBehaviors
     with Matchers
     with ScalaCheckPropertyChecks {
 
-  val config: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig)
   import config.feeSchedule._
-  val fxt = new MagnetoCallOpFixture(config)
+
+  protected[this] val fxt: CallOpFixture
 
   "CALL" when {
 
@@ -553,5 +546,20 @@ class CallOpcodesPostEip2929Spec
         call.stateOut.accessedAddresses should contain(fxt.extAddr)
       }
     }
+  }
+}
+
+class Eip2929CallOpFixture(config: EvmConfig, forkBlockHeight: Int)
+    extends CallOpFixture(config, MockWorldState(touchedAccounts = Set.empty)) {
+
+  override val fakeHeader: BlockHeader =
+    BlockFixtures.ValidBlock.header.copy(number = forkBlockHeight, unixTimestamp = 0)
+
+  override val requiredGas: BigInt = {
+    val storageCost = 3 * (config.feeSchedule.G_sset + config.feeSchedule.G_cold_sload)
+    val memCost = config.calcMemCost(0, 0, 32)
+    val copyCost = config.feeSchedule.G_copy * wordsForBytes(32)
+
+    extCode.linearConstGas(config) + storageCost + memCost + copyCost
   }
 }
