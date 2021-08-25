@@ -9,21 +9,14 @@ import io.iohk.ethereum.db.storage._
 import io.iohk.ethereum.domain
 import io.iohk.ethereum.domain.appstate.BlockInfo
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.mpt.MptNode
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Logger
-import io.iohk.ethereum.vm.Storage
-import io.iohk.ethereum.vm.WorldStateProxy
 
 /** Entity to be used to persist and query  Blockchain related objects (blocks, transactions, ommers)
   */
 trait Blockchain {
-
-  type S <: Storage[S]
-  type WS <: WorldStateProxy[WS, S]
 
   /** Get account storage at given position
     *
@@ -215,9 +208,6 @@ class BlockchainImpl(
     stxs.map(_.hash).foldLeft(transactionMappingStorage.emptyBatchUpdate) { case (updates, hash) =>
       updates.and(transactionMappingStorage.remove(hash))
     }
-
-  override type S = InMemoryWorldStateProxyStorage
-  override type WS = InMemoryWorldStateProxy
 }
 
 trait BlockchainStorages {

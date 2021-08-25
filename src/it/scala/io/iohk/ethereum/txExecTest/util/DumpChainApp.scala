@@ -29,8 +29,6 @@ import io.iohk.ethereum.domain._
 import io.iohk.ethereum.jsonrpc.ProofService.EmptyStorageValueProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProof
 import io.iohk.ethereum.jsonrpc.ProofService.StorageProofKey
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
-import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
 import io.iohk.ethereum.network.ForkResolver
 import io.iohk.ethereum.network.PeerEventBusActor
@@ -188,9 +186,6 @@ class BlockchainMock(genesisHash: ByteString) extends Blockchain {
 
   override def getAccountStorageAt(rootHash: ByteString, position: BigInt, ethCompatibleStorage: Boolean): ByteString =
     ???
-
-  override type S = InMemoryWorldStateProxyStorage
-  override type WS = InMemoryWorldStateProxy
 
   def getBestBlockNumber(): BigInt = ???
 
