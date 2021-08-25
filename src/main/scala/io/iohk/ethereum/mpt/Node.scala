@@ -8,27 +8,28 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.rlp.RLPEncodeable
 import io.iohk.ethereum.rlp.RLPValue
 
-/** Trie elements
-  */
+/** Elements of the MPT trie */
 sealed abstract class MptNode {
-  val cachedHash: Option[Array[Byte]]
+  // Fields
+  val parsedRlp: Option[RLPEncodeable]
   val cachedRlpEncoded: Option[Array[Byte]]
+  val cachedHash: Option[Array[Byte]]
 
-  def withCachedHash(cachedHash: Array[Byte]): MptNode
-
-  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode
-
+  // Meta-fields
   lazy val encode: Array[Byte] = cachedRlpEncoded.getOrElse {
     parsedRlp.fold(MptTraversals.encodeNode(this))(io.iohk.ethereum.rlp.encode)
   }
-
   lazy val hash: Array[Byte] = cachedHash.getOrElse(Node.hashFn(encode))
 
+  // "Setters"
+  def withCachedHash(cachedHash: Array[Byte]): MptNode
+  def withCachedRlpEncoded(cachedEncode: Array[Byte]): MptNode
+
+  // Convenient methods
   def isNull: Boolean = false
+  def isNew: Boolean = parsedRlp.isEmpty
 
-  val parsedRlp: Option[RLPEncodeable]
-
-  // Overriding equals is necessery to avoid array comparisons.
+  // Overriding equals is necessary to avoid array comparisons.
   override def equals(obj: Any): Boolean =
     if (!obj.isInstanceOf[MptNode]) {
       false
@@ -39,8 +40,6 @@ sealed abstract class MptNode {
 
   override def hashCode(): Int =
     17 + util.Arrays.hashCode(hash)
-
-  def isNew: Boolean = parsedRlp.isEmpty
 }
 
 object MptNode {
@@ -52,7 +51,7 @@ object Node {
     crypto.kec256(input, 0, input.length)
 }
 
-case class LeafNode(
+final case class LeafNode(
     key: ByteString,
     value: ByteString,
     cachedHash: Option[Array[Byte]] = None,
@@ -65,7 +64,7 @@ case class LeafNode(
 
 }
 
-case class ExtensionNode(
+final case class ExtensionNode(
     sharedKey: ByteString,
     next: MptNode,
     cachedHash: Option[Array[Byte]] = None,
@@ -78,7 +77,7 @@ case class ExtensionNode(
 
 }
 
-case class BranchNode(
+final case class BranchNode(
     children: Array[MptNode],
     terminator: Option[ByteString],
     cachedHash: Option[Array[Byte]] = None,
@@ -105,7 +104,7 @@ case class BranchNode(
 
 }
 
-case class HashNode(hashNode: Array[Byte]) extends MptNode {
+final case class HashNode(hashNode: Array[Byte]) extends MptNode {
   val cachedHash: Option[Array[Byte]] = Some(hashNode)
   val cachedRlpEncoded: Option[Array[Byte]] = Some(hashNode)
   def withCachedHash(cachedHash: Array[Byte]): MptNode = copy()
