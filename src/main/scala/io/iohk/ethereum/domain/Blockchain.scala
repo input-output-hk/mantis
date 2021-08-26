@@ -61,6 +61,7 @@ trait Blockchain {
 class BlockchainImpl(
     protected val blockHeadersStorage: BlockHeadersStorage,
     protected val blockBodiesStorage: BlockBodiesStorage,
+    protected val blockMetadataProxy: BlockMetadataProxy,
     protected val blockNumberMappingStorage: BlockNumberMappingStorage,
     protected val receiptStorage: ReceiptStorage,
     protected val chainWeightStorage: ChainWeightStorage,
@@ -179,6 +180,7 @@ class BlockchainImpl(
       .and(blockNumberMappingUpdates)
       .and(bestBlockNumberUpdates)
       .and(latestCheckpointNumberUpdates)
+      .and(blockMetadataProxy.putBlockIsExecuted(blockHash, isExecuted = false))
       .commit()
 
     log.debug(
@@ -223,6 +225,7 @@ class BlockchainImpl(
 trait BlockchainStorages {
   val blockHeadersStorage: BlockHeadersStorage
   val blockBodiesStorage: BlockBodiesStorage
+  val blockMetadataStorage: BlockMetadataStorage
   val blockNumberMappingStorage: BlockNumberMappingStorage
   val receiptStorage: ReceiptStorage
   val evmCodeStorage: EvmCodeStorage
@@ -240,6 +243,7 @@ object BlockchainImpl {
     new BlockchainImpl(
       blockHeadersStorage = storages.blockHeadersStorage,
       blockBodiesStorage = storages.blockBodiesStorage,
+      blockMetadataProxy = new BlockMetadataProxy(storages.blockMetadataStorage),
       blockNumberMappingStorage = storages.blockNumberMappingStorage,
       receiptStorage = storages.receiptStorage,
       chainWeightStorage = storages.chainWeightStorage,

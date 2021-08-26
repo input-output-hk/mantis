@@ -75,9 +75,6 @@ class BlockImporterItSpec
     // simulate that block5 was executed already
     val weight: ChainWeight = oldWeight3.increase(oldBlock4.header)
     blockchainWriter.save(block5, Seq.empty, weight, saveAsBestBlock = false)
-    blockMetadataProxy
-      .putBlockIsExecuted(block5.hash, isExecuted = true)
-      .commit()
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(block5, block6, block7)))
 
@@ -87,9 +84,6 @@ class BlockImporterItSpec
   it should "only execute blocks that were not previously executed when reorganizing chain" in new StartedImportFixture {
     val weight: ChainWeight = weight1.increase(newBlock2.header)
     blockchainWriter.save(newBlock2, Seq.empty, weight, saveAsBestBlock = false)
-    blockMetadataProxy
-      .putBlockIsExecuted(newBlock2.hash, isExecuted = true)
-      .commit()
 
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 

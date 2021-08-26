@@ -51,6 +51,7 @@ object FixtureProvider {
       override val receiptStorage: ReceiptStorage = new ReceiptStorage(dataSource)
       override val evmCodeStorage: EvmCodeStorage = new EvmCodeStorage(dataSource)
       override val blockHeadersStorage: BlockHeadersStorage = new BlockHeadersStorage(dataSource)
+      override val blockMetadataStorage: BlockMetadataStorage = new BlockMetadataStorage(dataSource)
       override val blockNumberMappingStorage: BlockNumberMappingStorage = new BlockNumberMappingStorage(dataSource)
       override val blockBodiesStorage: BlockBodiesStorage = new BlockBodiesStorage(dataSource)
       override val chainWeightStorage: ChainWeightStorage = new ChainWeightStorage(dataSource)

@@ -15,6 +15,7 @@ import io.iohk.ethereum.ObjectGenerators._
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
 import io.iohk.ethereum.consensus.blocks.CheckpointBlockGenerator
 import io.iohk.ethereum.db.dataSource.EphemDataSource
+import io.iohk.ethereum.db.storage.BlockMetadataStorage
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.BlockHeader.HeaderExtraFields.HefPostEcip1097
 import io.iohk.ethereum.mpt.HashNode
@@ -274,15 +275,16 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
       new StubPersistingBlockchainSetup with EphemBlockchainTestSetup {
         override val stubStateStorage = stub[StateStorage]
         override val blockchainStoragesWithStubPersisting = new BlockchainStorages {
-          val blockHeadersStorage = storagesInstance.storages.blockHeadersStorage
-          val blockBodiesStorage = storagesInstance.storages.blockBodiesStorage
-          val blockNumberMappingStorage = storagesInstance.storages.blockNumberMappingStorage
-          val receiptStorage = storagesInstance.storages.receiptStorage
-          val evmCodeStorage = storagesInstance.storages.evmCodeStorage
-          val chainWeightStorage = storagesInstance.storages.chainWeightStorage
-          val transactionMappingStorage = storagesInstance.storages.transactionMappingStorage
-          val appStateStorage = storagesInstance.storages.appStateStorage
-          val stateStorage = stubStateStorage
+          override val blockHeadersStorage = storagesInstance.storages.blockHeadersStorage
+          override val blockBodiesStorage = storagesInstance.storages.blockBodiesStorage
+          override val blockNumberMappingStorage = storagesInstance.storages.blockNumberMappingStorage
+          override val receiptStorage = storagesInstance.storages.receiptStorage
+          override val evmCodeStorage = storagesInstance.storages.evmCodeStorage
+          override val chainWeightStorage = storagesInstance.storages.chainWeightStorage
+          override val transactionMappingStorage = storagesInstance.storages.transactionMappingStorage
+          override val appStateStorage = storagesInstance.storages.appStateStorage
+          override val stateStorage = stubStateStorage
+          override val blockMetadataStorage: BlockMetadataStorage = storagesInstance.storages.blockMetadataStorage
         }
         override val blockchainReaderWithStubPersisting =
           BlockchainReader(blockchainStoragesWithStubPersisting)

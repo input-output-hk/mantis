@@ -137,22 +137,16 @@ class ConsensusImpl(
     }
   }
 
-  private def handleAllImportedBlocks(previouslyImported: List[BlockData], newImported: List[BlockData]) = {
+  private def handleAllImportedBlocks(
+      previouslyImported: List[BlockData],
+      newImported: List[BlockData]
+  ): List[BlockData] = {
     val allImportedBlocks = (previouslyImported ++ newImported).sortBy(_.block.number)
-    saveLastBlock(allImportedBlocks)
-    setBlocksMetadata(allImportedBlocks)
+    saveLastBestKnowBlock(allImportedBlocks)
     allImportedBlocks
   }
 
-  private def setBlocksMetadata(blocks: List[BlockData]): Unit =
-    if (blocks.nonEmpty) {
-      blocks
-        .map(block => blockMetadataProxy.putBlockMetadata(block.block.hash, BlockMetadata(isExecuted = true)))
-        .reduce((batchUpdate1, batchUpdate2) => batchUpdate1.and(batchUpdate2))
-        .commit()
-    }
-
-  private def saveLastBlock(blocks: List[BlockData]): Unit = blocks.lastOption.foreach(b =>
+  private def saveLastBestKnowBlock(blocks: List[BlockData]): Unit = blocks.lastOption.foreach(b =>
     blockchainWriter.saveBestKnownBlocks(
       b.block.hash,
       b.block.number,
@@ -230,11 +224,9 @@ class ConsensusImpl(
   ): Either[(List[BlockData], BlockExecutionError), (List[Block], List[Block], List[ChainWeight])] = {
     val (alreadyExecuted, nonExecutedBlocks) =
       newBranch.partition(block => blockMetadataProxy.getBlockIsExecuted(block.hash))
-
-    val alreadyExecutedBD = alreadyExecuted.map(blockchainReader.getBlockData)
-
     val (executed, maybeError) = blockExecution.executeBlocks(nonExecutedBlocks, parentWeight)
 
+    val alreadyExecutedBD = alreadyExecuted.map(blockchainReader.getBlockData)
     val allImportedBlocks = handleAllImportedBlocks(alreadyExecutedBD, executed)
 
     maybeError match {

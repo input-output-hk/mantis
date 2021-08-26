@@ -44,7 +44,6 @@ class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     // set the last new block as already executed
     blockchainWriter.save(chainExtension.last, Seq.empty, ChainWeight(0, 1000), saveAsBestBlock = false)
-    blockMetadataProxy.putBlockIsExecuted(chainExtension.last.hash, isExecuted = true).commit()
 
     whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(chainExtension)).runToFuture) {
       _ shouldBe a[ExtendedCurrentBestBranch]
@@ -89,7 +88,6 @@ class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures with
 
     // set the last new block as already executed
     blockchainWriter.save(newBetterBranch.last, Seq.empty, ChainWeight(0, 1000), saveAsBestBlock = false)
-    blockMetadataProxy.putBlockIsExecuted(newBetterBranch.last.hash, isExecuted = true).commit()
 
     whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(newBetterBranch)).runToFuture) {
       _ shouldBe a[SelectedNewBestBranch]

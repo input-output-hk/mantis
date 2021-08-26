@@ -22,6 +22,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateScheduler.SyncResponse
 import io.iohk.ethereum.db.components.EphemDataSourceComponent
 import io.iohk.ethereum.db.components.Storages
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.BlockchainWriter

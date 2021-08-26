@@ -32,6 +32,7 @@ import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncFi
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.StateSyncStats
 import io.iohk.ethereum.blockchain.sync.fast.SyncStateSchedulerActor.WaitingForNewTargetBlock
 import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.BlockMetadataProxy
 import io.iohk.ethereum.domain.BlockchainImpl
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.domain.ChainWeight

@@ -17,6 +17,7 @@ import io.iohk.ethereum.utils.Logger
 class BlockchainWriter(
     blockHeadersStorage: BlockHeadersStorage,
     blockBodiesStorage: BlockBodiesStorage,
+    blockMetadataProxy: BlockMetadataProxy,
     blockNumberMappingStorage: BlockNumberMappingStorage,
     transactionMappingStorage: TransactionMappingStorage,
     receiptStorage: ReceiptStorage,
@@ -49,6 +50,7 @@ class BlockchainWriter(
       .and(storeReceipts(block.header.hash, receipts))
       .and(storeChainWeight(block.header.hash, weight))
       .and(updateBestBlocks)
+      .and(blockMetadataProxy.putBlockIsExecuted(block.header.hash, isExecuted = true))
       .commit()
   }
 
@@ -115,6 +117,7 @@ object BlockchainWriter {
     new BlockchainWriter(
       storages.blockHeadersStorage,
       storages.blockBodiesStorage,
+      new BlockMetadataProxy(storages.blockMetadataStorage),
       storages.blockNumberMappingStorage,
       storages.transactionMappingStorage,
       storages.receiptStorage,
