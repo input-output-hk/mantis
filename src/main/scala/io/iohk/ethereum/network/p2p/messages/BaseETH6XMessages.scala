@@ -10,11 +10,9 @@ import io.iohk.ethereum.network.p2p.Message
 import io.iohk.ethereum.network.p2p.MessageSerializableImplicit
 import io.iohk.ethereum.rlp.RLPCodec.Ops
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
-import io.iohk.ethereum.rlp.RLPImplicitDerivations.RLPListDecoder
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp._
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
-import io.iohk.ethereum.utils.Config
 
 object BaseETH6XMessages {
   object Status {

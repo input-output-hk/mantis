@@ -14,7 +14,6 @@ import io.iohk.ethereum.crypto.pubKeyFromKeyPair
 import io.iohk.ethereum.domain.SignedTransaction.getSender
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.security.SecureRandomBuilder
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
 
 class TransactionSpec
