@@ -1,8 +1,11 @@
 package io.iohk.ethereum.blockchain.sync.regular
 
+import akka.NotUsed
+import akka.stream.QueueOfferResult.Enqueued
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.SourceQueue
 import akka.util.ByteString
 
 import cats.data.EitherT
@@ -25,8 +28,6 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.utils.Config.SyncConfig
-import akka.stream.scaladsl.SourceQueue
-import akka.stream.QueueOfferResult.Enqueued
 
 //not used atm, a part of the future ExecutionSync
 class FetcherService(
@@ -48,10 +49,10 @@ class FetcherService(
 
 //TODO: add private def requestStateNode(hash: ByteString): Task[Either[RequestFailed, Seq[ByteString]]] = ???
 
-  private def placeBlockInPeerStream(peer: Peer, block: Block): Task[Either[RequestFailed, Unit]] =
+  def placeBlockInPeerStream(block: Block): Task[Either[String, Unit]] =
     Task.deferFuture(sourceQueue.offer(block)).map {
       case Enqueued => Right(())
-      case result   => Left(RequestFailed(peer, result.toString()))
+      case reason   => Left(s"SourceQueue.offer failed: $reason")
     }
 
   def fetchBlocksUntil(
@@ -87,13 +88,11 @@ class FetcherService(
       bodies <- EitherT(requestBodies(headers.headers.map(_.hash)))
       blocks = buildBlocks(headers.headers, bodies.bodies)
       _ <- EitherT.cond[Task](blocks.length == headers.headers.length, (), RequestFailed(peer, "Unmatching bodies"))
-      _ <- blocks.traverse(block => EitherT(placeBlockInPeerStream(peer, block)))
+      _ <- blocks.traverse(block => EitherT(placeBlockInPeerStream(block)).leftMap(RequestFailed(peer, _)))
     } yield peer
 }
 
 object FetcherService {
-  type Hashes = Seq[ByteString]
-
   case class BlockIdentifier(transactionsRoot: ByteString, ommersHash: ByteString)
   object BlockIdentifier {
     def apply(blockHeader: BlockHeader): BlockIdentifier =
@@ -117,31 +116,25 @@ object FetcherService {
   /** State of block fetching stream after processing a given incoming message with block headers or bodies
     *
     * @param outstanding headers that are yet to be matched to bodies
-    * @param bodiesRequest information for requesting bodies corresponding to newly outstanding headers
     * @param result blocks produced by matching received headers with received bodies
     */
   case class FetchState(
       outstanding: Set[BlockHeader],
-      bodiesRequest: Option[(PeerId, Hashes)],
       result: Seq[Block]
   )
   object FetchState {
-    val initial: FetchState = FetchState(Set.empty, None, Nil)
+    val initial: FetchState = FetchState(Set.empty, Nil)
   }
 
-  def fetchBlocksForHeaders[M](bodyRequestor: Sink[(PeerId, Hashes), M]): Flow[MessageFromPeer, Seq[Block], M] =
+  // TODO: remove once we have the FetcherService instance integrated
+  val tempFlow: Flow[MessageFromPeer, Seq[Block], NotUsed] =
     Flow[MessageFromPeer]
       .scan(FetchState.initial) {
-        case (FetchState(outstanding, _, _), MessageFromPeer(BlockHeaders(headers), peerId)) =>
-          FetchState(outstanding.concat(headers), Some(peerId -> headers.map(_.hash)), Nil)
-        case (FetchState(outstanding, _, _), MessageFromPeer(BlockBodies(bodies), _)) =>
+        case (FetchState(outstanding, _), MessageFromPeer(BlockHeaders(headers), peerId)) =>
+          FetchState(outstanding.concat(headers), Nil)
+        case (FetchState(outstanding, _), MessageFromPeer(BlockBodies(bodies), _)) =>
           val blocks = buildBlocks(outstanding.toSeq, bodies)
-          FetchState(outstanding.removedAll(blocks.map(_.header)), None, blocks)
+          FetchState(outstanding.removedAll(blocks.map(_.header)), blocks)
       }
-      .alsoToMat(
-        Flow[FetchState]
-          .collect { case FetchState(_, Some(bodiesRequest), _) => bodiesRequest }
-          .toMat(bodyRequestor)(Keep.right)
-      )(Keep.right)
-      .collect { case FetchState(_, _, blocks) if blocks.nonEmpty => blocks }
+      .collect { case FetchState(_, blocks) if blocks.nonEmpty => blocks }
 }

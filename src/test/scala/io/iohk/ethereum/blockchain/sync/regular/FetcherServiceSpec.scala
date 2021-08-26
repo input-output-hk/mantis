@@ -6,6 +6,7 @@ import akka.actor.ActorSystem
 import akka.stream.scaladsl.Keep
 import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
+import akka.stream.scaladsl.SourceQueue
 import akka.testkit.TestKit
 import akka.testkit.TestProbe
 import akka.util.ByteString
@@ -41,7 +42,6 @@ import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Hex
-import akka.stream.scaladsl.SourceQueue
 
 class FetcherServiceSpec
     extends TestKit(ActorSystem("FetcherServiceSpec_System"))
@@ -126,38 +126,25 @@ class FetcherServiceSpec
     result shouldEqual Seq(Block(header1, body1), Block(header2, body2))
   }
 
-  "FetcherService.fetchBlocksForHeaders" should "combine matching headers and bodies" in {
+  "FetcherService.tempFlow" should "combine matching headers and bodies" in {
     val messages = Seq(
       MessageFromPeer(BlockHeaders(Seq(header1, header2)), peerId),
       MessageFromPeer(BlockBodies(Seq(body2, body3, body1)), peerId)
     )
 
-    val result = Source(messages).via(FetcherService.fetchBlocksForHeaders(Sink.ignore)).runWith(Sink.seq)
+    val result = Source(messages).via(FetcherService.tempFlow).runWith(Sink.seq)
 
     whenReady(result)(_ shouldEqual Seq(Seq(Block(header1, body1), Block(header2, body2))))
   }
 
-  "FetcherService.fetchBlocksForHeaders" should "divert block request data to given sink" in {
-    val messages = Seq(
-      MessageFromPeer(BlockHeaders(Seq(header1, header2)), peerId)
-    )
-
-    val result = Source(messages)
-      .viaMat(FetcherService.fetchBlocksForHeaders(Sink.seq))(Keep.right)
-      .toMat(Sink.ignore)(Keep.left)
-      .run()
-
-    whenReady(result)(_ shouldEqual Seq(peerId -> Seq(header1.hash, header2.hash)))
-  }
-
-  "FetcherService.fetchBlocksForHeaders" should "deal with disjointed request / response cycles" in {
+  "FetcherService.tempFlow" should "deal with disjointed request / response cycles" in {
     val messages = Seq(
       MessageFromPeer(BlockHeaders(Seq(header1)), peerId),
       MessageFromPeer(BlockHeaders(Seq(header2)), peerId),
       MessageFromPeer(BlockBodies(Seq(body2, body1)), peerId)
     )
 
-    val result = Source(messages).via(FetcherService.fetchBlocksForHeaders(Sink.ignore)).runWith(Sink.seq)
+    val result = Source(messages).via(FetcherService.tempFlow).runWith(Sink.seq)
 
     whenReady(result)(_ shouldEqual Seq(Seq(Block(header1, body1), Block(header2, body2))))
   }

@@ -41,9 +41,8 @@ case class BranchBuffer(byParent: Map[Hash, Block] = Map.empty, branchFound: Que
 object BranchBuffer {
   type Hash = ByteString
 
-  def flow(blockchainReader: BlockchainReader): Flow[Seq[Block], NonEmptyList[Block], NotUsed] =
-    Flow[Seq[Block]]
-      .mapConcat(_.sortBy(_.number).reverse)
+  def flow(blockchainReader: BlockchainReader): Flow[Block, NonEmptyList[Block], NotUsed] =
+    Flow[Block]
       .scan(BranchBuffer()) { case (buffer, block) => buffer.handle(blockchainReader.getBestBranch(), block) }
       .collect { case BranchBuffer(_, head +: tail) => NonEmptyList(head, tail.toList) }
 }

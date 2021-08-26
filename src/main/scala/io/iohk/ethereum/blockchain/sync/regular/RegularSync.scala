@@ -14,6 +14,7 @@ import akka.actor.typed.{ActorRef => TypedActorRef}
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Flow
 import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
 import akka.util.ByteString
 
 import cats.data.NonEmptyList
@@ -39,6 +40,7 @@ import io.iohk.ethereum.domain.branch.BestBranch
 import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.ledger.BranchResolution
 import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
 import io.iohk.ethereum.network.PeerEventBusActor
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.network.p2p.messages.ETH62
@@ -107,11 +109,15 @@ class RegularSync(
       BlockFetcher.PrintStatus
     )
 
+  val (blockSourceQueue, blockSource) = Source.queue[Block](256, OverflowStrategy.fail).preMaterialize()
+  val fetcherService = new FetcherService(blockchainReader, syncConfig, blockSourceQueue)
+
   override def receive: Receive = running(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)
   )
 
-  private def startNewFlow() =
+  private def startTemporaryBlockProducer() = {
+    import monix.execution.Scheduler.Implicits.global
     PeerEventBusActor
       .messageSource(
         peerEventBus,
@@ -121,12 +127,20 @@ class RegularSync(
             PeerEventBusActor.PeerSelector.AllPeers
           )
       )
+      .via(FetcherService.tempFlow)
       .buffer(256, OverflowStrategy.fail)
-      .via(
-        FetcherService.fetchBlocksForHeaders(
-          Sink.ignore // BlockFetcher is relied on for requesting the bodies
-        )
-      )
+      .mapConcat(identity)
+      .runWith(Sink.foreachAsync(1) { block =>
+        fetcherService
+          .placeBlockInPeerStream(block)
+          .runToFuture
+          .collect { case Right(()) => () }
+
+      })
+  }
+
+  private def startNewFlow() =
+    blockSource
       .via(BranchBuffer.flow(blockchainReader))
       .runWith(Sink.foreach { blocks =>
         importer ! BlockFetcher.PickedBlocks(blocks)
