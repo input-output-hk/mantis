@@ -61,7 +61,8 @@ case class ForkBlockNumbers(
     ecip1049BlockNumber: Option[BigInt],
     ecip1099BlockNumber: BigInt,
     muirGlacierBlockNumber: BigInt,
-    magnetoBlockNumber: BigInt
+    magnetoBlockNumber: BigInt,
+    berlinBlockNumber: BigInt
 ) {
   def all: List[BigInt] = this.productIterator.toList.flatMap {
     case i: BigInt => Some(i)
@@ -98,7 +99,8 @@ object ForkBlockNumbers {
     ecip1099BlockNumber = Long.MaxValue,
     ecip1049BlockNumber = None,
     muirGlacierBlockNumber = Long.MaxValue,
-    magnetoBlockNumber = Long.MaxValue
+    magnetoBlockNumber = Long.MaxValue,
+    berlinBlockNumber = Long.MaxValue
   )
 }
 
@@ -171,6 +173,7 @@ object BlockchainConfig {
     val ecip1099BlockNumber: BigInt = BigInt(blockchainConfig.getString("ecip1099-block-number"))
     val muirGlacierBlockNumber: BigInt = BigInt(blockchainConfig.getString("muir-glacier-block-number"))
     val magnetoBlockNumber: BigInt = BigInt(blockchainConfig.getString("magneto-block-number"))
+    val berlinBlockNumber: BigInt = BigInt(blockchainConfig.getString("berlin-block-number"))
 
     val capabilities: List[Capability] =
       blockchainConfig.getStringList("capabilities").asScala.toList.map(Capability.parseUnsafe)
@@ -200,7 +203,8 @@ object BlockchainConfig {
         ecip1049BlockNumber = ecip1049BlockNumber,
         ecip1099BlockNumber = ecip1099BlockNumber,
         muirGlacierBlockNumber = muirGlacierBlockNumber,
-        magnetoBlockNumber = magnetoBlockNumber
+        magnetoBlockNumber = magnetoBlockNumber,
+        berlinBlockNumber = berlinBlockNumber
       ),
       treasuryAddress = treasuryAddress,
       maxCodeSize = maxCodeSize,

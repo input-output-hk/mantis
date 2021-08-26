@@ -21,9 +21,19 @@ import io.iohk.ethereum.vm.MockWorldState.TestVM
 
 import Fixtures.blockchainConfig
 
-class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
-
+class OpCodeGasSpecPostMagneto extends OpCodeGasSpecPostEip2929 {
   override val config: EvmConfig = EvmConfig.MagnetoConfigBuilder(blockchainConfig)
+  override val forkBlockHeight = Fixtures.MagnetoBlockNumber
+}
+
+class OpCodeGasSpecPostBerlin extends OpCodeGasSpecPostEip2929 {
+  override val config: EvmConfig = EvmConfig.BerlinConfigBuilder(blockchainConfig)
+  override val forkBlockHeight = Fixtures.BerlinBlockNumber
+}
+
+trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Matchers with ScalaCheckPropertyChecks {
+
+  protected[this] def forkBlockHeight: Int
 
   import config.feeSchedule._
 
@@ -31,7 +41,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     val stateGen = getProgramStateGen(
       evmConfig = config,
       stackGen = getStackGen(elems = 1),
-      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+      blockNumberGen = getUInt256Gen(forkBlockHeight)
     )
     val codeGen = getByteStringGen(0, 512)
 
@@ -80,7 +90,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     forAll(table) { (size, accessed, expectedGas) =>
       val initState = getProgramStateGen(
         evmConfig = config,
-        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+        blockNumberGen = getUInt256Gen(forkBlockHeight)
       ).sample.get
       // Pick an address (small, so it fits into memory) that is not on the precompiles list
       val addr =
@@ -98,7 +108,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     val maxGas = 2 * (G_cold_account_access + G_copy * 8)
     val stateGen = getProgramStateGen(
       evmConfig = config,
-      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+      blockNumberGen = getUInt256Gen(forkBlockHeight),
       stackGen = getStackGen(elems = 4, maxUInt = UInt256(256)),
       gasGen = getBigIntGen(max = maxGas),
       memGen = getMemoryGen(256)
@@ -124,7 +134,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     val stateGen = getProgramStateGen(
       evmConfig = config,
       stackGen = getStackGen(elems = 1),
-      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+      blockNumberGen = getUInt256Gen(forkBlockHeight)
     )
 
     forAll(stateGen) { stateIn =>
@@ -151,7 +161,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     val stateGen = getProgramStateGen(
       evmConfig = config,
       stackGen = getStackGen(elems = 1),
-      blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber)
+      blockNumberGen = getUInt256Gen(forkBlockHeight)
     )
 
     val addressAlreadyAccessedGen = Arbitrary.arbitrary[Boolean]
@@ -222,7 +232,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
     forAll(table) { (offset, value, alreadyAccessed, startGas, expectedGasConsumption) =>
       val stackIn = Stack.empty().push(value).push(offset)
       val stateIn = getProgramStateGen(
-        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        blockNumberGen = getUInt256Gen(forkBlockHeight),
         evmConfig = config
       ).sample.get.withStack(stackIn).withStorage(storage).copy(gas = startGas)
 
@@ -240,7 +250,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
 
       val stackIn = Stack.empty().push(value).push(offset)
       val stateIn = getProgramStateGen(
-        blockNumberGen = getUInt256Gen(Fixtures.MagnetoBlockNumber),
+        blockNumberGen = getUInt256Gen(forkBlockHeight),
         evmConfig = config,
         storageGen = Gen.const(storage)
       ).sample.get.withStack(stackIn).copy(gas = expectedGasConsumption)
@@ -253,7 +263,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
   }
 
   // Testcases described in https://gist.github.com/holiman/174548cad102096858583c6fbbb0649a
-  test("Gas metering after Magneto hard fork (EIP-2929)") {
+  test("Gas metering after Magneto/Berlin hard fork (EIP-2929)") {
     val eip2929Table = Table[String, BigInt](
       ("code", "gasUsed"),
       ("60013f5060023b506003315060f13f5060f23b5060f3315060f23f5060f33b5060f1315032315030315000", 8653),
@@ -269,7 +279,7 @@ class OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
       val defaultWorld: MockWorldState = MockWorldState().saveAccount(senderAddr, senderAcc)
 
       val blockHeader = Blocks.ValidBlock.header.copy(
-        number = Fixtures.MagnetoBlockNumber
+        number = forkBlockHeight
       )
 
       val vm = new TestVM

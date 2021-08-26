@@ -208,6 +208,7 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       petersburgBlockNumber = BigInt(10000000), //TODO include petersburg block number in protobuf
       phoenixBlockNumber = BigInt(10500839), //TODO include phoenix block number in protobuf
       magnetoBlockNumber = BigInt(13189133), //TODO include magneto block number in protobuf
+      berlinBlockNumber = BigInt("1000000000000000000"), //TODO include berlin block number in protobuf
       chainId = 0x3d.toByte //TODO include chainId in protobuf
     )
 }

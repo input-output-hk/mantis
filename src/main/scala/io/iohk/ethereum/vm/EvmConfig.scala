@@ -43,7 +43,8 @@ object EvmConfig {
       (blockchainConfig.petersburgBlockNumber, 8, PetersburgConfigBuilder),
       (blockchainConfig.istanbulBlockNumber, 9, IstanbulConfigBuilder),
       (blockchainConfig.phoenixBlockNumber, 9, PhoenixConfigBuilder),
-      (blockchainConfig.magnetoBlockNumber, 10, MagnetoConfigBuilder)
+      (blockchainConfig.magnetoBlockNumber, 10, MagnetoConfigBuilder),
+      (blockchainConfig.berlinBlockNumber, 10, BerlinConfigBuilder)
     )
 
     // highest transition block that is less/equal to `blockNumber`
@@ -139,6 +140,8 @@ object EvmConfig {
       feeSchedule = new ethereum.vm.FeeSchedule.MagnetoFeeSchedule,
       opCodeList = MagnetoOpCodes
     )
+
+  val BerlinConfigBuilder: EvmConfigBuilder = MagnetoConfigBuilder
 
   case class OpCodeList(opCodes: List[OpCode]) {
     val byteToOpCode: Map[Byte, OpCode] =
