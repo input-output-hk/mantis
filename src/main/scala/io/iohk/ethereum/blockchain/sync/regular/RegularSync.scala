@@ -151,7 +151,10 @@ class RegularSync(
     case SyncProtocol.Start =>
       log.info("Starting regular sync")
       importer ! BlockImporter.Start
-      if (newFlow) startNewFlow()
+      if (newFlow) {
+        startNewFlow()
+        startTemporaryBlockProducer()
+      }
 
     case SyncProtocol.MinedBlock(block) =>
       log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
