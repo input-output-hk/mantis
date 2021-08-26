@@ -2,7 +2,8 @@ package io.iohk.ethereum.domain
 
 import io.iohk.ethereum.db.dataSource.DataSourceBatchUpdate
 import io.iohk.ethereum.db.storage
-import io.iohk.ethereum.db.storage.{BlockMetadata, BlockMetadataStorage}
+import io.iohk.ethereum.db.storage.BlockMetadata
+import io.iohk.ethereum.db.storage.BlockMetadataStorage
 import io.iohk.ethereum.db.storage.StorageTypes.BlockHash
 
 /** Proxy with the BlockMetadataStorage

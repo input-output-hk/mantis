@@ -1,10 +1,12 @@
 package io.iohk.ethereum.db.storage
 
-import io.iohk.ethereum.ObjectGenerators
-import io.iohk.ethereum.db.dataSource.EphemDataSource
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.funsuite.AnyFunSuite
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
+
+import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.db.dataSource.EphemDataSource
 
 class BlockMetadataStorageSpec extends AnyFunSuite with ScalaCheckPropertyChecks with ObjectGenerators {
   test("BlockMetadataStorage insert") {

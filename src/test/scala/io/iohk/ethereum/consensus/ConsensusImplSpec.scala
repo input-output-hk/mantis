@@ -1,12 +1,16 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
+
 import monix.execution.Scheduler
+
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
+
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup

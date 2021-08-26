@@ -1,22 +1,23 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
+
 import cats.data.NonEmptyList
 import cats.implicits._
+
 import monix.eval.Task
 import monix.execution.Scheduler
 
 import scala.annotation.tailrec
+
 import io.iohk.ethereum.consensus.Consensus._
 import io.iohk.ethereum.db.storage.BlockMetadata
-import io.iohk.ethereum.domain.{
-  Block,
-  BlockMetadataProxy,
-  BlockchainImpl,
-  BlockchainReader,
-  BlockchainWriter,
-  ChainWeight
-}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockMetadataProxy
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.BlockData
 import io.iohk.ethereum.ledger.BlockExecution
 import io.iohk.ethereum.ledger.BlockExecutionError

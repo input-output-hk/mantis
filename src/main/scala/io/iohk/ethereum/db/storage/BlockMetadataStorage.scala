@@ -1,10 +1,13 @@
 package io.iohk.ethereum.db.storage
 
 import akka.util.ByteString
+
 import boopickle.Default._
+
 import io.iohk.ethereum.db.dataSource.DataSource
 import io.iohk.ethereum.db.storage.StorageTypes.BlockHash
-import io.iohk.ethereum.utils.ByteUtils.{byteSequenceToBuffer, compactPickledBytes}
+import io.iohk.ethereum.utils.ByteUtils.byteSequenceToBuffer
+import io.iohk.ethereum.utils.ByteUtils.compactPickledBytes
 
 case class BlockMetadata(isExecuted: Boolean)
 

@@ -5,16 +5,20 @@ import java.nio.file.Files
 import java.nio.file.Path
 import java.time.Clock
 import java.util.concurrent.atomic.AtomicReference
+
 import akka.actor.ActorRef
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 import akka.util.Timeout
+
 import monix.eval.Task
 
 import scala.concurrent.duration.FiniteDuration
 import scala.concurrent.duration._
+
 import org.bouncycastle.crypto.AsymmetricCipherKeyPair
+
 import io.iohk.ethereum.Fixtures
 import io.iohk.ethereum.Timeouts
 import io.iohk.ethereum.blockchain.sync.BlockchainHostActor
@@ -32,15 +36,13 @@ import io.iohk.ethereum.db.storage.AppStateStorage
 import io.iohk.ethereum.db.storage.Namespaces
 import io.iohk.ethereum.db.storage.pruning.ArchivePruning
 import io.iohk.ethereum.db.storage.pruning.PruningMode
-import io.iohk.ethereum.domain.{
-  Block,
-  BlockMetadataProxy,
-  Blockchain,
-  BlockchainImpl,
-  BlockchainReader,
-  BlockchainWriter,
-  ChainWeight
-}
+import io.iohk.ethereum.domain.Block
+import io.iohk.ethereum.domain.BlockMetadataProxy
+import io.iohk.ethereum.domain.Blockchain
+import io.iohk.ethereum.domain.BlockchainImpl
+import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.BlockchainWriter
+import io.iohk.ethereum.domain.ChainWeight
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.mpt.MerklePatriciaTrie
 import io.iohk.ethereum.network.EtcPeerManagerActor
