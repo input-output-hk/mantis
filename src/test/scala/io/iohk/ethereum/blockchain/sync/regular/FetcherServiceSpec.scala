@@ -41,6 +41,7 @@ import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Hex
+import akka.stream.scaladsl.SourceQueue
 
 class FetcherServiceSpec
     extends TestKit(ActorSystem("FetcherServiceSpec_System"))
@@ -60,8 +61,8 @@ class FetcherServiceSpec
   "FetcherService" should "return RequestFailed when asking for a not existing blocks" in {
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     (blockchainReader.getBlockHeaderByHash _).expects(*).returning(None).anyNumberOfTimes()
-    val blockValidator: BlockValidator = mock[BlockValidator]
-    val fetcherService = new FetcherService(blockValidator, blockchainReader, syncConfig)
+    val sourceQueue = mock[SourceQueue[Block]]
+    val fetcherService = new FetcherService(blockchainReader, syncConfig, sourceQueue)
     val peerProbe: TestProbe = TestProbe()
     val peer = Peer(PeerId("peerId"), new InetSocketAddress(9191), peerProbe.ref, true)
     val result = fetcherService.fetchBlocksUntil(peer, Right(ByteString("byteString")), Right(ByteString("byteString")))
@@ -72,38 +73,11 @@ class FetcherServiceSpec
   it should "return an error when request to fetch headers in fetchBlocks fails" ignore {
     val blockchainReader: BlockchainReader = mock[BlockchainReader]
     (blockchainReader.getHashByBlockNumber _).expects(*, *).returning(Some(genesisHash))
-    val blockValidator: BlockValidator = mock[BlockValidator]
-    val fetcherService = new FetcherService(blockValidator, blockchainReader, syncConfig)
+    val sourceQueue = mock[SourceQueue[Block]]
+    val fetcherService = new FetcherService(blockchainReader, syncConfig, sourceQueue)
     val fetchBlocks = PrivateMethod[EitherT[Task, RequestFailed, Peer]]('fetchBlocks)
     val eitherPeerOrError = fetcherService.invokePrivate(fetchBlocks())
     assert(eitherPeerOrError === RequestFailed)
-  }
-
-  it should "fail to verify that bodies are a subset of headers if they don't match" in {
-    val blockchainReader: BlockchainReader = mock[BlockchainReader]
-    // Here we are forcing the mismatch between request headers and received bodies
-    val blockValidator = new MockValidatorsFailingOnBlockBodies
-    val fetcherService = new FetcherService(blockValidator.blockValidator, blockchainReader, syncConfig)
-    val bodiesAreOrderedSubsetOfRequested = PrivateMethod[Option[Seq[Block]]]('bodiesAreOrderedSubsetOfRequested)
-    val blocks = Seq(Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
-    val headers: Seq[BlockHeader] = blocks.map(_.header)
-    val bodies: Seq[BlockBody] = blocks.map(_.body)
-    val verifiedBlocks: Option[Seq[Block]] =
-      fetcherService.invokePrivate(bodiesAreOrderedSubsetOfRequested(headers, bodies, Nil))
-    verifiedBlocks shouldBe None
-  }
-
-  it should "verify that bodies are a subset of headers" in {
-    val blockchainReader: BlockchainReader = mock[BlockchainReader]
-    val blockValidator = new MockValidatorsAlwaysSucceed
-    val fetcherService = new FetcherService(blockValidator.blockValidator, blockchainReader, syncConfig)
-    val bodiesAreOrderedSubsetOfRequested = PrivateMethod[Option[Seq[Block]]]('bodiesAreOrderedSubsetOfRequested)
-    val blocks = Seq(Block(ValidBlock.header.copy(number = 97), ValidBlock.body))
-    val headers: Seq[BlockHeader] = blocks.map(_.header)
-    val bodies: Seq[BlockBody] = blocks.map(_.body)
-    val verifiedBlocks: Option[Seq[Block]] =
-      fetcherService.invokePrivate(bodiesAreOrderedSubsetOfRequested(headers, bodies, Nil))
-    verifiedBlocks shouldBe Some(blocks)
   }
 
   val emptyTransactionsRoot: ByteString =
@@ -145,6 +119,11 @@ class FetcherServiceSpec
     FetcherService.BlockIdentifier(body1) shouldEqual FetcherService.BlockIdentifier(header1)
     FetcherService.BlockIdentifier(body2) shouldEqual FetcherService.BlockIdentifier(header2)
     (FetcherService.BlockIdentifier(body1) should not).equal(FetcherService.BlockIdentifier(header2))
+  }
+
+  "FetcherService.buildBlocks" should "return matching headers and bodies only" in {
+    val result = FetcherService.buildBlocks(Seq(header1, header2), Seq(body2, body3, body1))
+    result shouldEqual Seq(Block(header1, body1), Block(header2, body2))
   }
 
   "FetcherService.fetchBlocksForHeaders" should "combine matching headers and bodies" in {

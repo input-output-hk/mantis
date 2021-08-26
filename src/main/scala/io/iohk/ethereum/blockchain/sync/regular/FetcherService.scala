@@ -25,9 +25,17 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockBodies
 import io.iohk.ethereum.network.p2p.messages.ETH62.BlockHeaders
 import io.iohk.ethereum.utils.Config.SyncConfig
+import akka.stream.scaladsl.SourceQueue
+import akka.stream.QueueOfferResult.Enqueued
 
 //not used atm, a part of the future ExecutionSync
-class FetcherService(validator: BlockValidator, blockchainReader: BlockchainReader, syncConfig: SyncConfig) {
+class FetcherService(
+    blockchainReader: BlockchainReader,
+    syncConfig: SyncConfig,
+    sourceQueue: SourceQueue[Block]
+) {
+
+  import FetcherService._
 
   val batchSize = syncConfig.blockHeadersPerRequest
 
@@ -40,7 +48,11 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
 
 //TODO: add private def requestStateNode(hash: ByteString): Task[Either[RequestFailed, Seq[ByteString]]] = ???
 
-  private def placeBlockInPeerStream(block: Block, peer: Peer): Peer = ???
+  private def placeBlockInPeerStream(peer: Peer, block: Block): Task[Either[RequestFailed, Unit]] =
+    Task.deferFuture(sourceQueue.offer(block)).map {
+      case Enqueued => Right(())
+      case result   => Left(RequestFailed(peer, result.toString()))
+    }
 
   def fetchBlocksUntil(
       peer: Peer,
@@ -73,30 +85,10 @@ class FetcherService(validator: BlockValidator, blockchainReader: BlockchainRead
     for {
       headers <- EitherT(requestHeaders(block, amount))
       bodies <- EitherT(requestBodies(headers.headers.map(_.hash)))
-      blocks <- EitherT.fromOption[Task](
-        bodiesAreOrderedSubsetOfRequested(headers.headers, bodies.bodies),
-        RequestFailed(peer, "Unmatching bodies")
-      )
-      _ = blocks.foreach(placeBlockInPeerStream(_, peer))
+      blocks = buildBlocks(headers.headers, bodies.bodies)
+      _ <- EitherT.cond[Task](blocks.length == headers.headers.length, (), RequestFailed(peer, "Unmatching bodies"))
+      _ <- blocks.traverse(block => EitherT(placeBlockInPeerStream(peer, block)))
     } yield peer
-
-  // Checks that the received block bodies are an ordered subset of the ones requested
-  @tailrec
-  private def bodiesAreOrderedSubsetOfRequested(
-      requestedHeaders: Seq[BlockHeader],
-      respondedBodies: Seq[BlockBody],
-      matchedBlocks: Seq[Block] = Nil
-  ): Option[Seq[Block]] =
-    (requestedHeaders, respondedBodies) match {
-      case (Seq(), _ +: _) => None
-      case (_, Seq())      => Some(matchedBlocks)
-      case (header +: remainingHeaders, body +: remainingBodies) =>
-        if (validator.validateHeaderAndBody(header, body).isRight)
-          bodiesAreOrderedSubsetOfRequested(remainingHeaders, remainingBodies, matchedBlocks :+ Block(header, body))
-        else
-          bodiesAreOrderedSubsetOfRequested(remainingHeaders, respondedBodies, matchedBlocks)
-    }
-
 }
 
 object FetcherService {
