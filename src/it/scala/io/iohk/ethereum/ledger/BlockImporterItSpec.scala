@@ -53,7 +53,50 @@ class BlockImporterItSpec
     testScheduler.awaitTermination(60.second)
   }
 
-  "BlockImporter" should "not discard blocks of the main chain if the reorganisation failed" in new TestFixture() {
+  "BlockImporter" should "import a block to the top of the main chain" in new StartedImportFixture {
+    // Fixture imports up to oldBlock4
+    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock4)
+
+    val block5: Block = getBlock(genesisBlock.number + 5, difficulty = 108, parent = oldBlock4.header.hash)
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.one(block5))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual block5)
+  }
+
+  it should "only execute blocks that were not previously executed when importing blocks on top" in new StartedImportFixture {
+    // Fixture imports up to oldBlock4
+    eventually(blockchainReader.getBestBlock().get shouldEqual oldBlock4)
+
+    val block5: Block = getBlock(genesisBlock.number + 5, difficulty = 108, parent = oldBlock4.header.hash)
+    val block6: Block = getBlock(genesisBlock.number + 6, difficulty = 106, parent = block5.header.hash)
+    val block7: Block = getBlock(genesisBlock.number + 7, difficulty = 1010, parent = block6.header.hash)
+
+    // simulate that block5 was executed already
+    val weight: ChainWeight = oldWeight3.increase(oldBlock4.header)
+    blockchainWriter.save(block5, Seq.empty, weight, saveAsBestBlock = false)
+    blockMetadataProxy
+      .putBlockIsExecuted(block5.hash, isExecuted = true)
+      .commit()
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(List(block5, block6, block7)))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual block7)
+  }
+
+  it should "only execute blocks that were not previously executed when reorganizing chain" in new StartedImportFixture {
+    val weight: ChainWeight = weight1.increase(newBlock2.header)
+    blockchainWriter.save(newBlock2, Seq.empty, weight, saveAsBestBlock = false)
+    blockMetadataProxy
+      .putBlockIsExecuted(newBlock2.hash, isExecuted = true)
+      .commit()
+
+    blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
+
+    eventually(blockchainReader.getBestBlock().get shouldEqual newBlock3)
+  }
+
+  it should "not discard blocks of the main chain if the reorganisation failed" in new TestFixture() {
 
     override val blockImporter = system.actorOf(
       BlockImporter.props(
@@ -79,11 +122,6 @@ class BlockImporterItSpec
   }
 
   it should "return a correct new best block after reorganising longer chain to a shorter one if its weight is bigger" in new StartedImportFixture() {
-    //returning discarded initial chain
-    blockchainWriter.save(oldBlock2, Nil, oldWeight2, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock3, Nil, oldWeight3, saveAsBestBlock = true)
-    blockchainWriter.save(oldBlock4, Nil, oldWeight4, saveAsBestBlock = true)
-
     blockImporter ! BlockFetcher.PickedBlocks(NonEmptyList.fromListUnsafe(newBranch))
 
     eventually(blockchainReader.getBestBlock().get shouldEqual newBlock3)

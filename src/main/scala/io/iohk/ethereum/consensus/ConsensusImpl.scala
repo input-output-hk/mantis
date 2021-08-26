@@ -144,10 +144,12 @@ class ConsensusImpl(
   }
 
   private def setBlocksMetadata(blocks: List[BlockData]): Unit =
-    blocks
-      .map(block => blockMetadataProxy.putBlockMetadata(block.block.hash, BlockMetadata(isExecuted = true)))
-      .reduce((batchUpdate1, batchUpdate2) => batchUpdate1.and(batchUpdate2))
-      .commit()
+    if (blocks.nonEmpty) {
+      blocks
+        .map(block => blockMetadataProxy.putBlockMetadata(block.block.hash, BlockMetadata(isExecuted = true)))
+        .reduce((batchUpdate1, batchUpdate2) => batchUpdate1.and(batchUpdate2))
+        .commit()
+    }
 
   private def saveLastBlock(blocks: List[BlockData]): Unit = blocks.lastOption.foreach(b =>
     blockchainWriter.saveBestKnownBlocks(

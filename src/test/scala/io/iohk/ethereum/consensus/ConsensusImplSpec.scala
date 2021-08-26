@@ -1,16 +1,12 @@
 package io.iohk.ethereum.consensus
 
 import akka.util.ByteString
-
 import cats.data.NonEmptyList
-
 import monix.execution.Scheduler
-
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.concurrent.ScalaFutures
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
-
 import io.iohk.ethereum.BlockHelpers
 import io.iohk.ethereum.NormalPatience
 import io.iohk.ethereum.blockchain.sync.EphemBlockchainTestSetup
@@ -28,8 +24,23 @@ import io.iohk.ethereum.utils.BlockchainConfig
 
 class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures with NormalPatience {
   import ConsensusImplSpec._
+
   "Consensus" should "extend the current best chain" in new ConsensusSetup {
     val chainExtension = BlockHelpers.generateChain(3, initialBestBlock)
+
+    whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(chainExtension)).runToFuture) {
+      _ shouldBe a[ExtendedCurrentBestBranch]
+    }
+
+    blockchainReader.getBestBlock() shouldBe Some(chainExtension.last)
+  }
+
+  it should "only execute blocks that were not previously executed when extending the current best chain" in new ConsensusSetup {
+    val chainExtension = BlockHelpers.generateChain(3, initialBestBlock)
+
+    // set the last new block as already executed
+    blockchainWriter.save(chainExtension.last, Seq.empty, ChainWeight(0, 1000), saveAsBestBlock = false)
+    blockMetadataProxy.putBlockIsExecuted(chainExtension.last.hash, isExecuted = true).commit()
 
     whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(chainExtension)).runToFuture) {
       _ shouldBe a[ExtendedCurrentBestBranch]
@@ -61,6 +72,20 @@ class ConsensusImplSpec extends AnyFlatSpec with Matchers with ScalaFutures with
   it should "reorganise the chain if the new chain is better" in new ConsensusSetup {
     val newBetterBranch =
       BlockHelpers.generateChain(3, initialChain(2), b => b.copy(header = b.header.copy(difficulty = 10000000)))
+
+    whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(newBetterBranch)).runToFuture) {
+      _ shouldBe a[SelectedNewBestBranch]
+    }
+    blockchainReader.getBestBlock() shouldBe Some(newBetterBranch.last)
+  }
+
+  it should "only execute blocks that were not previously executed when reorganising the chain" in new ConsensusSetup {
+    val newBetterBranch =
+      BlockHelpers.generateChain(3, initialChain(2), b => b.copy(header = b.header.copy(difficulty = 10000000)))
+
+    // set the last new block as already executed
+    blockchainWriter.save(newBetterBranch.last, Seq.empty, ChainWeight(0, 1000), saveAsBestBlock = false)
+    blockMetadataProxy.putBlockIsExecuted(newBetterBranch.last.hash, isExecuted = true).commit()
 
     whenReady(consensus.evaluateBranch(NonEmptyList.fromListUnsafe(newBetterBranch)).runToFuture) {
       _ shouldBe a[SelectedNewBestBranch]
@@ -115,6 +140,8 @@ object ConsensusImplSpec {
 
     val consensus = testSetup.consensus
     val blockchainReader = testSetup.blockchainReader
+    val blockchainWriter = testSetup.blockchainWriter
+    val blockMetadataProxy = testSetup.blockMetadataProxy
     implicit val scheduler: Scheduler = Scheduler.global
     implicit val blockchainConfig: BlockchainConfig = testSetup.blockchainConfig
 
