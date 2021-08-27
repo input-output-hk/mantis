@@ -114,11 +114,15 @@ class BlockchainSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyCh
     val secondBlock = nextBlock(firstBlock)
     val thirdBlock = checkpointBlockGenerator.generate(secondBlock, checkpoint)
 
+    blockMetadataProxy.getBlockIsExecuted(thirdBlock.hash) shouldBe false
+
     blockchainWriter.save(firstBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
     blockchainWriter.save(secondBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
     blockchainWriter.save(thirdBlock, Seq.empty, ChainWeight(0, 0), saveAsBestBlock = true)
 
+    blockMetadataProxy.getBlockIsExecuted(thirdBlock.hash) shouldBe true
     blockchain.removeBlock(thirdBlock.hash)
+    blockMetadataProxy.getBlockIsExecuted(thirdBlock.hash) shouldBe false
 
     blockchainReader.getLatestCheckpointBlockNumber() should ===(firstBlock.number)
     blockchainReader.getBestBlockNumber() should ===(secondBlock.number)

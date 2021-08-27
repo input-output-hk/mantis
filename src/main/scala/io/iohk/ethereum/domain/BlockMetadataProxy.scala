@@ -20,11 +20,8 @@ class BlockMetadataProxy(blockMetadataStorage: BlockMetadataStorage) {
   def getBlockIsExecuted(blockHash: BlockHash): Boolean =
     blockMetadataStorage.get(blockHash).exists(_.isExecuted)
 
+  // note: if BlockMetadata class gets more fields then update this to fist to a get and then
+  // update that object
   def putBlockIsExecuted(blockHash: BlockHash, isExecuted: Boolean): DataSourceBatchUpdate =
-    blockMetadataStorage
-      .get(blockHash)
-      .fold(
-        blockMetadataStorage
-          .put(blockHash, BlockMetadata(isExecuted = isExecuted))
-      )(metadata => blockMetadataStorage.put(blockHash, metadata.copy(isExecuted = isExecuted)))
+    blockMetadataStorage.put(blockHash, BlockMetadata(isExecuted = isExecuted))
 }
