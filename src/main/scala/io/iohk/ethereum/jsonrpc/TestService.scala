@@ -70,7 +70,8 @@ object TestService {
       homesteadForkBlock: Option[BigInt],
       maximumExtraDataSize: BigInt,
       constantinopleForkBlock: Option[BigInt],
-      istanbulForkBlock: Option[BigInt]
+      istanbulForkBlock: Option[BigInt],
+      berlinForkBlock: Option[BigInt]
   )
 
   case class ChainParams(
@@ -215,6 +216,7 @@ class TestService(
   private def buildNewConfig(blockchainParams: BlockchainParams) = {
     val byzantiumBlockNumber: BigInt = blockchainParams.byzantiumForkBlock.getOrElse(neverOccurringBlock)
     val istanbulForkBlockNumber: BigInt = blockchainParams.istanbulForkBlock.getOrElse(neverOccurringBlock)
+    val berlinForkBlockNumber: BigInt = blockchainParams.berlinForkBlock.getOrElse(neverOccurringBlock)
 
     // For block number which are not specified by retesteth, we try to align the number to another fork
     node.blockchainConfig.copy(
@@ -230,7 +232,8 @@ class TestService(
         aghartaBlockNumber = istanbulForkBlockNumber,
         istanbulBlockNumber = istanbulForkBlockNumber,
         atlantisBlockNumber = istanbulForkBlockNumber,
-        phoenixBlockNumber = istanbulForkBlockNumber
+        phoenixBlockNumber = istanbulForkBlockNumber,
+        berlinBlockNumber = berlinForkBlockNumber
       ),
       accountStartNonce = UInt256(blockchainParams.accountStartNonce),
       networkId = 1,

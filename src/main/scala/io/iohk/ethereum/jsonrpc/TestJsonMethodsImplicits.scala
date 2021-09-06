@@ -100,6 +100,7 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           homesteadForkBlock <- optionalQuantity(blockchainParamsJson \ "homesteadForkBlock")
           constantinopleForkBlock <- optionalQuantity(blockchainParamsJson \ "constantinopleForkBlock")
           istanbulForkBlock <- optionalQuantity(blockchainParamsJson \ "istanbulForkBlock")
+          berlinForkBlock <- optionalQuantity(blockchainParamsJson \ "berlinForkBlock")
         } yield BlockchainParams(
           EIP150ForkBlock = eIP150ForkBlock,
           EIP158ForkBlock = eIP158ForkBlock,
@@ -110,7 +111,8 @@ object TestJsonMethodsImplicits extends JsonMethodsImplicits {
           homesteadForkBlock = homesteadForkBlock,
           maximumExtraDataSize = 0,
           constantinopleForkBlock = constantinopleForkBlock,
-          istanbulForkBlock = istanbulForkBlock
+          istanbulForkBlock = istanbulForkBlock,
+          berlinForkBlock = berlinForkBlock
         )
 
       override def encodeJson(t: SetChainParamsResponse): JValue = true
