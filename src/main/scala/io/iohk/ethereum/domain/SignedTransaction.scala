@@ -43,10 +43,8 @@ object SignedTransaction {
 
   val FirstByteOfAddress = 12
   val LastByteOfAddress: Int = FirstByteOfAddress + Address.Length
-  val negativePointSign = 27
-  val newNegativePointSign = 35
-  val positivePointSign = 28
-  val newPositivePointSign = 36
+  val EIP155NegativePointSign = 35
+  val EIP155PositivePointSign = 36
   val valueForEmptyR = 0
   val valueForEmptyS = 0
 
@@ -70,8 +68,8 @@ object SignedTransaction {
       chainId: Option[Byte]
   ): SignedTransaction = {
     val bytes = bytesToSign(tx, chainId)
-    val sig = ECDSASignature.sign(bytes, keyPair, chainId)
-    SignedTransaction(tx, sig)
+    val sig = ECDSASignature.sign(bytes, keyPair /*, chainId*/ )
+    SignedTransaction(tx, getEthereumSignature(sig, chainId))
   }
 
   private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
@@ -80,6 +78,67 @@ object SignedTransaction {
         chainSpecificTransactionBytes(tx, id)
       case None =>
         generalTransactionBytes(tx)
+    }
+
+  /** Convert a RLP compatible ECDSA Signature to a raw crypto signature.
+    * Depending on the transaction type and the block number, different rules are
+    * used to enhance the v field with additional context for signing purpose and networking
+    * communication.
+    *
+    * Currently, both semantic data are represented by the same data structure.
+    *
+    * @see getEthereumSignature for the reciprocal conversion.
+    * @param ethereumSignature the v-modified signature, received from the network
+    * @param chainIdOpt        the chainId if available
+    * @return a raw crypto signature, with only 27 or 28 as valid ECDSASignature.v value
+    */
+  private def getRawSignature(ethereumSignature: ECDSASignature, chainIdOpt: Option[Byte]): ECDSASignature =
+    chainIdOpt match {
+      // ignore chainId for unprotected negative y-parity in pre-eip155 signature
+      case Some(_) if ethereumSignature.v == ECDSASignature.negativePointSign =>
+        ethereumSignature.copy(v = ECDSASignature.negativePointSign)
+      // ignore chainId for unprotected positive y-parity in pre-eip155 signature
+      case Some(_) if ethereumSignature.v == ECDSASignature.positivePointSign =>
+        ethereumSignature.copy(v = ECDSASignature.positivePointSign)
+      // identify negative y-parity for protected post eip-155 signature
+      case Some(chainId) if ethereumSignature.v == (2 * chainId + EIP155NegativePointSign).toByte =>
+        ethereumSignature.copy(v = ECDSASignature.negativePointSign)
+      // identify positive y-parity for protected post eip-155 signature
+      case Some(chainId) if ethereumSignature.v == (2 * chainId + EIP155PositivePointSign).toByte =>
+        ethereumSignature.copy(v = ECDSASignature.positivePointSign)
+      // legacy pre-eip
+      case None => ethereumSignature
+      // unexpected chainId
+      case _ =>
+        throw new IllegalStateException(
+          s"Unexpected pointSign. ChainId: ${chainIdOpt.getOrElse("None")}, ethereum.signature.v: ${ethereumSignature.v}"
+        )
+    }
+
+  /** Convert a RLP compatible ECDSA Signature to a raw crypto signature.
+    * Depending on the transaction type and the block number, different rules are
+    * used to enhance the v field with additional context for signing purpose and networking
+    * communication.
+    *
+    * Currently, both semantic data are represented by the same data structure.
+    *
+    * @see getRawSignature for the reciprocal conversion.
+    * @param ethereumSignature the v-modified signature, received from the network
+    * @param chainIdOpt        the chainId if available
+    * @return a raw crypto signature, with only 27 or 28 as valid ECDSASignature.v value
+    */
+  private def getEthereumSignature(rawSignature: ECDSASignature, chainIdOpt: Option[Byte]): ECDSASignature =
+    chainIdOpt match {
+      case Some(chainId) if rawSignature.v == ECDSASignature.negativePointSign =>
+        rawSignature.copy(v = (chainId * 2 + EIP155NegativePointSign).toByte)
+      case Some(chainId) if rawSignature.v == ECDSASignature.positivePointSign =>
+        rawSignature.copy(v = (chainId * 2 + EIP155PositivePointSign).toByte)
+      case None => rawSignature
+      case _ =>
+        throw new IllegalStateException(
+          s"Unexpected pointSign. ChainId: ${chainIdOpt.getOrElse("None")}, raw.signature.v: ${rawSignature.v}, authorized values are ${ECDSASignature.allowedPointSigns
+            .mkString(", ")}"
+        )
     }
 
   def getSender(tx: SignedTransaction): Option[Address] =
@@ -94,7 +153,7 @@ object SignedTransaction {
       case Some(chainId) => chainSpecificTransactionBytes(tx.tx, chainId)
     }
 
-    val recoveredPublicKey: Option[Array[Byte]] = tx.signature.publicKey(bytesToSign, chainIdOpt)
+    val recoveredPublicKey: Option[Array[Byte]] = getRawSignature(tx.signature, chainIdOpt).publicKey(bytesToSign)
 
     for {
       key <- recoveredPublicKey
