@@ -74,7 +74,7 @@ class QAService(
     val keys = privateKeys.map { key =>
       crypto.keyPairFromPrvKey(key.toArray)
     }
-    val signatures = keys.map(ECDSASignature.sign(blockHash.toArray, _, None))
+    val signatures = keys.map(ECDSASignature.sign(blockHash.toArray, _))
     Checkpoint(signatures)
   }
 
