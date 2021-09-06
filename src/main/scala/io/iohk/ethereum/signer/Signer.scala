@@ -62,7 +62,8 @@ trait Signer {
 
     for {
       bytesToSign <- payloadToCheck(signedTransaction).toOption
-      key <- signedTransaction.signature.publicKey(bytesToSign, Some(chainId.toByte))
+      rawSignature <- getRAWSignature(signedTransaction).toOption
+      key <- rawSignature.publicKey(bytesToSign)
       addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
       if addrBytes.length == Address.Length
     } yield Address(addrBytes)

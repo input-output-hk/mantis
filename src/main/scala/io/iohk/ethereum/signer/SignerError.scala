@@ -1,4 +1,4 @@
 package io.iohk.ethereum.signer
 
-trait SignerError
+sealed trait SignerError
 case class IncompatibleTransactionType(transactionType: String, context: String) extends SignerError
