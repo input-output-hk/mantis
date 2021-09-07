@@ -6,8 +6,6 @@ import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import akka.util.ByteString
 
-import scala.collection.mutable
-
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.prop.TableFor3
@@ -24,109 +22,55 @@ import io.iohk.ethereum.network.p2p.messages.Capability
 class PeersClientSpec extends AnyFlatSpec with Matchers with ScalaCheckPropertyChecks {
 
   import Peers._
-  val table: TableFor3[Map[PeerId, PeerWithInfo], Option[Peer], String] =
-    Table[Map[PeerId, PeerWithInfo], Option[Peer], String](
-      ("PeerInfo map", "Expected best peer", "Scenario info (selected peer)"),
-      (
-        Map(),
-        None,
-        "No peers"
-      ),
-      (
-        Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false))),
-        None,
-        "Single peer"
-      ),
-      (
-        Map(
-          peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false)),
-          peer2.id -> PeerWithInfo(peer2, peerInfo(0, 50, fork = true))
-        ),
-        Some(peer2),
-        "Peer2 with lower TD but following the ETC fork"
-      ),
-      (
-        Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)), peer2.id -> PeerWithInfo(peer2, peerInfo(0, 101))),
-        Some(peer2),
-        "Peer2 with higher TD"
-      ),
-      (
-        Map(
-          peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)),
-          peer2.id -> PeerWithInfo(peer2, peerInfo(0, 101)),
-          peer3.id -> PeerWithInfo(peer3, peerInfo(1, 50))
-        ),
-        Some(peer3),
-        "Peer3 with lower TD but higher checkpoint number"
-      ),
-      (
-        Map(
-          peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)),
-          peer2.id -> PeerWithInfo(peer2, peerInfo(4, 101)),
-          peer3.id -> PeerWithInfo(peer3, peerInfo(4, 50))
-        ),
-        Some(peer2),
-        "Peer2 with equal checkpoint number and higher TD"
-      )
-    )
 
   "PeerClient" should "determine the best peer based on its latest checkpoint number and total difficulty" in {
+    val table: TableFor3[Map[PeerId, PeerWithInfo], Option[Peer], String] =
+      Table[Map[PeerId, PeerWithInfo], Option[Peer], String](
+        ("PeerInfo map", "Expected best peer", "Scenario info (selected peer)"),
+        (
+          Map(),
+          None,
+          "No peers"
+        ),
+        (
+          Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false))),
+          None,
+          "Single peer"
+        ),
+        (
+          Map(
+            peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false)),
+            peer2.id -> PeerWithInfo(peer2, peerInfo(0, 50, fork = true))
+          ),
+          Some(peer2),
+          "Peer2 with lower TD but following the ETC fork"
+        ),
+        (
+          Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)), peer2.id -> PeerWithInfo(peer2, peerInfo(0, 101))),
+          Some(peer2),
+          "Peer2 with higher TD"
+        ),
+        (
+          Map(
+            peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)),
+            peer2.id -> PeerWithInfo(peer2, peerInfo(0, 101)),
+            peer3.id -> PeerWithInfo(peer3, peerInfo(1, 50))
+          ),
+          Some(peer3),
+          "Peer3 with lower TD but higher checkpoint number"
+        ),
+        (
+          Map(
+            peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)),
+            peer2.id -> PeerWithInfo(peer2, peerInfo(4, 101)),
+            peer3.id -> PeerWithInfo(peer3, peerInfo(4, 50))
+          ),
+          Some(peer2),
+          "Peer2 with equal checkpoint number and higher TD"
+        )
+      )
     forAll(table) { (peerInfoMap, expectedPeer, _) =>
       PeersClient.bestPeer(peerInfoMap) shouldEqual expectedPeer
-    }
-  }
-
-  it should "determine the next best peer (same as bestPeer when lru set is empty)" in {
-    forAll(table) { (peerInfoMap, expectedPeer, _) =>
-      PeersClient.nextBestPeer(peerInfoMap, Set.empty) shouldEqual expectedPeer
-    }
-  }
-
-  it should "determine the next best peer with a different best block each time" in {
-    val table = Table[Map[PeerId, PeerWithInfo], Option[PeerWithInfo], Option[Peer], String](
-      ("PeerInfo map", "Used best peer", "Expected best peer", "Scenario info (selected peer)"),
-      (
-        Map(),
-        None,
-        None,
-        "No peers"
-      ),
-      (
-        Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false))),
-        None,
-        None,
-        "Single peer"
-      ),
-      (
-        Map(
-          peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100, fork = false)),
-          peer2.id -> PeerWithInfo(peer2, peerInfo(0, 50, fork = true))
-        ),
-        Some(PeerWithInfo(peer2, peerInfo(0, 50, fork = true))),
-        None,
-        "Peer2 with lower TD but following the ETC fork, peer2 is already used"
-      ),
-      (
-        Map(peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)), peer2.id -> PeerWithInfo(peer2, peerInfo(0, 101))),
-        Some(PeerWithInfo(peer2, peerInfo(0, 101))),
-        None,
-        "Both peer are used"
-      ),
-      (
-        Map(
-          peer1.id -> PeerWithInfo(peer1, peerInfo(0, 100)),
-          peer2.id -> PeerWithInfo(peer2, peerInfo(1, 50)),
-          peer3.id -> PeerWithInfo(peer3, peerInfo(0, 80).copy(bestBlockHash = ByteString("differenthash")))
-        ),
-        Some(PeerWithInfo(peer2, peerInfo(1, 50))),
-        Some(peer3),
-        "Peer2 with lower TD but higher checkpoint number, peer 1 and 2 are used"
-      )
-    )
-    val activeFetchingNodes: mutable.Set[PeerWithInfo] = mutable.Set.empty
-    forAll(table) { (peerInfoMap, usedPeerWithInfo, expectedPeer, _) =>
-      usedPeerWithInfo.map(activeFetchingNodes.add)
-      PeersClient.nextBestPeer(peerInfoMap, activeFetchingNodes.toSet) shouldEqual expectedPeer
     }
   }
 
