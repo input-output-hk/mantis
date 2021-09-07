@@ -151,7 +151,9 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       world = world,
       initialAddressesToDelete = Set(),
       evmConfig = vmConfig,
-      originalWorld = world
+      originalWorld = world,
+      // FIXME add access list to CallContext
+      accessList = Nil
     )
   }
 

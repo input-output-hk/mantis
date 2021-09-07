@@ -35,6 +35,12 @@ object Transaction {
     case tx: TransactionWithAccessList => tx.copy(gasLimit = gl)
   }
 
+  def accessList(tx: Transaction) =
+    tx match {
+      case transaction: TransactionWithAccessList                                         => transaction.accessList
+      case LegacyTransaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload) => Nil
+    }
+
   implicit class TransactionTypeValidator(val transactionType: Byte) extends AnyVal {
     def isValidTransactionType: Boolean = transactionType >= MinAllowedType && transactionType <= MaxAllowedType
   }
@@ -70,6 +76,7 @@ case class LegacyTransaction(
     value: BigInt,
     payload: ByteString
 ) extends Transaction {
+
   override def toString: String =
     s"LegacyTransaction {" +
       s"nonce: $nonce " +

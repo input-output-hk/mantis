@@ -1,7 +1,6 @@
 package io.iohk.ethereum.extvm
 
 import java.nio.ByteOrder
-
 import akka.actor.ActorSystem
 import akka.stream.OverflowStrategy
 import akka.stream.scaladsl.Framing
@@ -10,12 +9,12 @@ import akka.stream.scaladsl.Sink
 import akka.stream.scaladsl.Source
 import akka.stream.scaladsl.Tcp
 import akka.util.ByteString
+import io.iohk.ethereum.domain.AccessListItem
 
 import scala.annotation.tailrec
 import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
-
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
 import io.iohk.ethereum.utils.BlockchainConfig
