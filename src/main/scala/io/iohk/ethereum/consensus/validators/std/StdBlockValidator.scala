@@ -15,21 +15,23 @@ import io.iohk.ethereum.utils.ByteUtils.or
 
 object StdBlockValidator extends BlockValidator {
 
+  def transactionsRootHash(blockBody: BlockBody): Array[Byte] =
+    MptListValidator.rootHash(blockBody.transactionList, SignedTransaction.byteArraySerializable)
+
   /** Validates [[io.iohk.ethereum.domain.BlockHeader.transactionsRoot]] matches [[BlockBody.transactionList]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
     *
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateTransactionRoot(block: Block): Either[BlockError, BlockValid] = {
-    val isValid = MptListValidator.isValid[SignedTransaction](
-      block.header.transactionsRoot.toArray[Byte],
-      block.body.transactionList,
-      SignedTransaction.byteArraySerializable
-    )
-    if (isValid) Right(BlockValid)
-    else Left(BlockTransactionsHashError)
-  }
+  private def validateTransactionRoot(block: Block): Either[BlockError, BlockValid] =
+    if (transactionsRootHash(block.body).sameElements(block.header.transactionsRoot.toArray[Byte]))
+      Right(BlockValid)
+    else
+      Left(BlockTransactionsHashError)
+
+  def blockBodyOmmersHash(blockBody: BlockBody): Array[Byte] =
+    kec256(blockBody.uncleNodesList.toBytes)
 
   /** Validates [[BlockBody.uncleNodesList]] against [[io.iohk.ethereum.domain.BlockHeader.ommersHash]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/
@@ -37,11 +39,11 @@ object StdBlockValidator extends BlockValidator {
     * @param block Block to validate
     * @return Block if valid, a Some otherwise
     */
-  private def validateOmmersHash(block: Block): Either[BlockError, BlockValid] = {
-    val encodedOmmers: Array[Byte] = block.body.uncleNodesList.toBytes
-    if (kec256(encodedOmmers).sameElements(block.header.ommersHash)) Right(BlockValid)
-    else Left(BlockOmmersHashError)
-  }
+  private def validateOmmersHash(block: Block): Either[BlockError, BlockValid] =
+    if (blockBodyOmmersHash(block.body).sameElements(block.header.ommersHash))
+      Right(BlockValid)
+    else
+      Left(BlockOmmersHashError)
 
   /** Validates [[Receipt]] against [[io.iohk.ethereum.domain.BlockHeader.receiptsRoot]]
     * based on validations stated in section 4.4.2 of http://paper.gavwood.com/

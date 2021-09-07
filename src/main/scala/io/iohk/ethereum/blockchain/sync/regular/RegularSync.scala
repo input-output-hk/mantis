@@ -3,6 +3,7 @@ package io.iohk.ethereum.blockchain.sync.regular
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
+import akka.actor.ActorSystem
 import akka.actor.AllForOneStrategy
 import akka.actor.Cancellable
 import akka.actor.Props
@@ -10,6 +11,17 @@ import akka.actor.Scheduler
 import akka.actor.SupervisorStrategy
 import akka.actor.typed.scaladsl.adapter._
 import akka.actor.typed.{ActorRef => TypedActorRef}
+import akka.stream.OverflowStrategy
+import akka.stream.scaladsl.Flow
+import akka.stream.scaladsl.Sink
+import akka.stream.scaladsl.Source
+import akka.util.ByteString
+
+import cats.data.NonEmptyList
+
+import scala.annotation.tailrec
+import scala.collection.immutable.Queue
+import scala.concurrent.ExecutionContext
 
 import io.iohk.ethereum.blockchain.sync.Blacklist
 import io.iohk.ethereum.blockchain.sync.SyncProtocol
@@ -24,7 +36,14 @@ import io.iohk.ethereum.consensus.validators.BlockValidator
 import io.iohk.ethereum.db.storage.StateStorage
 import io.iohk.ethereum.domain.Block
 import io.iohk.ethereum.domain.BlockchainReader
+import io.iohk.ethereum.domain.branch.BestBranch
+import io.iohk.ethereum.domain.branch.Branch
 import io.iohk.ethereum.ledger.BranchResolution
+import io.iohk.ethereum.network.EtcPeerManagerActor
+import io.iohk.ethereum.network.Peer
+import io.iohk.ethereum.network.PeerEventBusActor
+import io.iohk.ethereum.network.p2p.messages.Codes
+import io.iohk.ethereum.network.p2p.messages.ETH62
 import io.iohk.ethereum.nodebuilder.BlockchainConfigBuilder
 import io.iohk.ethereum.utils.ByteStringUtils
 import io.iohk.ethereum.utils.Config.SyncConfig
@@ -43,13 +62,14 @@ class RegularSync(
     ommersPool: ActorRef,
     pendingTransactionsManager: ActorRef,
     scheduler: Scheduler,
-    configBuilder: BlockchainConfigBuilder
+    configBuilder: BlockchainConfigBuilder,
+    newFlow: Boolean
 ) extends Actor
     with ActorLogging {
 
   val fetcher: TypedActorRef[BlockFetcher.FetchCommand] =
     context.spawn(
-      BlockFetcher(peersClient, peerEventBus, self, syncConfig, blockValidator),
+      BlockFetcher(peersClient, peerEventBus, self, syncConfig, blockValidator, newFlow),
       "block-fetcher"
     )
 
@@ -78,22 +98,64 @@ class RegularSync(
       "block-importer"
     )
 
+  implicit val system: ActorSystem = context.system
+  implicit val ec: ExecutionContext = context.dispatcher
+
   val printFetcherSchedule: Cancellable =
     scheduler.scheduleWithFixedDelay(
       syncConfig.printStatusInterval,
       syncConfig.printStatusInterval,
       fetcher.toClassic,
       BlockFetcher.PrintStatus
-    )(context.dispatcher)
+    )
+
+  val (blockSourceQueue, blockSource) = Source.queue[Block](256, OverflowStrategy.fail).preMaterialize()
+  val fetcherService = new FetcherService(blockchainReader, syncConfig, blockSourceQueue)
 
   override def receive: Receive = running(
     ProgressState(startedFetching = false, initialBlock = 0, currentBlock = 0, bestKnownNetworkBlock = 0)
   )
 
+  private def startTemporaryBlockProducer() = {
+    import monix.execution.Scheduler.Implicits.global
+    PeerEventBusActor
+      .messageSource(
+        peerEventBus,
+        PeerEventBusActor.SubscriptionClassifier
+          .MessageClassifier(
+            Set(Codes.BlockBodiesCode, Codes.BlockHeadersCode),
+            PeerEventBusActor.PeerSelector.AllPeers
+          )
+      )
+      .via(FetcherService.tempFlow)
+      .buffer(256, OverflowStrategy.fail)
+      .mapConcat(identity)
+      .runWith(Sink.foreachAsync(1) { block =>
+        fetcherService
+          .placeBlockInPeerStream(block)
+          .runToFuture
+          .collect { case Right(()) => () }
+
+      })
+  }
+
+  private def startNewFlow() =
+    blockSource
+      .via(BranchBuffer.flow(blockchainReader))
+      .runWith(Sink.foreach { blocks =>
+        importer ! BlockFetcher.PickedBlocks(blocks)
+      })
+      .onComplete(res => log.error(res.toString))
+
   def running(progressState: ProgressState): Receive = {
     case SyncProtocol.Start =>
       log.info("Starting regular sync")
       importer ! BlockImporter.Start
+      if (newFlow) {
+        startNewFlow()
+        startTemporaryBlockProducer()
+      }
+
     case SyncProtocol.MinedBlock(block) =>
       log.info(s"Block mined [number = {}, hash = {}]", block.number, block.header.hashAsHexString)
       importer ! BlockImporter.MinedBlock(block)
@@ -147,7 +209,8 @@ object RegularSync {
       ommersPool: ActorRef,
       pendingTransactionsManager: ActorRef,
       scheduler: Scheduler,
-      configBuilder: BlockchainConfigBuilder
+      configBuilder: BlockchainConfigBuilder,
+      newFlow: Boolean
   ): Props =
     Props(
       new RegularSync(
@@ -164,7 +227,8 @@ object RegularSync {
         ommersPool,
         pendingTransactionsManager,
         scheduler,
-        configBuilder
+        configBuilder,
+        newFlow
       )
     )
 
