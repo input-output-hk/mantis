@@ -33,7 +33,7 @@ object ProgramContext {
       initialAddressesToDelete = Set(),
       evmConfig = evmConfig,
       originalWorld = world,
-      warmAdresses = accessList.map(_.address).toSet,
+      warmAddresses = accessList.map(_.address).toSet,
       warmStorage = accessList.flatMap(i => i.storageKeys.map((i.address, _))).toSet
     )
   }
@@ -85,6 +85,6 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
     evmConfig: EvmConfig,
     staticCtx: Boolean = false,
     originalWorld: W,
-    warmAdresses: Set[Address],
+    warmAddresses: Set[Address],
     warmStorage: Set[(Address, BigInt)]
 )

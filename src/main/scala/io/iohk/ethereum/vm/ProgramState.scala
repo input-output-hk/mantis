@@ -20,7 +20,7 @@ object ProgramState {
       accessedAddresses = PrecompiledContracts.getContracts(context).keySet ++ Set(
         context.originAddr,
         context.recipientAddr.getOrElse(context.callerAddr)
-      ) ++ context.warmAdresses,
+      ) ++ context.warmAddresses,
       accessedStorageKeys = context.warmStorage
     )
 }

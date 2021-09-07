@@ -176,7 +176,9 @@ class CreateOpcodeSpec extends AnyWordSpec with Matchers with ScalaCheckProperty
       world = initWorld,
       initialAddressesToDelete = Set(),
       evmConfig = config,
-      originalWorld = initWorld
+      originalWorld = initWorld,
+      warmAddresses = Set.empty,
+      warmStorage = Set.empty
     )
   }
 

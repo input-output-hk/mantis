@@ -195,7 +195,9 @@ class VMSpec extends AnyWordSpec with ScalaCheckPropertyChecks with Matchers {
         world = world,
         initialAddressesToDelete = Set(),
         evmConfig = evmConfig,
-        originalWorld = world
+        originalWorld = world,
+        warmAddresses = Set.empty,
+        warmStorage = Set.empty
       )
 
     def recipientAddr: Option[Address]

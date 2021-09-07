@@ -974,7 +974,7 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
       initialAddressesToDelete = state.addressesToDelete,
       evmConfig = state.config,
       originalWorld = state.originalWorld,
-      warmAdresses = state.accessedAddresses,
+      warmAddresses = state.accessedAddresses,
       warmStorage = state.accessedStorageKeys
     )
 
@@ -1082,7 +1082,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       evmConfig = state.config,
       staticCtx = static,
       originalWorld = state.originalWorld,
-      warmAdresses = state.accessedAddresses,
+      warmAddresses = state.accessedAddresses,
       warmStorage = state.accessedStorageKeys
     )
 

@@ -188,7 +188,9 @@ class ShiftingOpCodeSpec extends AnyWordSpec with Matchers with ScalaCheckProper
         world = world,
         initialAddressesToDelete = Set(),
         evmConfig = config,
-        originalWorld = world
+        originalWorld = world,
+        warmAddresses = Set.empty,
+        warmStorage = Set.empty
       )
 
     def prepareProgramState(
