@@ -1,24 +1,24 @@
 package io.iohk.ethereum.domain
 
-import io.iohk.ethereum.crypto
-import io.iohk.ethereum.crypto.generateKeyPair
-import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
-import io.iohk.ethereum.security.SecureRandomBuilder
 import org.bouncycastle.crypto.params.ECPublicKeyParameters
-import org.scalacheck.{Arbitrary, Gen}
+import org.scalacheck.Arbitrary
+import org.scalacheck.Gen
 import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
-trait SignedTransactionBehavior
-extends Matchers
-with ScalaCheckPropertyChecks
-with SecureRandomBuilder
-{
+import io.iohk.ethereum.crypto
+import io.iohk.ethereum.crypto.generateKeyPair
+import io.iohk.ethereum.domain.SignedTransaction.FirstByteOfAddress
+import io.iohk.ethereum.security.SecureRandomBuilder
+
+trait SignedTransactionBehavior extends Matchers with ScalaCheckPropertyChecks with SecureRandomBuilder {
   this: AnyFlatSpec =>
 
-  def SignedTransactionBehavior(signedTransactionGenerator: Gen[Transaction], allowedPointSigns: Byte => Set[Byte]): Unit = {
-
+  def SignedTransactionBehavior(
+      signedTransactionGenerator: Gen[Transaction],
+      allowedPointSigns: Byte => Set[Byte]
+  ): Unit =
     it should "correctly set pointSign for chainId with chain specific signing schema" in {
       forAll(signedTransactionGenerator, Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
         (tx, key) =>
@@ -36,5 +36,4 @@ with SecureRandomBuilder
           address shouldEqual result.senderAddress
       }
     }
-  }
 }

@@ -23,6 +23,7 @@ import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
 import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.Hex
 
 object SignedTransaction {
 
@@ -174,7 +175,11 @@ object SignedTransaction {
     * @param chainIdOpt   the chainId if available
     * @return a ECDSASignature with v value depending on the transaction type
     */
-  private def getEthereumSignature(tx: Transaction, rawSignature: ECDSASignature, chainIdOpt: Option[Byte]): ECDSASignature =
+  private def getEthereumSignature(
+      tx: Transaction,
+      rawSignature: ECDSASignature,
+      chainIdOpt: Option[Byte]
+  ): ECDSASignature =
     tx match {
       case _: LegacyTransaction =>
         getLegacyEthereumSignature(rawSignature, chainIdOpt)
@@ -216,8 +221,10 @@ object SignedTransaction {
     */
   private def getTWALEthereumSignature(rawSignature: ECDSASignature): ECDSASignature =
     rawSignature match {
-      case ECDSASignature(_, _, ECDSASignature.positivePointSign) => rawSignature.copy(v = ECDSASignature.positiveYParity)
-      case ECDSASignature(_, _, ECDSASignature.negativePointSign) => rawSignature.copy(v = ECDSASignature.negativeYParity)
+      case ECDSASignature(_, _, ECDSASignature.positivePointSign) =>
+        rawSignature.copy(v = ECDSASignature.positiveYParity)
+      case ECDSASignature(_, _, ECDSASignature.negativePointSign) =>
+        rawSignature.copy(v = ECDSASignature.negativeYParity)
       case _ =>
         throw new IllegalStateException(
           s"Unexpected pointSign. raw.signature.v: ${rawSignature.v}, authorized values are ${ECDSASignature.allowedPointSigns
@@ -356,15 +363,18 @@ object SignedTransaction {
     val receivingAddressAsArray: Array[Byte] = tx.receivingAddress.map(_.toArray).getOrElse(Array.emptyByteArray)
     crypto.kec256(
       rlpEncode(
-        RLPList(
-          tx.chainId,
-          tx.nonce,
-          tx.gasPrice,
-          tx.gasLimit,
-          receivingAddressAsArray,
-          tx.value,
-          tx.payload,
-          fromRlpList[AccessListItem](tx.accessList).toList
+        PrefixedRLPEncodable(
+          0x01,
+          RLPList(
+            tx.chainId,
+            tx.nonce,
+            tx.gasPrice,
+            tx.gasLimit,
+            receivingAddressAsArray,
+            tx.value,
+            tx.payload,
+            tx.accessList
+          )
         )
       )
     )

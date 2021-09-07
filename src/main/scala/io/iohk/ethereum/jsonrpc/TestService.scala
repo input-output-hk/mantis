@@ -265,11 +265,11 @@ class TestService(
   ): ServiceResponse[MineBlocksResponse] = {
     def mineBlock(): Task[Unit] =
       getBlockForMining(blockchainReader.getBestBlock().get)
-        .flatMap(blockForMining =>
+        .flatMap { blockForMining =>
           testModeComponentsProvider
             .getConsensus(preimageCache)
             .evaluateBranchBlock(blockForMining.block)
-        )
+        }
         .map { res =>
           log.info("Block mining result: " + res)
           pendingTransactionsManager ! PendingTransactionsManager.ClearPendingTransactions
@@ -346,7 +346,10 @@ class TestService(
     pendingTransactionsManager
       .askFor[PendingTransactionsResponse](PendingTransactionsManager.GetPendingTransactions)
       .timeout(timeout.duration)
-      .onErrorRecover { case _ => PendingTransactionsResponse(Nil) }
+      .onErrorRecover { case _ =>
+        log.error("Error getting transactions")
+        PendingTransactionsResponse(Nil)
+      }
       .map { pendingTxs =>
         testModeComponentsProvider
           .consensus(blockTimestamp)
