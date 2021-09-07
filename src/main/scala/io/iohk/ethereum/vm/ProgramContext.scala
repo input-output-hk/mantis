@@ -13,8 +13,9 @@ object ProgramContext {
       evmConfig: EvmConfig
   ): ProgramContext[W, S] = {
     import stx.tx
+    val accessList = Transaction.accessList(tx)
     val gasLimit =
-      tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, Transaction.accessList(tx))
+      tx.gasLimit - evmConfig.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, accessList)
 
     ProgramContext(
       callerAddr = senderAddress,
@@ -32,7 +33,8 @@ object ProgramContext {
       initialAddressesToDelete = Set(),
       evmConfig = evmConfig,
       originalWorld = world,
-      accessList = Transaction.accessList(tx)
+      warmAdresses = accessList.map(_.address).toSet,
+      warmStorage = accessList.flatMap(i => i.storageKeys.map((i.address, _))).toSet
     )
   }
 }
@@ -83,5 +85,6 @@ case class ProgramContext[W <: WorldStateProxy[W, S], S <: Storage[S]](
     evmConfig: EvmConfig,
     staticCtx: Boolean = false,
     originalWorld: W,
-    accessList: Seq[AccessListItem]
+    warmAdresses: Set[Address],
+    warmStorage: Set[(Address, BigInt)]
 )

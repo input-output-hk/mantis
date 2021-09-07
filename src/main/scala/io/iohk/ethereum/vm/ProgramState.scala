@@ -20,8 +20,8 @@ object ProgramState {
       accessedAddresses = PrecompiledContracts.getContracts(context).keySet ++ Set(
         context.originAddr,
         context.recipientAddr.getOrElse(context.callerAddr)
-      ) ++ context.accessList.map(_.address),
-      accessedStorageKeys = context.accessList.flatMap(i => i.storageKeys.map((i.address, _))).toSet
+      ) ++ context.warmAdresses,
+      accessedStorageKeys = context.warmStorage
     )
 }
 

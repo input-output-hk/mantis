@@ -153,7 +153,8 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       evmConfig = vmConfig,
       originalWorld = world,
       // FIXME add access list to CallContext
-      accessList = Nil
+      warmAdresses = Set.empty,
+      warmStorage = Set.empty
     )
   }
 

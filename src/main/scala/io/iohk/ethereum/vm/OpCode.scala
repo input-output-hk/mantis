@@ -974,7 +974,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
       initialAddressesToDelete = state.addressesToDelete,
       evmConfig = state.config,
       originalWorld = state.originalWorld,
-      accessList = Nil
+      warmAdresses = state.accessedAddresses,
+      warmStorage = state.accessedStorageKeys
     )
 
     val ((result, newAddress), stack2) = this match {
@@ -1081,7 +1082,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
       evmConfig = state.config,
       staticCtx = static,
       originalWorld = state.originalWorld,
-      accessList = Nil
+      warmAdresses = state.accessedAddresses,
+      warmStorage = state.accessedStorageKeys
     )
 
     val result = state.vm.call(context, owner)
