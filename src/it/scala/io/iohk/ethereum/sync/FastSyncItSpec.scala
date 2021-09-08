@@ -233,52 +233,6 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
         .getBestBlockNumber() == peer3.blockchainReader.getBestBlockNumber() - peer3.testSyncConfig.pivotBlockOffset
     )
   }
-
-  ignore should "blacklist peer on Invalid batch last header number" in customTestCaseResourceM(
-    FakePeer.start3FakePeersRes()
-  ) { case (peer1, peer2, peer3) =>
-    for {
-      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
-      _ <- peer3.importInvalidBlockNumbers(201, 1200)(IdentityUpdate)
-
-      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node))
-      _ <- peer1.startFastSync().delayExecution(50.milliseconds)
-      _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      // Peer3 is blacklisted
-      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
-      val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
-
-      assert(peer1.blacklist.isBlacklisted(blacklistedPeer))
-      assert(blacklistReason.get == BlacklistReasonType.BlockHeaderValidationFailedType)
-    }
-  }
-
-  ignore should "sync blockchain when peer responds with invalid batch last header hash" in customTestCaseResourceM(
-    FakePeer.start4FakePeersRes()
-  ) { case (peer1, peer2, peer3, peer4) =>
-    for {
-      _ <- peer1.importBlocksUntil(400)(IdentityUpdate)
-      _ <- peer2.importBlocksUntil(1000)(IdentityUpdate)
-
-      _ <- peer3.importInvalidBlocks(600, 800)(IdentityUpdate)
-      _ <- peer3.importBlocksUntil(1200)(updateStateAtBlock(1000))
-
-      _ <- peer4.importBlocksUntil(1100)(IdentityUpdate)
-
-      _ <- peer1.connectToPeers(Set(peer2.node, peer3.node, peer4.node)).delayExecution(5.seconds)
-      _ <- peer1.startFastSync().delayExecution(50.millis)
-      _ <- peer2.importBlocksUntil(1200)(IdentityUpdate)
-      _ <- peer1.waitForFastSyncFinish()
-    } yield {
-      // Peer3 is blacklisted
-      val blacklistedPeer = PeerId(peer3.node.toUri.getUserInfo)
-      val blacklistReason = peer1.blacklist.cache.getIfPresent(blacklistedPeer)
-
-      assert(peer1.blacklist.isBlacklisted(blacklistedPeer))
-      assert(blacklistReason.get == BlacklistReasonType.BlockHeaderValidationFailedType)
-    }
-  }
 }
 
 object FastSyncItSpec {
