@@ -428,7 +428,7 @@ class EthTxServiceSpec
 
     val contractCreatingTransactionSender: Address = SignedTransaction.getSender(contractCreatingTransaction).get
 
-    val fakeReceipt: Receipt = Receipt.withHashOutcome(
+    val fakeReceipt: LegacyReceipt = LegacyReceipt.withHashOutcome(
       postTransactionStateHash = ByteString(Hex.decode("01" * 32)),
       cumulativeGasUsed = 43,
       logsBloomFilter = ByteString(Hex.decode("00" * 256)),

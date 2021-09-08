@@ -336,7 +336,7 @@ trait TestSetupWithVmAndValidators extends EphemBlockchainTestSetup {
   def getChainHeadersNel(from: BigInt, to: BigInt, parent: ByteString = randomHash()): NonEmptyList[BlockHeader] =
     NonEmptyList.fromListUnsafe(getChainHeaders(from, to, parent))
 
-  val receipts: Seq[Receipt] = Seq(Receipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
+  val receipts: Seq[Receipt] = Seq(LegacyReceipt.withHashOutcome(randomHash(), 50000, randomHash(), Nil))
 
   val currentWeight: ChainWeight = ChainWeight.totalDifficultyOnly(99999)
 

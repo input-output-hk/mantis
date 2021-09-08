@@ -18,21 +18,20 @@ class SignedLegacyTransactionSpec
     with ScalaCheckPropertyChecks
     with SecureRandomBuilder {
   "SignedTransaction" should "correctly set pointSign for chainId with chain specific signing schema" in {
-    forAll(Generators.transactionGen(), Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) {
-      (tx, key) =>
-        val chainId: Byte = 0x3d
-        val allowedPointSigns = Set((chainId * 2 + 35).toByte, (chainId * 2 + 36).toByte)
-        //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
-        val address = Address(
-          crypto
-            .kec256(key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
-            .drop(FirstByteOfAddress)
-        )
-        val signedTransaction = SignedTransaction.sign(tx, key, Some(chainId))
-        val result = SignedTransactionWithSender(signedTransaction, Address(key))
+    forAll(Generators.transactionGen, Arbitrary.arbitrary[Unit].map(_ => generateKeyPair(secureRandom))) { (tx, key) =>
+      val chainId: Byte = 0x3d
+      val allowedPointSigns = Set((chainId * 2 + 35).toByte, (chainId * 2 + 36).toByte)
+      //byte 0 of encoded ECC point indicates that it is uncompressed point, it is part of bouncycastle encoding
+      val address = Address(
+        crypto
+          .kec256(key.getPublic.asInstanceOf[ECPublicKeyParameters].getQ.getEncoded(false).tail)
+          .drop(FirstByteOfAddress)
+      )
+      val signedTransaction = SignedTransaction.sign(tx, key, Some(chainId))
+      val result = SignedTransactionWithSender(signedTransaction, Address(key))
 
-        allowedPointSigns should contain(result.tx.signature.v)
-        address shouldEqual result.senderAddress
+      allowedPointSigns should contain(result.tx.signature.v)
+      address shouldEqual result.senderAddress
     }
   }
 }

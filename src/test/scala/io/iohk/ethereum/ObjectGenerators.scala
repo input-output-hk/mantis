@@ -69,28 +69,33 @@ trait ObjectGenerators {
       arrayList <- Gen.nonEmptyListOf(byteArrayOfNItemsGen(size))
     } yield byteStringList.zip(arrayList)
 
-  def receiptGen(): Gen[Receipt] = for {
+  def receiptGen: Gen[Receipt] =
+    Gen.oneOf(legacyReceiptGen, type01ReceiptGen)
+
+  def legacyReceiptGen: Gen[LegacyReceipt] = for {
     postTransactionStateHash <- byteArrayOfNItemsGen(32)
     cumulativeGasUsed <- bigIntGen
     logsBloomFilter <- byteArrayOfNItemsGen(256)
-  } yield Receipt.withHashOutcome(
+  } yield LegacyReceipt.withHashOutcome(
     postTransactionStateHash = ByteString(postTransactionStateHash),
     cumulativeGasUsed = cumulativeGasUsed,
     logsBloomFilter = ByteString(logsBloomFilter),
     logs = Seq()
   )
 
+  def type01ReceiptGen: Gen[Type01Receipt] = legacyReceiptGen.map(Type01Receipt(_))
+
   def addressGen: Gen[Address] = byteArrayOfNItemsGen(20).map(Address(_))
 
-  def accessListItemGen(): Gen[AccessListItem] = for {
+  def accessListItemGen: Gen[AccessListItem] = for {
     address <- addressGen
     storageKeys <- Gen.listOf(bigIntGen)
   } yield AccessListItem(address, storageKeys)
 
-  def transactionGen(): Gen[Transaction] =
-    Gen.oneOf(legacyTransactionGen(), typedTransactionGen())
+  def transactionGen: Gen[Transaction] =
+    Gen.oneOf(legacyTransactionGen, typedTransactionGen)
 
-  def legacyTransactionGen(): Gen[LegacyTransaction] = for {
+  def legacyTransactionGen: Gen[LegacyTransaction] = for {
     nonce <- bigIntGen
     gasPrice <- bigIntGen
     gasLimit <- bigIntGen
@@ -106,7 +111,7 @@ trait ObjectGenerators {
     payload
   )
 
-  def typedTransactionGen(): Gen[TransactionWithAccessList] = for {
+  def typedTransactionGen: Gen[TransactionWithAccessList] = for {
     chainId <- bigIntGen
     nonce <- bigIntGen
     gasPrice <- bigIntGen
@@ -114,7 +119,7 @@ trait ObjectGenerators {
     receivingAddress <- addressGen
     value <- bigIntGen
     payload <- byteStringOfLengthNGen(256)
-    accessList <- Gen.listOf(accessListItemGen())
+    accessList <- Gen.listOf(accessListItemGen)
   } yield TransactionWithAccessList(
     chainId,
     nonce,
@@ -126,7 +131,7 @@ trait ObjectGenerators {
     accessList
   )
 
-  def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen()))
+  def receiptsGen(n: Int): Gen[Seq[Seq[Receipt]]] = Gen.listOfN(n, Gen.listOf(receiptGen))
 
   def branchNodeGen: Gen[BranchNode] = for {
     children <- Gen
@@ -167,7 +172,7 @@ trait ObjectGenerators {
 
   def signedTxSeqGen(length: Int, secureRandom: SecureRandom, chainId: Option[Byte]): Gen[Seq[SignedTransaction]] = {
     val senderKeys = crypto.generateKeyPair(secureRandom)
-    val txsSeqGen = Gen.listOfN(length, transactionGen())
+    val txsSeqGen = Gen.listOfN(length, transactionGen)
     txsSeqGen.map { txs =>
       txs.map { tx =>
         SignedTransaction.sign(tx, senderKeys, chainId)
@@ -178,7 +183,7 @@ trait ObjectGenerators {
   def signedTxGen(secureRandom: SecureRandom, chainId: Option[Byte]): Gen[SignedTransaction] = {
     val senderKeys = crypto.generateKeyPair(secureRandom)
     for {
-      tx <- transactionGen()
+      tx <- transactionGen
     } yield SignedTransaction.sign(tx, senderKeys, chainId)
   }
 
