@@ -9,6 +9,6 @@ class SignedTransactionWithAccessListSpec extends AnyFlatSpec with SignedTransac
   private def allowedPointSigns(chainId: Byte) = Set(0.toByte, 1.toByte)
 
   ("Signed TransactionWithAccessList" should behave).like(
-    SignedTransactionBehavior(Generators.typedTransactionGen(), allowedPointSigns)
+    SignedTransactionBehavior(Generators.typedTransactionGen, allowedPointSigns)
   )
 }
