@@ -142,6 +142,12 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def addAccessedStorageKey(addr: Address, storageKey: BigInt): ProgramState[W, S] =
     copy(accessedStorageKeys = accessedStorageKeys + ((addr, storageKey)))
 
+  def addAccessedAddresses(addresses: Set[Address]): ProgramState[W, S] =
+    copy(accessedAddresses = accessedAddresses ++ addresses)
+
+  def addAccessedStorageKeys(storageKeys: Set[(Address, BigInt)]): ProgramState[W, S] =
+    copy(accessedStorageKeys = accessedStorageKeys ++ storageKeys)
+
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
@@ -151,6 +157,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
       logs,
       internalTxs,
       gasRefund,
-      error
+      error,
+      accessedAddresses,
+      accessedStorageKeys
     )
 }

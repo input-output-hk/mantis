@@ -42,7 +42,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     */
   private[vm] def call(context: PC, ownerAddr: Address): PR =
     if (!isValidCall(context))
-      invalidCallResult(context)
+      invalidCallResult(context, Set.empty, Set.empty)
     else {
       require(context.recipientAddr.isDefined, "Recipient address must be defined for message call")
 
@@ -69,7 +69,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       salt: Option[UInt256] = None
   ): (PR, Address) =
     if (!isValidCall(context))
-      (invalidCallResult(context), Address(0))
+      (invalidCallResult(context, Set.empty, Set.empty), Address(0))
     else {
       require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
       require(context.doTransfer, "contract creation will alwyas transfer funds")
@@ -134,8 +134,23 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     context.endowment <= context.world.getBalance(context.callerAddr) &&
       context.callDepth <= EvmConfig.MaxCallDepth
 
-  private def invalidCallResult(context: PC): PR =
-    ProgramResult(ByteString.empty, context.startGas, context.world, Set(), Nil, Nil, 0, Some(InvalidCall))
+  private def invalidCallResult(
+      context: PC,
+      accessedAddresses: Set[Address],
+      accessedStorageKeys: Set[(Address, BigInt)]
+  ): PR =
+    ProgramResult(
+      ByteString.empty,
+      context.startGas,
+      context.world,
+      Set(),
+      Nil,
+      Nil,
+      0,
+      Some(InvalidCall),
+      accessedAddresses,
+      accessedStorageKeys
+    )
 
   private def exceedsMaxContractSize(context: PC, config: EvmConfig, contractCode: ByteString): Boolean = {
     lazy val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)

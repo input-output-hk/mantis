@@ -1106,7 +1106,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withWorld(world1)
           .spendGas(gasAdjustment)
           .withReturnData(result.returnData)
-          .addAccessedAddress(toAddr)
+          .addAccessedStorageKeys(result.accessedStorageKeys)
+          .addAccessedAddresses(result.accessedAddresses + toAddr)
           .step()
 
       case None =>
@@ -1123,7 +1124,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withInternalTxs(internalTx +: result.internalTxs)
           .withLogs(result.logs)
           .withReturnData(result.returnData)
-          .addAccessedAddress(toAddr)
+          .addAccessedStorageKeys(result.accessedStorageKeys)
+          .addAccessedAddresses(result.accessedAddresses + toAddr)
           .step()
     }
   }
