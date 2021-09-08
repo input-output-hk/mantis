@@ -46,7 +46,6 @@ trait TestSyncConfig extends SyncConfigBuilder {
     pivotBlockReScheduleInterval = 1.second,
     maxPivotBlockAge = 96,
     fastSyncMaxBatchRetries = 3,
-    pivotBlockNumberResetDelta = 50,
     maxPivotBlockFailuresCount = 3
   )
 

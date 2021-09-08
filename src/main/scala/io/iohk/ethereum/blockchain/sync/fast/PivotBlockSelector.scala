@@ -227,11 +227,11 @@ class PivotBlockSelector(
       .map { case (_, bestPeerBestBlockNumber) => bestPeerBestBlockNumber }
       .getOrElse(BigInt(0))
 
-    // The current best block number is pushed back by `pivotBlockNumberResetDelta`
+    // The current best block number is set to the highest below the previous one,
     // if this request is issued by the retry logic.
     val currentBestBlockNumber: BigInt =
       previousBestBlockNumber
-        .map(_ - pivotBlockNumberResetDelta.max(0))
+        .flatMap(previous => peersSortedByBestNumber.collectFirst { case (_, number) if number < previous => number })
         .getOrElse(bestPeerBestBlockNumber)
 
     val expectedPivotBlock = (currentBestBlockNumber - syncConfig.pivotBlockOffset).max(0)

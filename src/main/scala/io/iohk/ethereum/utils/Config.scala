@@ -144,7 +144,6 @@ object Config {
       pivotBlockReScheduleInterval: FiniteDuration,
       maxPivotBlockAge: Int,
       fastSyncMaxBatchRetries: Int,
-      pivotBlockNumberResetDelta: Int,
       maxPivotBlockFailuresCount: Int
   )
 
@@ -191,7 +190,6 @@ object Config {
         pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reschedule-interval").toMillis.millis,
         maxPivotBlockAge = syncConfig.getInt("max-pivot-block-age"),
         fastSyncMaxBatchRetries = syncConfig.getInt("fast-sync-max-batch-retries"),
-        pivotBlockNumberResetDelta = syncConfig.getInt("pivot-block-number-reset-delta"),
         maxPivotBlockFailuresCount = syncConfig.getInt("max-pivot-block-failures-count")
       )
     }
