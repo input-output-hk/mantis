@@ -171,8 +171,13 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       eip150BlockNumber = blockchainConfig.eip150BlockNumber,
       eip160BlockNumber = blockchainConfig.eip160BlockNumber,
       eip161BlockNumber = blockchainConfig.eip161BlockNumber,
+      byzantiumBlockNumber = blockchainConfig.byzantiumBlockNumber,
+      constantinopleBlockNumber = blockchainConfig.constantinopleBlockNumber,
+      petersburgBlockNumber = blockchainConfig.petersburgBlockNumber,
+      istanbulBlockNumber = blockchainConfig.istanbulBlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),
-      accountStartNonce = blockchainConfig.accountStartNonce
+      accountStartNonce = blockchainConfig.accountStartNonce,
+      chainId = ByteString(blockchainConfig.chainId)
     )
 
   private def buildIeleConfigMsg(): msg.IeleConfig =

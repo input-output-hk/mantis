@@ -166,8 +166,13 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       eip150BlockNumber = forkBlockNumbers.eip150BlockNumber,
       eip160BlockNumber = forkBlockNumbers.eip160BlockNumber,
       eip161BlockNumber = forkBlockNumbers.eip161BlockNumber,
+      byzantiumBlockNumber = forkBlockNumbers.byzantiumBlockNumber,
+      constantinopleBlockNumber = forkBlockNumbers.constantinopleBlockNumber,
+      petersburgBlockNumber = forkBlockNumbers.petersburgBlockNumber,
+      istanbulBlockNumber = forkBlockNumbers.istanbulBlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.get,
-      accountStartNonce = blockchainConfig.accountStartNonce
+      accountStartNonce = blockchainConfig.accountStartNonce,
+      chainId = ByteString(blockchainConfig.chainId)
     )
     val expectedHelloConfigMsg = msg.Hello.Config.EthereumConfig(expectedEthereumConfig)
     val expectedHelloMsg = msg.Hello(version = "testVersion", config = expectedHelloConfigMsg)
