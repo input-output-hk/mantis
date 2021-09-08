@@ -124,6 +124,7 @@ ci: {
     flakes: "github:input-output-hk/mantis/\(#thisCommit)": [
         "sbt",
         "coreutils",
+        "findutils",
         "gnused",
         "gnupg",
         "solc",
