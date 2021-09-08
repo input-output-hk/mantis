@@ -1,7 +1,5 @@
 package io.iohk.ethereum.blockchain.sync
 
-import java.util.Collections.newSetFromMap
-
 import akka.actor.Actor
 import akka.actor.ActorLogging
 import akka.actor.ActorRef
@@ -9,12 +7,9 @@ import akka.actor.Cancellable
 import akka.actor.Props
 import akka.actor.Scheduler
 
-import scala.collection.mutable
 import scala.concurrent.ExecutionContext
-import scala.jdk.CollectionConverters._
 import scala.reflect.ClassTag
 
-import io.iohk.ethereum.blockchain.PeerComparator
 import io.iohk.ethereum.blockchain.sync.Blacklist.BlacklistReason
 import io.iohk.ethereum.blockchain.sync.PeerListSupportNg.PeerWithInfo
 import io.iohk.ethereum.network.EtcPeerManagerActor.PeerInfo
@@ -43,10 +38,6 @@ class PeersClient(
 
   val statusSchedule: Cancellable =
     scheduler.scheduleWithFixedDelay(syncConfig.printStatusInterval, syncConfig.printStatusInterval, self, PrintStatus)
-
-  val numberOfPeersToFetchFrom = syncConfig.peersToFetchFrom
-
-  val activeFetchingNodes: mutable.Set[PeerWithInfo] = lruSet(numberOfPeersToFetchFrom)
 
   def receive: Receive = running(Map())
 
@@ -104,8 +95,7 @@ class PeersClient(
 
   private def selectPeer(peerSelector: PeerSelector): Option[Peer] =
     peerSelector match {
-      case BestPeer     => bestPeer(peersToDownloadFrom)
-      case NextBestPeer => nextBestPeer(peersToDownloadFrom, activeFetchingNodes.toSet)
+      case BestPeer => bestPeer(peersToDownloadFrom)
     }
 
   private def responseClassTag[RequestMsg <: Message](requestMsg: RequestMsg): ClassTag[_ <: Message] =
@@ -154,11 +144,6 @@ object PeersClient {
 
   type Requesters = Map[ActorRef, ActorRef]
 
-  private def lruSet[A](maxEntries: Int): mutable.Set[A] =
-    newSetFromMap[A](new java.util.LinkedHashMap[A, java.lang.Boolean]() {
-      override def removeEldestEntry(eldest: java.util.Map.Entry[A, java.lang.Boolean]): Boolean = size > maxEntries
-    }).asScala
-
   sealed trait PeersClientMessage
   case class BlacklistPeer(peerId: PeerId, reason: BlacklistReason) extends PeersClientMessage
   case class Request[RequestMsg <: Message](
@@ -192,7 +177,6 @@ object PeersClient {
 
   sealed trait PeerSelector
   case object BestPeer extends PeerSelector
-  case object NextBestPeer extends PeerSelector
 
   def bestPeer(peersToDownloadFrom: Map[PeerId, PeerWithInfo]): Option[Peer] = {
     val peersToUse = peersToDownloadFrom.values
@@ -206,27 +190,5 @@ object PeersClient {
     } else {
       None
     }
-  }
-
-  //returns the next best peer after the one already returned previously
-  //TODO: whenever this method is called - do activeFetchingNodes.add(_) on the peer returned
-  def nextBestPeer(
-      peersToDownloadFrom: Map[PeerId, PeerWithInfo],
-      activeFetchingNodes: Set[PeerWithInfo]
-  ): Option[Peer] = {
-    val peersToUse = peersToDownloadFrom.values
-      .collect { case PeerWithInfo(peer, peerInfo @ PeerInfo(_, _, true, _, _)) =>
-        (peer, peerInfo)
-      }
-
-    val peer =
-      peersToUse
-        .filterNot { case (peer, _) => activeFetchingNodes.map(_.peer).contains(peer) }
-        .filterNot { case (_, peerInfo) =>
-          activeFetchingNodes.map(_.peerInfo).exists(PeerComparator.doPeersHaveSameBestBlock(peerInfo, _))
-        }
-        .maxByOption { case (_, peerInfo) => peerInfo.chainWeight }
-        .map { case (peer, _) => peer }
-    peer
   }
 }
