@@ -234,7 +234,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     )
   }
 
-  it should "blacklist peer on Invalid batch last header number" in customTestCaseResourceM(
+  ignore should "blacklist peer on Invalid batch last header number" in customTestCaseResourceM(
     FakePeer.start3FakePeersRes()
   ) { case (peer1, peer2, peer3) =>
     for {
@@ -254,7 +254,7 @@ class FastSyncItSpec extends FlatSpecBase with Matchers with BeforeAndAfterAll {
     }
   }
 
-  it should "sync blockchain when peer responds with invalid batch last header hash" in customTestCaseResourceM(
+  ignore should "sync blockchain when peer responds with invalid batch last header hash" in customTestCaseResourceM(
     FakePeer.start4FakePeersRes()
   ) { case (peer1, peer2, peer3, peer4) =>
     for {
