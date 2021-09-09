@@ -712,7 +712,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
           val reset = if (originalValue == newValue.toBigInt) {
             if (UInt256(originalValue).isZero)
-              state.config.feeSchedule.R_sclear + state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
+              state.config.feeSchedule.G_sset - state.config.feeSchedule.G_sload
             else
               state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
           } else BigInt(0)
