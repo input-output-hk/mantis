@@ -206,8 +206,9 @@ object SignedTransaction {
       case None => rawSignature
       case _ =>
         throw new IllegalStateException(
-          s"Unexpected pointSign. ChainId: ${chainIdOpt.getOrElse("None")}, raw.signature.v: ${rawSignature.v}, authorized values are ${ECDSASignature.allowedPointSigns
-            .mkString(", ")}"
+          s"Unexpected pointSign. ChainId: ${chainIdOpt.getOrElse("None")}, "
+            + s"raw.signature.v: ${rawSignature.v}, "
+            + s"authorized values are ${ECDSASignature.allowedPointSigns.mkString(", ")}"
         )
     }
 
