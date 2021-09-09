@@ -723,7 +723,7 @@ class FastSync(
       appStateStorage.fastSyncDone().commit()
       context.become(idle)
       peerRequestsTime = Map.empty
-      scheduler.scheduleOnce(syncRetryInterval, syncController, Done)
+      scheduler.scheduleOnce(syncSwitchDelay, syncController, Done)
     }
 
     def cleanup(): Unit = {
