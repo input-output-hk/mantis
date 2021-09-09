@@ -57,21 +57,20 @@ val baseScalacOptions = Seq(
 // https://www.scala-lang.org/2021/01/12/configuring-and-suppressing-warnings.html
 // cat={warning-name}:ws prints a summary with the number of warnings of the given type
 // any:e turns all remaining warnings into errors
-val fatalWarnings = Seq(
-  if (sys.env.get("MANTIS_FULL_WARNS").contains("true")) {
-    "-Wconf:any:w"
-  }
-  else {
-    "-Wconf:" ++ Seq(
-      // Let's turn those gradually into errors:
-      "cat=deprecation:ws",
-      "cat=lint-package-object-classes:ws",
-      "cat=unused:ws",
-      "cat=lint-infer-any:ws",
-      "cat=lint-byname-implicit:ws",
-      "cat=other-match-analysis:ws",
-      "any:e").mkString(",")
-  }) ++ Seq("-Ypatmat-exhaust-depth", "off")
+val fatalWarnings = Seq(if (sys.env.get("MANTIS_FULL_WARNS").contains("true")) {
+  "-Wconf:any:w"
+} else {
+  "-Wconf:" ++ Seq(
+    // Let's turn those gradually into errors:
+    "cat=deprecation:ws",
+    "cat=lint-package-object-classes:ws",
+    "cat=unused:ws",
+    "cat=lint-infer-any:ws",
+    "cat=lint-byname-implicit:ws",
+    "cat=other-match-analysis:ws",
+    "any:e"
+  ).mkString(",")
+}) ++ Seq("-Ypatmat-exhaust-depth", "off")
 
 def commonSettings(projectName: String): Seq[sbt.Def.Setting[_]] = Seq(
   name := projectName,
