@@ -201,6 +201,7 @@ object Config {
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
     val dataSource: String = dbConfig.getString("data-source")
+    val periodicConsistencyCheck: Boolean = dbConfig.getBoolean("periodic-consistency-check")
 
     object RocksDb extends RocksDbConfig {
       override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")
