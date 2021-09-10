@@ -1106,8 +1106,9 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withWorld(world1)
           .spendGas(gasAdjustment)
           .withReturnData(result.returnData)
-          .addAccessedStorageKeys(result.accessedStorageKeys)
-          .addAccessedAddresses(result.accessedAddresses + toAddr)
+//          .addAccessedStorageKeys(result.accessedStorageKeys)
+//          .addAccessedAddresses(result.accessedAddresses + toAddr)
+          .addAccessedAddress(toAddr)
           .step()
 
       case None =>
