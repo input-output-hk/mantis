@@ -73,12 +73,18 @@ object SignedTransaction {
     SignedTransaction(tx, getEthereumSignature(tx, sig, chainId))
   }
 
-  private def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
-    chainId match {
+  private[domain] def bytesToSign(tx: Transaction, chainId: Option[Byte]): Array[Byte] =
+    tx match {
+      case legacyTransaction: LegacyTransaction => getLegacyBytesToSign(legacyTransaction, chainId)
+      case twal: TransactionWithAccessList      => getTWALBytesToSign(twal)
+    }
+
+  private def getLegacyBytesToSign(legacyTransaction: LegacyTransaction, chainIdOpt: Option[Byte]): Array[Byte] =
+    chainIdOpt match {
       case Some(id) =>
-        chainSpecificTransactionBytes(tx, id)
+        chainSpecificTransactionBytes(legacyTransaction, id)
       case None =>
-        generalTransactionBytes(tx)
+        generalTransactionBytes(legacyTransaction)
     }
 
   /** Transaction specific piece of code.
@@ -316,6 +322,7 @@ object SignedTransaction {
       case _: LegacyTransaction
           if stx.signature.v == ECDSASignature.negativePointSign || stx.signature.v == ECDSASignature.positivePointSign =>
         None
+//      case _: LegacyTransaction => Some(1)
       case _: LegacyTransaction            => Some(Config.blockchains.blockchainConfig.chainId)
       case twal: TransactionWithAccessList => Some(twal.chainId)
     }
@@ -325,7 +332,7 @@ object SignedTransaction {
   /** Transaction specific piece of code.
     * This should be moved to the Signer architecture once available.
     *
-    * @param transaction the signed transaction from which to extract the payload to sign
+    * @param signedTransaction the signed transaction from which to extract the payload to sign
     * @return the payload to sign
     */
   private def getBytesToSign(signedTransaction: SignedTransaction): Array[Byte] =
