@@ -72,13 +72,12 @@ abstract class BaseNode extends Node {
     if (!Config.testmode) genesisDataLoader.loadGenesisData()
 
   private[this] def runDBConsistencyCheck(): Unit =
-    if (Config.Db.periodicConsistencyCheck)
-      StorageConsistencyChecker.checkStorageConsistency(
-        storagesInstance.storages.appStateStorage.getBestBlockNumber(),
-        storagesInstance.storages.blockNumberMappingStorage,
-        storagesInstance.storages.blockHeadersStorage,
-        shutdown
-      )(log)
+    StorageConsistencyChecker.checkStorageConsistency(
+      storagesInstance.storages.appStateStorage.getBestBlockNumber(),
+      storagesInstance.storages.blockNumberMappingStorage,
+      storagesInstance.storages.blockHeadersStorage,
+      shutdown
+    )(log)
 
   private[this] def startPeerManager(): Unit = peerManager ! PeerManagerActor.StartConnecting
 
@@ -101,15 +100,16 @@ abstract class BaseNode extends Node {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
 
   def startPeriodicDBConsistencyCheck(): Unit =
-    ActorSystem(
-      PeriodicConsistencyCheck.start(
-        storagesInstance.storages.appStateStorage,
-        storagesInstance.storages.blockNumberMappingStorage,
-        storagesInstance.storages.blockHeadersStorage,
-        shutdown
-      ),
-      "PeriodicDBConsistencyCheck"
-    )
+    if (Config.Db.periodicConsistencyCheck)
+      ActorSystem(
+        PeriodicConsistencyCheck.start(
+          storagesInstance.storages.appStateStorage,
+          storagesInstance.storages.blockNumberMappingStorage,
+          storagesInstance.storages.blockHeadersStorage,
+          shutdown
+        ),
+        "PeriodicDBConsistencyCheck"
+      )
 
   override def shutdown: () => Unit = () => {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
