@@ -96,7 +96,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
         */
       val originInitialisedAccount = context.originalWorld.initialiseAccount(newAddress)
 
-      val world1 =
+      val world1: W =
         context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
       val code = if (conflict) ByteString(INVALID.code) else context.inputData
@@ -104,7 +104,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
       val initialState: PS =
-        ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
+        ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount): PC, env)
+          .addAccessedAddress(newAddress)
 
       val execResult = exec(initialState).toResult
 
