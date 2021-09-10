@@ -21,6 +21,8 @@ import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.transactions.TransactionPicker
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
 
 object EthTxService {
   case class GetTransactionByHashRequest(txHash: ByteString) //rename to match request
@@ -50,6 +52,8 @@ class EthTxService(
 ) extends TransactionPicker
     with ResolveBlock {
   import EthTxService._
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   /** Implements the eth_getRawTransactionByHash - fetch raw transaction data of a transaction with the given hash.
     *

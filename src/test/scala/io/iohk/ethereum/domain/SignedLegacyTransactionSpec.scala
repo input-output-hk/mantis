@@ -8,6 +8,7 @@ import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.SignedTransaction.getSender
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
 import io.iohk.ethereum.vm.Generators
 
@@ -20,6 +21,8 @@ class SignedLegacyTransactionSpec extends AnyFlatSpec with SignedTransactionBeha
   )
 
   "Legacy transaction sender" should "be properly recoverable from rlp encoded values" in {
+
+    implicit val blockchainConfig = Config.blockchains.blockchainConfig.copy(chainId = 1)
 
     // values are taken from https://github.com/ethereum/go-ethereum/blob/90987db7334c1d10eb866ca550efedb66dea8a20/core/types/transaction_signing_test.go#L79-L94
     val testValues = Table(

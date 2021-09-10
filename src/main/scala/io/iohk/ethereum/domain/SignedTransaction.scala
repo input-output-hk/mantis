@@ -22,6 +22,7 @@ import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransaction
 import io.iohk.ethereum.rlp.RLPImplicitConversions._
 import io.iohk.ethereum.rlp.RLPImplicits._
 import io.iohk.ethereum.rlp.{encode => rlpEncode, _}
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
 
@@ -101,7 +102,9 @@ object SignedTransaction {
     * @param signedTransaction the signed transaction from which to extract the raw signature
     * @return a raw crypto signature, with only 27 or 28 as valid ECDSASignature.v value
     */
-  private def getRawSignature(signedTransaction: SignedTransaction): ECDSASignature =
+  private def getRawSignature(
+      signedTransaction: SignedTransaction
+  )(implicit blockchainConfig: BlockchainConfig): ECDSASignature =
     signedTransaction.tx match {
       case _: LegacyTransaction =>
         val chainIdOpt = extractChainId(signedTransaction)
@@ -239,21 +242,22 @@ object SignedTransaction {
         )
     }
 
-  def getSender(tx: SignedTransaction): Option[Address] =
+  def getSender(tx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[Address] =
     Option(txSenders.getIfPresent(tx.hash)).orElse(calculateSender(tx))
 
-  private def calculateSender(tx: SignedTransaction): Option[Address] = Try {
-    val bytesToSign: Array[Byte] = getBytesToSign(tx)
-    val recoveredPublicKey: Option[Array[Byte]] = getRawSignature(tx).publicKey(bytesToSign)
+  private def calculateSender(tx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[Address] =
+    Try {
+      val bytesToSign: Array[Byte] = getBytesToSign(tx)
+      val recoveredPublicKey: Option[Array[Byte]] = getRawSignature(tx).publicKey(bytesToSign)
 
-    for {
-      key <- recoveredPublicKey
-      addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
-      if addrBytes.length == Address.Length
-    } yield Address(addrBytes)
-  }.toOption.flatten
+      for {
+        key <- recoveredPublicKey
+        addrBytes = crypto.kec256(key).slice(FirstByteOfAddress, LastByteOfAddress)
+        if addrBytes.length == Address.Length
+      } yield Address(addrBytes)
+    }.toOption.flatten
 
-  def retrieveSendersInBackGround(blocks: Seq[BlockBody]): Unit = {
+  def retrieveSendersInBackGround(blocks: Seq[BlockBody])(implicit blockchainConfig: BlockchainConfig): Unit = {
     val blocktx = blocks
       .collect {
         case block if block.transactionList.nonEmpty => block.transactionList
@@ -264,10 +268,12 @@ object SignedTransaction {
     Task.traverse(blocktx.toSeq)(calculateSendersForTxs).runAsyncAndForget
   }
 
-  private def calculateSendersForTxs(txs: Seq[SignedTransaction]): Task[Unit] =
+  private def calculateSendersForTxs(txs: Seq[SignedTransaction])(implicit
+      blockchainConfig: BlockchainConfig
+  ): Task[Unit] =
     Task(txs.foreach(calculateAndCacheSender))
 
-  private def calculateAndCacheSender(stx: SignedTransaction) =
+  private def calculateAndCacheSender(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig) =
     calculateSender(stx).foreach(address => txSenders.put(stx.hash, address))
 
   /** Transaction specific piece of code.
@@ -317,13 +323,12 @@ object SignedTransaction {
     * @param stx the signed transaction to get the chainId from
     * @return Some(chainId) if available, None if not (unprotected signed transaction)
     */
-  private def extractChainId(stx: SignedTransaction): Option[Byte] = {
+  private def extractChainId(stx: SignedTransaction)(implicit blockchainConfig: BlockchainConfig): Option[Byte] = {
     val chainIdOpt: Option[BigInt] = stx.tx match {
       case _: LegacyTransaction
           if stx.signature.v == ECDSASignature.negativePointSign || stx.signature.v == ECDSASignature.positivePointSign =>
         None
-//      case _: LegacyTransaction => Some(1)
-      case _: LegacyTransaction            => Some(Config.blockchains.blockchainConfig.chainId)
+      case _: LegacyTransaction            => Some(blockchainConfig.chainId)
       case twal: TransactionWithAccessList => Some(twal.chainId)
     }
     chainIdOpt.map(_.toByte)
@@ -335,7 +340,9 @@ object SignedTransaction {
     * @param signedTransaction the signed transaction from which to extract the payload to sign
     * @return the payload to sign
     */
-  private def getBytesToSign(signedTransaction: SignedTransaction): Array[Byte] =
+  private def getBytesToSign(
+      signedTransaction: SignedTransaction
+  )(implicit blockchainConfig: BlockchainConfig): Array[Byte] =
     signedTransaction.tx match {
       case _: LegacyTransaction            => getLegacyBytesToSign(signedTransaction)
       case twal: TransactionWithAccessList => getTWALBytesToSign(twal)
@@ -350,7 +357,9 @@ object SignedTransaction {
     * @param signedTransaction
     * @return the transaction payload for Legacy transaction
     */
-  private def getLegacyBytesToSign(signedTransaction: SignedTransaction): Array[Byte] = {
+  private def getLegacyBytesToSign(
+      signedTransaction: SignedTransaction
+  )(implicit blockchainConfig: BlockchainConfig): Array[Byte] = {
     val chainIdOpt = extractChainId(signedTransaction)
     chainIdOpt match {
       case None          => generalTransactionBytes(signedTransaction.tx)
@@ -398,7 +407,7 @@ object SignedTransaction {
 
 case class SignedTransaction(tx: Transaction, signature: ECDSASignature) {
 
-  def safeSenderIsEqualTo(address: Address): Boolean =
+  def safeSenderIsEqualTo(address: Address)(implicit blockchainConfig: BlockchainConfig): Boolean =
     SignedTransaction.getSender(this).contains(address)
 
   override def toString: String =
@@ -417,7 +426,9 @@ case class SignedTransactionWithSender(tx: SignedTransaction, senderAddress: Add
 
 object SignedTransactionWithSender {
 
-  def getSignedTransactions(stxs: Seq[SignedTransaction]): Seq[SignedTransactionWithSender] =
+  def getSignedTransactions(
+      stxs: Seq[SignedTransaction]
+  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransactionWithSender] =
     stxs.foldLeft(List.empty[SignedTransactionWithSender]) { (acc, stx) =>
       val sender = SignedTransaction.getSender(stx)
       sender.fold(acc)(addr => SignedTransactionWithSender(stx, addr) :: acc)

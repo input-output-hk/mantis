@@ -7,9 +7,14 @@ import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
+import io.iohk.ethereum.utils.Config
+import io.iohk.ethereum.utils.BlockchainConfig
 
 case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingTransaction] = Set.empty)
     extends AutoPilot {
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+
   def run(sender: ActorRef, msg: Any): AutoPilot =
     msg match {
       case AddUncheckedTransactions(transactions) =>

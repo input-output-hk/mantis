@@ -31,6 +31,7 @@ import io.iohk.ethereum.nodebuilder.TxPoolConfigBuilder
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTransactionData
+import io.iohk.ethereum.utils.BlockchainConfig
 
 class MantisServiceSpec
     extends TestKit(ActorSystem("MantisServiceSpec"))
@@ -83,7 +84,9 @@ class MantisServiceSpec
             pendingTransactionsManager,
             txPoolConfig.getTransactionFromPoolTimeout
           ) {
-            override def getAccountTransactions(account: Address, fromBlocks: NumericRange[BigInt]) =
+            override def getAccountTransactions(account: Address, fromBlocks: NumericRange[BigInt])(implicit
+                blockchainConfig: BlockchainConfig
+            ) =
               Task.pure(expectedResponse)
           }
       }

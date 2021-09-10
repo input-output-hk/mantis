@@ -10,6 +10,8 @@ import io.iohk.ethereum.consensus.mining.Mining
 import io.iohk.ethereum.domain.Blockchain
 import io.iohk.ethereum.domain.BlockchainReader
 import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 object EthBlocksService {
   case class BestBlockNumberRequest()
@@ -47,6 +49,8 @@ class EthBlocksService(
     val blockQueue: BlockQueue
 ) extends ResolveBlock {
   import EthBlocksService._
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   /** eth_blockNumber that returns the number of most recent block.
     *

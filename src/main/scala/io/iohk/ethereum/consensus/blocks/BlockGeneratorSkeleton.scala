@@ -131,7 +131,7 @@ abstract class BlockGeneratorSkeleton(
   protected def prepareTransactions(
       transactions: Seq[SignedTransaction],
       blockGasLimit: BigInt
-  ): Seq[SignedTransaction] = {
+  )(implicit blockchainConfig: BlockchainConfig): Seq[SignedTransaction] = {
 
     val sortedTransactions: Seq[SignedTransaction] = transactions
       //should be safe to call get as we do not insert improper transactions to pool.

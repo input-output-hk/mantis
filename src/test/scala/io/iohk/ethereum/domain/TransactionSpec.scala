@@ -14,6 +14,7 @@ import io.iohk.ethereum.crypto.pubKeyFromKeyPair
 import io.iohk.ethereum.domain.SignedTransaction.getSender
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.security.SecureRandomBuilder
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
 
 class TransactionSpec
@@ -41,6 +42,8 @@ class TransactionSpec
   "signing transaction, encoding and decoding it" should "allow to retrieve the proper sender" in {
 
     forAll(transactionGen) { (originalTransaction: Transaction) =>
+      implicit val blockchainConfig = Config.blockchains.blockchainConfig
+
       val senderKeys = crypto.generateKeyPair(secureRandom)
 
       val originalSenderAddress = {
@@ -52,7 +55,8 @@ class TransactionSpec
         Address(slice)
       }
 
-      val originalSignedTransaction = SignedTransaction.sign(originalTransaction, senderKeys, Some(1))
+      val originalSignedTransaction =
+        SignedTransaction.sign(originalTransaction, senderKeys, Some(blockchainConfig.chainId))
       // check for proper signature content
       getSender(originalSignedTransaction) shouldEqual (Some(originalSenderAddress))
 

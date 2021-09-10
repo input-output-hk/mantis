@@ -4,6 +4,8 @@ import akka.util.ByteString
 
 import io.iohk.ethereum.domain.BlockHeader
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 trait BaseTransactionResponse {
   def hash: ByteString
@@ -40,6 +42,8 @@ final case class TransactionData(
 )
 
 object TransactionResponse {
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   def apply(tx: TransactionData): TransactionResponse =
     TransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex)
