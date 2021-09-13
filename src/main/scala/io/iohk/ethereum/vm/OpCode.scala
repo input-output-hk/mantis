@@ -986,16 +986,16 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     }
 
     result.error match {
-      case Some(err) =>
-        val world2 = if (err == InvalidCall) state.world else world1
+      case Some(error) =>
+        val world2 = if (error == InvalidCall) state.world else world1
         val resultStack = stack2.push(UInt256.Zero)
-        val returnData = if (err == RevertOccurs) result.returnData else ByteString.empty
+        val returnData = if (error == RevertOccurs) result.returnData else ByteString.empty
         state
           .spendGas(startGas - result.gasRemaining)
           .withWorld(world2)
           .withStack(resultStack)
           .withReturnData(returnData)
-          .addAccessedAddress(newAddress)
+          .addAccessedAddresses(if (error == InvalidCall) Set.empty else Set(newAddress))
           .step()
 
       case None =>
@@ -1107,8 +1107,6 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withWorld(world1)
           .spendGas(gasAdjustment)
           .withReturnData(result.returnData)
-//          .addAccessedStorageKeys(result.accessedStorageKeys)
-//          .addAccessedAddresses(result.accessedAddresses + toAddr)
           .addAccessedAddress(toAddr)
           .step()
 
