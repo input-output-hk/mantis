@@ -1013,7 +1013,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
           .withMemory(memory1)
           .withInternalTxs(internalTx +: result.internalTxs)
           .withReturnData(ByteString.empty)
-          .addAccessedAddress(newAddress)
+          .addAccessedStorageKeys(result.accessedStorageKeys)
+          .addAccessedAddresses(result.accessedAddresses + newAddress)
           .step()
     }
   }
