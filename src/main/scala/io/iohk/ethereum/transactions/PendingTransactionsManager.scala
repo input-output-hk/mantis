@@ -28,10 +28,10 @@ import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.TxPoolConfig
-import io.iohk.ethereum.utils.BlockchainConfig
 
 object PendingTransactionsManager {
   def props(

@@ -11,8 +11,8 @@ import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 object MantisService {
   case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])

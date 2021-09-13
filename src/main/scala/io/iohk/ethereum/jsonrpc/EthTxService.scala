@@ -21,8 +21,8 @@ import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.transactions.PendingTransactionsManager
 import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransaction
 import io.iohk.ethereum.transactions.TransactionPicker
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 object EthTxService {
   case class GetTransactionByHashRequest(txHash: ByteString) //rename to match request

@@ -7,8 +7,8 @@ import io.iohk.ethereum.domain.SignedTransaction
 import io.iohk.ethereum.domain.SignedTransactionWithSender
 import io.iohk.ethereum.transactions.PendingTransactionsManager._
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
-import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 case class PendingTransactionsManagerAutoPilot(pendingTransactions: Set[PendingTransaction] = Set.empty)
     extends AutoPilot {
