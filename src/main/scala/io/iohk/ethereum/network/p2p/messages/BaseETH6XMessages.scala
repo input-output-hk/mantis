@@ -58,7 +58,7 @@ object BaseETH6XMessages {
   implicit val accessListItemCodec: RLPCodec[AccessListItem] =
     RLPCodec.instance[AccessListItem](
       { case AccessListItem(address, storageKeys) =>
-        RLPList(address, toRlpList(storageKeys))
+        RLPList(address, toRlpList(storageKeys.map(UInt256(_).bytes.toArray)))
       },
       {
         case r: RLPList if r.items.isEmpty => AccessListItem(null, List.empty)
