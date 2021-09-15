@@ -267,11 +267,11 @@ object FeeSchedule {
     override val G_copy = 3
     override val G_blockhash = 20
     override val G_extcode = 20
+
+    // note: the access list and cold/warm access do not exist until magneto hard fork
     override val G_cold_sload = 2100
     override val G_cold_account_access = 2600
     override val G_warm_storage_read = 100
-
-    // note: the access list does not exist until magneto hard fork
     override val G_access_list_address = 2400
     override val G_access_list_storage = 1900
   }
