@@ -152,7 +152,7 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       initialAddressesToDelete = Set(),
       evmConfig = vmConfig,
       originalWorld = world,
-      // FIXME add access list to CallContext
+      // TODO ETCM-1202 use access list from CallContext
       warmAddresses = Set.empty,
       warmStorage = Set.empty
     )
