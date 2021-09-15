@@ -11,12 +11,17 @@ import io.iohk.ethereum.jsonrpc.MantisService.GetAccountTransactionsResponse
 import io.iohk.ethereum.jsonrpc.server.controllers.JsonRpcBaseController.JsonRpcConfig
 import io.iohk.ethereum.transactions.TransactionHistoryService
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 object MantisService {
   case class GetAccountTransactionsRequest(address: Address, blocksRange: NumericRange[BigInt])
   case class GetAccountTransactionsResponse(transactions: List[ExtendedTransactionData])
 }
 class MantisService(transactionHistoryService: TransactionHistoryService, jsonRpcConfig: JsonRpcConfig) {
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
+
   def getAccountTransactions(
       request: GetAccountTransactionsRequest
   ): ServiceResponse[GetAccountTransactionsResponse] =

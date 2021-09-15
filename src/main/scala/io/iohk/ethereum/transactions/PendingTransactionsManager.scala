@@ -28,7 +28,9 @@ import io.iohk.ethereum.network.PeerManagerActor
 import io.iohk.ethereum.network.PeerManagerActor.Peers
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils.ByteStringOps
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.TxPoolConfig
 
 object PendingTransactionsManager {
@@ -102,6 +104,8 @@ class PendingTransactionsManager(
   peerEventBus ! Subscribe(SubscriptionClassifier.PeerHandshaked)
 
   val transactionFilter: ActorRef = context.actorOf(SignedTransactionsFilterActor.props(context.self, peerEventBus))
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   // scalastyle:off method.length
   override def receive: Receive = {

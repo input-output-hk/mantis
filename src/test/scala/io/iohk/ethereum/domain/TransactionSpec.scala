@@ -3,18 +3,19 @@ package io.iohk.ethereum.domain
 import akka.util.ByteString
 
 import org.scalatest.flatspec.AnyFlatSpec
-import org.scalatest.funsuite.AnyFunSuite
 import org.scalatest.matchers.should.Matchers
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 
 import io.iohk.ethereum.ObjectGenerators
+import io.iohk.ethereum.crypto
 import io.iohk.ethereum.crypto.ECDSASignature
+import io.iohk.ethereum.crypto.kec256
+import io.iohk.ethereum.crypto.pubKeyFromKeyPair
+import io.iohk.ethereum.domain.SignedTransaction.getSender
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
-import io.iohk.ethereum.rlp.RLPList
 import io.iohk.ethereum.security.SecureRandomBuilder
 import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Hex
-import io.iohk.ethereum.vm.utils.MockVmInput
 
 class TransactionSpec
     extends AnyFlatSpec
@@ -35,6 +36,41 @@ class TransactionSpec
       val decodedSignedTransaction = encodedSignedTransaction.toSignedTransaction
 
       decodedSignedTransaction shouldEqual originalSignedTransaction
+    }
+  }
+
+  "signing transaction, encoding and decoding it" should "allow to retrieve the proper sender" in {
+
+    forAll(transactionGen) { (originalTransaction: Transaction) =>
+      implicit val blockchainConfig = Config.blockchains.blockchainConfig
+
+      val senderKeys = crypto.generateKeyPair(secureRandom)
+
+      val originalSenderAddress = {
+        // You get a public address for your account by taking the last 20 bytes of the Keccak-256 hash of the public key and adding 0x to the beginning.
+        ECDSASignature
+        val pubKey = pubKeyFromKeyPair(senderKeys)
+        val hashedPublickKey = kec256(pubKey)
+        val slice = hashedPublickKey.slice(hashedPublickKey.length - 20, hashedPublickKey.length)
+        Address(slice)
+      }
+
+      val originalSignedTransaction =
+        SignedTransaction.sign(originalTransaction, senderKeys, Some(blockchainConfig.chainId))
+      // check for proper signature content
+      getSender(originalSignedTransaction) shouldEqual (Some(originalSenderAddress))
+
+      // encode it
+      import SignedTransactions.SignedTransactionEnc
+      val encodedSignedTransaction: Array[Byte] = originalSignedTransaction.toBytes
+
+      // decode it
+      import SignedTransactions.SignedTransactionDec
+      val decodedSignedTransaction = encodedSignedTransaction.toSignedTransaction
+
+      // resolve original sender
+      getSender(originalSignedTransaction)
+      getSender(decodedSignedTransaction) shouldEqual getSender(originalSignedTransaction)
     }
   }
 

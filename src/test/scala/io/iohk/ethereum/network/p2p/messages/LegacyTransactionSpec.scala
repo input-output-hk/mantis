@@ -11,11 +11,12 @@ import io.iohk.ethereum.crypto
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.LegacyTransaction
 import io.iohk.ethereum.domain.SignedTransaction
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Config
 
 class LegacyTransactionSpec extends AnyFlatSpec with Matchers {
 
-  val blockchainConfig = Config.blockchains.blockchainConfig
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   val rawPublicKey: Array[Byte] =
     Hex.decode(

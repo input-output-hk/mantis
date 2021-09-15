@@ -140,7 +140,7 @@ class LegacyTransactionHistoryServiceSpec
           _,
           header => {
             val checkpoint =
-              Checkpoint(List(ECDSASignature.sign(crypto.kec256(ByteString("foo")).toArray, checkpointKey, None)))
+              Checkpoint(List(ECDSASignature.sign(crypto.kec256(ByteString("foo")).toArray, checkpointKey)))
             header.copy(extraFields = HefPostEcip1097(Some(checkpoint)))
           }
         )

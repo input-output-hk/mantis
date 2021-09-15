@@ -15,10 +15,14 @@ import io.iohk.ethereum.network.PeerId
 import io.iohk.ethereum.network.p2p.messages.BaseETH6XMessages.SignedTransactions
 import io.iohk.ethereum.network.p2p.messages.Codes
 import io.iohk.ethereum.transactions.SignedTransactionsFilterActor.ProperSignedTransactions
+import io.iohk.ethereum.utils.BlockchainConfig
+import io.iohk.ethereum.utils.Config
 
 class SignedTransactionsFilterActor(pendingTransactionsManager: ActorRef, peerEventBus: ActorRef)
     extends Actor
     with RequiresMessageQueue[BoundedMessageQueueSemantics] {
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   peerEventBus ! Subscribe(MessageClassifier(Set(Codes.SignedTransactionsCode), PeerSelector.AllPeers))
 

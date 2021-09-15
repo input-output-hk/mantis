@@ -18,6 +18,7 @@ import io.iohk.ethereum.transactions.PendingTransactionsManager.PendingTransacti
 import io.iohk.ethereum.transactions.TransactionHistoryService.ExtendedTransactionData
 import io.iohk.ethereum.transactions.TransactionHistoryService.MinedTxChecker
 import io.iohk.ethereum.transactions.TransactionHistoryService.PendingTxChecker
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.Logger
 
 class TransactionHistoryService(
@@ -28,7 +29,7 @@ class TransactionHistoryService(
   def getAccountTransactions(
       account: Address,
       fromBlocks: NumericRange[BigInt]
-  ): Task[List[ExtendedTransactionData]] = {
+  )(implicit blockchainConfig: BlockchainConfig): Task[List[ExtendedTransactionData]] = {
     val getLastCheckpoint = Task(blockchainReader.getLatestCheckpointBlockNumber()).memoizeOnSuccess
     val txnsFromBlocks = Observable
       .from(fromBlocks.reverse)
@@ -110,13 +111,16 @@ object TransactionHistoryService {
   }
 
   object MinedTxChecker {
-    def isSender(tx: SignedTransaction, maybeSender: Address): Boolean = tx.safeSenderIsEqualTo(maybeSender)
+    def isSender(tx: SignedTransaction, maybeSender: Address)(implicit blockchainConfig: BlockchainConfig): Boolean =
+      tx.safeSenderIsEqualTo(maybeSender)
     def isReceiver(tx: SignedTransaction, maybeReceiver: Address): Boolean =
       tx.tx.receivingAddress.contains(maybeReceiver)
 
     def checkTx(
         tx: SignedTransaction,
         address: Address
+    )(implicit
+        blockchainConfig: BlockchainConfig
     ): Option[(SignedTransaction, MinedTransactionData => ExtendedTransactionData)] =
       if (isSender(tx, address)) {
         Some((tx, data => ExtendedTransactionData(tx, isOutgoing = true, Some(data))))

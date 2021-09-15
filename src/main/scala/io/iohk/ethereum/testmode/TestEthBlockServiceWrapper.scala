@@ -18,7 +18,9 @@ import io.iohk.ethereum.jsonrpc.JsonRpcError
 import io.iohk.ethereum.jsonrpc.ServiceResponse
 import io.iohk.ethereum.jsonrpc.TransactionData
 import io.iohk.ethereum.ledger.BlockQueue
+import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.utils.ByteStringUtils._
+import io.iohk.ethereum.utils.Config
 import io.iohk.ethereum.utils.Logger
 
 class TestEthBlockServiceWrapper(
@@ -155,6 +157,8 @@ final case class EthTransactionResponse(
 ) extends BaseTransactionResponse
 
 object EthTransactionResponse {
+
+  implicit val blockchainConfig: BlockchainConfig = Config.blockchains.blockchainConfig
 
   def apply(tx: TransactionData): EthTransactionResponse =
     EthTransactionResponse(tx.stx, tx.blockHeader, tx.transactionIndex)
