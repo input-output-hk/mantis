@@ -35,7 +35,7 @@ object Transaction {
     case tx: TransactionWithAccessList => tx.copy(gasLimit = gl)
   }
 
-  def accessList(tx: Transaction) =
+  def accessList(tx: Transaction): List[AccessListItem] =
     tx match {
       case transaction: TransactionWithAccessList                                         => transaction.accessList
       case LegacyTransaction(nonce, gasPrice, gasLimit, receivingAddress, value, payload) => Nil

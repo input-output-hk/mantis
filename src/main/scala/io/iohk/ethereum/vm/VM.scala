@@ -3,7 +3,10 @@ package io.iohk.ethereum.vm
 import akka.util.ByteString
 
 import scala.annotation.tailrec
-import io.iohk.ethereum.domain.{AccessListItem, Address, UInt256}
+
+import io.iohk.ethereum.domain.AccessListItem
+import io.iohk.ethereum.domain.Address
+import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.Logger
 
 class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
