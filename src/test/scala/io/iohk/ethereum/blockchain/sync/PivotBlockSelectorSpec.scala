@@ -452,57 +452,31 @@ class PivotBlockSelectorSpec
 
     peerMessageBus.expectMsgAllOf(
       Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
+      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id))),
       Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id)))
     )
 
     etcPeerManager.expectMsgAllOf(
-      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1400), 1, 0, reverse = false), peer1.id),
-      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(1400), 1, 0, reverse = false), peer4.id)
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(900), 1, 0, reverse = false), peer1.id),
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(900), 1, 0, reverse = false), peer3.id),
+      EtcPeerManagerActor.SendMessage(GetBlockHeaders(Left(900), 1, 0, reverse = false), peer4.id)
     )
     etcPeerManager.expectNoMessage()
 
     // Collecting pivot block (for voting)
-    pivotBlockSelector ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 1400))), peer1.id)
-    pivotBlockSelector ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 1400))), peer4.id)
+    pivotBlockSelector ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 900))), peer1.id)
+    pivotBlockSelector ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 900))), peer3.id)
+    pivotBlockSelector ! MessageFromPeer(BlockHeaders(Seq(baseBlockHeader.copy(number = 900))), peer4.id)
 
     peerMessageBus.expectMsgAllOf(
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
+      Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id))),
       Unsubscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer4.id))),
       Unsubscribe()
     )
     peerMessageBus.expectNoMessage()
 
-    fastSync.expectMsg(Result(baseBlockHeader.copy(number = 1400)))
-  }
-
-  it should "restart pivot block selection after `maxPivotBlockFailuresCount` is reached" in new TestSetup {
-
-    override val minPeersToChoosePivotBlock = 2
-    override val peersToChoosePivotBlockMargin = 1
-
-    updateHandshakedPeers(
-      HandshakedPeers(
-        allPeers
-          .updated(peer1, allPeers(peer1).copy(maxBlockNumber = 2000))
-          .updated(peer2, allPeers(peer2).copy(maxBlockNumber = 800))
-          .updated(peer3, allPeers(peer3).copy(maxBlockNumber = 900))
-          .updated(peer4, allPeers(peer4).copy(maxBlockNumber = 1000))
-      )
-    )
-
-    pivotBlockSelector ! SelectPivotBlock
-
-    peerMessageBus.expectNoMessage()
-
-    updateHandshakedPeers(HandshakedPeers(threeAcceptedPeers))
-
-    time.advance(syncConfig.startRetryInterval)
-
-    peerMessageBus.expectMsgAllOf(
-      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer1.id))),
-      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer2.id))),
-      Subscribe(MessageClassifier(Set(Codes.BlockHeadersCode), PeerSelector.WithId(peer3.id)))
-    )
+    fastSync.expectMsg(Result(baseBlockHeader.copy(number = 900)))
   }
 
   class TestSetup extends TestSyncConfig {

@@ -169,12 +169,8 @@ class SyncControllerSpec
     eventually {
       someTimePasses()
       val syncState = storagesInstance.storages.fastSyncStateStorage.getSyncState().get
-
-      // Header validation failed when downloading skeleton headers.
-      // Sync state remains the same and the peer is blacklisted.
-      syncState.pivotBlock shouldBe defaultPivotBlockHeader
-      syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber)
-      syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber + 1)
+      syncState.bestBlockHeaderNumber shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN)
+      syncState.nextBlockToFullyValidate shouldBe (defaultStateBeforeNodeRestart.bestBlockHeaderNumber - syncConfig.fastSyncBlockValidationN + 1)
       syncState.blockBodiesQueue.isEmpty shouldBe true
       syncState.receiptsQueue.isEmpty shouldBe true
     }

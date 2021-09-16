@@ -111,6 +111,7 @@ object Config {
       criticalBlacklistDuration: FiniteDuration,
       startRetryInterval: FiniteDuration,
       syncRetryInterval: FiniteDuration,
+      syncSwitchDelay: FiniteDuration,
       peerResponseTimeout: FiniteDuration,
       printStatusInterval: FiniteDuration,
       maxConcurrentRequests: Int,
@@ -144,7 +145,6 @@ object Config {
       pivotBlockReScheduleInterval: FiniteDuration,
       maxPivotBlockAge: Int,
       fastSyncMaxBatchRetries: Int,
-      pivotBlockNumberResetDelta: Int,
       maxPivotBlockFailuresCount: Int
   )
 
@@ -158,6 +158,7 @@ object Config {
         criticalBlacklistDuration = syncConfig.getDuration("critical-blacklist-duration").toMillis.millis,
         startRetryInterval = syncConfig.getDuration("start-retry-interval").toMillis.millis,
         syncRetryInterval = syncConfig.getDuration("sync-retry-interval").toMillis.millis,
+        syncSwitchDelay = syncConfig.getDuration("sync-switch-delay").toMillis.millis,
         peerResponseTimeout = syncConfig.getDuration("peer-response-timeout").toMillis.millis,
         printStatusInterval = syncConfig.getDuration("print-status-interval").toMillis.millis,
         maxConcurrentRequests = syncConfig.getInt("max-concurrent-requests"),
@@ -191,7 +192,6 @@ object Config {
         pivotBlockReScheduleInterval = syncConfig.getDuration("pivot-block-reschedule-interval").toMillis.millis,
         maxPivotBlockAge = syncConfig.getInt("max-pivot-block-age"),
         fastSyncMaxBatchRetries = syncConfig.getInt("fast-sync-max-batch-retries"),
-        pivotBlockNumberResetDelta = syncConfig.getInt("pivot-block-number-reset-delta"),
         maxPivotBlockFailuresCount = syncConfig.getInt("max-pivot-block-failures-count")
       )
     }
@@ -203,6 +203,7 @@ object Config {
     private val rocksDbConfig = dbConfig.getConfig("rocksdb")
 
     val dataSource: String = dbConfig.getString("data-source")
+    val periodicConsistencyCheck: Boolean = dbConfig.getBoolean("periodic-consistency-check")
 
     object RocksDb extends RocksDbConfig {
       override val createIfMissing: Boolean = rocksDbConfig.getBoolean("create-if-missing")

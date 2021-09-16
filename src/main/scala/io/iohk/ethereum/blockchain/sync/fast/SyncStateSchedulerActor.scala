@@ -56,7 +56,7 @@ class SyncStateSchedulerActor(
     }.toList
 
   private def requestNodes(request: PeerRequest): ActorRef = {
-    log.info("Requesting {} from peer {}", request.nodes.size, request.peer)
+    log.info("Requesting {} from peer {}", request.nodes.size, request.peer.id)
     val handler = context.actorOf(
       PeerRequestHandler.props[GetNodeData, NodeData](
         request.peer,
