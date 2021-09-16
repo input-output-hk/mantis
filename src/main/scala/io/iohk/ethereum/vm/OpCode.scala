@@ -712,7 +712,7 @@ case object SSTORE extends OpCode(0x55, 2, 0, _.G_zero) {
 
           val reset = if (originalValue == newValue.toBigInt) {
             if (UInt256(originalValue).isZero)
-              state.config.feeSchedule.R_sclear + state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
+              state.config.feeSchedule.G_sset - state.config.feeSchedule.G_sload
             else
               state.config.feeSchedule.G_sreset - state.config.feeSchedule.G_sload
           } else BigInt(0)
@@ -986,16 +986,16 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
     }
 
     result.error match {
-      case Some(err) =>
-        val world2 = if (err == InvalidCall) state.world else world1
+      case Some(error) =>
+        val world2 = if (error == InvalidCall) state.world else world1
         val resultStack = stack2.push(UInt256.Zero)
-        val returnData = if (err == RevertOccurs) result.returnData else ByteString.empty
+        val returnData = if (error == RevertOccurs) result.returnData else ByteString.empty
         state
           .spendGas(startGas - result.gasRemaining)
           .withWorld(world2)
           .withStack(resultStack)
           .withReturnData(returnData)
-          .addAccessedAddress(newAddress)
+          .addAccessedAddresses(if (error == InvalidCall) Set.empty else Set(newAddress))
           .step()
 
       case None =>
@@ -1013,7 +1013,8 @@ abstract class CreateOp(code: Int, delta: Int) extends OpCode(code, delta, 1, _.
           .withMemory(memory1)
           .withInternalTxs(internalTx +: result.internalTxs)
           .withReturnData(ByteString.empty)
-          .addAccessedAddress(newAddress)
+          .addAccessedStorageKeys(result.accessedStorageKeys)
+          .addAccessedAddresses(result.accessedAddresses + newAddress)
           .step()
     }
   }
@@ -1106,6 +1107,7 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withWorld(world1)
           .spendGas(gasAdjustment)
           .withReturnData(result.returnData)
+          .addAccessedAddress(toAddr)
           .step()
 
       case None =>
@@ -1122,7 +1124,8 @@ abstract class CallOp(code: Int, delta: Int, alpha: Int) extends OpCode(code, de
           .withInternalTxs(internalTx +: result.internalTxs)
           .withLogs(result.logs)
           .withReturnData(result.returnData)
-          .addAccessedAddress(toAddr)
+          .addAccessedStorageKeys(result.accessedStorageKeys)
+          .addAccessedAddresses(result.accessedAddresses + toAddr)
           .step()
     }
   }

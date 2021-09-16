@@ -113,7 +113,10 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       resultMsg.logs.map(l => TxLogEntry(l.address, l.topics.map(t => t: ByteString), l.data)),
       Nil,
       resultMsg.gasRefund,
-      if (resultMsg.error) Some(OutOfGas) else None
+      if (resultMsg.error) Some(OutOfGas) else None,
+      // FIXME handle accessed addresses and storage in extVM
+      Set.empty,
+      Set.empty
     )
   }
 

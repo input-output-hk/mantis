@@ -36,7 +36,9 @@ object Mocks {
       logs = Nil,
       internalTxs = Nil,
       gasRefund = 20000,
-      error = None
+      error = None,
+      Set.empty,
+      Set.empty
     )
 
   class MockVM(runFn: PC => PR = defaultProgramResult) extends VMImpl {

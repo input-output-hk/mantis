@@ -42,7 +42,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     */
   private[vm] def call(context: PC, ownerAddr: Address): PR =
     if (!isValidCall(context))
-      invalidCallResult(context)
+      invalidCallResult(context, Set.empty, Set.empty)
     else {
       require(context.recipientAddr.isDefined, "Recipient address must be defined for message call")
 
@@ -69,7 +69,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       salt: Option[UInt256] = None
   ): (PR, Address) =
     if (!isValidCall(context))
-      (invalidCallResult(context), Address(0))
+      (invalidCallResult(context, Set.empty, Set.empty), Address(0))
     else {
       require(context.recipientAddr.isEmpty, "recipient address must be empty for contract creation")
       require(context.doTransfer, "contract creation will alwyas transfer funds")
@@ -96,7 +96,7 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
         */
       val originInitialisedAccount = context.originalWorld.initialiseAccount(newAddress)
 
-      val world1 =
+      val world1: W =
         context.world.initialiseAccount(newAddress).transfer(context.callerAddr, newAddress, context.endowment)
 
       val code = if (conflict) ByteString(INVALID.code) else context.inputData
@@ -104,7 +104,8 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       val env = ExecEnv(context, code, newAddress).copy(inputData = ByteString.empty)
 
       val initialState: PS =
-        ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount), env)
+        ProgramState(this, context.copy(world = world1, originalWorld = originInitialisedAccount): PC, env)
+          .addAccessedAddress(newAddress)
 
       val execResult = exec(initialState).toResult
 
@@ -119,7 +120,9 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
       case Some(opCode) =>
         val newState = opCode.execute(state)
         import newState._
-        log.trace(s"$opCode | pc: $pc | depth: ${env.callDepth} | gas: $gas | stack: $stack")
+        log.trace(
+          s"$opCode | pc: $pc | depth: ${env.callDepth} | gasUsed: ${state.gas - gas} | gas: $gas | stack: $stack"
+        )
         if (newState.halted)
           newState
         else
@@ -134,8 +137,23 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
     context.endowment <= context.world.getBalance(context.callerAddr) &&
       context.callDepth <= EvmConfig.MaxCallDepth
 
-  private def invalidCallResult(context: PC): PR =
-    ProgramResult(ByteString.empty, context.startGas, context.world, Set(), Nil, Nil, 0, Some(InvalidCall))
+  private def invalidCallResult(
+      context: PC,
+      accessedAddresses: Set[Address],
+      accessedStorageKeys: Set[(Address, BigInt)]
+  ): PR =
+    ProgramResult(
+      ByteString.empty,
+      context.startGas,
+      context.world,
+      Set(),
+      Nil,
+      Nil,
+      0,
+      Some(InvalidCall),
+      accessedAddresses,
+      accessedStorageKeys
+    )
 
   private def exceedsMaxContractSize(context: PC, config: EvmConfig, contractCode: ByteString): Boolean = {
     lazy val maxCodeSizeExceeded = config.maxCodeSize.exists(codeSizeLimit => contractCode.size > codeSizeLimit)
