@@ -117,7 +117,8 @@ object StdSignedTransactionValidator extends SignedTransactionValidator {
   )(implicit blockchainConfig: BlockchainConfig): Either[SignedTransactionError, SignedTransactionValid] = {
     import stx.tx
     val config = EvmConfig.forBlock(blockHeaderNumber, blockchainConfig)
-    val txIntrinsicGas = config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit)
+    val txIntrinsicGas =
+      config.calcTransactionIntrinsicGas(tx.payload, tx.isContractInit, Transaction.accessList(tx))
     if (stx.tx.gasLimit >= txIntrinsicGas) Right(SignedTransactionValid)
     else Left(TransactionNotEnoughGasForIntrinsicError(stx.tx.gasLimit, txIntrinsicGas))
   }

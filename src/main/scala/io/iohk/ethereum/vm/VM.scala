@@ -4,6 +4,7 @@ import akka.util.ByteString
 
 import scala.annotation.tailrec
 
+import io.iohk.ethereum.domain.AccessListItem
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.Logger
@@ -63,7 +64,10 @@ class VM[W <: WorldStateProxy[W, S], S <: Storage[S]] extends Logger {
   /** Contract creation - Λ function in YP
     * salt is used to create contract by CREATE2 opcode. See https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1014.md
     */
-  private[vm] def create(context: PC, salt: Option[UInt256] = None): (PR, Address) =
+  private[vm] def create(
+      context: PC,
+      salt: Option[UInt256] = None
+  ): (PR, Address) =
     if (!isValidCall(context))
       (invalidCallResult(context), Address(0))
     else {

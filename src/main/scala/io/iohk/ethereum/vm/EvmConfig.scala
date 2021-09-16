@@ -4,6 +4,8 @@ import akka.util.ByteString
 
 import io.iohk.ethereum
 
+import io.iohk.ethereum.domain.AccessListItem
+import io.iohk.ethereum.domain.TransactionWithAccessList
 import io.iohk.ethereum.domain.UInt256
 import io.iohk.ethereum.utils.BlockchainConfig
 import io.iohk.ethereum.vm
@@ -196,12 +198,20 @@ case class EvmConfig(
 
   /** Calculates transaction intrinsic gas. See YP section 6.2
     */
-  def calcTransactionIntrinsicGas(txData: ByteString, isContractCreation: Boolean): BigInt = {
+  def calcTransactionIntrinsicGas(
+      txData: ByteString,
+      isContractCreation: Boolean,
+      accessList: Seq[AccessListItem]
+  ): BigInt = {
     val txDataZero = txData.count(_ == 0)
     val txDataNonZero = txData.length - txDataZero
 
+    val accessListPrice =
+      accessList.size * G_access_list_address +
+        accessList.map(_.storageKeys.size).sum * G_access_list_storage
+
     txDataZero * G_txdatazero +
-      txDataNonZero * G_txdatanonzero +
+      txDataNonZero * G_txdatanonzero + accessListPrice +
       (if (isContractCreation) G_txcreate else 0) +
       G_transaction
   }
@@ -262,9 +272,13 @@ object FeeSchedule {
     override val G_copy = 3
     override val G_blockhash = 20
     override val G_extcode = 20
+
+    // note: the access list and cold/warm access do not exist until magneto hard fork
     override val G_cold_sload = 2100
     override val G_cold_account_access = 2600
     override val G_warm_storage_read = 100
+    override val G_access_list_address = 2400
+    override val G_access_list_storage = 1900
   }
 
   class HomesteadFeeSchedule extends FrontierFeeSchedule {
@@ -300,6 +314,8 @@ object FeeSchedule {
   class MagnetoFeeSchedule extends PhoenixFeeSchedule {
     override val G_sload: BigInt = G_warm_storage_read
     override val G_sreset: BigInt = 5000 - G_cold_sload
+    override val G_access_list_address: BigInt = 2400
+    override val G_access_list_storage: BigInt = 1900
   }
 }
 
@@ -342,4 +358,6 @@ trait FeeSchedule {
   val G_cold_sload: BigInt
   val G_cold_account_access: BigInt
   val G_warm_storage_read: BigInt
+  val G_access_list_address: BigInt
+  val G_access_list_storage: BigInt
 }

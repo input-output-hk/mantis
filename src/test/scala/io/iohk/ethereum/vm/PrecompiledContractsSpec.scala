@@ -57,7 +57,9 @@ class PrecompiledContractsSpec
       world = world,
       initialAddressesToDelete = Set(),
       evmConfig = EvmConfig.PostEIP161ConfigBuilder(blockchainConfig),
-      originalWorld = world
+      originalWorld = world,
+      warmAddresses = Set.empty,
+      warmStorage = Set.empty
     )
   }
 
