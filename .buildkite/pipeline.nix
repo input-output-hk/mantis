@@ -50,12 +50,10 @@ in
       dependsOn = [ compile ];
       label = "bytes tests";
       command = ''
-        nix-shell --run '$SBT coverage bytes/test'
+        nix-shell --run '$SBT bytes/test'
       '';
       artifactPaths = [
         "bytes/target/test-reports/**/*"
-        "bytes/target/scala-2.13/scoverage-report/**/*"
-        "bytes/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -63,12 +61,10 @@ in
       dependsOn = [ compile ];
       label = "Crypto tests";
       command = ''
-        nix-shell --run '$SBT coverage crypto/test'
+        nix-shell --run '$SBT crypto/test'
       '';
       artifactPaths = [
         "crypto/target/test-reports/**/*"
-        "crypto/target/scala-2.13/scoverage-report/**/*"
-        "crypto/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -76,12 +72,10 @@ in
       dependsOn = [ compile ];
       label = "RLP tests";
       command = ''
-        nix-shell --run '$SBT coverage rlp/test'
+        nix-shell --run '$SBT rlp/test'
       '';
       artifactPaths = [
         "rlp/target/test-reports/**/*"
-        "rlp/target/scala-2.13/scoverage-report/**/*"
-        "rlp/target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -89,12 +83,10 @@ in
       dependsOn = [ compile ];
       label = "unit tests";
       command = ''
-        nix-shell --run '$SBT coverage test'
+        nix-shell --run '$SBT test'
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.13/scoverage-report/**/*"
-        "target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -115,12 +107,10 @@ in
       dependsOn = [ compile ];
       label = "EVM tests";
       command = ''
-        nix-shell --run '$SBT coverage evm:test'
+        nix-shell --run '$SBT evm:test'
       '';
       artifactPaths = [
         "target/test-reports/**/*"
-        "target/scala-2.13/scoverage-report/**/*"
-        "target/scala-2.13/coverage-report/**/*"
       ];
     };
 
@@ -143,18 +133,10 @@ in
       dependsOn = [ compile ];
       label = "integration tests";
       command = ''
-        nix-shell --run '$SBT coverageOff it:test'
+        nix-shell --run '$SBT it:test'
       '';
       artifactPaths = [ "target/test-reports/**/*" ];
       timeoutInMinutes = 60;
-    };
-
-    coverageReport = commonAttrs // {
-      dependsOn = [ test-unit test-evm ];
-      label = "coverage report";
-      command = ''
-        nix-shell --run '$SBT coverageReport coverageAggregate'
-      '';
     };
 
     additional = commonAttrs // {
