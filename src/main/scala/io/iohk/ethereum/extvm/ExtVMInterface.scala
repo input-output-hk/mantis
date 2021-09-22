@@ -16,6 +16,7 @@ import scala.util.Failure
 import scala.util.Success
 import scala.util.Try
 
+import io.iohk.ethereum.domain.AccessListItem
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxy
 import io.iohk.ethereum.ledger.InMemoryWorldStateProxyStorage
 import io.iohk.ethereum.utils.BlockchainConfig

@@ -78,7 +78,6 @@ class BlockchainReader(
     val number = getBestBlockNumber()
     blockNumberMappingStorage
       .get(number)
-      .orElse(blockNumberMappingStorage.get(appStateStorage.getBestBlockNumber()))
       .map(hash => BestBranch(hash, number))
       .getOrElse(EmptyBranch)
   }

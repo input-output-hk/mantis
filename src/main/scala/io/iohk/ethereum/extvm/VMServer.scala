@@ -151,7 +151,10 @@ class VMServer(messageHandler: MessageHandler) extends Logger {
       world = world,
       initialAddressesToDelete = Set(),
       evmConfig = vmConfig,
-      originalWorld = world
+      originalWorld = world,
+      // TODO ETCM-1202 use access list from CallContext
+      warmAddresses = Set.empty,
+      warmStorage = Set.empty
     )
   }
 

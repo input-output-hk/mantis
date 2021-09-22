@@ -141,7 +141,9 @@ trait TestSetup extends SecureRandomBuilder with EphemBlockchainTestSetup {
     logs = logs,
     internalTxs = Nil,
     gasRefund = gasRefund,
-    error = error
+    error = error,
+    Set.empty,
+    Set.empty
   )
 
   sealed trait Changes

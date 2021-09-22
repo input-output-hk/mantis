@@ -2,6 +2,7 @@ package io.iohk.ethereum.vm
 
 import akka.util.ByteString
 
+import io.iohk.ethereum.domain.AccessListItem
 import io.iohk.ethereum.domain.Address
 import io.iohk.ethereum.domain.TxLogEntry
 import io.iohk.ethereum.domain.UInt256
@@ -23,8 +24,8 @@ object ProgramState {
       accessedAddresses = PrecompiledContracts.getContracts(context).keySet ++ Set(
         context.originAddr,
         context.recipientAddr.getOrElse(context.callerAddr)
-      ),
-      accessedStorageKeys = Set.empty
+      ) ++ context.warmAddresses,
+      accessedStorageKeys = context.warmStorage
     )
 }
 
@@ -141,6 +142,12 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
   def addAccessedStorageKey(addr: Address, storageKey: BigInt): ProgramState[W, S] =
     copy(accessedStorageKeys = accessedStorageKeys + ((addr, storageKey)))
 
+  def addAccessedAddresses(addresses: Set[Address]): ProgramState[W, S] =
+    copy(accessedAddresses = accessedAddresses ++ addresses)
+
+  def addAccessedStorageKeys(storageKeys: Set[(Address, BigInt)]): ProgramState[W, S] =
+    copy(accessedStorageKeys = accessedStorageKeys ++ storageKeys)
+
   def toResult: ProgramResult[W, S] =
     ProgramResult[W, S](
       returnData,
@@ -150,6 +157,8 @@ case class ProgramState[W <: WorldStateProxy[W, S], S <: Storage[S]](
       logs,
       internalTxs,
       gasRefund,
-      error
+      error,
+      accessedAddresses,
+      accessedStorageKeys
     )
 }

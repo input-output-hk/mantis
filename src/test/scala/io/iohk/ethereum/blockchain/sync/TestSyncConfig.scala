@@ -14,6 +14,7 @@ trait TestSyncConfig extends SyncConfigBuilder {
     blacklistDuration = 5.seconds,
     criticalBlacklistDuration = 10.seconds,
     syncRetryInterval = 1.second,
+    syncSwitchDelay = 0.5.second,
     checkForNewBlockInterval = 1.milli,
     startRetryInterval = 500.milliseconds,
     blockChainOnlyPeersPoolSize = 100,
@@ -46,7 +47,6 @@ trait TestSyncConfig extends SyncConfigBuilder {
     pivotBlockReScheduleInterval = 1.second,
     maxPivotBlockAge = 96,
     fastSyncMaxBatchRetries = 3,
-    pivotBlockNumberResetDelta = 50,
     maxPivotBlockFailuresCount = 3
   )
 

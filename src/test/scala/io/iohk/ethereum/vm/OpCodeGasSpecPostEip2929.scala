@@ -298,7 +298,9 @@ trait OpCodeGasSpecPostEip2929 extends AnyFunSuite with OpCodeTesting with Match
         world = defaultWorld,
         initialAddressesToDelete = Set(),
         evmConfig = config,
-        originalWorld = defaultWorld
+        originalWorld = defaultWorld,
+        warmAddresses = Set.empty,
+        warmStorage = Set.empty
       )
 
       val env = ExecEnv(context, ByteString(Hex.decode(code)), context.originAddr)

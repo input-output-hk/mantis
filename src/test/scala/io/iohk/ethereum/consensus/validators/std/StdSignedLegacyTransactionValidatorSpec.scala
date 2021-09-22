@@ -200,7 +200,7 @@ class StdSignedLegacyTransactionValidatorSpec extends AnyFlatSpec with Matchers 
   it should "report as invalid a tx with too low gas limit for intrinsic gas" in {
     val txIntrinsicGas = EvmConfig
       .forBlock(blockHeaderAfterHomestead.number, blockchainConfig)
-      .calcTransactionIntrinsicGas(txAfterHomestead.payload, txAfterHomestead.isContractInit)
+      .calcTransactionIntrinsicGas(txAfterHomestead.payload, txAfterHomestead.isContractInit, Nil)
     val txWithInvalidGasLimit = txAfterHomestead.copy(gasLimit = txIntrinsicGas / 2)
     val signedTxWithInvalidGasLimit = signedTxAfterHomestead.copy(tx = txWithInvalidGasLimit)
     validateStx(signedTxWithInvalidGasLimit, fromBeforeHomestead = false) match {

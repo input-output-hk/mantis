@@ -107,7 +107,9 @@ object PrecompiledContracts {
         Nil,
         Nil,
         0,
-        error
+        error,
+        Set.empty,
+        Set.empty
       )
     }
   }

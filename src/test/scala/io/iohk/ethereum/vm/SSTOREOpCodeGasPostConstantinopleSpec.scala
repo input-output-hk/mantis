@@ -131,7 +131,9 @@ trait TestSetup {
       world = world,
       initialAddressesToDelete = Set(),
       evmConfig = eipToCheck.config,
-      originalWorld = world
+      originalWorld = world,
+      warmAddresses = Set.empty,
+      warmStorage = Set.empty
     )
 
   def prepareProgramState(

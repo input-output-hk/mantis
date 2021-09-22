@@ -120,7 +120,9 @@ object Generators extends ObjectGenerators {
         world = world,
         initialAddressesToDelete = Set(),
         evmConfig = evmConfig,
-        originalWorld = world
+        originalWorld = world,
+        warmAddresses = Set.empty,
+        warmStorage = Set.empty
       )
 
       env = ExecEnv(context, code, ownerAddr)

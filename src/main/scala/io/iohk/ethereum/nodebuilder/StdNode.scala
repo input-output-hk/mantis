@@ -100,15 +100,16 @@ abstract class BaseNode extends Node {
     if (jsonRpcConfig.ipcServerConfig.enabled) jsonRpcIpcServer.run()
 
   def startPeriodicDBConsistencyCheck(): Unit =
-    ActorSystem(
-      PeriodicConsistencyCheck.start(
-        storagesInstance.storages.appStateStorage,
-        storagesInstance.storages.blockNumberMappingStorage,
-        storagesInstance.storages.blockHeadersStorage,
-        shutdown
-      ),
-      "PeriodicDBConsistencyCheck"
-    )
+    if (Config.Db.periodicConsistencyCheck)
+      ActorSystem(
+        PeriodicConsistencyCheck.start(
+          storagesInstance.storages.appStateStorage,
+          storagesInstance.storages.blockNumberMappingStorage,
+          storagesInstance.storages.blockHeadersStorage,
+          shutdown
+        ),
+        "PeriodicDBConsistencyCheck"
+      )
 
   override def shutdown: () => Unit = () => {
     def tryAndLogFailure(f: () => Any): Unit = Try(f()) match {
