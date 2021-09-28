@@ -125,7 +125,6 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       Nil,
       resultMsg.gasRefund,
       if (resultMsg.error) Some(OutOfGas) else None,
-      // FIXME handle accessed addresses and storage in extVM
       accessedResultTuple._1,
       accessedResultTuple._2
     )
