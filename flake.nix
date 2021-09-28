@@ -3,7 +3,7 @@
 
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.nixpkgs.url =
-    "github:nixos/nixpkgs?rev=a98302aa9b9628915878a6ea9776c40a0bb02950";
+    "github:nixos/nixpkgs?rev=98747f27ecfee70c8c97b195cbb94df80a074dda";
   inputs.sbt-derivation.url = "github:zaninime/sbt-derivation";
 
   outputs = { self, nixpkgs, flake-utils, sbt-derivation
@@ -49,10 +49,11 @@
       defaultApp = apps.mantis;
     }) // (collectHydraSets
       (map (name: mkHydraSet [ name ] [ "x86_64-linux" ]) [
+        "jre_minimal"
         "jdk8"
-        "lllc"
+        # "lllc"
         "mantis"
-        "mantis-entrypoint"
+        # "mantis-entrypoint"
         "netcat-gnu"
         "retesteth"
         "sbt"
