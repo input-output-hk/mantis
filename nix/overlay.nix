@@ -14,7 +14,7 @@ rev: final: prev: {
   # ourselves instead.
   mantis-extvm-pb = builtins.fetchGit {
     url = "https://github.com/input-output-hk/mantis-extvm-pb";
-    rev = "8f52caba70afc95ce669e9d61f773468db54557e";
+    rev = "ae19e1fd9d3c0deba63c894be128d67e9519fe1f";
   };
 
   writeBashChecked = final.writers.makeScriptWriter {

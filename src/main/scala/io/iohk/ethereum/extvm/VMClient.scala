@@ -105,6 +105,17 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       resultMsg: msg.CallResult
   ): ProgramResult[W, S] = {
     val updatedWorld = applyAccountChanges[W, S](world, resultMsg)
+
+    val accessedResultTuple = resultMsg.accessList
+      .map { accessList =>
+        val addresses: Set[Address] = accessList.addresses.map(a => a: Address).toSet
+        val locations: Set[(Address, BigInt)] = accessList.storageLocations.map { loc =>
+          (loc.address: Address, loc.storageLocation: BigInt)
+        }.toSet
+        (addresses, locations)
+      }
+      .getOrElse((Set.empty[Address], Set.empty[(Address, BigInt)]))
+
     ProgramResult(
       resultMsg.returnData,
       resultMsg.gasRemaining,
@@ -115,8 +126,8 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       resultMsg.gasRefund,
       if (resultMsg.error) Some(OutOfGas) else None,
       // FIXME handle accessed addresses and storage in extVM
-      Set.empty,
-      Set.empty
+      accessedResultTuple._1,
+      accessedResultTuple._2
     )
   }
 
@@ -155,6 +166,23 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       case _             => Config.Empty
     }
 
+    val txType =
+      if (ctx.warmAddresses.isEmpty && ctx.warmStorage.isEmpty) msg.CallContext.TxType.LEGACY
+      else msg.CallContext.TxType.ACCESSLIST
+
+    val extraData = txType match {
+      case msg.CallContext.TxType.LEGACY => msg.CallContext.ExtraData.Empty
+      case msg.CallContext.TxType.ACCESSLIST =>
+        msg.CallContext.ExtraData.AccessList(
+          msg
+            .AccessListData()
+            .withAddresses(ctx.warmAddresses.toSeq.map(_.bytes))
+            .withStorageLocations(
+              ctx.warmStorage.toSeq.map(x => msg.StorageEntry(address = x._1, storageLocation = x._2))
+            )
+        )
+    }
+
     msg.CallContext(
       callerAddr = ctx.callerAddr,
       recipientAddr = ctx.recipientAddr.map(_.bytes).getOrElse(ByteString.empty): ByteString,
@@ -163,7 +191,9 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       gasPrice = ctx.gasPrice,
       gasProvided = ctx.startGas,
       blockHeader = Some(blockHeader),
-      config = config
+      config = config,
+      txType = txType,
+      extraData = extraData
     )
   }
 
@@ -178,6 +208,7 @@ class VMClient(externalVmConfig: VmConfig.ExternalConfig, messageHandler: Messag
       constantinopleBlockNumber = blockchainConfig.constantinopleBlockNumber,
       petersburgBlockNumber = blockchainConfig.petersburgBlockNumber,
       istanbulBlockNumber = blockchainConfig.istanbulBlockNumber,
+      berlinBlockNumber = blockchainConfig.berlinBlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.map(bigintToGByteString).getOrElse(ByteString()),
       accountStartNonce = blockchainConfig.accountStartNonce,
       chainId = ByteString(blockchainConfig.chainId)
