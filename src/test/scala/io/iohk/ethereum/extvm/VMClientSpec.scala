@@ -170,6 +170,7 @@ class VMClientSpec extends AnyFlatSpec with Matchers with MockFactory {
       constantinopleBlockNumber = forkBlockNumbers.constantinopleBlockNumber,
       petersburgBlockNumber = forkBlockNumbers.petersburgBlockNumber,
       istanbulBlockNumber = forkBlockNumbers.istanbulBlockNumber,
+      berlinBlockNumber = forkBlockNumbers.berlinBlockNumber,
       maxCodeSize = blockchainConfig.maxCodeSize.get,
       accountStartNonce = blockchainConfig.accountStartNonce,
       chainId = ByteString(blockchainConfig.chainId)
