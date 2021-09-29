@@ -1,5 +1,3 @@
-{ system ? builtins.currentSystem
-, src ? ./.
-, pkgs ? (import ./nix { inherit system src; }).pkgs
-}:
-pkgs.mantis
+let system = builtins.currentSystem;
+in
+(import ./nix/compat.nix { src = ./.; inherit system; }).defaultNix.defaultPackage.${system}
