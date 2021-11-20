@@ -5,11 +5,12 @@
   inputs.nixpkgs.url =
     "github:nixos/nixpkgs?rev=a98302aa9b9628915878a6ea9776c40a0bb02950";
   inputs.sbt-derivation.url = "github:zaninime/sbt-derivation";
+  inputs.kevm.url = "github:input-output-hk/kevm.flake";
 
-  outputs = { self, nixpkgs, flake-utils, sbt-derivation
+  outputs = { self, nixpkgs, flake-utils, sbt-derivation, kevm
     }: # , libsonic, libsonic-jnr }:
     let
-      overlay = import ./nix/overlay.nix self.rev;
+      overlay = nixpkgs.lib.composeManyExtensions [ (import ./nix/overlay.nix) kevm.overlay];
       pkgsForSystem = system:
         (import nixpkgs) {
           inherit system;

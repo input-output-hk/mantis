@@ -1,4 +1,4 @@
-rev: final: prev: {
+final: prev: {
   jre = prev.jdk8.jre;
 
   mantis = final.callPackage ./mantis.nix {
@@ -29,7 +29,7 @@ rev: final: prev: {
   mantis-entrypoint-script = final.writeBashBinChecked "mantis-entrypoint" ''
     export PATH=${
       final.lib.makeBinPath
-      (with final; [ coreutils restic gnugrep awscli diffutils mantis procps ])
+      (with final; [ coreutils restic gnugrep awscli diffutils mantis procps kevm ])
     }
 
     ${builtins.readFile ./entrypoint.sh}
