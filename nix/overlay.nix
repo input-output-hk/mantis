@@ -32,6 +32,8 @@ final: prev: {
       (with final; [ coreutils restic gnugrep awscli diffutils mantis procps kevm ])
     }
 
+    export LD_LIBRARY_PATH=${final.lib.makeLibraryPath [ final.glibc ]}
+
     ${builtins.readFile ./entrypoint.sh}
   '';
 
