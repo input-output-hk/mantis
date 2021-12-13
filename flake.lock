@@ -129,6 +129,21 @@
         "type": "github"
       }
     },
+    "flake-utils_4": {
+      "locked": {
+        "lastModified": 1605370193,
+        "narHash": "sha256-YyMTf3URDL/otKdKgtoMChu4vfVL3vCMkRqpGifhUn0=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "5021eac20303a61fafe17224c087f5519baed54d",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "ghc-8.6.5-iohk": {
       "flake": false,
       "locked": {
@@ -297,6 +312,25 @@
         "type": "github"
       }
     },
+    "mantis-faucet-web": {
+      "inputs": {
+        "flake-utils": "flake-utils_4",
+        "nixpkgs": "nixpkgs_2"
+      },
+      "locked": {
+        "lastModified": 1614341313,
+        "narHash": "sha256-xu2wOsgQLedyyR/E0zn81SIe5t188D08/q+6LTMYG3k=",
+        "owner": "input-output-hk",
+        "repo": "mantis-faucet-web",
+        "rev": "9da14f10408254597d6a709723b21d5f52f42de2",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "mantis-faucet-web",
+        "type": "github"
+      }
+    },
     "mavenix": {
       "flake": false,
       "locked": {
@@ -409,6 +443,20 @@
     },
     "nixpkgs_2": {
       "locked": {
+        "lastModified": 1606940130,
+        "narHash": "sha256-feZRQOfUWLfTuYUTEUxGadrS0QksS+TLHOx7kz8vgIY=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "1176af94d32008050a447dd1c1a2c8c459aa9dcb",
+        "type": "github"
+      },
+      "original": {
+        "id": "nixpkgs",
+        "type": "indirect"
+      }
+    },
+    "nixpkgs_3": {
+      "locked": {
         "lastModified": 1610118011,
         "narHash": "sha256-a17vwGBOqmAsy/Wkvf10ygDyfgjJpvlPyNnf7SAk+Ac=",
         "owner": "nixos",
@@ -445,7 +493,8 @@
         "flake-utils": "flake-utils",
         "kevm": "kevm",
         "mantis-explorer": "mantis-explorer",
-        "nixpkgs": "nixpkgs_2",
+        "mantis-faucet-web": "mantis-faucet-web",
+        "nixpkgs": "nixpkgs_3",
         "sbt-derivation": "sbt-derivation"
       }
     },

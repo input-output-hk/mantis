@@ -26,6 +26,18 @@ inputs: final: prev: {
 
   writeBashBinChecked = name: final.writeBashChecked "/bin/${name}";
   
+  makeFaucet = name:
+    (final.callPackage ./pkgs/nginx.nix {
+      package =
+        inputs.mantis-faucet-web.defaultPackage.${final.system}.overrideAttrs
+        (old: {
+          MANTIS_VM = prev.lib.toUpper name;
+          FAUCET_NODE_URL =
+            "https://faucet-${prev.lib.toLower name}.portal.dev.cardano.org";
+        });
+      target = "/mantis-faucet";
+    });
+  
   makeExplorer = MANTIS_VM:
     (prev.callPackage ./pkgs/nginx.nix {
       package =
@@ -35,6 +47,7 @@ inputs: final: prev: {
     });
 
   mantis-explorer-kevm = final.makeExplorer "KEVM";
+  mantis-faucet-web-kevm = final.makeFaucet "KEVM";
 
   mantis-entrypoint-script = final.writeBashBinChecked "mantis-entrypoint" ''
     export PATH=${

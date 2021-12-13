@@ -7,6 +7,7 @@
   inputs.sbt-derivation.url = "github:zaninime/sbt-derivation";
   inputs.kevm.url = "github:input-output-hk/kevm.flake/v1.0.1-fc35db2";
   inputs.mantis-explorer.url = "github:input-output-hk/mantis-explorer";
+  inputs.mantis-faucet-web.url = "github:input-output-hk/mantis-faucet-web";
 
   outputs = inputs@{ self, nixpkgs, flake-utils, sbt-derivation, kevm, ...
     }: # , libsonic, libsonic-jnr }:
