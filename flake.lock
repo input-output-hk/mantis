@@ -114,6 +114,21 @@
         "type": "github"
       }
     },
+    "flake-utils_3": {
+      "locked": {
+        "lastModified": 1601282935,
+        "narHash": "sha256-WQAFV6sGGQxrRs3a+/Yj9xUYvhTpukQJIcMbIi7LCJ4=",
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "rev": "588973065fce51f4763287f0fda87a174d78bf48",
+        "type": "github"
+      },
+      "original": {
+        "owner": "numtide",
+        "repo": "flake-utils",
+        "type": "github"
+      }
+    },
     "ghc-8.6.5-iohk": {
       "flake": false,
       "locked": {
@@ -263,6 +278,25 @@
         "type": "github"
       }
     },
+    "mantis-explorer": {
+      "inputs": {
+        "flake-utils": "flake-utils_3",
+        "nixpkgs": "nixpkgs"
+      },
+      "locked": {
+        "lastModified": 1617886902,
+        "narHash": "sha256-uxfD0AADx7AWwc/7l/tfh6kYI+TGcTMN7QWqi56aKCY=",
+        "owner": "input-output-hk",
+        "repo": "mantis-explorer",
+        "rev": "59c3f62b1a39acd12df2acba80d8c3183db2d643",
+        "type": "github"
+      },
+      "original": {
+        "owner": "input-output-hk",
+        "repo": "mantis-explorer",
+        "type": "github"
+      }
+    },
     "mavenix": {
       "flake": false,
       "locked": {
@@ -297,18 +331,16 @@
     },
     "nixpkgs": {
       "locked": {
-        "lastModified": 1610118011,
-        "narHash": "sha256-a17vwGBOqmAsy/Wkvf10ygDyfgjJpvlPyNnf7SAk+Ac=",
-        "owner": "nixos",
+        "lastModified": 1603802751,
+        "narHash": "sha256-K3CeF3CYy7LCu0J1NnSdo77oVIkcwf0cXDAA/HFjP58=",
+        "owner": "NixOS",
         "repo": "nixpkgs",
-        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "rev": "8a1fdce8d3482b60ac13678a8eab838777b51549",
         "type": "github"
       },
       "original": {
-        "owner": "nixos",
-        "repo": "nixpkgs",
-        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
-        "type": "github"
+        "id": "nixpkgs",
+        "type": "indirect"
       }
     },
     "nixpkgs-2003": {
@@ -375,6 +407,22 @@
         "type": "github"
       }
     },
+    "nixpkgs_2": {
+      "locked": {
+        "lastModified": 1610118011,
+        "narHash": "sha256-a17vwGBOqmAsy/Wkvf10ygDyfgjJpvlPyNnf7SAk+Ac=",
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "type": "github"
+      },
+      "original": {
+        "owner": "nixos",
+        "repo": "nixpkgs",
+        "rev": "a98302aa9b9628915878a6ea9776c40a0bb02950",
+        "type": "github"
+      }
+    },
     "old-ghc-nix": {
       "flake": false,
       "locked": {
@@ -396,7 +444,8 @@
       "inputs": {
         "flake-utils": "flake-utils",
         "kevm": "kevm",
-        "nixpkgs": "nixpkgs",
+        "mantis-explorer": "mantis-explorer",
+        "nixpkgs": "nixpkgs_2",
         "sbt-derivation": "sbt-derivation"
       }
     },

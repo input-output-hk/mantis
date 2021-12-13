@@ -25,6 +25,16 @@ inputs: final: prev: {
   };
 
   writeBashBinChecked = name: final.writeBashChecked "/bin/${name}";
+  
+  makeExplorer = MANTIS_VM:
+    (prev.callPackage ./pkgs/nginx.nix {
+      package =
+        inputs.mantis-explorer.defaultPackage.${final.system}.overrideAttrs
+        (old: { inherit MANTIS_VM; });
+      target = "/mantis-explorer";
+    });
+
+  mantis-explorer-kevm = final.makeExplorer "KEVM";
 
   mantis-entrypoint-script = final.writeBashBinChecked "mantis-entrypoint" ''
     export PATH=${
