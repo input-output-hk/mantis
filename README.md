@@ -1,20 +1,12 @@
 # Mantis
 
-Ethereum-like Blockchain Scala client built by IOHK's Team Grothendieck.
+Ethereum-like Blockchain Scala client built by IOHK's for Ethereum Classic (ETC) network
 
-### Status - Release
+### Status - NOT maintained
 
-For continuous integration we're using:
-- [Buildkite](https://buildkite.com/input-output-hk/mantis) to run all the Scala build steps [![Build status](https://badge.buildkite.com/8a284e6f0af90afa544e06c8136b519f9f287f005ca581d8ed.svg?branch=master&theme=github)](https://buildkite.com/input-output-hk/mantis)
-- [Hydra](https://hydra.mantis.ist/project/mantis) to test that the Nix build steps work and run each of the Ops test suites.
+The lastest ETC hard-fork supported by the client is Magneto hard-fork (https://ecips.ethereumclassic.org/ECIPs/ecip-1103)
 
 You can check the latest build results of the current branch by clicking the status icon in the header of the Github file browser.
-
-Unit Test Code Coverage Status - TBD
-
-### Docs - FIXME: Update docs!
-
-For more details on configuration and functionality check out our [website](https://docs.mantisclient.io/first-steps/getting-started) and [documentation](https://docs.mantisclient.io/first-steps/getting-started)
 
 ### Download the client
 
