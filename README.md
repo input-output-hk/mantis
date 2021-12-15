@@ -4,7 +4,7 @@ Ethereum-like Blockchain Scala client built by IOHK's for Ethereum Classic (ETC)
 
 ### Status - Not maintained
 
-The lastest ETC hard-fork supported by the client is Magneto hard-fork (https://ecips.ethereumclassic.org/ECIPs/ecip-1103)
+The lastest ETC hard-fork supported by the client is [Magneto hard-fork](https://ecips.ethereumclassic.org/ECIPs/ecip-1103)
 
 You can check the latest build results of the current branch by clicking the status icon in the header of the Github file browser.
 
